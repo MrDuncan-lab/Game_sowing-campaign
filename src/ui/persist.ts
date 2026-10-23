@@ -1,0 +1,253 @@
+import { repairOpenOffers } from '../engine/game';
+// Saves: one profile shared by every farm (glory, certificates, pets, the seed bank, records) and one slot per farm.
+import type { CropId, LocationId, PetId } from '../engine/data';
+import { CARDS, CROPS, LOCATION_IDS, ORGS, PETS, SEED_BANK_OK, TERRAIN, TRACKS, TRAITS, WORKERS } from '../engine/data';
+import type { GameState } from '../engine/game';
+import { newGame } from '../engine/game';
+import { EPISODES } from '../engine/calendar';
+import { canWriteSession, managedSaveSession, saveSession } from './saveSession';
+
+const PROFILE = 'posevnaya.v4.profile';
+const FARM = (loc: LocationId) => `posevnaya.v4.farm.${loc}`;
+const observed = new Map<string, string | null>();
+const liveKeys = [PROFILE, ...LOCATION_IDS.map(FARM), 'posevnaya.tutorial.atlas.v3', 'posevnaya.tutorial.active'];
+
+// Called only after acquiring exclusive ownership, before loading any UI state.
+export function resetPersistenceSession() {
+  observed.clear();
+  issues.clear();
+  invalid.clear();
+  for (const key of liveKeys) {
+    try { observed.set(key, localStorage.getItem(key)); } catch { /* read() reports unavailable storage */ }
+  }
+}
+export function checkSaveSession(): boolean {
+  if (!canWriteSession()) return false;
+  if (!managedSaveSession) return true;
+  try {
+    for (const [key, raw] of observed) {
+      if (localStorage.getItem(key) !== raw) { saveSession.invalidate(); return false; }
+    }
+  } catch {
+    // A storage outage must preserve in-memory play. The exclusive browser lock
+    // still protects ownership; actual writes report quota/unavailability.
+  }
+  return true;
+}
+function rememberRead(key: string, raw: string | null) {
+  if (managedSaveSession && observed.has(key) && observed.get(key) !== raw) {
+    saveSession.invalidate();
+    return false;
+  }
+  observed.set(key, raw);
+  return true;
+}
+// Tutorial saves use the same ownership and snapshot fence as farm/profile.
+export function writeSessionStorage(key: string, value: string | null): boolean {
+  if (!checkSaveSession()) return false;
+  try {
+    if (value === null) localStorage.removeItem(key);
+    else localStorage.setItem(key, value);
+    observed.set(key, value);
+    issue(`${key}:write`);
+    return true;
+  } catch {
+    issue(`${key}:write`, 'Обучение не сохранено: запись недоступна или недостаточно места. Повторите действие после освобождения места.');
+    return false;
+  }
+}
+
+export interface FarmRecord { loc: LocationId; years: number; glory: number; reason: string; at: number; runId?: string; seed?: string }
+export interface Profile {
+  v: 1;
+  glory: number;
+  applied: string[];
+  pets: PetId[];
+  certs: { name: string; loc: LocationId; year: number }[];
+  seedBank: CropId[];
+  best: { years: number; money: number; harvest: number };
+  history: FarmRecord[];
+  settings: { fast: boolean; intro: boolean; guide?: boolean };
+}
+export const emptyProfile = (): Profile => ({
+  v: 1, glory: 0, applied: [], pets: [], certs: [], seedBank: [], best: { years: 0, money: 0, harvest: 0 }, history: [], settings: { fast: false, intro: false },
+});
+
+// Never delete a live slot before its replacement is safely written. A failed
+// backup/write leaves the original slot in place and remains visible to the UI.
+const issues = new Map<string, string>();
+const invalid = new Set<string>();
+const listeners = new Set<() => void>();
+export const persistenceStatus = () => [...issues.values()].join(' ');
+export const subscribePersistence = (fn: () => void) => { listeners.add(fn); return () => { listeners.delete(fn); }; };
+function issue(key: string, message?: string) {
+  if (message) issues.set(key, message); else issues.delete(key);
+  for (const fn of listeners) fn();
+}
+const label = (key: string) => key === PROFILE ? 'Профиль' : 'Ферма';
+const obj = (v: unknown): v is Record<string, any> => !!v && typeof v === 'object' && !Array.isArray(v);
+const num = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
+const arr = (v: unknown, valid: (v: any) => boolean): v is any[] => Array.isArray(v) && v.every(valid);
+const member = (table: object, v: unknown) => typeof v === 'string' && Object.hasOwn(table, v);
+const loc = (v: unknown): v is LocationId => LOCATION_IDS.includes(v as LocationId);
+function read<T>(key: string, valid: (v: unknown) => v is T): T | null {
+  const notice = `${key}:read`;
+  try {
+    const raw = localStorage.getItem(key);
+    if (!rememberRead(key, raw)) return null;
+    if (raw === null) { invalid.delete(key); issue(notice); return null; }
+    let value: unknown;
+    try { value = JSON.parse(raw); } catch { /* try the last complete snapshot */ }
+    if (valid(value)) { invalid.delete(key); issue(notice); return value; }
+    const backup = localStorage.getItem(`${key}.backup`);
+    let recovered: unknown;
+    try { recovered = backup === null ? null : JSON.parse(backup); } catch { /* keep both original strings */ }
+    if (valid(recovered)) {
+      invalid.delete(key);
+      issue(notice, `${label(key)}: повреждено сохранение, загружена резервная копия. Нажмите «Сохранить», чтобы восстановить основной слот.`);
+      return recovered;
+    }
+    invalid.add(key);
+    issue(notice, `${label(key)}: сохранение повреждено. Данные сохранены; замена требует подтверждения.`);
+    return null;
+  } catch {
+    issue(notice, `${label(key)}: хранилище недоступно. Прогресс остаётся в этой вкладке; повторите сохранение.`);
+    return null;
+  }
+}
+function write<T>(key: string, value: T, valid: (v: unknown) => v is T, replaceInvalid = false): boolean {
+  if (!checkSaveSession()) return false;
+  try {
+    if (!valid(value)) throw new Error('Invalid state');
+    const old = localStorage.getItem(key);
+    if (old !== null) {
+      let previous: unknown;
+      try { previous = JSON.parse(old); } catch { /* preserve malformed input */ }
+      if (valid(previous)) {
+        if (replaceInvalid) localStorage.setItem(`${key}.previous`, old);
+        localStorage.setItem(`${key}.backup`, old);
+      }
+      else {
+        const backup = localStorage.getItem(`${key}.backup`);
+        let recovered: unknown;
+        try { recovered = backup === null ? null : JSON.parse(backup); } catch { /* no valid backup */ }
+        if (!replaceInvalid && !valid(recovered)) {
+          issue(`${key}:write`, `${label(key)}: повреждённые данные сохранены. Подтвердите восстановление для замены.`);
+          return false;
+        }
+        localStorage.setItem(`${key}.recovery`, old);
+      }
+    }
+    const raw = JSON.stringify(value);
+    localStorage.setItem(key, raw);
+    observed.set(key, raw);
+    invalid.delete(key);
+    issue(`${key}:read`);
+    issue(`${key}:write`);
+    return true;
+  } catch {
+    issue(`${key}:write`, `${label(key)} не сохранён: запись недоступна или недостаточно места. Прогресс остаётся в этой вкладке; повторите сохранение.`);
+    return false;
+  }
+}
+
+function validProfile(v: unknown): v is Profile {
+  return obj(v) && v.v === 1 && num(v.glory) && v.glory >= 0 && arr(v.applied, (x) => typeof x === 'string')
+    && arr(v.pets, (x) => member(PETS, x)) && arr(v.certs, (x) => obj(x) && typeof x.name === 'string' && loc(x.loc) && num(x.year))
+    && arr(v.seedBank, (x) => member(CROPS, x)) && obj(v.best) && ['years', 'money', 'harvest'].every((k) => num(v.best[k]))
+    && arr(v.history, (x) => obj(x) && loc(x.loc) && ['years', 'glory', 'at'].every((k) => num(x[k])) && typeof x.reason === 'string')
+    && obj(v.settings) && typeof v.settings.fast === 'boolean' && typeof v.settings.intro === 'boolean' && (v.settings.guide === undefined || typeof v.settings.guide === 'boolean');
+}
+
+// Match every mandatory scalar/object against an engine-created state. Empty
+// collections and nullable values need their own element schemas below.
+function shape(v: unknown, template: unknown): boolean {
+  if (template === null || Array.isArray(template)) return true;
+  if (typeof template === 'number') return num(v);
+  if (obj(template)) return obj(v) && Object.keys(template).every((k) => shape(v[k], template[k]));
+  return typeof v === typeof template;
+}
+const templates = new Map<LocationId, GameState>();
+const points = (v: unknown) => arr(v, (x) => Array.isArray(x) && x.length === 2 && x.every(Number.isInteger));
+const coords = (v: unknown) => arr(v, (x) => Array.isArray(x) && x.length === 2 && x.every((n) => Number.isInteger(n) && n >= 0 && n < 6));
+const card = (v: any) => obj(v) && Number.isInteger(v.uid) && member(CARDS, v.def) && (v.extra === undefined || points(v.extra)) && (v.traits === undefined || arr(v.traits, (t) => member(TRAITS, t)));
+const lot = (v: any) => obj(v) && member(CROPS, v.crop) && num(v.qty) && v.qty >= 0 && num(v.age);
+const quest = (v: any) => v === null || obj(v) && (v.createdWeek === undefined || Number.isInteger(v.createdWeek) && v.createdWeek >= 0) && member(ORGS, v.org) && ['id', 'step', 'pay', 'rel', 'weeks'].every((k) => num(v[k])) && typeof v.title === 'string' && typeof v.text === 'string' && arr(v.lines, (x) => obj(x) && member(CROPS, x.crop) && num(x.qty));
+export function validFarm(v: unknown): v is GameState {
+  if (!obj(v) || v.v !== 5 || !loc(v.loc) || typeof v.seed !== 'string' || !v.seed || !['week', 'shortfall', 'gameover'].includes(v.phase)) return false;
+  if (!templates.has(v.loc)) templates.set(v.loc, newGame({ loc: v.loc, seed: 'validation' }));
+  const base = templates.get(v.loc)!;
+  if(v.guide!==undefined && !arr(v.guide,x=>typeof x==='string' && ['plant','rotate','water','harvest','sale','payment','order','delivery','soil'].includes(x))) return false;
+  if(['compostReady','shortfallBorrowed'].some(k=>v[k]!==undefined && typeof v[k]!=='boolean')) return false;
+  if(v.exchangeWeek!==undefined && (!Number.isInteger(v.exchangeWeek) || v.exchangeWeek<0)) return false;
+  if(v.scenes!==undefined && !arr(v.scenes,e=>obj(e) && typeof e.id==='string' && Number.isInteger(e.week) && e.week>=0 && (e.at===undefined||coords([e.at])) && (e.visit===undefined || obj(e.visit) && ['stolen','empty'].includes(e.visit.outcome) && coords(e.visit.targets) && coords(e.visit.crows)) && ['dogThieves','thieves','watchman','drone','geese'].includes(e.kind))) return false;
+
+  if (!shape(v, base) || !Number.isInteger(v.season) || v.season < 0 || v.season > 3 || v.year < 1 || v.week < 0 || v.week > base.temps.length || v.absWeek < 0) return false;
+  if (!Array.isArray(v.tiles) || v.tiles.length !== 36 || !v.tiles.every((t: any) => shape(t, base.tiles[0]) && (t.greenhousePlacedWeek===undefined || Number.isInteger(t.greenhousePlacedWeek) && t.greenhousePlacedWeek>=0 && t.greenhousePlacedWeek<=v.absWeek) && member(TERRAIN, t.terrain) && (t.last === null || member(CROPS, t.last)) && [null, 'greenhouse', 'hive'].includes(t.structure) && (t.crop === null || obj(t.crop) && member(CROPS, t.crop.id) && ['grown', 'bonus', 'mult', 'planted', 'pid'].every((k) => num(t.crop[k])) && (t.crop.traits === undefined || arr(t.crop.traits, (x) => member(TRAITS, x)))))) return false;
+  if (!['draw', 'hand', 'discard', 'spare'].every((k) => arr(v[k], card)) || !['storage', 'yard'].every((k) => arr(v[k], lot))) return false;
+  if (!arr(v.pets, (x) => member(PETS, x)) || !arr(v.certs, (x) => typeof x === 'string') || !['unlocked', 'harvestedKinds'].every((k) => arr(v[k], (x) => member(CROPS, x)))) return false;
+  if (!obj(v.levels) || !Object.entries(v.levels).every(([k, n]) => member(TRACKS, k) && Number.isInteger(n) && (n as number) >= (k === 'house' ? 1 : 0) && (n as number) <= TRACKS[k as keyof typeof TRACKS].levels.length) || !coords(v.guards) || !coords(v.scarecrows)) return false;
+  if (!arr(v.team, (x) => obj(x) && member(WORKERS, x.id) && Number.isInteger(x.level) && x.level >= 1 && x.level <= WORKERS[x.id as keyof typeof WORKERS].levels.length && Number.isInteger(x.away) && x.away >= 0) || !['candidates', 'freeHire'].every((k) => arr(v[k], (x) => member(WORKERS, x)))) return false;
+  if (!obj(v.orgs) || !Object.entries(v.orgs).every(([k, x]) => member(ORGS, k) && obj(x) && ['rel', 'step', 'wait', 'idle', 'lastMischief'].every((n) => num(x[n])) && quest(x.offer) && quest(x.active))) return false;
+  if (!arr(v.projects, (x) => obj(x) && num(x.weeks) && num(x.total) && (x.kind === 'track' ? member(TRACKS, x.track) && Number.isInteger(x.level) && x.level >= 1 && x.level <= TRACKS[x.track as keyof typeof TRACKS].levels.length : x.kind === 'cell' ? card(x.card) && points([x.cell]) : x.kind === 'trait' ? card(x.card) && member(TRAITS, x.trait) : x.kind === 'variety' ? member(CROPS, x.crop) : x.kind === 'train' ? member(WORKERS, x.worker) : x.kind === 'bio'))) return false;
+  if (!arr(v.plan, (x) => obj(x) && member(EPISODES, x.kind) && ['id', 'start', 'len'].every((k) => num(x[k]))) || !arr(v.temps, num) || v.temps.length !== base.temps.length) return false;
+  if (!arr(v.loans, (x) => obj(x) && ['id', 'principal', 'rate'].every((k) => num(x[k]))) || !arr(v.effects, (x) => obj(x) && x.kind === 'review' && num(x.mult) && num(x.weeks))) return false;
+  if (!arr(v.strikes, (x) => obj(x) && ['hail', 'flood', 'beetle', 'locust', 'weedsurge'].includes(x.kind) && num(x.ep) && num(x.week) && typeof x.zone === 'boolean' && arr(x.cells, (c) => Array.isArray(c) && c.length === 3 && c.every(num)))) return false;
+  if (!(v.crows === null || obj(v.crows) && num(v.crows.week) && typeof v.crows.shoo === 'boolean' && typeof v.crows.drone === 'boolean' && arr(v.crows.targets, (x) => obj(x) && ['x', 'y', 'pid'].every((k) => num(x[k])) && ['young', 'ripe'].includes(x.type)))) return false;
+  if (!(v.thieves === null || obj(v.thieves) && num(v.thieves.week) && typeof v.thieves.talked === 'boolean' && arr(v.thieves.targets, (x) => obj(x) && ['x', 'y', 'pid'].every((k) => num(x[k]))))) return false;
+  const report = (x: unknown) => obj(x) && (x.pestHits===undefined || arr(x.pestHits,h=>obj(h)&&['locust','beetle'].includes(h.kind)&&coords([[h.x,h.y]])&&num(h.lost)&&h.lost>=0&&obj(h.plant)&&member(CROPS,h.plant.id)&&['grown','bonus','mult','planted','pid'].every(k=>num(h.plant[k]))&&(h.after===undefined||h.after===null||obj(h.after)&&member(CROPS,h.after.id)&&['grown','bonus','mult','planted','pid'].every(k=>num(h.after[k]))))) && shape(x, base.report) && arr(x.harvests, (h) => obj(h) && member(CROPS, h.crop) && ['qty', 'x', 'y'].every((k) => num(h[k]))) && arr(x.lost, (s) => typeof s === 'string') && arr(x.done, (s) => typeof s === 'string') && arr(x.costs, (c) => obj(c) && typeof c.label === 'string' && num(c.amount));
+  return report(v.report) && (v.lastReport === null || report(v.lastReport))
+    && arr(v.feed, (x) => obj(x) && num(x.week) && typeof x.text === 'string' && ['good', 'bad', 'info'].includes(x.tone))
+    && arr(v.rewardsOut, (x) => obj(x) && typeof x.id === 'string' && (x.kind === 'glory' ? num(x.value) && x.value >= 0 : x.kind === 'pet' ? member(PETS, x.value) : x.kind === 'seed' ? member(CROPS, x.value) : x.kind === 'cert' && typeof x.value === 'string'))
+    && (v.over === null || obj(v.over) && typeof v.over.reason === 'string') && (v.due === null || obj(v.due) && num(v.due.amount) && typeof v.due.name === 'string')
+    && (v.phase !== 'gameover' || v.over !== null) && (v.phase !== 'shortfall' || v.due !== null);
+}
+
+export function loadProfile(): Profile {
+  return read(PROFILE, validProfile) ?? emptyProfile();
+}
+export const saveProfile = (p: Profile, replaceInvalid = false) => write(PROFILE, p, validProfile, replaceInvalid);
+export const profileRecoveryRequired = () => invalid.has(PROFILE);
+
+export function loadFarm(loc: LocationId): GameState | null {
+  return read(FARM(loc), (v): v is GameState => validFarm(v) && v.loc === loc);
+}
+export const saveFarm = (s: GameState, replaceInvalid = false) => write(FARM(s.loc), s, validFarm, replaceInvalid);
+export function hasFarmData(loc: LocationId): boolean {
+  try { return localStorage.getItem(FARM(loc)) !== null; } catch { return true; }
+}
+export function syncFarm(p: Profile, s: GameState): GameState {
+  const unlocked = [...new Set([...s.unlocked, ...p.seedBank.filter((c) => SEED_BANK_OK[c]?.includes(s.loc))])];
+  const pets = [...new Set([...s.pets, ...p.pets])];
+  return repairOpenOffers(unlocked.length === s.unlocked.length && pets.length === s.pets.length ? s : { ...s, unlocked, pets });
+}
+export const allFarms = (): Partial<Record<LocationId, GameState>> =>
+  Object.fromEntries(LOCATION_IDS.map((l) => [l, loadFarm(l)]).filter(([, s]) => s)) as Partial<Record<LocationId, GameState>>;
+
+// what the farm earned for the profile, applied exactly once by the reward's id
+export function syncProfile(p: Profile, s: GameState): Profile {
+  const done = new Set(p.applied);
+  let changed = false;
+  const next: Profile = { ...p, applied: [...p.applied], pets: [...p.pets], certs: [...p.certs], seedBank: [...p.seedBank], best: { ...p.best } };
+  for (const r of s.rewardsOut) {
+    if (done.has(r.id)) continue;
+    done.add(r.id);
+    next.applied.push(r.id);
+    changed = true;
+    if (r.kind === 'glory') next.glory += Number(r.value) || 0;
+    if (r.kind === 'pet' && !next.pets.includes(r.value as PetId)) next.pets.push(r.value as PetId);
+    if (r.kind === 'cert' && !next.certs.some((c) => c.name === r.value)) next.certs.push({ name: String(r.value), loc: s.loc, year: s.year });
+    if (r.kind === 'seed' && !next.seedBank.includes(r.value as CropId)) next.seedBank.push(r.value as CropId);
+  }
+  if (s.money > next.best.money) (next.best.money = Math.round(s.money)), (changed = true);
+  if (s.yearsCompleted > next.best.years) (next.best.years = s.yearsCompleted), (changed = true);
+  if (s.stats.harvested > next.best.harvest) (next.best.harvest = s.stats.harvested), (changed = true);
+  return changed ? next : p;
+}
+export const farmRunId = (s: GameState) => `${s.loc}|${s.seed}`;
+export function recordEnd(p: Profile, s: GameState, reason = s.over?.reason ?? 'Перезапуск'): Profile {
+  const runId = farmRunId(s);
+  if (p.history.some((h) => h.runId === runId)) return p;
+  const rec: FarmRecord = { loc: s.loc, seed: s.seed, runId, years: s.yearsCompleted, glory: s.glory, reason, at: Date.now() };
+  return { ...p, history: [rec, ...p.history].slice(0, 12) };
+}

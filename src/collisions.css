@@ -1,0 +1,205 @@
+/* ============ the week's troubles meeting on one bed (ui/collisions.ts, art/collisions.tsx) ============ */
+.say-word { font-family: var(--ui); font-weight: 800; font-size: 15px; fill: #3f2a1d; stroke: #fff8e6; stroke-width: 4px; paint-order: stroke; stroke-linejoin: round; }
+.say { transform-box: fill-box; transform-origin: 50% 100%; }
+
+/* ---- the week before a raid: two heads behind a bush in the yard ---- */
+.scouts { cursor: pointer; }
+.scouts:focus-visible { outline: none; }
+.scouts:focus-visible .sk-bush path:first-child { stroke-width: 3; }
+.scouting-kids .sk-kid { transform-box: view-box; animation: sk-rise 7s ease-in-out infinite; }
+.scouting-kids .sk-b { animation-delay: .45s; }
+@keyframes sk-rise { 0%, 8% { transform: translateY(14px); } 15%, 50% { transform: translateY(-7px); } 58%, 100% { transform: translateY(14px); } }
+.scouting-kids .sk-eyes { animation: sk-look 7s ease-in-out infinite; }
+.scouting-kids .sk-b .sk-eyes { animation-delay: .45s; }
+@keyframes sk-look { 0%, 16% { transform: none; } 20%, 28% { transform: translateX(-2px); } 32%, 44% { transform: translateX(1.6px); } 48%, 100% { transform: none; } }
+.scouting-kids .sk-arm { opacity: 0; animation: sk-point 7s ease-in-out infinite; }
+@keyframes sk-point { 0%, 19% { opacity: 0; } 22%, 44% { opacity: 1; } 47%, 100% { opacity: 0; } }
+.scouting-kids .sk-b { transform-origin: 13px -31px; }
+.scouting-kids .sk-b > circle:first-child { animation: none; }
+.scouting-kids .sk-bush { transform-box: view-box; transform-origin: 0 0; animation: sk-rustle 7s ease-in-out infinite; }
+@keyframes sk-rustle { 0%, 8%, 15%, 54%, 64%, 100% { transform: none; } 10%, 57% { transform: skewX(-4deg); } 12%, 60% { transform: skewX(3deg); } }
+@media (prefers-reduced-motion: reduce) { .scouting-kids .sk-kid, .scouting-kids .sk-eyes, .scouting-kids .sk-bush { animation: none; } .scouting-kids .sk-kid { transform: translateY(-3px); } .scouting-kids .sk-arm { animation: none; opacity: 1; } }
+
+/* ---- four different children: own delay, own lane, own gait ---- */
+.kid-k0 { --kd: 0s; } .kid-k1 { --kd: .15s; } .kid-k2 { --kd: .3s; } .kid-k3 { --kd: .45s; }
+.event-thieves .chase-person.kid-k2 { --lead: -64px; --low: 38px; }
+.event-thieves .chase-person.kid-k3 { --lead: -16px; --low: -30px; }
+.event-thieves .chase-person.steal.kid-k2, .event-thieves .chase-person.steal.kid-k3,
+.event-thieves .kid-k2 .kid-sneak, .event-thieves .kid-k3 .kid-sneak, .event-thieves .kid-k2 .kid-run, .event-thieves .kid-k3 .kid-run,
+.event-thieves .kid-k2 .kid-crouch, .event-thieves .kid-k3 .kid-crouch,
+.event-thieves .kid-k2 .mood-shoo .runner-arm, .event-thieves .kid-k3 .mood-shoo .runner-arm { animation-delay: var(--kd); }
+/* little Сёмка trots, tall Витёк strides */
+.event-thieves .kid-k2 .runner-leg, .event-thieves .kid-k2 .runner-body { animation-duration: .3s; }
+.event-thieves .kid-k2 .kid-sneak .runner-leg, .event-thieves .kid-k2 .kid-sneak .runner-body { animation-duration: .34s; }
+.event-thieves .kid-k3 .kid-sneak .runner-leg, .event-thieves .kid-k3 .kid-sneak .runner-body { animation-duration: .64s; }
+/* Витёк is the lookout: on the way in he glances back over his shoulder */
+.event-thieves .kid-k3 .kid-sneak .kid-head { transform-box: view-box; transform-origin: 2px -48px; animation: kid-lookout 5s ease-in-out var(--kd) both; }
+@keyframes kid-lookout { 0%, 9% { transform: none; } 11%, 19% { transform: scaleX(-1); } 21%, 100% { transform: none; } }
+/* Галя in the dogs' and the watchman's chases keeps her own look; nothing else changes there */
+
+/* ---- a beetle on the chewed plant: flicked off before the plant is pulled ---- */
+.bug-bed .kf-fly { transform-box: view-box; transform-origin: 0 0; animation: kid-flick 5s ease-out var(--kd) both; }
+@keyframes kid-flick {
+  0%, 29% { opacity: 1; transform: rotate(-20deg); }
+  31% { transform: translate(-4px, -6px) rotate(-60deg); }
+  37% { opacity: 1; transform: translate(-30px, -36px) rotate(280deg); }
+  43% { opacity: 1; transform: translate(-48px, -4px) rotate(470deg); }
+  46%, 100% { opacity: 0; transform: translate(-52px, 0) rotate(480deg); }
+}
+.bug-bed .bt-legs, .bug-miss .bt-legs { transform-box: fill-box; transform-origin: center; animation: bm-legs .18s linear infinite alternate; }
+@keyframes bm-legs { from { transform: scaleX(.9); } to { transform: scaleX(1.08); } }
+.event-thieves .kid-say { opacity: 0; animation: say-a 5s ease-out var(--kd) both; }
+
+/* ---- children at a bed something else had emptied ---- */
+.event-thieves .chase-person.miss { animation: kid-miss-route 5s both; animation-delay: var(--kd); }
+@keyframes kid-miss-route {
+  0% { opacity: 0; transform: translate(-40px, calc(var(--steal-y) - 14px)); animation-timing-function: cubic-bezier(.3, .2, .5, 1); }
+  5% { opacity: 1; }
+  24%, 50% { opacity: 1; transform: translate(var(--steal-x), var(--steal-y)); animation-timing-function: ease-in; }
+  100% { opacity: 1; transform: translate(-40px, calc(var(--steal-y) + 14px)); }
+}
+.miss .kid-flip { animation: kid-flip 5s step-end var(--kd) both; }
+@keyframes kid-flip { 0% { transform: none; } 50%, 100% { transform: scaleX(-1); } }
+.miss .kid-walk { animation: kid-l-walk 5s step-end var(--kd) both; }
+.miss .kid-react { opacity: 0; animation: kid-l-react 5s step-end var(--kd) both; }
+.miss .kid-back { opacity: 0; animation: kid-l-back 5s step-end var(--kd) both; }
+@keyframes kid-l-walk { 0% { opacity: 1; } 26%, 100% { opacity: 0; } }
+@keyframes kid-l-react { 0% { opacity: 0; } 26% { opacity: 1; } 50%, 100% { opacity: 0; } }
+@keyframes kid-l-back { 0% { opacity: 0; } 50%, 100% { opacity: 1; } }
+.miss .kid-react .runner-leg, .miss .kid-react .runner-body { animation: none; }
+.miss .shrug-left, .miss .shrug-right, .miss .kid-back .runner-body, .miss .kid-back .runner-leg { animation-delay: var(--kd); }
+.miss .kid-back .shrug-left, .miss .kid-back .shrug-right { animation: none; transform: rotate(var(--rest-arm)); }
+.kid-bed .bed-left { animation: kid-bed-left 5s ease var(--kd) both; }
+@keyframes kid-bed-left { 0% { opacity: 0; } 6%, 64% { opacity: 1; } 76%, 100% { opacity: 0; } }
+/* Remains belong to the bed, from impact until the week's final reveal.
+   Later visitors do not mount a second copy or make the first one disappear. */
+.bed-aftermath .bed-left { animation: none; opacity: 1; }
+.bed-aftermath.kid-bed.cause-dry .bl-stalk { animation-duration: var(--reaction-dur); }
+.bed-aftermath.spent .bl-stalk { animation: none; opacity: 0; }
+.bl-sparkle path { transform-box: fill-box; transform-origin: center; animation: bl-twinkle 1.1s ease-in-out infinite alternate; }
+.bl-sparkle path + path { animation-delay: -.5s; }
+@keyframes bl-twinkle { from { transform: scale(.5); opacity: .5; } to { transform: scale(1.15); opacity: 1; } }
+
+/* frost: the bed is a sheet of ice — «Брр!», breath steaming, he hugs himself and shivers */
+.cause-frost .kid-react .little-runner { animation: kid-shiver .11s linear infinite; }
+@keyframes kid-shiver { 0%, 100% { transform: translateX(-1px); } 50% { transform: translateX(1px); } }
+.kid-breath .kb { opacity: 0; transform-box: fill-box; transform-origin: center; animation: kid-breath 5s ease-out var(--kd) both; }
+.kid-breath .b1 { animation-delay: calc(var(--kd) + .12s); } .kid-breath .b2 { animation-delay: calc(var(--kd) + .24s); }
+@keyframes kid-breath {
+  0%, 29% { opacity: 0; transform: scale(.3); }
+  31% { opacity: .95; transform: scale(.6); }
+  36% { opacity: 0; transform: translate(6px, -6px) scale(1.3); }
+  38% { opacity: .9; transform: scale(.6); }
+  43% { opacity: 0; transform: translate(6px, -6px) scale(1.3); }
+  44%, 100% { opacity: 0; }
+}
+/* drought: he reaches for the dry stalk, it crumbles to dust — «Апчхи!» */
+.cause-dry .kid-react .little-runner { transform-box: view-box; transform-origin: 0 0; animation: kid-sneeze 5s ease-in-out var(--kd) both; }
+@keyframes kid-sneeze { 0%, 26% { transform: none; } 32% { transform: rotate(13deg); } 36% { transform: rotate(10deg); } 38.5% { transform: rotate(-9deg) translateY(-2px); } 41% { transform: rotate(3deg); } 44%, 100% { transform: none; } }
+.kid-bed.cause-dry .bl-stalk { transform-box: fill-box; transform-origin: 50% 100%; animation: stalk-crumble 5s ease-in var(--kd) both; }
+@keyframes stalk-crumble { 0%, 32% { transform: none; opacity: 1; } 35% { transform: scaleY(.55) rotate(-12deg); opacity: 1; } 39%, 100% { transform: scaleY(.1) rotate(-20deg); opacity: 0; } }
+.kid-dust .kd { opacity: 0; transform-box: fill-box; transform-origin: center; animation: kid-dust 5s ease-out var(--kd) both; }
+.kid-dust .d1 { animation-delay: calc(var(--kd) + .08s); } .kid-dust .d2 { animation-delay: calc(var(--kd) + .16s); } .kid-dust .d3 { animation-delay: calc(var(--kd) + .05s); }
+@keyframes kid-dust { 0%, 35% { opacity: 0; transform: scale(.3); } 38% { opacity: .9; } 50%, 100% { opacity: 0; transform: translate(9px, -7px) scale(1.6); } }
+.cause-dry .kid-say { animation-name: say-b; }
+/* locust: the last grasshopper on the gnawed bed jumps right at him — «Ай!» */
+.kid-locust .kl-hop { transform-box: view-box; transform-origin: 0 0; animation: kid-locust 5s linear var(--kd) both; }
+@keyframes kid-locust {
+  0%, 29% { opacity: 1; transform: none; }
+  31% { transform: translate(-18px, -30px); }
+  33.5% { transform: translate(-32px, -40px); }
+  36% { transform: translate(-44px, -62px); }
+  44%, 100% { opacity: 0; transform: translate(-80px, -120px); }
+}
+.cause-locust .kid-react .little-runner { animation: kid-jump 5s ease-out var(--kd) both; }
+@keyframes kid-jump { 0%, 32% { transform: none; } 34% { transform: translateY(-10px); } 37% { transform: translateY(0); } 39% { transform: translateY(-3px); } 41%, 100% { transform: none; } }
+.cause-locust .kid-say { animation-name: say-c; }
+
+/* ---- the morning: crows that came for a plant something else had already taken ---- */
+.morning .bed-left { animation: m-bed-left var(--m-dur) ease var(--d) both; }
+@keyframes m-bed-left { 0% { opacity: 0; } 8%, 84% { opacity: 1; } 100% { opacity: 0; } }
+.m-crowmiss .mc-in, .m-crowmiss .mc-stand, .m-crowmiss .mc-out { opacity: 0; }
+.m-crowmiss .mc-in { animation: mc-in var(--m-dur) linear var(--d) both; }
+.m-crowmiss .mc-stand { animation: mc-stand var(--m-dur) linear var(--d) both; }
+.m-crowmiss .mc-out { animation: mc-out var(--m-dur) linear var(--d) both; }
+.morning.m-crowmiss .m-cell .crow-bird .cr-body { animation: cmiss-body var(--m-dur) ease-in-out var(--d) both; }
+.morning.m-crowmiss .m-cell .crow-bird .cr-head { animation: cmiss-head var(--m-dur) ease-in-out var(--d) both; }
+.morning.m-crowmiss .m-cell .crow-bird .cr-leg { animation: none; }
+@keyframes cmiss-body { 0%, 14% { transform: rotate(0); } 18% { transform: rotate(15deg); } 21% { transform: rotate(3deg); } 25% { transform: rotate(16deg); } 28% { transform: rotate(2deg); } 32% { transform: rotate(14deg); } 36%, 100% { transform: rotate(0); } }
+@keyframes cmiss-head { 0%, 14% { transform: rotate(0); } 18% { transform: rotate(28deg); } 21% { transform: rotate(6deg); } 25% { transform: rotate(30deg); } 28% { transform: rotate(6deg); } 32% { transform: rotate(26deg); } 36% { transform: rotate(0); } 40%, 54% { transform: rotate(-24deg); } 58%, 100% { transform: rotate(0); } }
+/* frost: lands on the ice and skids */
+.cm-frost .cm-skid { transform-box: view-box; transform-origin: 0 0; animation: cm-skid var(--m-dur) ease-out var(--d) both; }
+@keyframes cm-skid { 0%, 12% { transform: none; } 15% { transform: translateX(5px) rotate(-9deg); } 18% { transform: translateX(9px) rotate(6deg); } 21% { transform: translateX(10px) rotate(-3deg); } 24%, 56% { transform: translateX(10px); } 61%, 100% { transform: none; } }
+.cm-scratch { opacity: 0; animation: cm-scratch var(--m-dur) var(--d) both; }
+@keyframes cm-scratch { 0%, 13% { opacity: 0; } 16% { opacity: 1; } 60% { opacity: .8; } 70%, 100% { opacity: 0; } }
+/* drought: every peck raises dust */
+.cm-dust circle { opacity: 0; transform-box: fill-box; transform-origin: center; animation: cm-dust var(--m-dur) ease-out var(--d) both; }
+.cm-dust circle + circle { animation-delay: calc(var(--d) + 160ms); }
+@keyframes cm-dust { 0%, 17% { opacity: 0; transform: scale(.4); } 20% { opacity: .85; } 36% { opacity: .5; transform: scale(1.5) translateY(-4px); } 44%, 100% { opacity: 0; transform: scale(1.8) translateY(-8px); } }
+/* locust: the plant is gone, but a grasshopper is left — and the crow gets that */
+.cm-hopper { animation: cm-hopper var(--m-dur) linear var(--d) both; }
+@keyframes cm-hopper { 0%, 18% { opacity: 1; transform: translate(66px, 64px) scale(1.3); } 21% { transform: translate(60px, 56px) scale(1.3); } 24% { opacity: 1; transform: translate(56px, 62px) scale(1.3); } 25.5%, 100% { opacity: 0; transform: translate(56px, 62px) scale(.2); } }
+.m-crowmiss .cm-say { opacity: 0; animation: say-m var(--m-dur) ease-out var(--d) both; }
+.m-crowmiss .cm-locust .cm-say { animation-name: say-e; }
+/* crows on a chewed plant: the beetle on it goes first */
+.crow-snack .cs-bug { transform-box: view-box; transform-origin: 0 0; animation: cs-bug var(--m-dur) linear var(--d) both; }
+@keyframes cs-bug { 0%, 21% { opacity: 1; transform: none; } 23% { opacity: 1; transform: translate(-2px, -4px) scale(.7); } 24.5%, 100% { opacity: 0; transform: scale(0); } }
+.crow-snack .cs-say { opacity: 0; animation: say-e var(--m-dur) ease-out var(--d) both; }
+
+/* ---- the morning: beetles or locusts sent to a bed the weather had already taken ---- */
+.bug-miss .bm-go { opacity: 0; transform-box: view-box; animation: bm-crawl var(--m-dur) ease-in-out var(--d) both; }
+.bug-miss .bm-go.b1 { animation-delay: calc(var(--d) + 120ms); } .bug-miss .bm-go.b2 { animation-delay: calc(var(--d) + 240ms); }
+@keyframes bm-crawl { 0% { opacity: 0; transform: translate(-40px, 4px); } 8% { opacity: 1; } 32%, 60% { opacity: 1; transform: none; } 100% { opacity: 0; transform: translate(-50px, 8px); } }
+.bug-miss .bm-act { transform-box: view-box; transform-origin: 0 0; animation: bm-sniff var(--m-dur) ease-in-out var(--d) both; }
+.bug-miss .b1 .bm-act { animation-delay: calc(var(--d) + 120ms); } .bug-miss .b2 .bm-act { animation-delay: calc(var(--d) + 240ms); }
+@keyframes bm-sniff { 0%, 32% { transform: none; } 36% { transform: rotate(14deg); } 40% { transform: rotate(-12deg); } 44% { transform: rotate(12deg); } 48% { transform: rotate(-6deg); } 52%, 58% { transform: none; } 63%, 100% { transform: rotate(180deg); } }
+.bm-frost .bm-act { animation-name: bm-skate; }
+@keyframes bm-skate { 0%, 32% { transform: none; } 38% { transform: translate(5px, 1px) rotate(140deg); } 46% { transform: translate(9px, 3px) rotate(290deg); } 54%, 59% { transform: translate(10px, 4px) rotate(360deg); } 64%, 100% { transform: translate(10px, 4px) rotate(540deg); } }
+.bug-miss.bm-locust .bm-go { animation-name: bm-hop; }
+@keyframes bm-hop {
+  0% { opacity: 0; transform: translate(-50px, -12px); } 6% { opacity: 1; } 12% { transform: translate(-32px, -28px); } 18% { transform: translate(-20px, 0); }
+  24% { transform: translate(-10px, -14px); } 30%, 62% { opacity: 1; transform: none; } 70% { transform: translate(14px, -26px); } 78% { transform: translate(30px, -10px); }
+  88% { opacity: .8; transform: translate(48px, -34px); } 100% { opacity: 0; transform: translate(72px, -52px); }
+}
+.bug-miss.bm-locust .bm-act { animation-name: bm-twitch; }
+.bug-miss.bm-locust.bm-frost .bm-act { animation-name: bm-twitch, none; }
+.bug-miss .bm-go, .bug-miss .bm-act { animation-duration: calc(var(--m-dur) - 240ms); }
+@keyframes bm-twitch { 0%, 32%, 40%, 48%, 100% { transform: none; } 36%, 44% { transform: translateY(-2px) rotate(-6deg); } }
+.bug-miss .bm-say { opacity: 0; animation: say-n var(--m-dur) ease-out var(--d) both; }
+@keyframes say-a {
+  0%, 29% { opacity: 0; transform: translateY(4px) scale(.6); }
+  32% { opacity: 1; transform: translateY(-2px) scale(1.08); }
+  34%, 43% { opacity: 1; transform: none; }
+  46%, 100% { opacity: 0; transform: translateY(-6px); }
+}
+@keyframes say-b {
+  0%, 37% { opacity: 0; transform: translateY(4px) scale(.6); }
+  40% { opacity: 1; transform: translateY(-2px) scale(1.08); }
+  42%, 49% { opacity: 1; transform: none; }
+  52%, 100% { opacity: 0; transform: translateY(-6px); }
+}
+@keyframes say-c {
+  0%, 31% { opacity: 0; transform: translateY(4px) scale(.6); }
+  34% { opacity: 1; transform: translateY(-2px) scale(1.08); }
+  36%, 43% { opacity: 1; transform: none; }
+  46%, 100% { opacity: 0; transform: translateY(-6px); }
+}
+@keyframes say-m {
+  0%, 39% { opacity: 0; transform: translateY(4px) scale(.6); }
+  42% { opacity: 1; transform: translateY(-2px) scale(1.08); }
+  44%, 55% { opacity: 1; transform: none; }
+  58%, 100% { opacity: 0; transform: translateY(-6px); }
+}
+@keyframes say-e {
+  0%, 25% { opacity: 0; transform: translateY(4px) scale(.6); }
+  28% { opacity: 1; transform: translateY(-2px) scale(1.08); }
+  30%, 39% { opacity: 1; transform: none; }
+  42%, 100% { opacity: 0; transform: translateY(-6px); }
+}
+@keyframes say-n {
+  0%, 35% { opacity: 0; transform: translateY(4px) scale(.6); }
+  38% { opacity: 1; transform: translateY(-2px) scale(1.08); }
+  40%, 55% { opacity: 1; transform: none; }
+  58%, 100% { opacity: 0; transform: translateY(-6px); }
+}
+.morning .say-word { font-size: 16px; }

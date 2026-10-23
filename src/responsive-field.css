@@ -1,0 +1,11 @@
+/* Side instruments remain beside the field at every portrait size. Equal outer
+   gutters include the instruments; the scene itself is never stretched. */
+.field-view .field-wrap {container-type:size;padding:4px 6px 2px;display:flex;align-items:flex-start;justify-content:center;}
+.field-row {--side:44px;--gap:4px;--fh:min(100cqh,calc((100cqw - var(--side) - var(--gap))/var(--arn)));display:grid;grid-template-columns:minmax(0,1fr) var(--side);gap:var(--gap);height:var(--fh);width:calc(var(--fh)*var(--arn) + var(--side) + var(--gap));max-width:100%;flex:none;}
+.field-stage{height:100%;width:100%;aspect-ratio:var(--arn);min-width:0;}
+.field-side{width:44px;display:flex;flex-direction:column;justify-content:space-between;gap:8px;}
+.field-side .field-tools{display:flex;flex-direction:column;gap:8px;}
+.field-side .weather-instrument{width:44px;max-height:170px;min-height:0;}
+.instrument-alert{font-family:var(--ui);font-size:10px;line-height:1.1;color:#a03a20;font-weight:700;}
+.field-side .tool-btn{width:44px;height:44px;min-width:44px;min-height:44px;}
+@media (max-height:640px){.field-side .field-tools{gap:4px}.field-side{gap:4px}}

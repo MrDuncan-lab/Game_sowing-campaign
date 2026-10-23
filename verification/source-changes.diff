@@ -1,0 +1,453 @@
+--- before/src/animation-polish.css
++++ after/src/animation-polish.css
+@@ -17,9 +17,9 @@
+ .roaming-animal .pose-act .goat-head,
+ .roaming-animal .pose-act .hh-body { animation-duration: var(--pose-duration); animation-iteration-count: 1; animation-fill-mode: both; }
+ 
+-/* A stagger is part of the allotted morning, not extra time after it. All
+-   affected beds finish before FieldView advances the shared morning clock. */
+-.morning .m-cell { --m-span: calc(var(--m-dur) - var(--d) - 60ms); }
++/* The queue already adds the last bed's stagger. Each bed keeps the same
++   action duration, so its impact meets the same gesture, even on the last bed. */
++.morning .m-cell { --m-span: calc(var(--m-dur) - 60ms); }
+ .morning .mc-in, .morning .mc-stand, .morning .mc-out,
+ .morning .m-rime, .morning .m-rimeedge, .morning .m-heat,
+ .morning .m-hailstreaks, .morning .m-water, .morning .m-step { animation-duration: var(--m-span); }
+@@ -32,8 +32,8 @@
+ 
+ /* Settle the last pose before returning the resident animal to its saved
+    route. The queue has a 200ms tail after its five-second action. */
+-.event-scene { animation: scene-settle 5.2s linear both; }
+-@keyframes scene-settle { 0%, 96.15% { opacity: 1; } 100% { opacity: 0; } }
++.event-scene { animation: scene-settle var(--scene-ms, 5.2s) linear both; }
++@keyframes scene-settle { 0%, 99% { opacity: 1; } 100% { opacity: 0; } }
+ 
+ @media (prefers-reduced-motion: reduce) {
+   .event-scene { animation: none; }
+--- before/src/art/pestDamage.tsx
++++ after/src/art/pestDamage.tsx
+@@ -1,6 +1,7 @@
+ import {useId} from 'preact/hooks';
+ import {CropSprite,cropStage} from './crops';
+ import {Locusts} from './locusts';
++import {Beetles} from './beetles';
+ import type {PestHit,Plant} from '../engine/game';
+ export function NibbledPlant({plant,stage,hit}:{plant:Plant;stage:number;hit?:PestHit}){
+  const mask=`nibble-${useId().replace(/[^a-zA-Z0-9_-]/g,'')}`;
+@@ -10,6 +11,6 @@
+    {(destroy?[[22,28,25],[68,22,26],[85,55,25],[49,48,25],[25,65,29],[67,77,30],[48,90,34]]:[[30,35,7],[63,27,8],[72,54,9],[38,63,6]]).map(([x,y,r],i)=><circle key={i} class={hit?'bite-hole':''} cx={x} cy={y} r={r} fill="black" style={{'--bite-delay':`${i*(destroy?190:170)}ms`}}/>)}
+   </mask></defs>
+   <g class={destroy?'eaten-crop':''} mask={`url(#${mask})`}><CropSprite id={plant.id} stage={stage}/></g>
+-  {hit&&<><g class="leaf-crumbs" fill="#799145"><path d="M28 42 l6 -2 -2 6Z M63 53 l7 1 -4 5Z M40 71 l5 -4 2 6Z"/></g>{destroy&&<Locusts/>}<text x="50" y="16" text-anchor="middle" class="pest-loss">−{hit.lost}</text></>}
++  {hit&&<><g class="leaf-crumbs" fill="#799145"><path d="M28 42 l6 -2 -2 6Z M63 53 l7 1 -4 5Z M40 71 l5 -4 2 6Z"/></g>{destroy?<Locusts/>:<Beetles/>}<text x="50" y="16" text-anchor="middle" class="pest-loss">−{hit.lost}</text></>}
+  </g>;
+ }
+--- before/src/collisions.css
++++ after/src/collisions.css
+@@ -71,6 +71,11 @@
+ .miss .kid-back .shrug-left, .miss .kid-back .shrug-right { animation: none; transform: rotate(var(--rest-arm)); }
+ .kid-bed .bed-left { animation: kid-bed-left 5s ease var(--kd) both; }
+ @keyframes kid-bed-left { 0% { opacity: 0; } 6%, 64% { opacity: 1; } 76%, 100% { opacity: 0; } }
++/* Remains belong to the bed, from impact until the week's final reveal.
++   Later visitors do not mount a second copy or make the first one disappear. */
++.bed-aftermath .bed-left { animation: none; opacity: 1; }
++.bed-aftermath.kid-bed.cause-dry .bl-stalk { animation-duration: var(--reaction-dur); }
++.bed-aftermath.spent .bl-stalk { animation: none; opacity: 0; }
+ .bl-sparkle path { transform-box: fill-box; transform-origin: center; animation: bl-twinkle 1.1s ease-in-out infinite alternate; }
+ .bl-sparkle path + path { animation-delay: -.5s; }
+ @keyframes bl-twinkle { from { transform: scale(.5); opacity: .5; } to { transform: scale(1.15); opacity: 1; } }
+@@ -158,6 +163,7 @@
+ }
+ .bug-miss.bm-locust .bm-act { animation-name: bm-twitch; }
+ .bug-miss.bm-locust.bm-frost .bm-act { animation-name: bm-twitch, none; }
++.bug-miss .bm-go, .bug-miss .bm-act { animation-duration: calc(var(--m-dur) - 240ms); }
+ @keyframes bm-twitch { 0%, 32%, 40%, 48%, 100% { transform: none; } 36%, 44% { transform: translateY(-2px) rotate(-6deg); } }
+ .bug-miss .bm-say { opacity: 0; animation: say-n var(--m-dur) ease-out var(--d) both; }
+ @keyframes say-a {
+--- before/src/theme.css
++++ after/src/theme.css
+@@ -168,15 +168,15 @@
+ .m-frost .m-rime, .m-frost .m-hoar, .m-frost .m-rimeedge { opacity: 0; animation: m-rime var(--m-dur) ease-out var(--d) both; }
+ .m-frost .m-hoar { animation-delay: calc(var(--d) + 200ms); }
+ @keyframes m-rime { 0% { opacity: 0 } 34%, 72% { opacity: 1 } 100% { opacity: 0 } }
+-.scene-svg .m-plant-frost { animation: mp-frost 1.5s ease-in both; }
+-@keyframes mp-frost { 0% { filter: none } 60%, 100% { filter: saturate(.15) brightness(1.45) } }
++.scene-svg .m-plant-frost { animation: mp-frost var(--weather-impact, 1.5s) ease-in var(--weather-delay, 0s) both; }
++@keyframes mp-frost { 0% { filter: none; opacity: 1 } 60% { filter: saturate(.15) brightness(1.45); opacity: 1 } 100% { filter: saturate(.15) brightness(1.45); opacity: 0 } }
+ 
+ .m-crack { stroke-dasharray: 64; stroke-dashoffset: 64; animation: m-crack 1.4s ease-out var(--d) both; }
+ @keyframes m-crack { to { stroke-dashoffset: 0 } }
+ .m-heat { opacity: 0; animation: m-heat var(--m-dur) ease-in-out var(--d) both; }
+ @keyframes m-heat { 0% { opacity: 0 } 30%, 60% { opacity: 1 } 100% { opacity: 0 } }
+-.scene-svg .m-plant-dry { animation: mp-dry 1.5s ease-in both; }
+-@keyframes mp-dry { to { transform: rotate(9deg) scale(.96, .8); filter: sepia(.9) saturate(.55) brightness(.9) } }
++.scene-svg .m-plant-dry { animation: mp-dry var(--weather-impact, 1.5s) ease-in var(--weather-delay, 0s) both; }
++@keyframes mp-dry { 0% { opacity: 1 } 65% { transform: rotate(9deg) scale(.96, .8); filter: sepia(.9) saturate(.55) brightness(.9); opacity: 1 } 100% { transform: rotate(12deg) scale(.96, .65); filter: sepia(1) saturate(.3); opacity: 0 } }
+ 
+ .m-hailstreaks { animation: m-hail-end var(--m-dur) linear var(--d) both; }
+ .m-streak { animation: m-streak .34s linear infinite; }
+@@ -184,14 +184,14 @@
+ @keyframes m-hail-end { 0%, 62% { opacity: 1 } 72%, 100% { opacity: 0 } }
+ .m-pellet { opacity: 0; animation: m-pellet var(--m-dur) ease-out both; }
+ @keyframes m-pellet { 0% { opacity: 0 } 8% { opacity: .95 } 70% { opacity: .9 } 100% { opacity: 0 } }
+-.scene-svg .m-plant-hail { animation: mp-shake .16s linear 10; }
++.scene-svg .m-plant-hail { animation: mp-shake .16s linear var(--weather-delay, 0s) 10; }
+ @keyframes mp-shake { 0%, 100% { transform: none } 50% { transform: translateX(.8px) rotate(1.2deg) } }
+ 
+ .m-water { transform-box: fill-box; transform-origin: 50% 100%; animation: m-water var(--m-dur) ease-in-out var(--d) both; }
+ @keyframes m-water { 0% { transform: scaleY(0); opacity: .9 } 40%, 72% { transform: scaleY(1); opacity: 1 } 100% { transform: scaleY(1); opacity: 0 } }
+ .m-wave { animation: m-wave 1s linear infinite, m-rime var(--m-dur) ease-out var(--d) both; }
+ @keyframes m-wave { from { transform: translateX(-6px) } to { transform: translateX(6px) } }
+-.scene-svg .m-plant-flood { animation: mp-shake .34s ease-in-out 5; }
++.scene-svg .m-plant-flood { animation: mp-shake .34s ease-in-out var(--weather-delay, 0s) 5; }
+ 
+ .m-step { opacity: 0; animation: m-step var(--m-dur) ease-out var(--d) both; }
+ .m-step.s1 { animation-delay: calc(var(--d) + 120ms); } .m-step.s2 { animation-delay: calc(var(--d) + 240ms); } .m-step.s3 { animation-delay: calc(var(--d) + 360ms); }
+--- before/src/ui/collisions.ts
++++ after/src/ui/collisions.ts
+@@ -76,3 +76,12 @@
+ // 2 — little Сёмка in a pom-pom hat, 3 — tall Витёк in a flat cap, the lookout.
+ export const KID_DELAY_MS = [0, 150, 300, 450];
+ export const kidDelay = (i: number) => KID_DELAY_MS[i % 4];
++
++/** Native animation milliseconds, including the last child's delayed exit. */
++export function sceneDuration(cue:{kind:string;targets?:unknown[];visit?:{outcome:string;targets:unknown[]};misses?:unknown[]}):number {
++  if(cue.kind!=='thieves')return 5200;
++  const stolen=cue.visit?.outcome==='empty'?0:(cue.targets?.length??cue.visit?.targets.length??2);
++  const missed=cue.misses?.length||(cue.visit?.outcome==='empty'?(cue.targets?.length??cue.visit.targets.length):0);
++  const last=kidDelay(Math.max(0,Math.min(4,stolen+missed)-1));
++  return Math.max(5200,5000+last+100);
++}
+--- before/src/ui/FarmLife.tsx
++++ after/src/ui/FarmLife.tsx
+@@ -6,8 +6,8 @@
+ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
+ import { Animal, LifePose } from '../art/animals';
+ import { KidRunner, WatchmanRunner, KID_SCALE, type KidVariant, type KidMood } from '../art/people';
+-import { BedLeftovers, Breath, Dust, FlickedBeetle, KidLocust, Say } from '../art/collisions';
+-import type { MissCause } from './collisions';
++import { Breath, Dust, FlickedBeetle, KidLocust, Say } from '../art/collisions';
++import { kidDelay, sceneDuration, type MissCause } from './collisions';
+ import { Crow, CrowFlying } from '../art/crows';
+ import { DogRunner, Bark, DroneCraft, Beetle } from '../art/chase';
+ import { GRID } from '../engine/data';
+@@ -116,7 +116,7 @@
+   const shoo=!!cue.visit?.crows.length;
+   const thieves=steal??[null,null];
+   return <>
+-    {misses.map((m,j)=><g key={`bed-${m.x}-${m.y}`} class={`kid-bed cause-${m.cause} kid-k${(thieves.length+j)%4}`} transform={`translate(${bedX(cam,m.x)-10} ${bedY(cam,m.y)})`}><BedLeftovers cause={m.cause}/>
++    {misses.map((m,j)=><g key={`bed-${m.x}-${m.y}`} class={`kid-bed cause-${m.cause} kid-k${(thieves.length+j)%4}`} transform={`translate(${bedX(cam,m.x)-10} ${bedY(cam,m.y)})`}>
+       {m.cause==='locust'&&<g transform="translate(62 72)"><KidLocust/></g>}
+     </g>)}
+     {steal?.map((t,k)=>bugs.has(`${t[0]},${t[1]}`)&&<g key={`bug-${k}`} class={`kid-bed bug-bed kid-k${k%4}`} transform={`translate(${bedX(cam,t[0])+44} ${bedY(cam,t[1])+52})`}><FlickedBeetle/></g>)}
+@@ -154,10 +154,10 @@
+   return <g class={`farm-life${!active?' paused':''}`} pointer-events="none">
+     {s.pets.map((p)=>p==='cat'||p==='dog'?<RoamingCompanion key={p} id={p} area={area} cam={cam} px={px} interactive={interactive&&active&&!cue} paused={!active||!!cue} hidden={cue?.kind==='dogThieves'&&p==='dog'} reducedMotion={reducedMotion}/>:<RoamingAnimal key={p} id={p} cam={cam} px={px} interactive={interactive&&active&&!cue} paused={!active||!!cue} hidden={cue?.kind==='geese'&&p==='geese'} reducedMotion={reducedMotion}/>)}
+     {lvl(s,'drone')>0 && cue?.kind!=='drone' && <g class="resident-drone" style={{'--flight-x':`${Math.max(30,width-150)}px`,'--flight-y':`${cam.yard+40}px`}} transform="translate(70 34)"><g class="drone-bob"><Icon name="drone" size={34}/></g></g>}
+-    {cue&&<g ref={eventRoot} key={cue.id} class={`event-scene event-${cue.kind}${cue.visit?.outcome==='empty'?' visit-empty':''}${cue.visit?.crows.length?' visit-shoo':''}`} data-outcome={cue.visit?.outcome} aria-label={cue.kind==='dogThieves'?'Собака прогоняет воров':cue.kind==='thieves'?(cue.visit?.outcome==='empty'?'Дети разводят руками и уходят':cue.visit?.crows.length?'Дети прогоняют ворон и забирают урожай':'Дети забирают урожай'):cue.kind==='watchman'?'Сторож прогоняет воров':cue.kind==='geese'?'Гуси щиплют сорняки':'Дрон защищает поле'} style={{'--scene-width':`${width}px`,'--scene-mid':`${middle}px`}}>
++    {cue&&<g ref={eventRoot} key={cue.id} class={`event-scene event-${cue.kind}${cue.visit?.outcome==='empty'?' visit-empty':''}${cue.visit?.crows.length?' visit-shoo':''}`} data-outcome={cue.visit?.outcome} aria-label={cue.kind==='dogThieves'?'Собака прогоняет воров':cue.kind==='thieves'?(cue.visit?.outcome==='empty'?'Дети разводят руками и уходят':cue.visit?.crows.length?'Дети прогоняют ворон и забирают урожай':'Дети забирают урожай'):cue.kind==='watchman'?'Сторож прогоняет воров':cue.kind==='geese'?'Гуси щиплют сорняки':'Дрон защищает поле'} style={{'--scene-width':`${width}px`,'--scene-mid':`${middle}px`,'--scene-ms':`${sceneDuration(cue)}ms`}}>
+       {cue.kind==='thieves'&&<>
+         {cue.visit?.outcome!=='empty'&&<g class="dropped-carrot"><g class="carrot-fall"><path d="M0 0 L-2.4 -11 Q0 -13 2.4 -11 Z" fill="#e07a2a" stroke="#3f2a1d" stroke-width="1.1" stroke-linejoin="round"/><path d="M0 -12 l-2 -5 M0 -12 l0 -6 M0 -12 l2 -5" stroke="#4c8e2d" stroke-width="1.6" stroke-linecap="round"/></g></g>}
+-        {cue.visit?.crows.map(([x,y],i)=><g key={`crow-${x}-${y}`} class="visit-crow" transform={`translate(${22+(x-cam.vx)*100+45} ${cam.yard+22+(y-cam.vy)*100+48})`} style={{'--bird-delay':`${(cue.targets?.findIndex(t=>t[0]===x&&t[1]===y)??i)%2*.15}s`}}>
++        {cue.visit?.crows.map(([x,y],i)=><g key={`crow-${x}-${y}`} class="visit-crow" transform={`translate(${22+(x-cam.vx)*100+45} ${cam.yard+22+(y-cam.vy)*100+48})`} style={{'--bird-delay':`${kidDelay(Math.max(0,cue.targets?.findIndex(t=>t[0]===x&&t[1]===y)??i))}ms`}}>
+           <g class="visit-crow-wait"><Crow/></g>
+           <g class="visit-crow-flee"><CrowFlying/></g>
+         </g>)}
+--- before/src/ui/FieldView.tsx
++++ after/src/ui/FieldView.tsx
+@@ -33,6 +33,7 @@
+ import { BedPopover } from './BedPopover';
+ import { morningCellDelay, type MorningStep } from './Morning';
+ import { kidsScouting } from './foresight';
++import {killers,kidMisses} from './collisions';
+ import { workEffectCells, workCardPreview } from '../engine/game';
+ export const TOUCH_AIM_OFFSET = 60;
+ 
+@@ -434,7 +435,6 @@
+   const [resume]=useState(()=>testing||teaching?null:readWeekResume(s));
+   const playbackRecord=useRef<WeekResume|null>(resume);
+   const playbackTimer=useRef<number|null>(null);
+-  const resumedOffset=useRef<number|null>(null);
+   const [selected, setSelected] = useState<number | null>(null);
+   const [rot, setRot] = useState(0);
+   const rotRef = useRef(0);
+@@ -541,14 +541,29 @@
+     }
+     return()=>{save();window.removeEventListener('pagehide',save);window.removeEventListener('beforeunload',save);};
+   },[]);
++  const [pageVisible,setPageVisible]=useState(()=>!document.hidden);
+   useLayoutEffect(()=>{
+-    if(resumedOffset.current===null||(!morning&&!pestHits.length))return;
+-    const offset=resumedOffset.current;resumedOffset.current=null;
++    const paused=!active||document.hidden||!!sheet||meetingOpen;
++    clock.setPaused(paused);
++    const record=playbackRecord.current;
++    if(!weekPlaying||!record||(!morning&&!pestHits.length&&!weekCue))return;
++    const event=record.events[0];
++    const left=playbackTimer.current===null?null:clock.remaining(playbackTimer.current);
++    const elapsed=left===null?record.elapsed:Math.max(0,event.duration-left);
+     const animations=new Set<Animation>();
+-    viewRef.current?.querySelectorAll('.morning,.m-plant,.pest-aftermath').forEach(n=>n.getAnimations({subtree:true}).forEach(a=>animations.add(a)));
+-    animations.forEach(a=>{a.currentTime=offset;});
+-  },[morning,pestHits,weekCue]);
+-  const [pageVisible,setPageVisible]=useState(()=>!document.hidden);
++    viewRef.current?.querySelectorAll('.morning,.m-plant,.pest-aftermath,.bed-aftermath,.event-scene').forEach(n=>n.getAnimations({subtree:true}).forEach(a=>animations.add(a)));
++    // CSS may start a frame late on a busy phone. Bind it to the same origin as
++    // impact timers, rather than restarting at zero after DOM/layout work.
++    const now=performance.now();
++    animations.forEach(a=>{
++      const target=(a.effect as KeyframeEffect|null)?.target;
++      const actor=target instanceof Element&&!!target.closest('.event-scene');
++      const rate=actor?(event.cue?.rate??1):1;
++      const time=actor?(event.cue?.elapsed??0)+elapsed*rate:elapsed;
++      a.playbackRate=rate;
++      if(paused)a.currentTime=time;else a.startTime=now-time/rate;
++    });
++  },[morning,pestHits,weekCue,weekPlaying,active,pageVisible,sheet,meetingOpen]);
+   useEffect(()=>{const fn=()=>{clock.setPaused(!active||document.hidden||!!sheet||meetingOpen);setPageVisible(!document.hidden);};fn();document.addEventListener('visibilitychange',fn);return()=>document.removeEventListener('visibilitychange',fn);},[active,sheet,meetingOpen]);
+   useEffect(()=>()=>clock.dispose(),[]);
+   const yard = YARD;
+@@ -750,16 +765,19 @@
+     setHidden(h=>{const m=new Map(h);st.cells.forEach(c=>{const k=key(c.x,c.y);m.set(k,{...tile(sRef.current,c.x,c.y),crop:c.after ?? null});});return m;});
+     const notes=st.cells.filter(c=>c.note);
+     if(notes.length){setFloaters(f=>[...f,...notes.map((c,i)=>({key:floaterKey++,x:c.x,y:c.y,text:c.note!,tone:'bad' as const,delay:i*90}))]);const ks=new Set(notes.map(c=>`${c.x},${c.y}`));morningTimers.current.push(clock.schedule(()=>setFloaters(f=>f.filter(x=>!(x.tone==='bad'&&ks.has(`${x.x},${x.y}`)))),2100+notes.length*90));}
+-    const wither:TileFx[]=st.kind==='thieves'?[]:st.cells.filter(c=>c.killed).map((c,i)=>({key:fxKey++,x:c.x,y:c.y,kind:'wither' as const,delay:i*60}));
++    // Weather removes the fading original plant, leaving its own remains. A generic
++    // green wither sprite would otherwise look like a new plant appearing here.
++    const wither:TileFx[]=['thieves','frost','dry'].includes(st.kind)?[]:st.cells.filter(c=>c.killed).map((c,i)=>({key:fxKey++,x:c.x,y:c.y,kind:'wither' as const,delay:i*60}));
+     if(wither.length){setTileFx(p=>[...p,...wither]);morningTimers.current.push(clock.schedule(()=>setTileFx(p=>p.filter(f=>!wither.includes(f))),900));}
+   }
+   function runMorning(events: WeekEvent[],elapsed=0){
++    morningTimers.current.forEach(t=>clock.cancel(t));morningTimers.current=[];
++    setFloaters(f=>f.filter(x=>x.tone!=='bad'));setTileFx([]);
+     setMorning(null);setPestHits([]);setWeekCue(null);
+     if(!events.length){finishHarvest();return;}
+     const [event,...rest]=events;
+     const h=pendingHarvest.current;
+     if(h){playbackRecord.current={version:1,prev:h.prev,next:h.next,events,elapsed,hidden:[...hiddenRef.current]};playbackTimer.current=null;}
+-    resumedOffset.current=elapsed>0?elapsed:null;
+     setWeekCue(event.cue?{...event.cue,elapsed:(event.cue.elapsed??0)+elapsed*(event.cue.rate??1)}:null);
+     if(event.morning){
+       const st=event.morning;
+@@ -1340,6 +1358,11 @@
+   const compostProject=s.projects.find(p=>p.kind==='track'&&p.track==='compost');
+   const compostBuildProblem=s.phase!=='week'?'Вы не можете это сделать, не решив вопрос с платежом':trackProblem(s,'compost');
+   const winter = s.season === 3;
++  const presentation=weekPlaying?(pendingHarvest.current??resume):null;
++  const fieldState=presentation?.prev??s;
++  const aftermath=presentation?new Map([...killers(presentation.next)].filter(([k])=>hidden.has(k)&&!hidden.get(k)!.crop)):new Map();
++  const spentDry=presentation&&!(playbackRecord.current?.events??[]).some(e=>e.cue?.kind==='thieves')
++    ?new Set(kidMisses(presentation.prev,presentation.next).filter(m=>m.cause==='dry').map(m=>key(m.x,m.y))):new Set<string>();
+   const crowsNow = crowsOpen(s);
+   const thievesNow = !!s.thieves && s.thieves.week === s.absWeek && !s.thieves.talked && !thievesBlocked(s);
+   // the week before a raid (the engine's own next morning, computed on a copy and cached per state)
+@@ -1405,8 +1428,9 @@
+         <div class="field-row" style={{ ['--arn' as string]: String(cam.W / cam.H) }}>
+           <div class="field-stage">
+             <Scene
+-              s={s}
++              s={fieldState}
+               hidden={hidden}
++              aftermath={aftermath} spentDry={spentDry}
+               highlight={highlight}
+               onTile={onTile}
+               onCorner={onCorner}
+@@ -1430,7 +1454,7 @@
+               onScouts={() => say(thievesBlocked(s) ? 'Дети из интерната что-то высматривают у спелых грядок. Пёс и сторож их приметили — на набег не решатся.' : 'Дети из интерната высматривают спелые грядки. Похоже, на следующей неделе полезут за урожаем: укройте грядки, заведите пса или сторожа.')}
+               compost={{built:compostBuilt,building:!!compostProject,ready:!!s.compostReady,fill:compostBuilt?s.compostTick/Math.max(1,compostWeeks(s)):0,selected:!!card&&!compostProblem(s,card.uid),open:compostOpen,over:overCompost,pulse:compostPulse,onClick:()=>setCompostOpen(v=>!v)}}
+             />
+-            <SeasonFx kind={(['spring', 'summer', 'autumn', 'winter'] as const)[s.season]} rain={!winter && s.flags.rain} />
++            {!weekPlaying&&night==='off'&&<SeasonFx kind={(['spring', 'summer', 'autumn', 'winter'] as const)[s.season]} rain={!winter && s.flags.rain} />}
+           </div>
+           <div class="field-side">
+             <div class="field-tools" role="toolbar" aria-label="Приборы поля">
+@@ -1443,7 +1467,7 @@
+               <button type="button" class={`tool-btn journal-button${chips.some(c=>c.tone==='bad')||crowsNow||thievesNow||endBad?' urgent':''}`} onClick={()=>openSheet('journal')} title="Журнал фермы" aria-label="События недели и действия"><Icon name="journal" size={29}/><i aria-hidden="true"/></button>
+               {lensMenu && <div class="lens-picker" role="group" aria-label="Выберите линзу">{(['water','soil','temp'] as const).map(l=><button type="button" class="tool-btn" aria-label={l==='water'?'Влага':l==='soil'?'Плодородие':'Температура почвы'} onClick={()=>{setLens(l);setLensMenu(false);}}><Icon name={l==='water'?'drop':l==='soil'?'compost':'thermo'} size={23}/></button>)}</div>}
+             </div>
+-            <WeatherPlate s={s} onOpen={()=>openSheet('forecast')}/>
++            <WeatherPlate s={fieldState} onOpen={()=>openSheet('forecast')}/>
+           </div>
+         </div>
+ 
+@@ -1565,7 +1589,7 @@
+ 
+       <OrderVisit s={s} lesson={teaching} onDone={onVisitDone} canStart={(teaching?lessonVisit:true)&&visitReady&&!running.current&&!ending.current} onVisible={setMeetingOpen} onOrder={onOrder??(()=>onGo('orders'))}/>
+       {sheet === 'bed' && details && <Sheet title="Грядка" variant="info" onClose={()=>setSheet(null)}><TileDetails s={s} x={details[0]} y={details[1]} act={act} onClose={()=>setSheet(null)}/></Sheet>}
+-      {sheet === 'forecast' && <ForecastSheet s={s} onClose={() => setSheet(null)} />}
++      {sheet === 'forecast' && <ForecastSheet s={fieldState} onClose={() => setSheet(null)} />}
+       {sheet === 'journal' && <JournalSheet s={s} act={act} onGo={onGo} onClose={() => setSheet(null)} />}
+       {false && onGo}
+     </div>
+--- before/src/ui/Morning.tsx
++++ after/src/ui/Morning.tsx
+@@ -6,7 +6,7 @@
+ import { GRID } from '../engine/data';
+ import { Crow, CrowFlying } from '../art/crows';
+ import type { MissCause } from './collisions';
+-import { BedLeftovers, CrowMiss, BugMiss, CrowSnack } from '../art/collisions';
++import { CrowMiss, BugMiss, CrowSnack } from '../art/collisions';
+ 
+ export type MorningKind = 'frost' | 'dry' | 'hail' | 'flood' | 'crows' | 'thieves' | 'crowmiss' | 'bugmiss';
+ export interface MorningCell { x: number; y: number; note?: string; killed?: boolean; before?: Plant; after?: Plant | null;
+@@ -88,8 +88,8 @@
+             <rect class="m-water" x={6} y={8} width={88} height={82} rx={12} fill="rgba(79,159,207,.55)" stroke="#bfe3f7" stroke-width={2} />
+             <path class="m-wave" d="M14 40 q8 -6 16 0 t16 0 t16 0 t16 0 M14 62 q8 -6 16 0 t16 0 t16 0 t16 0" stroke="#e1f4ff" stroke-width={2.6} fill="none" stroke-linecap="round" />
+           </g>}
+-          {step.kind === 'crowmiss' && <><BedLeftovers cause={c.cause ?? 'gone'} /><CrowMiss cause={c.cause ?? 'gone'} /></>}
+-          {step.kind === 'bugmiss' && <><BedLeftovers cause={c.cause ?? 'gone'} /><BugMiss cause={c.cause ?? 'gone'} pest={c.pest ?? 'beetle'} /></>}
++          {step.kind === 'crowmiss' && <CrowMiss cause={c.cause ?? 'gone'} />}
++          {step.kind === 'bugmiss' && <BugMiss cause={c.cause ?? 'gone'} pest={c.pest ?? 'beetle'} />}
+           {step.kind === 'thieves' && <g class="m-thief-art" fill="#6b4a33" opacity={.7}>
+             {[[16, 92, -20], [28, 78, 15], [40, 66, -15], [52, 54, 15]].map(([x, y, rr], j) => <ellipse class={`m-step s${j}`} cx={x} cy={y} rx={4.5} ry={7} transform={`rotate(${rr} ${x} ${y})`} />)}
+           </g>}
+--- before/src/ui/Scene.tsx
++++ after/src/ui/Scene.tsx
+@@ -1,7 +1,9 @@
+ import type {SceneCue} from './useSceneQueue';
+ import {THEFT_ARRIVAL_MS, THEFT_IMPACT_MS, theftStagger, theftDelay} from './weekPlayback';
+ import { FarmLife } from './FarmLife';
+-import { MorningLayer, MorningStep, morningPlantClass } from './Morning';
++import { MorningLayer, MorningStep, morningPlantClass, morningCellDelay } from './Morning';
++import { BedLeftovers } from '../art/collisions';
++import { kidDelay, type MissCause } from './collisions';
+ import { wetCanals, idx } from '../engine/game';
+ // The field: beds, terrain, plants, marks, lenses and the farmer. Pure drawing — every decision comes in as props.
+ import {CompostHeap} from '../art/compost';
+@@ -597,7 +599,7 @@
+ export interface BuildView { item: string; spots: Set<string>; rows: boolean; corners: boolean; removable: Set<string> }
+ 
+ export function Scene({
+-  s, highlight, onTile, onCorner, hoverTile, onHover, farmer, floaters, hidden, effects = [], yard = YARD, px = 1, queue, flock = 'off', lens = null, build = null, pets = [], lifeActive = true, showWarnings = true, sceneCue = null, pestHits = [], pestPaused=false, morning = null, compost, scouts = false, onScouts,
++  s, highlight, onTile, onCorner, hoverTile, onHover, farmer, floaters, hidden, effects = [], yard = YARD, px = 1, queue, flock = 'off', lens = null, build = null, pets = [], lifeActive = true, showWarnings = true, sceneCue = null, pestHits = [], pestPaused=false, morning = null, compost, scouts = false, onScouts, aftermath, spentDry,
+ }: {
+   /** the week before a raid: two orphanage kids loiter behind a bush in the yard */
+   scouts?: boolean;
+@@ -616,6 +618,8 @@
+   farmer: FarmerState;
+   floaters: Floater[];
+   hidden?: Map<string, Tile>;
++  aftermath?: Map<string, MissCause>;
++  spentDry?: Set<string>;
+   effects?: TileFx[];
+   yard?: number;
+   px?: number;
+@@ -702,6 +706,13 @@
+             const clickable = t.owned || buyable || clearable || target;
+             const hit=pestHits.find(h=>h.x===x&&h.y===y);
+             const crop = t.crop;
++            const remains = aftermath?.get(k);
++            const missIndex = sceneCue?.kind === 'thieves' ? (sceneCue.misses?.findIndex(m=>m.x===x&&m.y===y)??-1) : -1;
++            const childIndex = (sceneCue?.visit?.outcome==='empty'?0:sceneCue?.targets?.length??2)+missIndex;
++            const impactIndex = morning?.cells.findIndex(c=>c.x===x&&c.y===y)??-1;
++            const plantTiming = impactIndex<0 ? undefined : morning?.kind==='thieves'
++              ? {'--pull-time':`${(THEFT_IMPACT_MS-THEFT_ARRIVAL_MS)/(sceneCue?.rate??1)}ms`,'--pull-delay':`${(THEFT_ARRIVAL_MS+theftDelay(sceneCue)+theftStagger(impactIndex))/(sceneCue?.rate??1)}ms`}
++              : {'--weather-impact':`${morning!.reveal}ms`,'--weather-delay':`${morningCellDelay(impactIndex)}ms`};
+             const stage = crop ? (crop.rest ? 1 : cropStage(crop.grown, targetGrow(s, crop))) : 0;
+             const dim = highlight.tiles.size > 0 && t.owned && !target && !highlight.rows && !highlight.options;
+             const badge = badges.get(k);
+@@ -744,22 +755,25 @@
+                 {t.owned && t.drip && <DripHose wet={t.moisture > 0} l={x > 0 && tile(s, x - 1, y).drip} r={x < GRID - 1 && tile(s, x + 1, y).drip} />}
+                 {t.structure === 'hive' && <Hive />}
+                 {!hidePlants && crop && !hit && (
+-                  <g class={`plant${!winter && t.moisture === 0 && !crop.rest ? ((crop.dry ?? 0) >= 1 ? ' wilt-2' : ' wilt-1') : ''}${crop.rest ? ' resting' : ''}${mPlant.has(k) ? ` ${mPlant.get(k)}` : ''}`} style={morning?.kind==='thieves'?{'--pull-time':`${(THEFT_IMPACT_MS-THEFT_ARRIVAL_MS)/(sceneCue?.rate??1)}ms`,'--pull-delay':`${(THEFT_ARRIVAL_MS+theftDelay(sceneCue)+theftStagger(Math.max(0,morning.cells.findIndex(c=>c.x===x&&c.y===y))))/(sceneCue?.rate??1)}ms`}:undefined} key={`${crop.id}-${crop.planted}-${crop.pid}`}>
++                  <g class={`plant${!winter && t.moisture === 0 && !crop.rest ? ((crop.dry ?? 0) >= 1 ? ' wilt-2' : ' wilt-1') : ''}${crop.rest ? ' resting' : ''}${mPlant.has(k) ? ` ${mPlant.get(k)}` : ''}`} style={plantTiming} key={`${crop.id}-${crop.planted}-${crop.pid}`}>
+                     {crop.chewed?<NibbledPlant plant={crop} stage={stage}/>:<CropSprite id={crop.id} stage={stage} />}
+                   </g>
+                 )}
+                 {!hidePlants && hit && <g class={pestPaused?'pest-paused':''}><NibbledPlant plant={hit.plant} stage={cropStage(hit.plant.grown,targetGrow(s,hit.plant))} hit={hit}/></g>}
++                {!hidePlants && !crop && remains && <g class={`bed-aftermath cause-${remains}${missIndex>=0?' kid-bed':''}${spentDry?.has(k)?' spent':''}`} data-cause={remains} pointer-events="none" style={{'--kd':`${kidDelay(Math.max(0,childIndex))/(sceneCue?.rate??1)}ms`,'--reaction-dur':`${5000/(sceneCue?.rate??1)}ms`}}>
++                  <BedLeftovers cause={remains}/>
++                </g>}
+                 {t.owned && t.shelter > 0 && <ShelterDome n={shelterNb(s, x, y)} />}
+                 {t.structure === 'greenhouse' && <Greenhouse />}
+                 {winter && t.owned && t.structure !== 'greenhouse' && !t.canal && <SnowCover x={x} y={y} row={t.snow} />}
+                 {!hidePlants && crop && note === 'dry' && <DryBadge m={mDry} />}
+                 {!hidePlants && crop && !hit && (note === 'cold' || note === 'hot' || note === 'flood') && <NoteBadge kind={note} m={mDry} />}
+                 {!hidePlants && badge !== undefined && <WeeksBadge weeks={badge} m={mWeeks} />}
+-                {!hidePlants && crop && locustBeds.has(k) && <Locusts phase={(x + y * 2) * 0.37} />}
+-                {!hidePlants && crop && beetleBeds.has(k) && <Beetles phase={(x * 2 + y) * 0.31} />}
+-                {!hidePlants && thieves.has(k) && <Footprints />}
+-                {frost.has(k) && !hidePlants && <FrostMark m={mNum} />}
+-                {danger.has(k) && !hidePlants && !beetleBeds.has(k) && (
++                {showWarnings && !hidePlants && crop && locustBeds.has(k) && <Locusts phase={(x + y * 2) * 0.37} />}
++                {showWarnings && !hidePlants && crop && beetleBeds.has(k) && <Beetles phase={(x * 2 + y) * 0.31} />}
++                {showWarnings && !hidePlants && thieves.has(k) && <Footprints />}
++                {showWarnings && frost.has(k) && !hidePlants && <FrostMark m={mNum} />}
++                {showWarnings && danger.has(k) && !hidePlants && !beetleBeds.has(k) && (
+                   <g pointer-events="none" class={isGuarded(s, x, y) ? 'guarded' : 'danger'}>
+                     <rect x={4} y={6} width={92} height={88} rx={12} class={isGuarded(s, x, y) ? 'guard-ring' : 'danger-ring'} />
+                     <g transform={`translate(20 80) scale(${mNum})`}>
+--- before/src/ui/useSceneQueue.ts
++++ after/src/ui/useSceneQueue.ts
+@@ -1,6 +1,6 @@
+ import {useEffect,useState} from 'preact/hooks';
+ import type {GameState} from '../engine/game';
+-import type {Miss} from './collisions';
++import {sceneDuration, type Miss} from './collisions';
+ // misses: children who came to a bed something else had emptied; bugs: beds the beetles were chewing
+ export type SceneCue=NonNullable<GameState['scenes']>[number] & {elapsed?:number;managed?:boolean;targets?:[number,number][];rate?:number;misses?:Miss[];bugs?:[number,number][]};
+ const done=new Set<string>();
+@@ -15,7 +15,6 @@
+  return all.filter(e=>e.week>=s.absWeek-1&&e.week<=s.absWeek&&!isDone(e))
+   .sort((a,b)=>priority[a.kind]-priority[b.kind]||a.week-b.week)[0]??null;
+ }
+-const duration=5200;
+ type SceneRun={cue:SceneCue;farm:string;storageKey:string;remaining:number};
+ // Motion and dialogue share this cue. Pauses retain the same scene and its clock.
+ export function useSceneQueue(s:GameState,active:boolean){
+@@ -31,7 +30,7 @@
+   }
+   if(!active||!visible)return;
+   const next=chooseScene(s,e=>completed(s,e));
+-  if(next)setRun({cue:next,farm,storageKey:key(s,next),remaining:duration});
++  if(next)setRun({cue:next,farm,storageKey:key(s,next),remaining:sceneDuration(next)});
+  },[farm,s.absWeek,signature,active,visible,run]);
+  useEffect(()=>{
+   if(!run||run.farm!==farm||!active||!visible)return;
+@@ -44,5 +43,5 @@
+   // Each run owns its clock, so cleanup cannot shorten a newly queued scene.
+   return()=>{clearTimeout(timer);run.remaining=Math.max(0,run.remaining-(performance.now()-began));};
+  },[run,farm,active,visible]);
+- return run&&run.farm===farm?{...run.cue,elapsed:duration-run.remaining}:null;
++ return run&&run.farm===farm?{...run.cue,elapsed:sceneDuration(run.cue)-run.remaining}:null;
+ }
+--- before/src/ui/weekPlayback.ts
++++ after/src/ui/weekPlayback.ts
+@@ -1,7 +1,7 @@
+ import type { GameState, PestHit } from '../engine/game';
+ import { buildMorning, morningCellDelay, morningStep, type MorningStep } from './Morning';
+ import type { SceneCue } from './useSceneQueue';
+-import { bugBeds, crowMisses, kidDelay, kidMisses, pestMisses } from './collisions';
++import { bugBeds, crowMisses, kidDelay, kidMisses, pestMisses, sceneDuration } from './collisions';
+ 
+ export const SCENE_MS = 5200;
+ export const THEFT_IMPACT_MS = 2300;
+@@ -36,7 +36,8 @@
+   const addCues = (kinds: SceneCue['kind'][]) => {
+     for (const cue of cues.filter(c => kinds.includes(c.kind) && !used.has(c.id))) {
+       used.add(cue.id);
+-      events.push({ id: cue.id, duration: Math.max(0,SCENE_MS-(cue.elapsed??0)) / rate, cue: { ...cue, targets:cue.visit?.targets, managed: true, rate, ...(cue.kind === 'thieves' ? kidExtras : {}) } });
++      const directed={...cue,targets:cue.visit?.targets,managed:true,rate,...(cue.kind==='thieves'?kidExtras:{})};
++      events.push({ id: cue.id, duration: Math.max(0,sceneDuration(directed)-(cue.elapsed??0)) / rate, cue: directed });
+     }
+   };
+   const addMorning = (morning: MorningStep) => {
+@@ -47,7 +48,7 @@
+       // Legacy reports may lack a scene cue. The actual damage still needs its actors.
+       cue = { ...(theft ?? {id:`${next.absWeek}:theft-report:${morning.id}`,kind:'thieves',week:next.absWeek}),
+         managed: true, rate, targets: morning.cells.map(c => [c.x,c.y]), ...kidExtras };
+-      morning = { ...morning, dur: SCENE_MS / rate, reveal: (THEFT_IMPACT_MS+theftDelay(cue)) / rate };
++      morning = { ...morning, dur: sceneDuration(cue) / rate, reveal: (THEFT_IMPACT_MS+theftDelay(cue)) / rate };
+     }
+     // Every bed's visual starts slightly later. Keep the layer until its last
+     // bird/weather effect has finished, not just until the first one has.
+@@ -58,7 +59,7 @@
+   // Otherwise an approaching dog could suddenly yield to a drone after the calendar.
+   for (const cue of carried.filter(c => (c.elapsed??0)>0)) {
+     used.add(cue.id);
+-    events.push({id:cue.id,duration:Math.max(0,SCENE_MS-cue.elapsed!)/rate,cue:{...cue,managed:true,rate}});
++    events.push({id:cue.id,duration:Math.max(0,sceneDuration(cue)-cue.elapsed!)/rate,cue:{...cue,managed:true,rate}});
+   }
+   // Match the engine's order: weather → pests → children → birds → farm work.
+   mornings.filter(m => !['crows','thieves'].includes(m.kind)).forEach(addMorning);

@@ -1,0 +1,42 @@
+{
+  "group": "resume",
+  "checks": [
+    {
+      "name": "frost-600",
+      "pass": true
+    },
+    {
+      "name": "frost-1900",
+      "pass": true
+    },
+    {
+      "name": "dry-1900",
+      "pass": true
+    },
+    {
+      "name": "hail-1800",
+      "pass": true
+    },
+    {
+      "name": "flood-1800",
+      "pass": true
+    },
+    {
+      "name": "beetle-700",
+      "pass": true
+    },
+    {
+      "name": "thieves-700",
+      "pass": true
+    },
+    {
+      "name": "thieves-2200",
+      "pass": true
+    },
+    {
+      "name": "crowmiss-600",
+      "pass": true
+    }
+  ],
+  "errors": []
+}

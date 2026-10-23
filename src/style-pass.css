@@ -1,0 +1,366 @@
+/* Style pass, 20.10.2026 — reading levels, calmer signals, honest proportions.
+   Loaded last; every rule here answers a numbered item of the style review. */
+
+/* ---------- №2 / №3 · two reading levels of a card ---------- */
+/* Level 1, the fan: culture, name start and cost. The culture sits at the left edge, under the day gem. */
+.card.pc .pc-index { display: none; }
+.fan-slot .card.pc .pc-index { position: absolute; left: .3em; top: 3.05em; z-index: 1; width: 2.2em; height: 2.2em; display: grid; place-items: center;
+  border-radius: 50%; background: #fffaf0; border: 1px solid rgba(63, 42, 29, .38); box-shadow: 0 1px 0 rgba(63, 42, 29, .12); }
+.fan-slot .card.pc .pc-index svg { width: 1.7em; height: 1.7em; }
+.fan-slot.peek .card.pc .pc-index, .fan-slot .card.pc.selected .pc-index { display: none; }
+.fan-slot:not(.peek) .card.pc:not(.selected) .pc-temp { display: none; }
+
+/* Level 2, the dock: the picked or browsed card in full, at sizes that never shrink with the fan. */
+.dock-top .card-readout { flex: 1 1 auto; min-width: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto; column-gap: 7px; row-gap: 1px;
+  align-content: center; padding: 3px 9px 3px 5px; border-radius: 12px; background: var(--parchment, #f6ecd4); border: 2px solid var(--wood-dark, #6b4423); overflow: hidden; }
+.card-readout.browsing { border-style: dashed; }
+.card-readout .ro-icon { grid-row: 1 / span 2; align-self: center; width: 32px; height: 32px; display: grid; place-items: center; border-radius: 50%;
+  background: #fffaf0; border: 1.5px solid rgba(63, 42, 29, .35); }
+.card-readout .ro-icon svg { width: 26px; height: 26px; }
+.card-readout .ro-head { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.card-readout .ro-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--display); font-weight: 800; font-size: 15px; line-height: 1.12; color: #3a2616; }
+.card-readout .ro-cost { margin-left: auto; flex: none; display: flex; gap: 6px; font-family: var(--ui); font-weight: 800; font-size: 13px; line-height: 1.1; color: #5b4330; font-variant-numeric: tabular-nums; }
+.card-readout .ro-money.short { color: var(--bad, #b4492f); }
+.card-readout .ro-facts { min-width: 0; display: flex; gap: 0; overflow: hidden; white-space: nowrap; font-family: var(--ui); font-weight: 700; font-size: 13px; line-height: 1.22; color: #3a2616; }
+.card-readout .ro-fact:not(:first-child)::before { content: '·'; margin: 0 5px; color: rgba(63, 42, 29, .45); }
+.card-readout .ro-fact.cold { color: #2b6596; }
+.card-readout .ro-fact.warm { color: #b8460c; }
+.card-readout .ro-fact.bad { color: var(--bad, #b4492f); }
+.card-readout .ro-status { grid-column: 2; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--ui); font-weight: 800; font-size: 13px; line-height: 1.22; color: var(--leaf-dark, #3f6d22); }
+.card-readout .ro-status.up { color: #2f7a22; }
+.card-readout .ro-status.down { color: var(--bad, #b4492f); }
+/* a low dock has two lines: facts, or — when there is a preview or a refusal — that news instead */
+.card-readout .ro-status { display: none; }
+.card-readout.urgent .ro-status { display: block; }
+.card-readout.urgent .ro-facts { display: none; }
+.dock.roomy .card-readout { grid-template-rows: auto auto auto; }
+.dock.roomy .card-readout .ro-icon { grid-row: 1 / span 3; }
+.dock.roomy .card-readout .ro-status { display: block; }
+.dock.roomy .card-readout.urgent .ro-facts { display: flex; }
+/* the browsed card: lifted a little, outlined in gold; its neighbours step back */
+.hand.fan.peeking .fan-slot.peek .card.pc { box-shadow: 0 0 0 3px #f5c84a, 0 6px 14px rgba(63, 42, 29, .28); }
+.hand.fan.peeking .fan-slot:not(.peek) .card.pc { filter: brightness(.86) saturate(.8); }
+@media (max-width: 360px) {
+  .card-readout .ro-facts, .card-readout .ro-status { font-size: 12.5px; }
+  .card-readout .ro-fact:not(:first-child)::before { margin: 0 3px; }
+  .dock-top .card-readout { column-gap: 5px; padding-right: 6px; }
+  .card-readout .ro-icon { width: 28px; height: 28px; }
+  .card-readout .ro-icon svg { width: 22px; height: 22px; }
+}
+
+/* ---------- №1 / №21 · the lesson speaks in one line and points once ---------- */
+/* The strip: Палыч's face, one command, "i" for the explanation, × to hide. It sits over the season bar
+   (outside the field) unless the lesson points there; the field never moves or resizes for it. */
+.guide-note.coach-strip { position: fixed; z-index: 62; box-sizing: border-box; display: flex; align-items: center; gap: 7px; min-height: 44px; padding: 5px 6px 5px 5px;
+  border-radius: 12px; border: 1.5px solid rgba(63, 42, 29, .55); color: var(--ink, #3f2a1d); pointer-events: none;
+  background: #fbf3df url() ; background-image: linear-gradient(180deg, #fdf7e6, #f5e8c8);
+  box-shadow: 0 1px 0 rgba(63, 42, 29, .2), 0 6px 14px rgba(40, 24, 10, .2); animation: strip-in .22s ease-out both; }
+.guide-note.coach-strip button { pointer-events: auto; }
+.coach-strip .coach-face { flex: none; width: 34px; height: 34px; border-radius: 50%; overflow: hidden; border: 1.5px solid rgba(63, 42, 29, .55); background: #e8d3a6; }
+.coach-strip .coach-face img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 18%; display: block; }
+.coach-strip .cs-body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.coach-strip .cs-hello { margin: 0; font: italic 400 12.5px/1.2 var(--body); color: #5b4330; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+.coach-strip .cs-text { margin: 0; font: 700 14px/1.22 var(--ui); color: #3a2616; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.coach-strip .cs-text.cs-error { color: #a03a20; }
+.coach-strip.free .cs-text { font-weight: 600; }
+.coach-strip .cs-check { display: flex; gap: 10px; margin: 1px 0 0; padding: 0; list-style: none; font: 700 12.5px/1.2 var(--ui); color: #5b4330; }
+.coach-strip .cs-check li { display: flex; align-items: center; gap: 4px; }
+.coach-strip .cs-check i { width: 14px; height: 14px; border-radius: 4px; border: 1.5px solid rgba(63, 42, 29, .5); display: grid; place-items: center; font: 800 10px/1 var(--ui); font-style: normal; }
+.coach-strip .cs-check li.ok i { background: #6fae45; color: #fff; border-color: #3f6d22; }
+.coach-strip .cs-more, .coach-strip .cs-close { flex: none; position: relative; width: 30px; height: 30px; padding: 0; display: grid; place-items: center; border-radius: 50%;
+  border: 1px solid rgba(63, 42, 29, .35); background: rgba(255, 250, 236, .9); color: #5b4330; font: 700 15px/1 var(--display); cursor: pointer; }
+.coach-strip .cs-more { font: italic 700 16px/1 var(--body); }
+/* the hit area reaches 44 px without growing the drawing */
+.coach-strip .cs-more::after, .coach-strip .cs-close::after { content: ''; position: absolute; inset: -7px -3px; }
+.coach-strip .cs-close { font: 400 20px/1 var(--display); }
+.coach-strip .cs-next { flex: none; min-height: 34px; padding: 4px 12px; font-size: 13px; }
+.coach-strip.worried { border-color: #a03a20; }
+@keyframes strip-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+
+/* one pointer: no dimming of the farm; quiet static outlines instead of glowing, pulsing ones */
+.coach-dim { display: none !important; }
+.coach-spot { outline-width: 2.5px; }
+.coach-spot::after { box-shadow: 0 0 0 3px rgba(255, 246, 214, .9); animation: none; }
+.coach-drop { animation: none; opacity: .9; box-shadow: none; }
+.card.lesson-card-target::after { animation: none; box-shadow: 0 0 0 3px rgba(255, 246, 214, .9); }
+@media (prefers-reduced-motion: reduce) { .guide-note.coach-strip { animation: none; } }
+
+/* ---------- №4 · one composition for field, action row and hand ---------- */
+/* when the planner has reserved the hand's height, the remaining paper is shared above and below the field */
+.field-view .field-wrap.balanced { align-items: center; }
+.dock.roomy-2 .card-readout { grid-template-rows: auto auto auto auto; align-content: start; padding-top: 5px; }
+.dock.roomy-2 .card-readout .ro-icon { grid-row: 1 / span 2; align-self: start; margin-top: 2px; }
+.card-readout .ro-desc { display: none; }
+.dock.roomy-2 .card-readout .ro-desc { display: -webkit-box; grid-column: 1 / -1; margin-top: 2px; padding-top: 3px; border-top: 1px dashed rgba(63, 42, 29, .22);
+  -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-family: var(--ui); font-weight: 500; font-size: 13px; line-height: 1.25; color: #5b4330; }
+.dock.roomy-2 .card-readout .ro-status { grid-column: 1 / -1; }
+/* a taller action row keeps its counters and the week button at their usual size, centred */
+.dock.roomy .dock-top { align-items: center; }
+.dock.roomy .dock-top > .days, .dock.roomy .dock-top > .deck-pile, .dock.roomy .dock-top > .end-week, .dock.roomy .dock-top > .card-tools { height: 58px; max-height: 100%; }
+.dock.roomy .dock-top > .info.hand-summary { align-self: stretch; }
+.dock.roomy .dock-top > .card-readout { align-self: stretch; }
+
+/* ---------- №22 · touch targets of at least 44 px, drawings unchanged ---------- */
+/* invisible hit areas; neighbouring areas are sized so they never overlap (menu ↓3, tabs ↑2 ↓6, payment ↑3 ↓1) */
+.topbar .menu-btn, .topbar .tb-pay, .tabs .tab, .dock .tool-x, .barn-seg [role="tab"] { position: relative; }
+.topbar .menu-btn::after { content: ''; position: absolute; inset: -6px -6px -4px -6px; }
+.topbar .tb-pay::after { content: ''; position: absolute; inset: -4px 0 -2px 0; }
+.tabs { position: relative; z-index: 4; }
+.tabs .tab::after { content: ''; position: absolute; inset: -1px 0 -8px 0; }
+.dock .tool-x::after { content: ''; position: absolute; inset: -6px; }
+.barn-seg [role="tab"]::after { content: ''; position: absolute; inset: -3px 0; }
+
+/* ---------- №8 / №9 / №10 · a calm market ---------- */
+/* first what there is and what it fetches; the forecast is a quiet paper line, not an alarm capsule */
+.sale-row .forecast { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; min-width: 0; padding: 0 2px; }
+.sale-row .fc-line { display: flex; align-items: center; gap: 6px; min-width: 0; font-family: var(--ui); font-size: 14px; line-height: 1.25; color: #4a3424; font-variant-numeric: lining-nums tabular-nums; }
+.sale-row .fc-line b { font-weight: 700; }
+.trend-arrow { flex: none; }
+.trend-arrow path { fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; stroke: #8a6a4a; }
+.trend-arrow.up path { stroke: #4b7f35; }
+.trend-arrow.down path { stroke: #9a5a3c; }
+.sale-row .forecast-chart { display: block !important; width: 96px; height: 30px; border-radius: 8px; cursor: pointer; }
+.price-row { grid-template-columns: 38px minmax(0, 1fr) auto; cursor: default; }
+.price-row .grow small { display: flex; align-items: center; gap: 4px; font-variant-numeric: tabular-nums; }
+.price-row .trend-arrow { width: 13px; height: 13px; }
+.barn-pane .sale-top .grow small { font-size: 13.5px; font-weight: 700; color: #4a3424; }
+.barn-pane .sale-top .sale-price b { font-size: 1.15rem; }
+/* №10 · a keyboard focus that belongs to the paper: an ink ring on a soft gold wash, never the browser's square */
+.forecast-chart:focus { outline: none; }
+.forecast-chart:focus-visible, .barn-pane svg[tabindex]:focus-visible, .scene-svg [tabindex]:focus-visible { outline: 2px solid #714a2d; outline-offset: 2px; box-shadow: 0 0 0 5px rgba(247, 217, 148, .65); border-radius: 8px; }
+.scene-svg .tile:focus { outline: none; }
+.scene-svg .tile:focus-visible > :first-child { stroke: #714a2d; stroke-width: 3; }
+
+/* ---------- №5 · the lab: work first, the room as a small picture, expansion last ---------- */
+.hero.lab-head { flex-direction: row; align-items: center; gap: 10px; padding: 8px 10px; }
+.hero.lab-head > svg.lab-scene { width: 116px; height: auto; flex: none; border-radius: 10px; border: 1.5px solid rgba(63, 42, 29, .25); }
+.hero.lab-head .hero-text { padding: 0; gap: 4px; min-width: 0; }
+.hero.lab-head .hero-title { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.hero.lab-head h2 { font-size: 1.12rem; line-height: 1.15; }
+.hero.lab-head .lab-now { margin: 0; font-family: var(--ui); font-size: 13.5px; line-height: 1.3; color: #4a3424; }
+.lab-expand { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-radius: 14px; border: 1.5px dashed rgba(63, 42, 29, .3); background: rgba(255, 250, 236, .55); }
+.lab-expand h3 { margin: 0; display: flex; align-items: center; gap: 6px; font-family: var(--display); font-size: 1rem; color: #5b4330; }
+.lab-expand .btn { align-self: flex-start; }
+@media (max-width: 360px) { .hero.lab-head > svg.lab-scene { width: 92px; } }
+
+/* ---------- №6 · the house: what is being built and what to do next, on top ---------- */
+.house-pane .house-hero .hero-text { gap: 6px; }
+.house-pane .house-hero .hero-text h2 { font-size: 1.12rem; }
+.house-pane .house-hero .now-line .small { display: inline-flex; align-items: center; gap: 5px; font-weight: 700; color: #3f2a1d; }
+.house-pane .house-hero .btn { align-self: flex-start; }
+/* the workshop as plain rows of what the player owns: icon · name and effect · one action */
+.house-pane .tracks { display: flex !important; flex-direction: column; gap: 0; }
+.house-pane .track2 { display: grid; grid-template-columns: 46px minmax(0, 1fr) auto; grid-template-areas: 'head head act' 'eff eff act' 'place place place' 'more more more'; align-items: center; column-gap: 10px; row-gap: 3px; padding: 9px 0; }
+.house-pane .track2-head { grid-area: head; min-height: 40px; }
+.house-pane .track2-effect { grid-area: eff; padding-left: 56px; font-size: 13.5px; -webkit-line-clamp: 2; }
+.house-pane .track2-foot { grid-area: act; margin: 0; align-self: center; }
+.house-pane .track2-foot .btn, .house-pane .track2-foot .btn-with-reason { width: auto; min-width: 96px; }
+.house-pane .track2 > .btn { grid-area: place; justify-self: start; margin-left: 56px; }
+.house-pane .track2-more { grid-area: more; padding-left: 56px; }
+.house-pane .track2-done { font-size: 12.5px; color: #5b7a3a; font-weight: 700; white-space: nowrap; }
+.house-pane .track2-progress { min-width: 96px; }
+@media (max-width: 360px) { .house-pane .track2-effect, .house-pane .track2 > .btn, .house-pane .track2-more { padding-left: 0; margin-left: 0; } }
+
+/* ---------- №7 · a free place in the room is calm: an empty chair and a plain card ---------- */
+.room-seat.free .place-text { fill: #6b5038; }
+.room-seat .hire-hint { font-family: var(--ui); font-weight: 800; font-size: 9px; fill: #fff8e6; opacity: 0; transition: opacity .15s; paint-order: stroke; stroke: rgba(63, 42, 29, .6); stroke-width: 2px; }
+.room-seat:hover .hire-hint, .room-seat:focus-visible .hire-hint { opacity: 1; }
+.room-seat.free:hover .seat-ring, .room-seat.free:focus-visible .seat-ring { stroke: #f2d27a; }
+.house-pane .place-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.house-pane .place-chips small { flex-basis: 100%; font-family: var(--ui); font-size: 12.5px; font-weight: 700; color: #5b4330; }
+.house-pane .place-chip { position: relative; display: inline-flex; align-items: center; gap: 5px; min-height: 34px; padding: 3px 10px 3px 6px; border-radius: 999px; border: 1.5px solid #c99a3a;
+  background: #fff3c9; color: #3f2a1d; font: 700 13px/1 var(--ui); cursor: pointer; }
+.house-pane .place-chip b { min-width: 18px; height: 18px; display: inline-grid; place-items: center; border-radius: 9px; background: #3f2a1d; color: #fff8e6; font-size: 11px; }
+.house-pane .place-chip::after { content: ''; position: absolute; inset: -5px -2px; }
+.house-pane .place-chip:disabled { opacity: .55; cursor: default; }
+
+/* ---------- №11 · orders on the table first; buyers without an order are one quiet row each ---------- */
+.orders-pane .orders-none { margin: 0; padding: 12px 14px; border-radius: 14px; border: 1.5px dashed rgba(63, 42, 29, .3); }
+.orders-pane .org-list { display: flex; flex-direction: column; gap: 0; margin-top: 14px; padding: 4px 12px; border-radius: 16px; border: 2px solid var(--frame, #8a6240); background: var(--paper, #fbf3df); }
+.orders-pane .org-list h3 { margin: 6px 0 2px; font-family: var(--display); font-size: 1rem; color: #5b4330; }
+.orders-pane .org-row { border-top: 1px dashed rgba(63, 42, 29, .22); }
+.orders-pane .org-row:first-of-type { border-top: 0; }
+.orders-pane .org-row > summary { list-style: none; display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; align-items: center; gap: 10px; min-height: 52px; padding: 6px 0; cursor: pointer; }
+.orders-pane .org-row > summary::-webkit-details-marker { display: none; }
+.orders-pane .org-row > summary .grow { display: flex; flex-direction: column; min-width: 0; }
+.orders-pane .org-row > summary b { font-family: var(--display); font-size: 1rem; line-height: 1.15; }
+.orders-pane .org-row > summary small { font-family: var(--ui); font-size: 13px; color: #5b4330; }
+.orders-pane .org-row[open] { padding-bottom: 10px; }
+.orders-pane .org-row .org-who { margin: 0 0 4px; }
+.orders-pane .org-row .org-more > summary { display: none; }
+.orders-pane .org-row > summary::before { content: none; }
+.orders-pane .org-row > summary::after { content: '›'; grid-column: 4; font-size: 1.3em; color: var(--frame, #8a6240); transition: transform .15s; }
+.orders-pane .org-row[open] > summary::after { transform: rotate(90deg); }
+.orders-pane .org-row > summary { grid-template-columns: 36px minmax(0, 1fr) auto 12px; text-align: left; }
+
+/* ---------- №14 · the size of a window follows the weight of the question ---------- */
+.sheet-back[data-covered="true"] { visibility: hidden; }
+/* info: a light paper card over a barely dimmed farm, closed by a tap anywhere outside */
+.sheet-back.info-back { background: rgba(38, 24, 12, .16) !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+.sheet-back.info-back .sheet.info-sheet { max-width: min(440px, 100%); max-height: min(72vh, 560px); box-shadow: 0 -2px 0 rgba(63, 42, 29, .12), 0 10px 26px rgba(40, 24, 10, .28); }
+.sheet-back.info-back .sheet.info-sheet .sheet-head { min-height: 44px; padding: 8px 10px 6px 14px; }
+.sheet-back.info-back .sheet.info-sheet .sheet-head h2 { font-size: 1.05rem; }
+.sheet-back.info-back .sheet.info-sheet .sheet-head > svg { width: 30px; height: 30px; }
+.sheet-back.info-back .sheet.info-sheet .sheet-body { padding: 8px 14px calc(14px + env(safe-area-inset-bottom, 0px)); gap: 8px; }
+
+/* ---------- №13 · the book's tools are there at once; the cover's ceremony only on the first opening ---------- */
+.book-sheet .sheet-head, .book-ribbons, .book-spread::before { animation-delay: 0s !important; animation-duration: .15s !important; }
+
+/* ---------- №12 · coming back: the farm first, the cover small ---------- */
+.atlas.returning .atlas-head .cover { height: 92px; }
+.atlas.returning .atlas-head .atlas-title p { display: none; }
+.atlas.returning .atlas-head h1 { font-size: 1.7rem; }
+.atlas-continue { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 16px;
+  border: 2px solid var(--frame, #8a6240); background: linear-gradient(180deg, #fffaf0, #f6ead0); box-shadow: 0 2px 0 rgba(63, 42, 29, .18); }
+.atlas-continue .ac-text { display: flex; flex-direction: column; min-width: 0; }
+.atlas-continue .ac-text small { font: italic 400 12.5px/1.2 var(--display); color: #6b5038; letter-spacing: .02em; }
+.atlas-continue .ac-text b { font: 700 1.15rem/1.15 var(--display); color: #3a2616; }
+.atlas-continue .ac-text span { font: 600 13px/1.3 var(--ui); color: #5b4330; font-variant-numeric: tabular-nums; }
+.atlas-continue .ac-go { min-height: 44px; padding: 8px 16px; border-radius: 12px; border: 2px solid #2f5f1d; background: linear-gradient(#7cc65a, #5aa83c); color: #fff;
+  font: 800 15px/1 var(--ui); box-shadow: 0 2px 0 #2f5f1d; cursor: pointer; }
+@media (max-width: 360px) { .atlas-continue { grid-template-columns: auto minmax(0, 1fr); } .atlas-continue .ac-go { grid-column: 1 / -1; } }
+@media (min-width: 980px) { .atlas.returning .atlas-grid { grid-template-areas: "cont cont" "plate rank" "plate lesson" "plate index"; grid-template-rows: auto auto auto 1fr; } .atlas-continue { grid-area: cont; } }
+
+/* ---------- №18 · the compost heap: a short reaction to a fitting card, no endless shaking ---------- */
+.field-compost.accepting .compost-mass, .field-compost.accepting .compost-leaves, .field-compost.drag-over .compost-leaves, .field-compost.accepting .compost-steam { animation-iteration-count: 1 !important; }
+.field-compost .compost-ready-card { display: none; }
+
+/* ---------- №19 · beetles crawl a little, stop, turn back ---------- */
+.beetle-crawl .bt-walk { transform-box: view-box; animation: bt-walk var(--bt-dur) ease-in-out var(--bt-del) infinite; }
+.beetle-crawl .bt-legs { animation: bt-legs .5s steps(2) var(--bt-del) infinite; }
+@keyframes bt-walk { 0%, 12% { transform: translate(0, 0) rotate(0deg); } 42% { transform: translate(7px, 0) rotate(0deg); } 50%, 62% { transform: translate(7px, 0) rotate(180deg); } 92% { transform: translate(0, 0) rotate(180deg); } 100% { transform: translate(0, 0) rotate(360deg); } }
+@keyframes bt-legs { 50% { transform: scaleX(.9); } }
+.game.dragging .beetle-crawl { opacity: .35; }
+@media (prefers-reduced-motion: reduce) { .beetle-crawl * { animation: none !important; } }
+.scene-paused .beetle-crawl * { animation-play-state: paused !important; }
+
+/* ---------- №20 · the farm lives calmly; while the player aims or reads a lesson, decoration steps back ---------- */
+/* season particles and butterflies fade while a card is picked or dragged, or Палыч is speaking; pets keep walking */
+.fx { transition: opacity .45s ease; }
+.farm:has(.field-view.picking) .fx, .farm:has(.field-view.dragging) .fx, .farm:has(.guide-note) .fx { opacity: .22; }
+.farm:has(.field-view.dragging) .fx .bfly, .farm:has(.guide-note) .fx .bfly { opacity: 0; }
+.farm:has(.field-view.dragging) .meadow-decor .m-sway { animation-play-state: paused; }
+/* no endless pulsing on ordinary objects: a short call, then stillness */
+.dry-badge { animation-iteration-count: 3 !important; }
+.end-week.ready { animation-iteration-count: 2 !important; }
+.target-ring { animation-duration: 2.4s !important; }
+.frost-mark rect { animation-duration: 2.8s !important; }
+.bubbling { animation-duration: 2.6s !important; }
+.meadow-decor .m-sway { animation-duration: 8.4s; }
+
+/* ---------- №23 · type roles ----------
+   Old Standard TT (--display): short names and the game's character — titles, card and crop names.
+   Alegreya Sans (--ui): everything the player acts on or decides by — buttons, prices, terms, conditions, refusals.
+   Alegreya (--body): what people say and the chronicle. Italic only for a character's voice and side notes. */
+.why, .quest2-note, .small.bad, .barn-hint, .market-key, .loc-locked, .atlas-plate figcaption, .lab-now, .track2-effect, .card-readout .ro-status {
+  font-family: var(--ui); font-style: normal; }
+/* a reason or condition is never smaller than 13 px, and a warning is weighted, not shouted */
+.why, .quest2-note, .small.bad { font-size: max(13px, .82rem); line-height: 1.3; font-weight: 700; }
+.barn-hint, .market-key { font-size: max(13px, .82rem); line-height: 1.32; }
+.atlas-plate figcaption { font-size: 14px; line-height: 1.35; }
+.atlas-plate figcaption span { font-family: var(--display); font-style: italic; }
+.loc-locked { font-weight: 600; }
+/* what people say reads in the book face */
+.meeting-lines p, .org2 .order-line p, .order-dialogue p, .field-voice span { font-family: var(--body); }
+/* prices and terms in buttons: the working face, tabular figures */
+.btn, button.btn, .sale-go, .track2-foot .btn { font-family: var(--ui); font-variant-numeric: lining-nums tabular-nums; }
+
+/* ---------- lab, second take: a big working room — the tables are the projects, Лёва at the desk ---------- */
+.hero.lab-stage { flex-direction: column; align-items: stretch; gap: 0; padding: 0; }
+.lab-stage .lab-stage-art { position: relative; }
+.lab-stage .lab-stage-art > svg.lab-scene { display: block; width: 100%; height: auto; border-radius: 0; border: 0; }
+.lab-stage .hero-text { padding: 10px 14px 12px; gap: 6px; }
+.lab-stage .hero-title { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.lab-stage h2 { font-size: 1.15rem; }
+.lab-stage .lab-now { margin: 0; font: 600 13.5px/1.3 var(--ui); color: #4a3424; }
+.lab-room .ls-label { font: 800 12.5px/1 var(--ui); fill: #3a2616; }
+.lab-room .lab-station.free .ls-label { fill: #5b7a3a; }
+.lab-room .ls-weeks { font: 700 10.5px/1 var(--ui); fill: #4a3424; }
+.lab-room .lab-station { cursor: pointer; outline: none; }
+.lab-room .lab-station:focus-visible .ls-tag rect:first-of-type, .lab-room .lab-station:hover .ls-tag rect:first-of-type { stroke: #714a2d; stroke-width: 2.2; }
+.lab-room .lab-station.free:hover path:first-of-type { fill: #7a5134; }
+/* the speech bubble beside Лёва's head */
+.lab-talk { position: absolute; left: 27%; top: 5%; max-width: min(52%, 230px); display: flex; align-items: flex-start; gap: 6px; padding: 7px 10px 8px; border-radius: 14px;
+  border: 1.5px solid rgba(63, 42, 29, .55); background: #fffaf0; box-shadow: 0 2px 0 rgba(63, 42, 29, .18), 0 6px 14px rgba(40, 24, 10, .14);
+  color: #3a2616; text-align: left; cursor: pointer; font: 500 13px/1.3 var(--body); animation: lab-talk-in .35s ease-out both; }
+.lab-talk::before { content: ''; position: absolute; left: -9px; bottom: 16px; width: 14px; height: 14px; background: #fffaf0; border-left: 1.5px solid rgba(63, 42, 29, .55); border-bottom: 1.5px solid rgba(63, 42, 29, .55); transform: rotate(45deg) skew(8deg, 8deg); border-radius: 0 0 0 3px; }
+.lab-talk img { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; flex: none; border: 1.2px solid rgba(63, 42, 29, .5); }
+.lab-talk span { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.lab-talk b { font: italic 700 11.5px/1.1 var(--display); color: #6b5038; letter-spacing: .02em; }
+@keyframes lab-talk-in { from { opacity: 0; transform: translateY(4px) scale(.98); } to { opacity: 1; transform: none; } }
+@media (max-width: 360px) { .lab-talk { left: 25%; top: 3%; max-width: 58%; font-size: 12px; padding: 5px 8px 6px; } }
+
+/* Лёва's rig */
+.scientist .sc-body { transform-box: view-box; transform-origin: 0 -36px; }
+.scientist .sc-head { transform-box: view-box; transform-origin: 1px -72px; }
+.scientist .sc-upper, .scientist .sc-forearm, .scientist .sc-wrist { transform-box: view-box; transform-origin: 0 0; }
+.scientist .sc-upper.front { transform: rotate(-14deg); }
+.scientist .sc-forearm.front { transform: rotate(-55deg); }
+.scientist .sc-wrist.front { transform: rotate(35deg); }
+.scientist .sc-upper.back { transform: rotate(18deg); }
+.scientist .sc-forearm.back { transform: rotate(-95deg); }
+.scientist .sc-wrist.back { transform: rotate(65deg); }
+.scientist .sc-eyes { transform-box: view-box; transform-origin: 7px -83px; animation: sc-blink 4.6s steps(1) infinite; }
+.scientist.sc-work .sc-body { animation: sc-w-body 12s ease-in-out infinite; }
+.scientist.sc-work .sc-head { animation: sc-w-head 12s ease-in-out infinite; }
+.scientist.sc-work .sc-upper.front { animation: sc-w-upper-front 12s ease-in-out infinite; }
+.scientist.sc-work .sc-forearm.front { animation: sc-w-forearm-front 12s ease-in-out infinite; }
+.scientist.sc-work .sc-wrist.front { animation: sc-w-wrist-front 12s ease-in-out infinite; }
+.scientist.sc-work .sc-upper.back { animation: sc-w-upper-back 12s ease-in-out infinite; }
+.scientist.sc-work .sc-forearm.back { animation: sc-w-forearm-back 12s ease-in-out infinite; }
+.scientist.sc-work .sc-wrist.back { animation: sc-w-wrist-back 12s ease-in-out infinite; }
+.scientist.sc-wait .sc-head { animation: sc-r-head 14s ease-in-out infinite; }
+.scientist.sc-wait .sc-upper.back { animation: sc-r-upper-back 14s ease-in-out infinite; }
+.scientist.sc-wait .sc-forearm.back { animation: sc-r-forearm-back 14s ease-in-out infinite; }
+.scientist.sc-wait .sc-wrist.back { animation: sc-r-wrist-back 14s ease-in-out infinite; }
+.scientist.sc-wait .sc-upper.front { animation: sc-r-upper-front 14s ease-in-out infinite; }
+.scientist.sc-wait .sc-forearm.front { animation: sc-r-forearm-front 14s ease-in-out infinite; }
+.scientist.sc-wait .sc-wrist.front { animation: sc-r-wrist-front 14s ease-in-out infinite; }
+.scientist.sc-wait .sc-body { animation: sc-breathe 4.8s ease-in-out infinite; }
+@keyframes sc-blink { 0%, 94% { transform: none; } 95%, 98% { transform: scaleY(.12); } }
+@keyframes sc-breathe { 50% { transform: scaleY(1.012); } }
+/* work: look through the glass at the flask — write it down — look up, pleased — rest */
+@keyframes sc-w-body { 0%, 6% { transform: none; } 12%, 32% { transform: rotate(5deg); } 40%, 62% { transform: rotate(1deg); } 70%, 86% { transform: rotate(-2deg); } 94%, 100% { transform: none; } }
+@keyframes sc-w-head { 0%, 6% { transform: none; } 12%, 32% { transform: rotate(10deg); } 40%, 46% { transform: rotate(-3deg) translateY(1px); } 50% { transform: rotate(-1deg); } 54%, 62% { transform: rotate(-4deg) translateY(1px); } 70%, 86% { transform: rotate(-9deg); } 94%, 100% { transform: none; } }
+@keyframes sc-w-upper-front { 0%, 6%, 94%, 100% { transform: rotate(-14deg); } 12%, 32% { transform: rotate(-26deg); } 40%, 62% { transform: rotate(-6deg); } 70%, 86% { transform: rotate(-32deg); } }
+@keyframes sc-w-forearm-front { 0%, 6%, 94%, 100% { transform: rotate(-55deg); } 12%, 32% { transform: rotate(-116deg); } 40%, 62% { transform: rotate(-80deg); } 70%, 86% { transform: rotate(-98deg); } }
+@keyframes sc-w-wrist-front { 0%, 6%, 94%, 100% { transform: rotate(35deg); } 12%, 32% { transform: rotate(70deg); } 40%, 62% { transform: rotate(45deg); } 70%, 86% { transform: rotate(60deg); } }
+@keyframes sc-w-upper-back { 0%, 34%, 70%, 100% { transform: rotate(18deg); } 40%, 62% { transform: rotate(10deg); } }
+@keyframes sc-w-forearm-back { 0%, 34%, 70%, 100% { transform: rotate(-95deg); } 40%, 62% { transform: rotate(-100deg); } }
+@keyframes sc-w-wrist-back { 0%, 34%, 70%, 100% { transform: rotate(65deg); } 40%, 62% { transform: rotate(82deg); } }
+/* wait: reads the clipboard, turns a page, looks up at the player */
+@keyframes sc-r-head { 0%, 50% { transform: rotate(-3deg) translateY(1px); } 56%, 70% { transform: rotate(-9deg); } 78%, 100% { transform: rotate(-3deg) translateY(1px); } }
+@keyframes sc-r-upper-back { 0%, 100% { transform: rotate(10deg); } 40%, 48% { transform: rotate(13deg); } }
+@keyframes sc-r-forearm-back { 0%, 100% { transform: rotate(-100deg); } 40%, 48% { transform: rotate(-96deg); } }
+@keyframes sc-r-wrist-back { 0%, 100% { transform: rotate(82deg); } 40%, 48% { transform: rotate(75deg); } }
+@keyframes sc-r-upper-front { 0%, 52%, 76%, 100% { transform: rotate(-14deg); } 58%, 68% { transform: rotate(-28deg); } }
+@keyframes sc-r-forearm-front { 0%, 52%, 76%, 100% { transform: rotate(-55deg); } 58%, 68% { transform: rotate(-103deg); } }
+@keyframes sc-r-wrist-front { 0%, 52%, 76%, 100% { transform: rotate(35deg); } 58%, 68% { transform: rotate(60deg); } }
+@media (prefers-reduced-motion: reduce) { .scientist * { animation: none !important; } .lab-talk { animation: none; } }
+.scene-paused .scientist * { animation-play-state: paused; }
+
+/* ---------- house, second take: the estate as a big working picture ---------- */
+.house-pane .house-hero.estate-hero { flex-direction: column; align-items: stretch; gap: 0; padding: 0; }
+.estate-hero .estate-art { position: relative; }
+.estate-hero .estate-scene { display: block; width: 100%; height: auto; }
+.estate-hero .estate-plaque { position: absolute; left: 10px; top: 10px; display: flex; flex-direction: column; gap: 3px; padding: 6px 10px 7px; border-radius: 10px;
+  background: rgba(255, 250, 236, .92); border: 1.5px solid rgba(63, 42, 29, .5); box-shadow: 0 2px 0 rgba(63, 42, 29, .15); }
+.estate-hero .estate-plaque h2 { margin: 0; font: 700 1.08rem/1.1 var(--display); color: #3a2616; }
+.estate-hero .estate-build { position: absolute; right: 10px; top: 10px; max-width: 46%; display: flex; flex-direction: column; gap: 4px; padding: 6px 9px 7px; border-radius: 8px;
+  background: #fff3c9; border: 1.5px solid #c99a3a; font: 700 12.5px/1.25 var(--ui); color: #3a2616; transform: rotate(1.5deg); box-shadow: 0 2px 0 rgba(63, 42, 29, .15); }
+.estate-hero .estate-links { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; padding: 8px 10px 0; border-top: 1.5px solid rgba(63, 42, 29, .25); }
+.estate-hero .estate-links button { justify-content: center; }
+.estate-hero .estate-links button { position: relative; display: inline-flex; align-items: center; gap: 5px; min-height: 36px; padding: 4px 10px 4px 7px; border-radius: 999px;
+  border: 1.5px solid rgba(63, 42, 29, .55); background: rgba(255, 250, 236, .94); color: #3a2616; font: 700 13px/1 var(--ui); cursor: pointer; box-shadow: 0 2px 0 rgba(63, 42, 29, .18); }
+.estate-hero .estate-links button::after { content: ''; position: absolute; inset: -4px -2px; }
+.estate-hero .estate-links button b { font-variant-numeric: tabular-nums; color: #5b4330; }
+.estate-hero .hero-text { padding: 10px 14px 12px; gap: 6px; }
+.estate-hero .estate-leaves { transform-box: fill-box; transform-origin: 50% 100%; animation: est-sway 7s ease-in-out infinite; }
+.estate-hero .estate-vane { transform-box: view-box; transform-origin: 0 2px; animation: est-vane 9s ease-in-out infinite; }
+.estate-hero .estate-bee { animation: est-bee 3.2s ease-in-out infinite; }
+@keyframes est-sway { 50% { transform: rotate(1.4deg); } }
+@keyframes est-vane { 0%, 100% { transform: scaleX(1); } 45% { transform: scaleX(1); } 50%, 90% { transform: scaleX(-1); } }
+@keyframes est-bee { 0%, 100% { transform: translate(0, 0); } 30% { transform: translate(5px, -4px); } 60% { transform: translate(-3px, -6px); } }
+@media (prefers-reduced-motion: reduce) { .estate-hero * { animation: none !important; } }
+@media (max-width: 360px) { .estate-hero .estate-links button { padding: 4px 6px; font-size: 12px; } .estate-hero .estate-plaque h2 { font-size: .98rem; } }
+.estate-hero .estate-links button svg { flex: none; }

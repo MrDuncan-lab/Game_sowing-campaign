@@ -1,0 +1,79 @@
+/* Same artwork; its timers now follow the presentation of the week's results. */
+.weekturn-out .wt-cur { animation-duration: var(--cal-tear); }
+.weekturn-hold .wt-next { animation-duration: var(--cal-settle); }
+.weekturn.weekturn-fade { opacity: 0; transition-duration: var(--cal-fade); pointer-events: none; }
+.weekturn-fade .wt-cur { opacity: 0; }
+.weekturn-fade .wt-next::before { opacity: 1; }
+.weekturn-fade .wt-box { transform: none; }
+.scene-svg .m-plant-thieves {
+  animation-duration: var(--pull-time, .8s);
+  animation-delay: var(--pull-delay, 1.5s);
+}
+/* Match the delayed crouch and pickup. The more specific shorthand in theme.css
+   otherwise resets the second child's route delay to zero. */
+.event-thieves .chase-person.steal.person-b { animation-delay: .15s; }
+@keyframes kid-steal {
+  0% { opacity: 0; transform: translate(calc(-40px + var(--lead)), calc(var(--scene-mid) - 30px + var(--low))); animation-timing-function: cubic-bezier(.3,.2,.5,1); }
+  6% { opacity: 1; }
+  30%, 46% { transform: translate(var(--steal-x, calc(var(--scene-width) * .42 + var(--lead))), var(--steal-y, calc(var(--scene-mid) + var(--low)))); animation-timing-function: cubic-bezier(.4,0,.75,.85); }
+  100% { opacity: 1; transform: translate(calc(var(--scene-width) + 80px + var(--lead)), calc(var(--scene-mid) - 24px + var(--low))); }
+}
+
+/* Empty beds: arrive, stop, shrug, then walk back with lowered shoulders. */
+.event-thieves.visit-empty .chase-person.steal { animation-name: kid-empty-route; }
+@keyframes kid-empty-route {
+  0% { opacity:0; transform:translate(-40px,calc(var(--steal-y) - 12px)); }
+  5% { opacity:1; }
+  24%, 50% { opacity:1; transform:translate(var(--steal-x),var(--steal-y)); }
+  100% { opacity:1; transform:translate(-40px,calc(var(--steal-y) + 12px)); }
+}
+.kid-empty-body { animation: empty-turn 5s step-end both; }
+@keyframes empty-turn { 0% { transform:none; } 50%,100% { transform:scaleX(-1); } }
+.mood-sad .runner-arm { display:none; }
+.mood-sad .runner-body { animation: empty-shoulders 5s ease-in-out both; }
+@keyframes empty-shoulders { 0%,24% { transform:none; } 32%,42% { transform:translateY(-2px); } 50%,100% { transform:translateY(3px) rotate(6deg); } }
+.mood-sad .runner-leg { transform-box:view-box; transform-origin:0 -17px; animation: empty-step 5s linear both; }
+.mood-sad .runner-leg.leg-b { animation-name:empty-step-back; animation-delay:0s; }
+@keyframes empty-step {
+  0%,14%,28%,50%,64%,78%,92%,100% { transform:rotate(0); }
+  7%,21%,57%,71%,85% { transform:rotate(15deg); }
+}
+@keyframes empty-step-back {
+  0%,14%,28%,50%,64%,78%,92%,100% { transform:rotate(0); }
+  7%,21%,57%,71%,85% { transform:rotate(-15deg); }
+}
+.shrug-left,.shrug-right { transform-box:view-box; animation: shrug-arms 5s ease-in-out both; }
+.shrug-left { transform-origin:-7px -32px; --rest-arm:-65deg; }
+.shrug-right { transform-origin:7px -32px; --rest-arm:65deg; }
+@keyframes shrug-arms { 0%,24%,52%,100% { transform:rotate(var(--rest-arm)); } 32%,44% { transform:rotate(0); } }
+.visit-empty .person-b .kid-empty-body,.visit-empty .person-b .runner-body,.visit-empty .person-b .runner-leg,.visit-empty .person-b .shrug-left,.visit-empty .person-b .shrug-right { animation-delay:.15s; }
+
+/* Shoo first, pull second. These timings share the 500 ms offset in weekPlayback. */
+.visit-shoo .chase-person.steal { animation-name:kid-shoo-route; }
+@keyframes kid-shoo-route {
+  0% { opacity:0; transform:translate(-40px,calc(var(--steal-y) - 20px)); }
+  6% { opacity:1; }
+  30%,56% { opacity:1; transform:translate(var(--steal-x),var(--steal-y)); }
+  100% { opacity:1; transform:translate(calc(var(--scene-width) + 80px),calc(var(--steal-y) - 24px)); }
+}
+.visit-shoo .kid-sneak { animation-name:shoo-show-sneak; }
+.visit-shoo .kid-run { animation-name:shoo-show-run; }
+@keyframes shoo-show-sneak { 0% { opacity:1; } 56%,100% { opacity:0; } }
+@keyframes shoo-show-run { 0% { opacity:0; } 56%,100% { opacity:1; } }
+@keyframes kid-show-sneak { 0% { opacity:1; } 46%,100% { opacity:0; } }
+@keyframes kid-show-run { 0% { opacity:0; } 46%,100% { opacity:1; } }
+.visit-shoo .kid-crouch { animation-name:shoo-crouch; }
+@keyframes shoo-crouch { 0%,39% { transform:none; } 44%,50% { transform:translateY(5px) rotate(24deg); } 56%,100% { transform:none; } }
+.mood-shoo .runner-arm { transform-box:view-box; transform-origin:6px -32px; animation:shoo-arm 5s ease-in-out both; }
+@keyframes shoo-arm { 0%,27%,40%,100% { transform:none; } 30%,36% { transform:rotate(-100deg); } 33%,39% { transform:rotate(-45deg); } }
+.visit-shoo .person-b .mood-shoo .runner-arm { animation-delay:.15s; }
+.visit-crow-wait { animation:visit-bird-wait 5s step-end both; animation-delay:var(--bird-delay,0s); }
+.visit-crow-wait .cr-body,.visit-crow-wait .cr-head,.visit-crow-wait .cr-leg { animation:none; }
+@keyframes visit-bird-wait { 0% { opacity:1; } 31%,100% { opacity:0; } }
+.visit-crow-flee { opacity:0; animation:visit-bird-flee 5s linear both; animation-delay:var(--bird-delay,0s); }
+@keyframes visit-bird-flee {
+  0%,30.9% { opacity:0; transform:translate(0,-14px); }
+  31% { opacity:1; transform:translate(0,-14px); }
+  39.9% { opacity:0; transform:translate(100px,-120px); }
+  40%,100% { opacity:0; transform:translate(100px,-120px); }
+}

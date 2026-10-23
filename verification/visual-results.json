@@ -1,0 +1,101 @@
+{
+  "group": "visual",
+  "checks": [
+    {
+      "name": "collisions",
+      "pass": true,
+      "frames": 1540,
+      "events": [
+        "frost",
+        "dry",
+        "beetle",
+        "locust",
+        "bugmiss",
+        "thieves",
+        "crows",
+        "crowmiss"
+      ]
+    },
+    {
+      "name": "eventchain",
+      "pass": true,
+      "frames": 892,
+      "events": [
+        "hail",
+        "beetle",
+        "thieves",
+        "crows"
+      ]
+    },
+    {
+      "name": "emptyraid",
+      "pass": true,
+      "frames": 663,
+      "events": [
+        "dry",
+        "locust",
+        "thieves"
+      ]
+    },
+    {
+      "name": "frost",
+      "pass": true,
+      "frames": 383,
+      "events": [
+        "frost"
+      ]
+    },
+    {
+      "name": "hail",
+      "pass": true,
+      "frames": 385,
+      "events": [
+        "hail"
+      ]
+    },
+    {
+      "name": "drought",
+      "pass": true,
+      "frames": 374,
+      "events": [
+        "dry"
+      ]
+    },
+    {
+      "name": "flood",
+      "pass": true,
+      "frames": 367,
+      "events": [
+        "flood"
+      ]
+    },
+    {
+      "name": "thieves",
+      "pass": true,
+      "frames": 405,
+      "events": [
+        "thieves"
+      ]
+    },
+    {
+      "name": "collisions-fast",
+      "pass": true,
+      "frames": 1458,
+      "events": [
+        "frost",
+        "dry",
+        "beetle",
+        "locust",
+        "bugmiss",
+        "thieves",
+        "crows",
+        "crowmiss"
+      ]
+    },
+    {
+      "name": "collisions-reduced",
+      "pass": true
+    }
+  ],
+  "errors": []
+}

@@ -1,0 +1,23 @@
+import { writeFileSync } from 'node:fs';
+import { newGame, tile, apply } from '../src/engine/game';
+import { emptyProfile } from '../src/ui/persist';
+import { seasonOf } from '../src/engine/calendar';
+import { LOCATIONS } from '../src/engine/data';
+const profile = emptyProfile(); profile.settings={intro:true,fast:true}; profile.glory=1000;
+const initial=newGame({loc:'chernozem',seed:'REPAIR-BROWSER'});
+const equipment=structuredClone(initial);
+equipment.money=1000; equipment.days=20; equipment.levels.greenhouse=1; equipment.levels.guard=1; equipment.levels.irrigation=2;
+equipment.scarecrows=[[1,1]]; tile(equipment,1,1).structure='greenhouse';
+tile(equipment,2,2).crop={id:'radish',pid:equipment.nextPid++,grown:0,mult:1,bonus:0,planted:equipment.absWeek};
+equipment.storage=[{crop:'radish',qty:30,age:0}];
+equipment.orgs.bakery!.active={id:99,org:'bakery',step:0,title:'Резерв теста',text:'',lines:[{crop:'radish',qty:10}],pay:30,rel:10,weeks:5,deadline:6};
+const shortfall=structuredClone(equipment);shortfall.phase='shortfall';shortfall.money=0;shortfall.due={name:'Весна',amount:20,seasonEnd:true};
+const expanded=structuredClone(equipment);expanded.tiles.forEach(t=>{t.terrain='plain';t.owned=true});
+const drag=structuredClone(initial);drag.plan=[];drag.money=100;drag.days=10;
+drag.hand=[{uid:drag.nextUid++,def:'seed_potato'},...drag.hand.slice(0,4)];
+const fullHand=structuredClone(drag);fullHand.levels.planning=3;
+while(fullHand.hand.length<9)fullHand.hand.push({uid:fullHand.nextUid++,def:'water'});
+const winter=structuredClone(equipment);winter.plan=[];winter.levels.greenhouse=3;winter.temps.fill(-5);winter.flags={warm:false,rain:false,dry:false};
+for(let week=1;week<40;week++){const d=seasonOf(LOCATIONS.chernozem,week);if(d.season===3){winter.week=week;winter.absWeek=week;winter.season=3;winter.weekInSeason=d.w;break;}}
+tile(winter,1,1).crop={id:'radish',pid:winter.nextPid++,grown:0,mult:1,bonus:0,planted:winter.absWeek};tile(winter,1,1).moisture=0;
+writeFileSync('../qa/browser-fixtures.json',JSON.stringify({profile,initial,equipment,shortfall,expanded,drag,fullHand,winter}));

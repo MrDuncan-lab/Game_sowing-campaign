@@ -1,0 +1,210 @@
+/* ===================== the tutorial coach: Палыч's notes, the pointing hand, stamps and certificates =====================
+   Same paper and ink as the atlas. The note floats over the farm but never takes a tap meant for a bed;
+   only its own buttons are clickable. */
+.guide-arrow { position: fixed; inset: 0; z-index: 61; pointer-events: none; overflow: visible; }
+
+/* --- the note --- */
+.guide-note.pal-note { position: fixed; z-index: 62; box-sizing: border-box; padding: 9px 12px 11px; color: var(--ink); font-family: var(--ui);
+  background: radial-gradient(120% 90% at 50% 0%, rgba(255, 251, 240, .8), rgba(255, 251, 240, 0) 70%), var(--page), #f6ecd2;
+  border: 1.5px solid var(--ink); border-radius: 14px;
+  box-shadow: inset 0 0 0 3px rgba(255, 251, 240, .85), inset 0 0 0 4px rgba(63, 42, 29, .2), 0 3px 0 rgba(63, 42, 29, .22), 0 14px 26px rgba(40, 24, 10, .24);
+  pointer-events: none; animation: coach-in .42s cubic-bezier(.2, .9, .3, 1.15) both; transition: left .32s cubic-bezier(.3, .8, .3, 1), top .32s cubic-bezier(.3, .8, .3, 1); }
+.guide-note.pal-note button, .guide-note.pal-note .guide-recovery { pointer-events: auto; }
+@keyframes coach-in { from { opacity: 0; transform: translateY(10px) scale(.95) } to { opacity: 1; transform: none } }
+.coach-progress { position: absolute; left: 16px; right: 16px; top: 5px; height: 3px; border-radius: 2px; background: rgba(63, 42, 29, .12); overflow: hidden; }
+.coach-progress i { display: block; height: 100%; border-radius: 2px; background: linear-gradient(90deg, #c9973a, #e9c46a); transition: width .8s cubic-bezier(.3, .8, .3, 1); }
+.coach-head { display: grid; grid-template-columns: 46px minmax(0, 1fr) auto auto; align-items: end; gap: 4px 8px; margin-top: 2px; }
+.coach-face { position: relative; top: -16px; margin-bottom: -16px; width: 46px; height: 46px; border-radius: 50%; overflow: hidden; border: 1.5px solid var(--ink); background: #bfe1f2;
+  box-shadow: inset 0 0 0 2.5px #e2b866, 0 2px 0 rgba(63, 42, 29, .25); animation: coach-nod 4.2s ease-in-out infinite; }
+.coach-face img { display: block; width: 100%; height: 100%; object-fit: cover; }
+@keyframes coach-nod { 0%, 70%, 100% { transform: none } 78% { transform: rotate(-5deg) translateY(1px) } 88% { transform: rotate(3deg) } }
+.pal-note.worried .coach-face { animation: coach-worry .5s ease-in-out; }
+@keyframes coach-worry { 0%, 100% { transform: none } 25% { transform: rotate(-8deg) } 60% { transform: rotate(6deg) } }
+.pal-note .guide-heading { min-width: 0; padding-bottom: 3px; font: italic 400 .84rem/1.1 var(--display); letter-spacing: .02em; color: var(--ink-soft); }
+.pal-note .guide-help-toggle, .pal-note .guide-close { position: static; display: grid; place-items: center; width: 30px; height: 30px; padding: 0; border: 1px solid rgba(63, 42, 29, .3); border-radius: 50%; background: rgba(255, 250, 236, .85); color: var(--ink-soft); font: 700 .95rem/1 var(--display); cursor: pointer; }
+.pal-note .guide-close { font: 400 1.25rem/1 var(--display); }
+.pal-note .guide-help-toggle[aria-expanded="true"] { background: #f2dfae; }
+.coach-body { animation: coach-text .3s ease-out both; max-height: 44dvh; overflow: auto; }
+@keyframes coach-text { from { opacity: 0; transform: translateY(4px) } to { opacity: 1; transform: none } }
+.coach-body p { margin: 6px 0 3px; font: 700 1.04rem/1.24 var(--display); color: var(--ink); text-wrap: balance; }
+.coach-body small { display: block; font: 400 .87rem/1.3 var(--ui); color: var(--ink-soft); }
+.coach-body p.coach-hello { margin: 6px 0 4px; padding-left: 8px; border-left: 2px solid #e2b866; font: italic 400 .93rem/1.28 var(--display); color: #6e5038; }
+.coach-body p.coach-error { margin: 6px 0 4px; padding: 5px 9px; border-radius: 8px; background: #f8e0d8; border: 1px solid rgba(168, 53, 42, .3); font: 600 .88rem/1.25 var(--ui); color: #a8352a; animation: coach-shake .42s ease-in-out; }
+@keyframes coach-shake { 0%, 100% { transform: none } 20% { transform: translateX(-5px) } 40% { transform: translateX(4px) } 60% { transform: translateX(-3px) } 80% { transform: translateX(2px) } }
+.coach-check { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 4px; }
+.coach-check li { display: flex; align-items: center; gap: 8px; font: 600 .9rem/1.2 var(--ui); color: var(--ink-soft); }
+.coach-check li i { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid rgba(63, 42, 29, .4); font-style: normal; font-size: .8rem; color: #fff; }
+.coach-check li.ok { color: #2f6b22; }
+.coach-check li.ok i { background: #5aae3a; border-color: #3e7a2a; animation: coach-tick .4s cubic-bezier(.3, 1.6, .5, 1); }
+@keyframes coach-tick { from { transform: scale(.3) } to { transform: none } }
+.pal-note .guide-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 9px; }
+.coach-dots { display: flex; gap: 5px; margin-right: auto; }
+.coach-dots i { width: 7px; height: 7px; border-radius: 50%; background: rgba(63, 42, 29, .2); transition: transform .2s, background .2s; }
+.coach-dots i.seen { background: rgba(201, 151, 58, .6); }
+.coach-dots i.on { background: #c9973a; transform: scale(1.35); }
+.guide-next { min-height: 36px; padding: 6px 14px; border: 1.5px solid #7c4f2b; border-radius: 10px; background: linear-gradient(#f2dfae, #e2c58b); color: var(--ink); font: 700 .92rem/1.2 var(--ui); box-shadow: 0 2px 0 rgba(63, 42, 29, .3); cursor: pointer; }
+.guide-next.primary { border-color: #3e7a2a; background: linear-gradient(#86d35b, #5aae3a); color: #fffbe8; text-shadow: 0 1px 0 rgba(0, 0, 0, .3); }
+.guide-next:active { transform: translateY(1px); box-shadow: 0 1px 0 rgba(63, 42, 29, .3); }
+.guide-skip { min-height: 36px; padding: 4px 8px; border: 0; background: none; color: var(--ink-soft); font: 600 .86rem var(--ui); text-decoration: underline dotted; cursor: pointer; }
+.coach-tail { position: absolute; left: calc(var(--tail) - 8px); width: 15px; height: 15px; background: #f6ecd2; border: solid var(--ink); border-width: 0 1.5px 1.5px 0; }
+.coach-tail.down { bottom: -9px; transform: rotate(45deg); }
+.coach-tail.up { top: -9px; transform: rotate(225deg); }
+.pal-note .guide-recovery { margin-top: 10px; padding-top: 6px; border-top: 1px solid rgba(63, 42, 29, .2); display: flex; flex-direction: column; gap: 2px; }
+.pal-note .guide-recovery p { margin: 0 0 2px; font: italic .84rem/1.3 var(--display); color: var(--ink-soft); }
+.pal-note .guide-recovery button { min-height: 34px; padding: 6px 2px; border: 0; border-bottom: 1px dashed rgba(63, 42, 29, .25); background: none; text-align: left; font: 600 .88rem var(--ui); color: var(--ink); cursor: pointer; }
+.guide-restore { position: fixed; z-index: 62; display: inline-flex; align-items: center; gap: 7px; min-height: 36px; padding: 3px 12px 3px 3px; border: 1.5px solid var(--ink); border-radius: 999px; background: var(--page), #f6ecd2; color: var(--ink); font: 600 .86rem var(--ui); box-shadow: 0 2px 0 rgba(63, 42, 29, .25); cursor: pointer; animation: coach-in .3s ease-out both; }
+.guide-restore img { width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--ink); background: #bfe1f2; object-fit: cover; }
+
+/* --- where to look: one DOM box with a huge shadow is the dim and its hole; a glow breathes round it.
+   Its position is written every frame by the coach (transform/width/height); only opacity animates. --- */
+.coach-spot, .coach-area, .coach-drop, .coach-gesture { position: fixed; left: 0; top: 0; z-index: 61; pointer-events: none; will-change: transform; }
+.coach-dim { position: fixed; inset: 0; z-index: 61; pointer-events: none; transition: opacity .25s ease-out; }
+.coach-dim .shade { fill: rgba(30, 18, 8, .3); }
+.coach-spot { border-radius: 12px; outline: 3px solid #f2b632; outline-offset: 0; animation: spot-in .4s ease-out both; }
+.coach-spot::after { content: ''; position: absolute; inset: -5px; border-radius: 16px; box-shadow: 0 0 0 4px rgba(255, 246, 214, .95), 0 0 18px 6px rgba(255, 214, 110, .6); animation: spot-glow 1.7s ease-in-out infinite; }
+.coach-spot.card-spot { outline: 0; }
+.coach-spot.card-spot::after { display: none; }
+/* Geometry and the SVG cutout switch together; never fly a detached rectangle
+   between the fan and the field. The gesture artwork keeps its own animation. */
+.coach-spot, .coach-gesture { transition: none; }
+.coach-area { border-radius: 10px; outline: 2px dashed #f2b632; outline-offset: -1px; background: rgba(255, 246, 214, .12); }
+.coach-drop { border-radius: 10px; outline: 2.5px dashed #fff3cf; outline-offset: -1px; background: rgba(255, 246, 214, .3); box-shadow: 0 0 14px 2px rgba(255, 220, 130, .55); animation: drop-pulse 2.9s ease-in-out infinite; }
+.coach-gesture { width: 1px; height: 1px; }
+.coach-gesture svg { position: absolute; left: 0; top: 0; overflow: visible; }
+@keyframes spot-in { from { opacity: 0 } to { opacity: 1 } }
+@keyframes spot-glow { 0%, 100% { opacity: .35 } 50% { opacity: 1 } }
+@keyframes drop-pulse { 0%, 55% { opacity: .55 } 72% { opacity: 1 } 100% { opacity: .55 } }
+.card.lesson-card-target { outline: 3px solid #f2b632 !important; outline-offset: 2px; }
+.card.lesson-card-target::after { content: ''; position: absolute; inset: -9px; border-radius: 1.3em; pointer-events: none; box-shadow: 0 0 0 4px rgba(255, 246, 214, .95), 0 0 18px 6px rgba(255, 214, 110, .65); animation: spot-glow 1.7s ease-in-out infinite; z-index: 3; }
+
+/* --- the pointing hand acts the gesture out --- */
+.g-root .g-move, .g-root .g-press, .g-root .g-ghost { transform-box: view-box; transform-origin: 0 0; }
+.g-root .g-ripple { fill: rgba(255, 246, 214, .55); stroke: #f2b632; stroke-width: 2; opacity: 0; transform-box: fill-box; transform-origin: center; }
+.g-ghost rect { fill: #fffaf0; stroke: #3f2a1d; stroke-width: 1.4; }
+.g-ghost .g-ghost-band { fill: #9fd06a; }
+.g-ghost .g-ghost-art { fill: #8a5a33; stroke-width: 1; }
+.g-tap .g-move { animation: g-tap 1.7s ease-in-out infinite; }
+.g-tap .g-press { animation: g-press 1.7s ease-in-out infinite; }
+.g-tap .g-ripple { animation: g-ripple 1.7s ease-out infinite; }
+@keyframes g-tap { 0% { transform: translate(20px, 24px); opacity: 0 } 14% { opacity: 1 } 34%, 62% { transform: none; opacity: 1 } 86% { transform: translate(10px, 13px); opacity: 1 } 100% { transform: translate(20px, 24px); opacity: 0 } }
+@keyframes g-press { 0%, 36% { transform: none } 44% { transform: scale(.84) } 54%, 100% { transform: none } }
+@keyframes g-ripple { 0%, 40% { opacity: 0; transform: scale(.4) } 46% { opacity: 1 } 82%, 100% { opacity: 0; transform: scale(2.8) } }
+.g-double .g-move { animation: g-dmove 1.9s ease-in-out infinite; }
+.g-double .g-press { animation: g-dpress 1.9s ease-in-out infinite; }
+.g-double .g-ripple { animation: g-ripple1 1.9s ease-out infinite; }
+.g-double .g-ripple.r2 { animation-name: g-ripple2; }
+@keyframes g-dmove { 0% { transform: translate(20px, 24px); opacity: 0 } 14% { opacity: 1 } 26%, 70% { transform: none; opacity: 1 } 90% { transform: translate(10px, 13px); opacity: 1 } 100% { transform: translate(20px, 24px); opacity: 0 } }
+@keyframes g-dpress { 0%, 28% { transform: none } 33% { transform: scale(.84) } 38%, 42% { transform: none } 47% { transform: scale(.84) } 52%, 100% { transform: none } }
+@keyframes g-ripple1 { 0%, 31% { opacity: 0; transform: scale(.4) } 35% { opacity: 1 } 62%, 100% { opacity: 0; transform: scale(2.4) } }
+@keyframes g-ripple2 { 0%, 45% { opacity: 0; transform: scale(.4) } 49% { opacity: 1 } 78%, 100% { opacity: 0; transform: scale(2.8) } }
+.g-drag .g-move { animation: g-drag 2.9s cubic-bezier(.45, .05, .4, 1) infinite; }
+.g-drag .g-press { animation: g-dragpress 2.9s ease-in-out infinite; }
+.g-drag .g-ghost { animation: g-ghost 2.9s ease-in-out infinite; }
+.g-drag .g-ripple { animation: g-dripple 2.9s ease-out infinite; }
+@keyframes g-drag { 0% { transform: translate(var(--fx), var(--fy)); opacity: 0 } 10%, 24% { transform: translate(var(--fx), var(--fy)); opacity: 1 } 68%, 80% { transform: none; opacity: 1 } 92%, 100% { transform: none; opacity: 0 } }
+@keyframes g-dragpress { 0%, 14% { transform: none } 20%, 72% { transform: scale(.88) } 78%, 100% { transform: none } }
+@keyframes g-ghost { 0%, 18% { opacity: 0; transform: translateY(6px) scale(.85) } 25%, 70% { opacity: .95; transform: none } 80%, 100% { opacity: 0; transform: translateY(10px) scale(.55) } }
+@keyframes g-dripple { 0%, 70% { opacity: 0; transform: scale(.4) } 75% { opacity: 1 } 95%, 100% { opacity: 0; transform: scale(3) } }
+.g-slide .g-move { animation: g-slide 2.3s ease-in-out infinite; }
+.g-slide .g-press { animation: g-slidepress 2.3s ease-in-out infinite; }
+@keyframes g-slide { 0% { transform: translate(0, 10px); opacity: 0 } 12%, 22% { transform: none; opacity: 1 } 70%, 82% { transform: translate(var(--sx), 0); opacity: 1 } 100% { transform: translate(var(--sx), 8px); opacity: 0 } }
+@keyframes g-slidepress { 0%, 18% { transform: none } 24%, 74% { transform: scale(.88) } 80%, 100% { transform: none } }
+
+/* --- a finished step: a stamp and a puff of leaves where it happened --- */
+.coach-cheer { position: fixed; z-index: 64; width: 0; height: 0; pointer-events: none; }
+.coach-cheer b { position: absolute; left: 0; top: -16px; padding: 2px 11px 3px; border: 2px solid #2f6b22; border-radius: 8px; background: #fffaf0; color: #2f6b22; font: 700 1.16rem/1.2 var(--display); white-space: nowrap; box-shadow: 0 2px 0 rgba(47, 107, 34, .3); animation: cheer-stamp 1.3s ease-out both; }
+.coach-cheer i { position: absolute; left: -5px; top: -4px; width: 11px; height: 7px; border-radius: 0 70% 0 70%; background: #7dbb4f; border: 1px solid #3e7a2a; animation: cheer-leaf 1.15s cubic-bezier(.2, .7, .4, 1) both; }
+.coach-cheer i.spark { width: 6px; height: 6px; border-radius: 50%; background: #f2c23a; border-color: #c99a1f; }
+@keyframes cheer-leaf { 0% { transform: translate(0, 0) rotate(0) scale(.4); opacity: 0 } 15% { opacity: 1 } 100% { transform: translate(var(--dx), var(--dy)) rotate(var(--r)) scale(1); opacity: 0 } }
+@keyframes cheer-stamp { 0% { transform: translate(-50%, -50%) rotate(-7deg) scale(1.9); opacity: 0 } 16% { transform: translate(-50%, -50%) rotate(-7deg) scale(.94); opacity: 1 } 24% { transform: translate(-50%, -50%) rotate(-7deg) scale(1) } 72% { transform: translate(-50%, -62%) rotate(-7deg); opacity: 1 } 100% { transform: translate(-50%, -95%) rotate(-7deg); opacity: 0 } }
+
+/* --- the chapter certificate --- */
+.coach-cert-back { position: fixed; inset: 0; z-index: 70; display: grid; place-items: center; padding: 16px max(16px, env(safe-area-inset-right, 0px)) 16px max(16px, env(safe-area-inset-left, 0px)); background: rgba(38, 24, 12, .46); -webkit-backdrop-filter: blur(1.5px); backdrop-filter: blur(1.5px); animation: spot-in .35s ease-out both; }
+.coach-cert { position: relative; box-sizing: border-box; width: min(370px, 100%); max-height: calc(100dvh - 48px); overflow: auto; padding: 38px 22px 18px; text-align: center; color: var(--ink);
+  background: radial-gradient(120% 70% at 50% 20%, rgba(255, 251, 240, .7), rgba(255, 251, 240, 0) 70%), var(--page), #f6ecd2; border: 1.5px solid var(--ink); border-radius: 6px;
+  box-shadow: inset 0 0 0 5px #f6ecd2, inset 0 0 0 6px rgba(63, 42, 29, .45), inset 0 0 0 9px #f6ecd2, inset 0 0 0 10px rgba(63, 42, 29, .2), 0 20px 44px rgba(20, 10, 4, .42); animation: cert-in .55s cubic-bezier(.2, .9, .3, 1.12) both; }
+@keyframes cert-in { from { opacity: 0; transform: translateY(24px) scale(.94) rotate(-1deg) } to { opacity: 1; transform: none } }
+.cc-seal { position: absolute; left: 50%; top: 10px; width: 52px; height: 52px; margin-left: -26px; display: grid; place-items: center; border-radius: 50%; border: 1.5px solid var(--ink); background: radial-gradient(circle at 40% 30%, #fff6e0, #f0dfb8 75%); box-shadow: inset 0 0 0 3px #c9973a, inset 0 0 0 4.5px rgba(63, 42, 29, .4), 0 2px 0 rgba(63, 42, 29, .3); animation: seal-drop .6s cubic-bezier(.3, 1.5, .5, 1) .25s both; }
+.cc-seal span { font: 700 1.25rem/1 var(--display); }
+.cc-seal::before, .cc-seal::after { content: ''; position: absolute; bottom: -12px; width: 12px; height: 18px; background: #a8452c; clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 75%, 0 100%); z-index: -1; }
+.cc-seal::before { left: 12px; transform: rotate(14deg); } .cc-seal::after { right: 12px; transform: rotate(-14deg); }
+@keyframes seal-drop { from { opacity: 0; transform: translateY(-14px) scale(1.5) rotate(-20deg) } to { opacity: 1; transform: none } }
+.coach-cert .cc-kicker { display: block; margin-top: 26px; font: italic 400 .86rem/1.2 var(--display); letter-spacing: .14em; color: var(--ink-soft); }
+.coach-cert h2 { margin: 4px 0 6px; font: 700 1.62rem/1.1 var(--display); letter-spacing: .02em; }
+.coach-cert .cc-lead { margin: 0 auto 10px; max-width: 30ch; font: italic 400 .96rem/1.35 var(--display); color: var(--ink-soft); text-wrap: balance; }
+.cc-list { list-style: none; margin: 0 0 12px; padding: 10px 6px 4px; border-top: 3px double rgba(63, 42, 29, .35); display: grid; gap: 6px; text-align: left; }
+.cc-list li { display: flex; align-items: center; gap: 9px; font: 600 .94rem/1.2 var(--ui); opacity: 0; animation: cc-item .38s ease-out calc(.55s + var(--i) * .11s) both; }
+.cc-list li i { flex: none; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: #5aae3a; border: 1.5px solid #3e7a2a; color: #fff; font-style: normal; font-size: .8rem; }
+@keyframes cc-item { from { opacity: 0; transform: translateX(-10px) } to { opacity: 1; transform: none } }
+.cc-palych { display: flex; align-items: center; gap: 10px; margin: 4px 0 14px; padding: 9px 10px; border-radius: 10px; background: rgba(255, 250, 236, .6); box-shadow: inset 0 0 0 1px rgba(63, 42, 29, .2); text-align: left; }
+.cc-palych img { flex: none; width: 52px; height: 52px; border-radius: 50%; border: 1.5px solid var(--ink); background: #bfe1f2; object-fit: cover; box-shadow: inset 0 0 0 2px #e2b866; }
+.cc-palych p { margin: 0; font: italic 400 .9rem/1.3 var(--display); color: #5a4030; }
+.cc-actions { display: flex; flex-direction: column; gap: 8px; }
+.cc-actions .guide-next { min-height: 44px; font-size: 1rem; }
+
+/* --- the hand-picked card, and the lesson button on the map --- */
+.atlas-lesson { display: flex; align-items: center; gap: 12px; width: 100%; margin: 4px 0 12px; padding: 10px 14px; border: 1px solid var(--atlas-rule, rgba(63, 42, 29, .5)); outline: 1px solid rgba(63, 42, 29, .22); outline-offset: 3px; border-radius: 3px; background: rgba(255, 250, 236, .6); color: var(--ink); text-align: left; cursor: pointer; transition: background-color .15s; }
+.atlas-lesson:hover { background: rgba(201, 151, 58, .14); }
+.atlas-lesson b { font: 700 1.08rem/1.15 var(--display); }
+.atlas-lesson span:nth-child(2) { flex: 1; }
+.atlas-lesson small { display: block; margin-top: 2px; font: italic .86rem/1.2 var(--display); color: var(--ink-soft); }
+
+@media (prefers-reduced-motion: reduce) {
+  .guide-note.pal-note, .coach-body, .coach-face, .coach-spot, .coach-spot::after, .coach-drop, .coach-cert, .coach-cert-back, .cc-seal, .cc-list li, .card.lesson-card-target::after, .guide-restore { animation: none !important; transition: none !important; }
+  .cc-list li { opacity: 1; }
+  .g-root .g-move, .g-root .g-press, .g-root .g-ghost, .g-root .g-ripple { animation: none !important; }
+  .g-root .g-ghost, .g-root .g-ripple { display: none; }
+  .coach-cheer i { display: none; }
+}
+.atlas-lesson { min-height: 64px; padding: 8px 14px 8px 8px; }
+.atlas-lesson .al-face { flex: none; width: 48px; height: 48px; border-radius: 50%; overflow: hidden; border: 1.5px solid var(--ink); background: #bfe1f2; box-shadow: inset 0 0 0 2.5px #e2b866, 0 1px 0 rgba(63, 42, 29, .25); }
+.atlas-lesson .al-face img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.atlas-lesson .al-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.atlas-lesson .al-bar { display: block; height: 5px; margin-top: 2px; border: 1px solid rgba(63, 42, 29, .45); border-radius: 3px; background: rgba(255, 250, 236, .8); overflow: hidden; }
+.atlas-lesson .al-bar i { display: block; height: 100%; background: linear-gradient(90deg, #c9973a, #e9c46a); }
+.atlas-lesson .al-go { flex: none; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; border: 1px solid rgba(63, 42, 29, .4); font: 700 1.3rem/1 var(--display); color: var(--ink-soft); }
+.atlas-lesson.done .al-go { background: #5aae3a; border-color: #3e7a2a; color: #fff; font-size: .95rem; }
+.atlas-lesson:not(.started):not(.done) .al-face { animation: coach-nod 4.2s ease-in-out infinite; }
+@media (min-width: 980px) { .atlas-grid { grid-template-areas: "plate rank" "plate lesson" "plate index"; grid-template-rows: auto auto 1fr; } .atlas-lesson { grid-area: lesson; margin: 0; } }
+.intro-palych { display: flex; align-items: center; gap: 12px; text-align: left; }
+.intro-palych .ip-face { flex: none; width: 64px; height: 64px; border-radius: 50%; overflow: hidden; border: 1.5px solid var(--ink); background: #bfe1f2; box-shadow: inset 0 0 0 3px #e2b866, 0 2px 0 rgba(63, 42, 29, .25); animation: coach-nod 4.2s ease-in-out infinite; }
+.intro-palych .ip-face img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.intro.atlas .intro-palych p { margin: 0; font: italic 400 1rem/1.35 var(--display); color: #5a4030; text-wrap: pretty; }
+.intro-plan { list-style: none; margin: 4px 0 2px; padding: 8px 0 0; border-top: 3px double rgba(63, 42, 29, .3); display: grid; gap: 6px; width: 100%; text-align: left; }
+.intro-plan li { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 8px; align-items: baseline; }
+.intro-plan b { font: 700 .98rem/1.2 var(--display); }
+.intro-plan span { font: .92rem/1.3 var(--ui); color: var(--ink-soft); }
+.intro.atlas .intro-card .btn-row { flex-direction: column; align-items: stretch; width: 100%; }
+.intro-later { font: italic .84rem/1.3 var(--display); color: var(--ink-mute); }
+@media (prefers-reduced-motion: reduce) { .intro-palych .ip-face { animation: none; } }
+.pal-note .guide-heading { display: flex; align-items: center; gap: 6px; }
+.pal-note .guide-heading b { flex: none; display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 4px; border-radius: 10px; border: 1px solid rgba(63, 42, 29, .45); font: 700 .74rem/1 var(--display); font-style: normal; color: var(--ink); background: rgba(255, 250, 236, .8); }
+@media (max-height: 640px) {
+  .coach-cert { padding: 32px 16px 14px; }
+  .coach-cert h2 { font-size: 1.36rem; }
+  .coach-cert .cc-lead { font-size: .88rem; margin-bottom: 6px; }
+  .cc-list { gap: 3px; padding-top: 6px; }
+  .cc-list li { font-size: .86rem; }
+  .cc-list li i { width: 18px; height: 18px; }
+  .cc-palych { padding: 6px 8px; margin-bottom: 10px; }
+  .cc-palych img { width: 40px; height: 40px; }
+  .cc-palych p { font-size: .82rem; }
+  .cc-actions .guide-next { min-height: 40px; }
+}
+.pal-note.compact .coach-body p { font-size: .98rem; margin-top: 4px; }
+.pal-note.compact .coach-check { grid-template-columns: repeat(2, max-content); gap: 4px 14px; margin-top: 6px; }
+.pal-note.free .coach-body p:not(.coach-hello):not(.coach-error) { font-size: .96rem; }
+.pal-note.free .coach-face { animation: none; }
+.pal-note.free { box-shadow: inset 0 0 0 3px rgba(255, 251, 240, .85), inset 0 0 0 4px rgba(63, 42, 29, .2), 0 2px 0 rgba(63, 42, 29, .18), 0 8px 16px rgba(40, 24, 10, .16); }
+/* small phones: a tighter note, so the field stays in view */
+@media (max-width: 360px), (max-height: 640px) {
+  .pal-note { padding: 7px 10px 9px; }
+  .pal-note .coach-head { grid-template-columns: 38px minmax(0, 1fr) auto auto; gap: 2px 6px; }
+  .pal-note .coach-face { width: 38px; height: 38px; top: -12px; margin-bottom: -12px; }
+  .pal-note .guide-help-toggle, .pal-note .guide-close { width: 28px; height: 28px; }
+  .pal-note .guide-heading { font-size: .76rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+  .pal-note .guide-heading b { display: none; }
+  .coach-body p { font-size: .95rem; margin: 4px 0 2px; }
+  .coach-body small { font-size: .8rem; }
+  .coach-body p.coach-hello { font-size: .84rem; margin: 4px 0 3px; }
+}

@@ -1,0 +1,198 @@
+{
+  "group": "interrupt",
+  "checks": [
+    {
+      "name": "frost-skip",
+      "pass": true,
+      "frames": 249,
+      "events": [
+        "frost"
+      ]
+    },
+    {
+      "name": "frost-pause",
+      "pass": true,
+      "frames": 1602,
+      "events": [
+        "frost",
+        "dry",
+        "beetle",
+        "locust",
+        "bugmiss",
+        "thieves",
+        "crows",
+        "crowmiss"
+      ]
+    },
+    {
+      "name": "dry-skip",
+      "pass": true,
+      "frames": 409,
+      "events": [
+        "frost",
+        "dry"
+      ]
+    },
+    {
+      "name": "dry-pause",
+      "pass": true,
+      "frames": 1602,
+      "events": [
+        "frost",
+        "dry",
+        "beetle",
+        "locust",
+        "bugmiss",
+        "thieves",
+        "crows",
+        "crowmiss"
+      ]
+    },
+    {
+      "name": "hail-skip",
+      "pass": true,
+      "frames": 253,
+      "events": [
+        "hail"
+      ]
+    },
+    {
+      "name": "hail-pause",
+      "pass": true,
+      "frames": 944,
+      "events": [
+        "hail",
+        "beetle",
+        "thieves",
+        "crows"
+      ]
+    },
+    {
+      "name": "flood-skip",
+      "pass": true,
+      "frames": 254,
+      "events": [
+        "flood"
+      ]
+    },
+    {
+      "name": "flood-pause",
+      "pass": true,
+      "frames": 423,
+      "events": [
+        "flood"
+      ]
+    },
+    {
+      "name": "beetle-skip",
+      "pass": true,
+      "frames": 553,
+      "events": [
+        "frost",
+        "dry",
+        "beetle"
+      ]
+    },
+    {
+      "name": "beetle-pause",
+      "pass": true,
+      "frames": 1598,
+      "events": [
+        "frost",
+        "dry",
+        "beetle",
+        "locust",
+        "bugmiss",
+        "thieves",
+        "crows",
+        "crowmiss"
+      ]
+    },
+    {
+      "name": "bugmiss-skip",
+      "pass": true,
+      "frames": 809,
+      "events": [
+        "frost",
+        "dry",
+        "beetle",
+        "locust",
+        "bugmiss"
+      ]
+    },
+    {
+      "name": "bugmiss-pause",
+      "pass": true,
+      "frames": 1675,
+      "events": [
+        "frost",
+        "dry",
+        "beetle",
+        "locust",
+        "bugmiss",
+        "thieves",
+        "crows",
+        "crowmiss"
+      ]
+    },
+    {
+      "name": "thieves-skip",
+      "pass": true,
+      "frames": 1045,
+      "events": [
+        "frost",
+        "dry",
+        "beetle",
+        "locust",
+        "bugmiss",
+        "thieves"
+      ]
+    },
+    {
+      "name": "thieves-pause",
+      "pass": true,
+      "frames": 1703,
+      "events": [
+        "frost",
+        "dry",
+        "beetle",
+        "locust",
+        "bugmiss",
+        "thieves",
+        "crows",
+        "crowmiss"
+      ]
+    },
+    {
+      "name": "crowmiss-skip",
+      "pass": true,
+      "frames": 1473,
+      "events": [
+        "frost",
+        "dry",
+        "beetle",
+        "locust",
+        "bugmiss",
+        "thieves",
+        "crows",
+        "crowmiss"
+      ]
+    },
+    {
+      "name": "crowmiss-pause",
+      "pass": true,
+      "frames": 1708,
+      "events": [
+        "frost",
+        "dry",
+        "beetle",
+        "locust",
+        "bugmiss",
+        "thieves",
+        "crows",
+        "crowmiss"
+      ]
+    }
+  ],
+  "errors": []
+}

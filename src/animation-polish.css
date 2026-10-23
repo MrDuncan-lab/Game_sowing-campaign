@@ -1,0 +1,40 @@
+/* Keep the existing ink-and-paper rigs; finish and pause each visible gesture. */
+.farm-life .roaming-companion.paused *,
+.farm-life .roaming-animal.paused * { animation-play-state: paused !important; }
+
+/* Greeting time is one cat pounce, two dog bows, or one animal look. The rear
+   goose must start its look at zero too, rather than inherit the peck offset. */
+.farm-life .pose-look .goose-neck { animation-delay: 0s; }
+.farm-life .pose-act .goose-neck,
+.farm-life .pose-act .goose-head { animation-delay: 0s; animation-iteration-count: 2; animation-fill-mode: both; }
+/* The smaller goose follows slightly later, then rests while the larger one
+   finishes. Positive delay avoids starting a new peck already bent over. */
+.farm-life .pet-geese.pose-act > g > g:first-child .goose-neck,
+.farm-life .pet-geese.pose-act > g > g:first-child .goose-head { animation-delay: .2s; animation-duration: 2.4s; }
+.pet-friend.greeted .pet-cat.pose-play .c-stand { animation-iteration-count: 1; animation-fill-mode: both; }
+.pet-friend.greeted .pet-dog.pose-play .c-stand { animation-iteration-count: 2; animation-fill-mode: both; }
+.pet-friend:focus-visible .pet-hit { stroke: var(--atlas-gold, #c9973a); stroke-width: 2; stroke-dasharray: 3 3; }
+.roaming-animal .pose-act .goat-head,
+.roaming-animal .pose-act .hh-body { animation-duration: var(--pose-duration); animation-iteration-count: 1; animation-fill-mode: both; }
+
+/* The queue already adds the last bed's stagger. Each bed keeps the same
+   action duration, so its impact meets the same gesture, even on the last bed. */
+.morning .m-cell { --m-span: calc(var(--m-dur) - 60ms); }
+.morning .mc-in, .morning .mc-stand, .morning .mc-out,
+.morning .m-rime, .morning .m-rimeedge, .morning .m-heat,
+.morning .m-hailstreaks, .morning .m-water, .morning .m-step { animation-duration: var(--m-span); }
+.morning .m-hoar { animation-duration: calc(var(--m-span) - 200ms); }
+.morning .m-wave { animation-duration: 1s, var(--m-span); }
+.morning .m-pellet { animation-duration: calc(var(--m-dur) - 650ms); }
+.morning .m-step.s1 { animation-duration: calc(var(--m-span) - 120ms); }
+.morning .m-step.s2 { animation-duration: calc(var(--m-span) - 240ms); }
+.morning .m-step.s3 { animation-duration: calc(var(--m-span) - 360ms); }
+
+/* Settle the last pose before returning the resident animal to its saved
+   route. The queue has a 200ms tail after its five-second action. */
+.event-scene { animation: scene-settle var(--scene-ms, 5.2s) linear both; }
+@keyframes scene-settle { 0%, 99% { opacity: 1; } 100% { opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .event-scene { animation: none; }
+}

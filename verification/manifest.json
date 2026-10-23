@@ -1,0 +1,14 @@
+{
+  "built": "2026-10-21T01:30:21.463907+00:00",
+  "base": "posevnaya-v4-event-scenes-2026-10-21",
+  "browser_checks": {
+    "visual": 10,
+    "interrupt": 16,
+    "resume": 9,
+    "release": 3
+  },
+  "unit_tests": 160,
+  "engine_identical": true,
+  "preview_sha256": "7804891b1977961a2eec6b5df0ffd2612213e5b266ee256ab01d3a7cbdc718ab",
+  "source_sha256": "0a83092e5dd23c6717f501c2a356dd6d6a3b0cf15ba543aae81c299327e38b5a"
+}

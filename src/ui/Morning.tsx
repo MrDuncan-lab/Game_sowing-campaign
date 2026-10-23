@@ -1,0 +1,100 @@
+// The morning after a week: what the night did to the field is shown before the beds change.
+// Each event holds the affected beds in their old state, plays over them, then reveals the result.
+// The engine supplies actual damage, so harvesting never masquerades as destruction.
+import type { GameState, Plant } from '../engine/game';
+import { frostVictims, growthMoisture, tile, crowsOpen } from '../engine/game';
+import { GRID } from '../engine/data';
+import { Crow, CrowFlying } from '../art/crows';
+import type { MissCause } from './collisions';
+import { CrowMiss, BugMiss, CrowSnack } from '../art/collisions';
+
+export type MorningKind = 'frost' | 'dry' | 'hail' | 'flood' | 'crows' | 'thieves' | 'crowmiss' | 'bugmiss';
+export interface MorningCell { x: number; y: number; note?: string; killed?: boolean; before?: Plant; after?: Plant | null;
+  /** crowmiss / bugmiss: what had already taken the plant */ cause?: MissCause; pest?: 'beetle' | 'locust';
+  /** crows: beetles were chewing this plant, the crow takes one */ bugs?: boolean }
+export interface MorningStep { id: number; kind: MorningKind; cells: MorningCell[]; dur: number; reveal: number }
+export const MORNING_STAGGER_MS = 140;
+export const morningCellDelay = (index:number) => (index % 4) * MORNING_STAGGER_MS;
+
+const TIMING: Record<MorningKind, [number, number]> = {
+  frost: [2700, 1500], dry: [2500, 1500], hail: [2700, 1600], flood: [2700, 1600], crows: [3700, 2250], thieves: [2100, 1150],
+  crowmiss: [3600, 3400], bugmiss: [3000, 2800],
+};
+let stepId = 0;
+export function morningStep(kind: MorningKind, cells: MorningCell[]): MorningStep {
+  return { id: ++stepId, kind, cells, dur: TIMING[kind][0], reveal: TIMING[kind][1] };
+}
+const k = (x: number, y: number) => `${x},${y}`;
+
+export function buildMorning(_prev: GameState, next: GameState): MorningStep[] {
+  const events=next.lastReport?.fieldDamage ?? [];
+  const steps:MorningStep[]=[];
+  for(const e of events){
+    const c={x:e.x,y:e.y,note:e.note ?? (e.lost>0 && e.after ? `−${e.lost} ед.` : undefined),killed:!e.after,before:e.before,after:e.after};
+    const prev=steps.at(-1);
+    if(prev?.kind===e.kind && !prev.cells.some(t=>t.x===e.x&&t.y===e.y))prev.cells.push(c);
+    else steps.push({id:++stepId,kind:e.kind,cells:[c],dur:TIMING[e.kind][0],reveal:TIMING[e.kind][1]});
+  }
+  return steps;
+}
+
+/** Cells whose plants should look affected (shake, frost-bitten, drooping) while a step plays. */
+export function morningPlantClass(step: MorningStep | null): Map<string, string> {
+  const m = new Map<string, string>();
+  if (step) step.cells.forEach((c, i) => m.set(k(c.x, c.y), `m-plant m-plant-${step.kind} mi${i % 4}`));
+  return m;
+}
+
+const PAD = 22, CELL = 100;
+function Hailstones({ seed }: { seed: number }) {
+  // thin slanted streaks, then pellets lying on the soil for a moment before they melt
+  return <g>
+    <g class="m-hailstreaks" stroke="#eef6fb" stroke-width={1.1} stroke-linecap="round">{Array.from({ length: 12 }, (_, i) => {
+      const x = 8 + ((i * 37 + seed * 13) % 84), d = ((i * 53 + seed * 7) % 12) * .05;
+      return <path class="m-streak" style={{ animationDelay: `${d}s` }} d={`M${x + 8} ${-14} l-5 14`} />;
+    })}</g>
+    <g class="m-pellets" fill="#f6fbfe" stroke="#9fb8c8" stroke-width={.4}>{Array.from({ length: 16 }, (_, i) => {
+      const x = 12 + ((i * 41 + seed * 11) % 76), y = 22 + ((i * 29 + seed * 5) % 68);
+      return <circle class="m-pellet" style={{ animationDelay: `${.15 + (i % 8) * .06}s` }} cx={x} cy={y} r={1 + (i % 3) * .3} />;
+    })}</g>
+  </g>;
+}
+export function MorningLayer({ step }: { step: MorningStep | null }) {
+  if (!step) return null;
+  return (
+    <g class={`morning m-${step.kind}`} key={step.id} pointer-events="none" aria-hidden="true" style={{ ['--m-dur' as string]: `${step.dur}ms` }}>
+      {step.cells.map((c, i) => (
+        <g transform={`translate(${PAD + c.x * CELL} ${PAD + c.y * CELL})`} style={{ ['--mi' as string]: String(i % 4), ['--d' as string]: `${morningCellDelay(i)}ms` }} class="m-cell">
+          {step.kind === 'crows' && <>
+            <g class="mc-feathers" fill="#3a3a42">{[[34, 40], [62, 36], [48, 30]].map(([x, y], j) => <path class={`mc-feather f${j}`} d={`M${x} ${y} q4 -6 9 -3 q-3 5 -9 3z`} />)}</g>
+            <g transform="translate(46 50)">
+              <g class="mc-in"><g transform="translate(1 -16) scale(1.3)"><CrowFlying /></g></g>
+              <g class="mc-stand"><g transform="scale(1.3)"><Crow /></g></g>
+              {c.bugs && <CrowSnack />}
+              <g class="mc-out"><g transform="translate(1 -16) scale(1.3)"><CrowFlying /></g></g>
+            </g>
+          </>}
+          {step.kind === 'frost' && <g class="m-frost-art">
+            <rect class="m-rime" x={6} y={8} width={88} height={82} rx={12} fill="rgba(222,238,248,.42)" stroke="rgba(240,248,255,.9)" stroke-width={1.6} />
+            <g class="m-hoar" fill="#ffffff">{Array.from({ length: 40 }, (_, j) => <circle cx={10 + ((j * 37 + c.x * 7) % 80)} cy={12 + ((j * 23 + c.y * 5) % 74)} r={.5 + (j % 3) * .3} opacity={.55 + (j % 4) * .1} />)}</g>
+            <path class="m-rimeedge" d="M12 14 h76 M10 20 v62 M90 22 v60" stroke="#ffffff" stroke-width={.8} stroke-dasharray="1 2.4" opacity={.8} />
+          </g>}
+          {step.kind === 'dry' && <g class="m-dry-art">
+            <path class="m-crack" d="M18 30 l10 8 l-3 9 l8 6 M70 24 l-6 9 l5 8 M58 62 l9 6 l-2 10 M26 70 l9 -4 l5 7" stroke="rgba(63,42,29,.65)" stroke-width={2} fill="none" stroke-linecap="round" stroke-linejoin="round" />
+            <circle class="m-heat" cx={50} cy={48} r={40} fill="rgba(255,196,96,.22)" />
+          </g>}
+          {step.kind === 'hail' && <Hailstones seed={c.x * 3 + c.y} />}
+          {step.kind === 'flood' && <g class="m-flood-art">
+            <rect class="m-water" x={6} y={8} width={88} height={82} rx={12} fill="rgba(79,159,207,.55)" stroke="#bfe3f7" stroke-width={2} />
+            <path class="m-wave" d="M14 40 q8 -6 16 0 t16 0 t16 0 t16 0 M14 62 q8 -6 16 0 t16 0 t16 0 t16 0" stroke="#e1f4ff" stroke-width={2.6} fill="none" stroke-linecap="round" />
+          </g>}
+          {step.kind === 'crowmiss' && <CrowMiss cause={c.cause ?? 'gone'} />}
+          {step.kind === 'bugmiss' && <BugMiss cause={c.cause ?? 'gone'} pest={c.pest ?? 'beetle'} />}
+          {step.kind === 'thieves' && <g class="m-thief-art" fill="#6b4a33" opacity={.7}>
+            {[[16, 92, -20], [28, 78, 15], [40, 66, -15], [52, 54, 15]].map(([x, y, rr], j) => <ellipse class={`m-step s${j}`} cx={x} cy={y} rx={4.5} ry={7} transform={`rotate(${rr} ${x} ${y})`} />)}
+          </g>}
+        </g>
+      ))}
+    </g>
+  );
+}

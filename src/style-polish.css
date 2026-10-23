@@ -1,0 +1,98 @@
+/* The same warm paper, wood and ink for navigation and field tools. */
+.tabs .tab {gap:4px;line-height:1.1;}
+.tabs .tab svg {width:28px;height:28px;flex:none;opacity:1;}
+.tabs .tab:focus {outline:none;}
+.tabs .tab:focus-visible {outline:2px solid #714a2d;outline-offset:-4px;box-shadow:inset 0 0 0 5px #f7d994;}
+.field-tools .tool-btn {position:relative;display:grid;place-items:center;gap:0;padding:0;width:44px;height:44px;border:2px solid #80532d;border-radius:50%;background:linear-gradient(#fff8e6,#f3dfb5);box-shadow:0 3px 0 #7c4f2b55,inset 0 1px 0 #fff;}
+.field-tools .tool-btn svg {width:29px;height:29px;}
+.field-tools .tool-btn.on {background:#e7cf92;box-shadow:inset 0 2px 3px #7c4f2b33;}
+.field-tools .tool-btn:active {translate:0 1px;}
+.field-tools .tool-btn:focus-visible,.lens-picker .tool-btn:focus-visible {outline:3px solid #9c702b;outline-offset:2px;}
+.field-tools .journal-button i {display:none;position:absolute;top:1px;right:0;width:8px;height:8px;border-radius:50%;background:#ae5635;border:1.5px solid #fff2d2;box-shadow:none;}
+.field-tools .journal-button.urgent i {display:block;}
+.field-compost:focus-visible .compost-hit {stroke:#9c702b;stroke-width:3;}
+.field-compost:hover .compost-art {filter:brightness(1.06);}
+.hand.fan .card.blocked {opacity:1;filter:saturate(.55);}
+.field-view .deck-pile.dock {background:none;box-shadow:none;border:0;padding:0;}
+.journal-history {border-top:1px solid #c7a270;margin-top:14px;padding-top:5px;}
+.journal-history>summary {cursor:pointer;min-height:44px;display:flex;align-items:center;gap:8px;font-weight:700;}
+.journal-history>summary::before {content:'›';font-size:1.4em;transition:transform .15s;}
+.journal-history[open]>summary::before {transform:rotate(90deg);}
+.journal-history .feed {margin-top:0;}
+.compost-popover .btn {white-space:normal;line-height:1.2;}
+@media(min-width:600px) {
+ .tabs .tab {font-size:.82rem;}
+ .tabs .tab svg {width:32px;height:32px;}
+}
+@media(max-width:360px) {
+ .tabs .tab {gap:2px;font-size:.63rem;}
+ .tabs .tab svg {width:24px;height:24px;}
+}
+
+/* A visitor stands beside the lower dialogue, with the farm visible behind. */
+.sheet-back.visit-back {background:linear-gradient(to bottom,transparent 20%,#3824140d 48%,#3824144f);padding:12px;align-items:flex-end;}
+.sheet.visit-sheet {position:relative;width:min(960px,100%);max-width:960px;max-height:calc(100dvh - 24px);border:0;border-radius:0;background:none;box-shadow:none;overflow:visible;animation:visitor-arrive .24s ease-out both;}
+.visit-sheet .sheet-body {overflow:visible;padding:0;}
+.order-meeting {display:grid;grid-template-columns:260px minmax(0,1fr);gap:14px;align-items:end;}
+.meeting-stage {height:0;position:relative;pointer-events:none;z-index:0;}
+.meeting-person {position:absolute;bottom:-15px;left:-20px;width:300px;height:min(66dvh,440px);object-fit:contain;object-position:center bottom;filter:drop-shadow(0 5px 5px #42261322);}
+.meeting-child {position:absolute;bottom:-15px;height:min(37dvh,245px);width:155px;object-fit:contain;object-position:center bottom;filter:drop-shadow(0 3px 3px #42261322);}
+.meeting-child.katya {left:-25px;}
+.meeting-child.misha {right:-15px;}
+.with-children .meeting-person {bottom:8px;}
+.meeting-speech {position:relative;z-index:1;min-width:0;padding:30px 18px 14px;border:3px solid #80532d;border-left-width:8px;border-radius:17px;background:linear-gradient(135deg,#fff5d9,#f7e6bc);box-shadow:0 5px 0 #4c321c55,inset 0 0 0 2px #fff8e577;}
+.visit-sheet .sheet-head {position:absolute;left:290px;right:10px;top:-19px;z-index:3;padding:0;border:0;align-items:center;pointer-events:none;gap:10px;}
+.visit-sheet .sheet-head h2 {flex:none;max-width:calc(100% - 54px);margin:0;padding:7px 16px 8px;border:2px solid #80532d;border-radius:9px 9px 5px 5px;background:#b2804e;color:#fff5dd;font-family:var(--body);font-size:1.08rem;line-height:1.15;text-shadow:0 1px #654124;box-shadow:0 2px 0 #68442533;}
+.visit-sheet .sheet-head .close {margin-left:auto;flex:none;width:44px;height:44px;pointer-events:auto;border:2px solid #80532d;background:#fff1cf;box-shadow:0 2px 0 #80532d44;}
+.meeting-org {display:block;font-size:.72rem;color:#826242;margin:0 0 8px;}
+.meeting-lines {max-height:34dvh;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin;}
+.meeting-lines p {font-size:1.05rem;line-height:1.35;margin:0 0 9px;}
+.meeting-lines .meeting-child-line {font-size:.88rem;color:#705334;}
+.meeting-request {display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:4px 0 12px;}
+.meeting-request .crop-chip {background:#fff7e5;border-color:#caac79;}
+.meeting-actions {display:flex;gap:10px;align-items:center;justify-content:flex-end;}
+.meeting-actions .btn {min-height:44px;margin:0;line-height:1.15;}
+.meeting-actions .btn.ghost {margin-right:auto;}
+@keyframes visitor-arrive {from{opacity:0;translate:0 12px}to{opacity:1;translate:0 0}}
+@media(max-width:600px) and (orientation:portrait) {
+ .sheet-back.visit-back {padding:8px 7px 12px;}
+ .sheet.visit-sheet {max-height:calc(100dvh - 24px);}
+ .order-meeting {display:block;}
+ .meeting-stage {margin:0 10px;}
+ .meeting-person {left:-18px;bottom:-23px;width:225px;height:min(40dvh,280px);}
+ .meeting-child {bottom:-26px;width:128px;height:min(26dvh,180px);}
+ .meeting-child.katya {left:112px;}
+ .meeting-child.misha {right:-8px;}
+ .with-children .meeting-person {left:-22px;bottom:-13px;}
+ .meeting-speech {padding:30px 12px 12px;border-left-width:5px;}
+ .visit-sheet .sheet-head {left:17px;right:9px;top:-18px;}
+ .visit-sheet .sheet-head h2 {font-size:1rem;padding:7px 11px;max-width:calc(100% - 50px);}
+ .meeting-lines {max-height:29dvh;}
+ .meeting-lines p {font-size:1rem;}
+ .meeting-actions {gap:6px;}
+ .meeting-actions .btn {font-size:.9rem;padding:8px 11px;}
+}
+@media(orientation:landscape) and (max-height:550px) {
+ .order-meeting {grid-template-columns:210px minmax(0,1fr);}
+ .visit-sheet .sheet-head {left:240px;}
+ .meeting-person {width:240px;height:80dvh;left:-10px;}
+ .meeting-child {height:46dvh;width:120px;}
+ .meeting-lines {max-height:30dvh;}
+ .meeting-speech {padding-top:27px;}
+ .meeting-org {margin-bottom:4px;}
+ .meeting-request {margin-bottom:7px;}
+}
+@media(prefers-reduced-motion:reduce) {
+ .sheet.visit-sheet {animation:none;}
+ .journal-history>summary::before {transition:none;}
+}
+
+
+/* Short landscape screens keep the real thermometer without colliding with tools. */
+@media(orientation:landscape) and (max-height:440px) {
+ .field-tools {top:3px;gap:2px;}
+ .weather-instrument {min-height:0!important;padding:2px 0;bottom:3px;}
+ .weather-instrument .thermo {height:25px;width:15px;}
+ .weather-instrument>svg:not(.thermo) {height:15px;width:15px;}
+ .instrument-next {display:none;}
+}

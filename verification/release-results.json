@@ -1,0 +1,40 @@
+{
+  "group": "release",
+  "checks": [
+    {
+      "name": "collisions-cpu4",
+      "pass": true,
+      "frames": 1076,
+      "events": [
+        "frost",
+        "dry",
+        "beetle",
+        "locust",
+        "bugmiss",
+        "thieves",
+        "crows",
+        "crowmiss"
+      ]
+    },
+    {
+      "name": "test-lab-through-menu",
+      "pass": true,
+      "frames": 1521,
+      "events": [
+        "frost",
+        "dry",
+        "beetle",
+        "locust",
+        "bugmiss",
+        "thieves",
+        "crows",
+        "crowmiss"
+      ]
+    },
+    {
+      "name": "weather-sheet-pauses",
+      "pass": true
+    }
+  ],
+  "errors": []
+}

@@ -1,0 +1,27 @@
+/* The selected card keeps the same paper and type as the dock.
+   Facts use the whole slip, including the space below its small illustration. */
+.field-view .dock-top { min-height: 62px; }
+.dock-top .card-readout { overflow: visible; }
+.dock-top .card-readout .ro-icon {
+  grid-row: 1;
+  align-self: center;
+  width: 20px;
+  height: 20px;
+}
+.dock-top .card-readout .ro-icon svg { width: 17px; height: 17px; }
+.dock-top .card-readout .ro-facts {
+  grid-column: 1 / -1;
+  flex-wrap: wrap;
+  gap: 1px 8px;
+  overflow: visible;
+  white-space: normal;
+}
+.dock-top .card-readout .ro-fact { flex: 0 0 auto; white-space: nowrap; }
+.dock-top .card-readout .ro-fact:not(:first-child)::before { content: none; }
+.dock-top .card-readout .ro-status {
+  grid-column: 1 / -1;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
+.dock.roomy-2 .card-readout .ro-desc { grid-column: 1 / -1; }
