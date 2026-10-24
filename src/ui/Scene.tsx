@@ -53,7 +53,25 @@ export type FarmerPos = { kind: 'home' } | { kind: 'barn' } | { kind: 'tile'; x:
 export interface FarmerState { pos: FarmerPos; walking: boolean; action: FarmerAction; facing: 1 | -1; ms: number; bubble: string | null; cycle?: number }
 export interface Floater { key: number; x: number; y: number; text: string; crop?: CropId; delay?: number; tone?: 'bad' }
 export type FxKind = 'seed' | 'water' | 'fert' | 'mulch' | 'care' | 'harvest' | 'build' | 'weed' | 'coin' | 'wither' | 'shield';
-export interface TileFx { key: number; x: number; y: number; kind: FxKind; delay?: number }
+export interface TileFx { key: number; x: number; y: number; kind: FxKind; delay?: number; /** PSV-015 · the action's pace: 1 normal, >1 the fast mode */ rate?: number }
+/**
+ * PSV-016 · how long each bed effect lives at normal speed, ms: the last child's delay + its CSS duration
+ * (theme.css «bed effects», legacy.css fx-drop/fx-ring). Removal waits for this, scaled by the pace.
+ */
+export const FX_LIFE: Record<FxKind, number> = {
+  water: 1000, seed: 1080, fert: 1250, mulch: 900, care: 1000, weed: 890, harvest: 1020, coin: 900, wither: 1340, shield: 900, build: 980,
+};
+/** PSV-015 · the moment the action touches the bed (the last seed lands, the last straw settles), ms at normal speed */
+export const FX_CONTACT: Partial<Record<FxKind, number>> = { seed: 740, fert: 620, mulch: 900, water: 870, harvest: 300, weed: 300 };
+/** the bed's whole effect runs on the action's own pace: one playback rate for every particle, delays included */
+function FxHost({ f, children }: { f: TileFx; children: ComponentChildren }) {
+  const ref = useRef<SVGGElement>(null);
+  useLayoutEffect(() => {
+    const rate = f.rate ?? 1;
+    if (rate !== 1) ref.current?.getAnimations?.({ subtree: true }).forEach((a) => { a.playbackRate = rate; });
+  }, []);
+  return <g ref={ref} transform={`translate(${PAD + f.x * CELL} ${PAD + f.y * CELL})`} class={`tile-fx fx-${f.kind}`} style={{ ['--d' as string]: `${f.delay ?? 0}ms` }} pointer-events="none">{children}</g>;
+}
 
 export const CELL = 100;
 export const PAD = 22;
@@ -952,9 +970,7 @@ export function Scene({
         )}
         {!hidePlants && <MorningLayer step={morning} />}
         {effects.filter((f) => !hidePlants || f.kind === 'build').map((f) => (
-          <g key={f.key} transform={`translate(${PAD + f.x * CELL} ${PAD + f.y * CELL})`} class={`tile-fx fx-${f.kind}`} style={{ ['--d' as string]: `${f.delay ?? 0}ms` }} pointer-events="none">
-            <TileEffect kind={f.kind} />
-          </g>
+          <FxHost key={f.key} f={f}><TileEffect kind={f.kind} /></FxHost>
         ))}
         {(highlight.rows || build?.rows) &&
           rows.map((y) => (

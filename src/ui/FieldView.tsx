@@ -25,7 +25,7 @@ import { CropIcon } from '../art/crops';
 import type { FarmerAction } from '../art/farm';
 import { CardArt, CardView, cardPrice, seedWeeks } from './Card';
 import { CardReadout } from './CardReadout';
-import { CELL, FarmerPos, FarmerState, Flock, Floater, FxKind, Highlight, Lens, PAD, QueueMark, Scene, TileFx, YARD, camera, farmerXY, BuildView } from './Scene';
+import { CELL, FarmerPos, FarmerState, Flock, Floater, FxKind, Highlight, Lens, PAD, QueueMark, Scene, TileFx, YARD, camera, farmerXY, BuildView, FX_LIFE, FX_CONTACT } from './Scene';
 import { Btn, Dispatch, Sheet, weeksShort } from './common';
 import { SeasonFx } from './SeasonFx';
 import { FieldVoice } from './FieldVoice';
@@ -625,12 +625,16 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, placeReque
     later(walkMs + 16, () => {
       const actMs = rm ? 0 : Math.round(Math.max(step.actMs ?? 700, 1200) * pace);
       setFarmer({ ...fRef.current, walking: false, facing: workFacing, action: step.action, bubble: step.bubble ?? null, ms: 0, cycle: actMs });
+      // PSV-015/016 · gesture, particles, the bed's new look and the clean-up share one pace: particles play at the
+      // action's rate, the bed changes when they have landed, and nothing is removed before its own end
+      const contact = Math.max(0, ...(step.fx ?? []).map((f) => FX_CONTACT[f.kind] ?? 0));
       if (step.fx?.length && !rm) {
-        const items: TileFx[] = step.fx.map((f, i) => ({ key: fxKey++, ...f, delay: i * 40 }));
+        const items: TileFx[] = step.fx.map((f, i) => ({ key: fxKey++, ...f, delay: i * 40, rate: 1 / pace }));
         setTileFx((prev) => [...prev, ...items]);
-        later(1100, () => setTileFx((prev) => prev.filter((p) => !items.includes(p))));
+        const life = Math.max(...items.map((f) => FX_LIFE[f.kind]));
+        later(Math.ceil(life * pace) + 60, () => setTileFx((prev) => prev.filter((p) => !items.includes(p))));
       }
-      later(Math.round(actMs * .65), () => reveal(step.reveal ?? []));
+      later(rm ? 0 : Math.min(actMs, Math.max(Math.round(actMs * .65), Math.ceil(contact * pace) + 16)), () => reveal(step.reveal ?? []));
       later(actMs + (rm ? 0 : 80), () => {
         if (step.mark) {
           const k = step.mark;
@@ -765,15 +769,16 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, placeReque
     const keys=st.cells.map(c=>`${c.x},${c.y}`);
     setHidden(h=>{const m=new Map(h);st.cells.forEach(c=>{const k=key(c.x,c.y);m.set(k,{...tile(sRef.current,c.x,c.y),crop:c.after ?? null});});return m;});
     const notes=st.cells.filter(c=>c.note);
-    if(notes.length){setFloaters(f=>[...f,...notes.map((c,i)=>({key:floaterKey++,x:c.x,y:c.y,text:c.note!,tone:'bad' as const,delay:i*90}))]);const ks=new Set(notes.map(c=>`${c.x},${c.y}`));morningTimers.current.push(clock.schedule(()=>setFloaters(f=>f.filter(x=>!(x.tone==='bad'&&ks.has(`${x.x},${x.y}`)))),2100+notes.length*90));}
+    // PSV-016 · a damage label lives its full 2 s fade even when the next event starts; a newer label on the
+    // same bed replaces it, so two never stack
+    if(notes.length){const ks=new Set(notes.map(c=>`${c.x},${c.y}`));const fresh=notes.map((c,i)=>({key:floaterKey++,x:c.x,y:c.y,text:c.note!,tone:'bad' as const,delay:i*90}));setFloaters(f=>[...f.filter(x=>!(x.tone==='bad'&&ks.has(`${x.x},${x.y}`))),...fresh]);later(2100+notes.length*90,()=>setFloaters(f=>f.filter(x=>!fresh.some(n=>n.key===x.key))));}
     // Weather removes the fading original plant, leaving its own remains. A generic
     // green wither sprite would otherwise look like a new plant appearing here.
     const wither:TileFx[]=['thieves','frost','dry'].includes(st.kind)?[]:st.cells.filter(c=>c.killed).map((c,i)=>({key:fxKey++,x:c.x,y:c.y,kind:'wither' as const,delay:i*60}));
-    if(wither.length){setTileFx(p=>[...p,...wither]);morningTimers.current.push(clock.schedule(()=>setTileFx(p=>p.filter(f=>!wither.includes(f))),900));}
+    if(wither.length){setTileFx(p=>[...p,...wither]);later(FX_LIFE.wither+60+(wither.length-1)*60,()=>setTileFx(p=>p.filter(f=>!wither.includes(f))));}
   }
   function runMorning(events: WeekEvent[],elapsed=0){
     morningTimers.current.forEach(t=>clock.cancel(t));morningTimers.current=[];
-    setFloaters(f=>f.filter(x=>x.tone!=='bad'));setTileFx([]);
     setMorning(null);setPestHits([]);setWeekCue(null);
     if(!events.length){finishHarvest();return;}
     const [event,...rest]=events;
@@ -873,7 +878,7 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, placeReque
     for (let y = 0; y < GRID; y++) for (let x = 0; x < GRID; x++) if (!held.has(`${x},${y}`) && !next.lastReport?.fieldDamage?.some(h=>h.x===x&&h.y===y) && !next.lastReport?.pestHits?.some(h=>h.x===x&&h.y===y) && tile(prev, x, y).crop && !tile(next, x, y).crop && !hs.some((h) => h.x === x && h.y === y)) gone.push({ key: fxKey++, x, y, kind: 'wither' });
     if (gone.length) {
       setTileFx((p) => [...p, ...gone]);
-      later(700, () => setTileFx((p) => p.filter((f) => !gone.includes(f))));
+      later(FX_LIFE.wither + 60, () => setTileFx((p) => p.filter((f) => !gone.includes(f))));
     }
   }
 

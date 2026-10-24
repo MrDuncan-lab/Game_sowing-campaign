@@ -167,3 +167,38 @@ test('PSV-032 · mice threaten only what lies in the barn', () => {
   s.pets.push('cat');
   assert.deepEqual(G.miceTargets(s), []);
 });
+
+test('PSV-030 · on real maps the cat and the dog never walk through tayga, river, swamp or a canal', async () => {
+  const { camera } = await import('../src/ui/Scene');
+  const { petArea, petMoment } = await import('../src/ui/petMotion');
+  for (const loc of D.LOCATION_IDS) {
+    const s = G.newGame({ loc, seed: 'animation-audit', pets: ['cat', 'dog'] });
+    const cam = camera(s), area = petArea(s);
+    for (const id of ['cat', 'dog'] as const) for (let i = 0; i <= 1080; i++) {
+      const m = petMoment(cam, id, i / 10, area);
+      const fy = m.y - cam.yard - 22;
+      if (fy <= 0) continue; // the yard strip
+      const x = Math.floor((m.x - 22) / 100 + 1e-6) + cam.vx, y = Math.floor(fy / 100 + 1e-6) + cam.vy;
+      // a point exactly on a bed boundary belongs to both sides: check the cell it is inside of, if any
+      const onEdgeX = Math.abs(((m.x - 22) % 100 + 100) % 100) < 1e-3, onEdgeY = Math.abs((fy % 100 + 100) % 100) < 1e-3;
+      if (onEdgeX || onEdgeY || !G.inGrid(x, y)) continue;
+      const t = G.tile(s, x, y);
+      assert.ok(!['forest', 'river', 'swamp'].includes(t.terrain) && !t.canal, `${loc} ${id} at ${i / 10}s stands in ${t.terrain} (${x},${y})`);
+    }
+  }
+});
+
+test("PSV-017 · a canal that shrinks the pets' area makes the pet glide from where it stands, not jump a cell", async () => {
+  const { camera } = await import('../src/ui/Scene');
+  const { petArea, petMoment, startGlide, glideAt } = await import('../src/ui/petMotion');
+  const s = G.newGame({ loc: 'kuban', seed: 'animation-audit', pets: ['cat', 'dog'] });
+  const before = petArea(s), spot = G.buildSpots(s, 'canal')[0];
+  const n = G.apply({ ...s, money: 1000, days: 9, levels: { ...s.levels, canal: Math.max(1, s.levels.canal ?? 0) } }, { t: 'build', item: 'canal', x: spot[0], y: spot[1] });
+  const after = petArea(n), cam = camera(n), t0 = 47.9;
+  assert.notDeepEqual([after.x, after.y, after.w, after.h], [before.x, before.y, before.w, before.h], 'the canal changes the area');
+  const was = petMoment(camera(s), 'cat', t0, before), now = petMoment(cam, 'cat', t0, after);
+  const g = startGlide([was.x, was.y], now, t0);
+  const at = (t: number) => { const m = petMoment(cam, 'cat', t, after), o = g ? glideAt(g, t) : { dx: 0, dy: 0 }; return [m.x + o.dx, m.y + o.dy]; };
+  assert.deepEqual(at(t0).map((v) => Math.round(v)), [was.x, was.y].map((v) => Math.round(v)), 'starts where it stood');
+  for (let t = t0; t < t0 + 6; t += 0.1) { const [a, b] = [at(t), at(t + 0.1)]; assert.ok(Math.hypot(a[0] - b[0], a[1] - b[1]) < 12, `continuous at ${t.toFixed(1)}s`); }
+});
