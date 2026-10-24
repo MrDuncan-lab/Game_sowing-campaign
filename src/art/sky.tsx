@@ -167,15 +167,21 @@ export function SkyBand({ W, season, tokens, signs, meteoMax, px, onToken, onFog
     <g class="sky-band">
       <defs>
         <linearGradient id="sky-grad" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color={top} /><stop offset="1" stop-color={bottom} /></linearGradient>
+        {/* over the village the sky keeps only a light veil at the top: the trees and roofs below show through it */}
+        <linearGradient id="sky-veil" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color={top} stop-opacity=".9" /><stop offset=".35" stop-color={top} stop-opacity=".5" /><stop offset=".75" stop-color={bottom} stop-opacity="0" /></linearGradient>
         <linearGradient id="sky-fog" x1="0" x2="1" y1="0" y2="0"><stop offset="0" stop-color="#f7f2e6" stop-opacity="0" /><stop offset=".35" stop-color="#f7f2e6" stop-opacity=".88" /><stop offset="1" stop-color="#f4efe2" stop-opacity=".96" /></linearGradient>
         <clipPath id="sky-clip"><path d={ext ? `M${-ext} 0 H${W + ext} V${H + 2} H${-ext} Z` : `M0 18 Q0 0 18 0 H${W - 18} Q${W} 0 ${W} 18 V${H + 2} H0 Z`} /></clipPath>
       </defs>
       <g clip-path="url(#sky-clip)">
+        {/* the sky and its own strip of land: solid over the field, gone as the village comes up (--sky-solid) */}
+        <g class="sky-solid">
         <rect x={-ext} width={W + 2 * ext} height={H + 2} fill="url(#sky-grad)" />
-        <path d={`M${-ext} ${H - 26} L0 ${H - 26} Q${W * 0.16} ${H - 40} ${W * 0.33} ${H - 30} Q${W * 0.5} ${H - 44} ${W * 0.66} ${H - 32} Q${W * 0.82} ${H - 42} ${W} ${H - 30} L${W + ext} ${H - 30} V${H + 2} H${-ext} Z`} fill={hill} />
+        <path class="sky-land" d={`M${-ext} ${H - 26} L0 ${H - 26} Q${W * 0.16} ${H - 40} ${W * 0.33} ${H - 30} Q${W * 0.5} ${H - 44} ${W * 0.66} ${H - 32} Q${W * 0.82} ${H - 42} ${W} ${H - 30} L${W + ext} ${H - 30} V${H + 2} H${-ext} Z`} fill={hill} />
         {/* a dark strip of forest on the far right hill, where flocks gather */}
-        <path d={`M${W * 0.7} ${H - 34} q6 -12 12 0 q6 -14 12 0 q6 -10 12 0 q6 -13 12 0 q6 -11 12 0 V${H - 26} H${W * 0.7} Z`} fill={season === 3 ? '#c9d6de' : '#6f9a4a'} opacity={0.55} />
-        <path d={`M${-ext} ${H - 12} L0 ${H - 12} Q${W * 0.25} ${H - 22} ${W * 0.5} ${H - 14} Q${W * 0.75} ${H - 6} ${W} ${H - 16} L${W + ext} ${H - 16} V${H + 2} H${-ext} Z`} fill={front} opacity={0.9} />
+        <path class="sky-land" d={`M${W * 0.7} ${H - 34} q6 -12 12 0 q6 -14 12 0 q6 -10 12 0 q6 -13 12 0 q6 -11 12 0 V${H - 26} H${W * 0.7} Z`} fill={season === 3 ? '#c9d6de' : '#6f9a4a'} opacity={0.55} />
+        <path class="sky-land" d={`M${-ext} ${H - 12} L0 ${H - 12} Q${W * 0.25} ${H - 22} ${W * 0.5} ${H - 14} Q${W * 0.75} ${H - 6} ${W} ${H - 16} L${W + ext} ${H - 16} V${H + 2} H${-ext} Z`} fill={front} opacity={0.9} />
+        </g>
+        <rect class="sky-veil" x={-ext} width={W + 2 * ext} height={H + 2} fill="url(#sky-veil)" />
         {/* the conveyor of weeks: keyed by the absolute week so a new week slides each picture one place closer */}
         {tokens.map((t, i) => {
           const s = slots[i];
@@ -195,7 +201,7 @@ export function SkyBand({ W, season, tokens, signs, meteoMax, px, onToken, onFog
         {/* fog past the forecast */}
         {fogX < W - 8 && (
           <g class="sky-fogbank" role="button" tabindex={0} aria-label="Туман: дальше прогноза" onClick={(e) => { e.stopPropagation(); onFog?.(); }} onKeyDown={(e) => key(e, () => onFog?.())}>
-            <rect x={fogX - 30} y={0} width={W - fogX + 30 + ext} height={H - 8} fill="url(#sky-fog)" />
+            <rect class="sky-fog" x={fogX - 30} y={0} width={W - fogX + 30 + ext} height={H - 8} fill="url(#sky-fog)" />
             {[[0.2, 24], [0.45, 40], [0.12, 56]].map(([f, y], i) => (
               <path class="sky-wisp" d={`M${fogX + (W - fogX) * f} ${y} q10 -5 20 0 t20 0 t20 0`} stroke="#e2d9c6" stroke-width={3} fill="none" stroke-linecap="round" style={{ animationDelay: `${-i * 2.3}s` }} />
             ))}

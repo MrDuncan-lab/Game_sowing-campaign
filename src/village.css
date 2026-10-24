@@ -25,6 +25,9 @@
 .village .spot-g.ping .pop { animation: v-ping 1.1s ease-out 1; }
 @keyframes v-ping { 0% { filter: none; } 30% { filter: drop-shadow(0 0 3px #fff) drop-shadow(0 0 6px #f4c542); } 100% { filter: none; } }
 .village .spot-g:not(.up) .smoke { display: none; }
+/* trees on the hills spring up from their foot once it is clear, one after another; they fold back quickly */
+.village .v-lay:not([data-k="sky"]) .tree { transform: scale(.25, 0); transition: transform .22s ease-in; }
+.village .v-lay:not([data-k="sky"]) .tree.up { transform: none; transition: transform .6s cubic-bezier(.3, 1.65, .55, 1) var(--td, 0s); }
 
 /* what the neighbours want: a bubble over the house once it stands */
 .village .v-bubble { opacity: 0; transition: opacity .35s; pointer-events: none; }
@@ -132,6 +135,7 @@
   .village .flagw, .village .sway, .village .swing, .village .wash, .village .bob, .village .cups, .village .sails, .village .rays, .village .vane, .village .nod,
   .village .bubbling circle, .village .walk, .village .peck, .village .bee, .village .fire, .village .drift, .village .wheel-bird, .village .stroll, .village .stroll-face,
   .village.cart-rolling .v-wheel, .village .spot-g.ping .pop { animation: none; }
+  .village .v-lay:not([data-k="sky"]) .tree, .village .v-lay:not([data-k="sky"]) .tree.up { transition: none; }
   .village .stroll { transform: translate(150px, 708px); }
   .field-view .v-back { transition: none; }
 }
@@ -139,5 +143,9 @@
 /* up in the village the field's frame is empty air: taps go through it to the houses, except on the sky's own things */
 .field-view.has-village:not(.v-field) > .field-wrap { pointer-events: none; }
 .field-view.has-village:not(.v-field) > .field-wrap .sky-svg, .field-view.has-village:not(.v-field) > .field-wrap .sky-tools.sky-left { pointer-events: auto; }
-/* in the village the sky's lower edge thins out: the trees and roofs that reach up into it show through */
-.field-view.has-village:not(.v-field) .sky-strip { -webkit-mask-image: linear-gradient(#000 58%, rgba(0, 0, 0, .12) 100%); mask-image: linear-gradient(#000 58%, rgba(0, 0, 0, .12) 100%); }
+/* over the village the sky dissolves with its strip of land, as the field goes (--sky-solid, set by the pager):
+   only a light veil stays behind the forecast, so the trees and roofs that reach up into it are whole */
+.sky-band .sky-solid { opacity: var(--sky-solid, 1); }
+.sky-band .sky-land { opacity: var(--sky-land, 1); }
+.sky-band .sky-veil { opacity: calc(1 - var(--sky-solid, 1)); pointer-events: none; }
+.sky-band .sky-fog { opacity: calc(.3 + .7 * var(--sky-solid, 1)); }
