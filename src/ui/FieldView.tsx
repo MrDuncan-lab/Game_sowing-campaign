@@ -4,7 +4,7 @@ import { useSceneQueue, chooseScene, finishScenes, completed, type SceneCue } fr
 import { buildWeekPlayback, CALENDAR_MS, theftStagger, type WeekEvent } from './weekPlayback';
 import {readWeekResume,saveWeekResume,clearWeekResume,type WeekResume} from './weekResume';
 import { PrecisionLoupe } from './PrecisionLoupe';
-import { greenhouseYieldReady } from '../engine/game';
+import { greenhouseYieldReady, hiveYieldReady, neighbors8, inGrid, wlvl } from '../engine/game';
 
 import { exchangeProblem, compostProblem, compostWeeks, growthMoisture, frostKills, wetCanals, idx, thievesBlocked, handMax as maxHand } from '../engine/game';
 import type { JSX } from 'preact';
@@ -359,6 +359,7 @@ function TileDetails({ s, x, y, act, onClose }: { s: GameState; x: number; y: nu
         {p && <span><Icon name="frost" size={16} /> гибнет при {tStr(frostLimit(p) - frostShield(s, t))} и ниже</span>}
       </div>
       {t.structure==='greenhouse' && !greenhouseYieldReady(s,t) && (lvl(s,'greenhouse')>=4 || s.team.some(w=>w.id==='greenhouser'&&w.away<=0)) && <p class="small muted">Защита уже работает. Бонус урожая — со следующей недели.</p>}
+      {p && (CROPS[p.id].flowering || p.id === 'strawberry' || p.id === 'watermelon') && (wlvl(s,'beekeeper')>=1 ? neighbors8(x,y) : neighbors4(x,y)).some(([a,b])=>inGrid(a,b)&&tile(s,a,b).structure==='hive'&&!hiveYieldReady(s,tile(s,a,b))) && <p class="small muted">Улей рядом поставлен на этой неделе: опыление — со следующей.</p>}
       {p && frostKills(s,x,y) && <p class="small bad">Не переживёт заморозок этой недели. Нужно укрытие или ранний сбор.</p>}
       {p && !note && <p class="small up">На этой неделе будет расти.{t.structure==='greenhouse' ? ' Теплица защищает и от перегрева.' : ''}</p>}
       {p && growthMoisture(s)[idx(x,y)]!==t.moisture && <p class="small">До роста дождь и орошение дадут влагу {growthMoisture(s)[idx(x,y)]}/3.</p>}
@@ -431,7 +432,7 @@ function calendarPage(s: GameState, offset: number): CalPage {
   return { season: `${SEASON_NAMES[i.season]} · ${i.year}-й год`, num: String(i.weekInSeason), sub: `неделя из ${of}`, winter: i.season === 3, of };
 }
 
-export function FieldView({ s, dispatch, fast, active, onGo, onOrder, placeRequest, testing=false, teaching=false, precheck, lessonVisit=false, onVisitDone }: { s: GameState; dispatch: Dispatch; fast: boolean; active: boolean; onGo: (tab: string) => void; onOrder?:(org:OrgId)=>void; placeRequest?: { item: BuildItem; key: number } | null; testing?:boolean; teaching?:boolean; precheck?:(a:Action)=>string|null; lessonVisit?:boolean; onVisitDone?:()=>void }) {
+export function FieldView({ s, dispatch, fast, active, onGo, onOrder, placeRequest, testing=false, teaching=false, precheck, lessonVisit=false, onVisitDone, onPresent }: { s: GameState; dispatch: Dispatch; fast: boolean; active: boolean; onGo: (tab: string) => void; onOrder?:(org:OrgId)=>void; placeRequest?: { item: BuildItem; key: number } | null; testing?:boolean; teaching?:boolean; precheck?:(a:Action)=>string|null; lessonVisit?:boolean; onVisitDone?:()=>void; /** PSV-028 · the week the field is showing while last week's events play (null when it shows the current one) */ onPresent?:(shown:GameState|null)=>void }) {
   const [resume]=useState(()=>testing||teaching?null:readWeekResume(s));
   const playbackRecord=useRef<WeekResume|null>(resume);
   const playbackTimer=useRef<number|null>(null);
@@ -1363,6 +1364,10 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, placeReque
   const winter = s.season === 3;
   const presentation=weekPlaying?(pendingHarvest.current??resume):null;
   const fieldState=presentation?.prev??s;
+  // PSV-028 · the top bar follows the field: last week's date and money until its events have played
+  const presentPrev=presentation?.prev??null;
+  useEffect(()=>{onPresent?.(presentPrev);},[presentPrev]);
+  useEffect(()=>()=>onPresent?.(null),[]);
   const aftermath=presentation?new Map([...killers(presentation.next)].filter(([k])=>hidden.has(k)&&!hidden.get(k)!.crop)):new Map();
   const spentDry=presentation&&!(playbackRecord.current?.events??[]).some(e=>e.cue?.kind==='thieves')
     ?new Set(kidMisses(presentation.prev,presentation.next).filter(m=>m.cause==='dry').map(m=>key(m.x,m.y))):new Set<string>();
@@ -1507,10 +1512,10 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, placeReque
 
       <footer class={`dock${card ? ' picking' : ''}${shown ? ' reading' : ''}${room.read ? ' roomy' : ''}${room.read > 40 ? ' roomy-2' : ''}${build || lens ? ' viewing' : ''}`}>
         <div class="dock-top" style={room.read ? { height: `${room.top + room.read}px` } : undefined}>
-          <div class="days" aria-label={`Рабочих дней: ${s.days}`}>
-            <b>{s.days}</b>
+          <div class="days" aria-label={`Рабочих дней: ${fieldState.days}`}>
+            <b>{fieldState.days}</b>
             <Icon name="day" size={18} />
-            <small>{plural(s.days, 'день', 'дня', 'дней')}</small>
+            <small>{plural(fieldState.days, 'день', 'дня', 'дней')}</small>
           </div>
           <button type="button" class={`deck-pile dock exchange-deck${exchanging?' choosing':''}`} disabled={weekPlaying} aria-pressed={exchanging} onClick={()=>{
             const why=exchangeProblem(s,card?.uid); if(why)return say(why);
@@ -1541,7 +1546,8 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, placeReque
             {!weekPlaying && endText && <small class={endBad ? 'bad' : ''}>{endText}</small>}
           </button>}
         </div>
-        <div class="hand-row" style={{ ['--cw' as string]: `${fan.cw}px` }}>
+        <div class={`hand-row${weekPlaying ? ' upcoming' : ''}`} style={{ ['--cw' as string]: `${fan.cw}px` }}>
+          {weekPlaying && <small class="hand-next">Карты новой недели</small>}
           <div
             class={`hand fan${fan.tight ? ' tight' : ''}${peek !== null ? ' peeking' : ''}`}
             ref={(el) => { fanRef.current = el; }}

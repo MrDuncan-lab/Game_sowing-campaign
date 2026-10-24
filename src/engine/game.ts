@@ -19,6 +19,7 @@ export interface Tile {
   mulch: number; shelter: number; structure: 'greenhouse' | 'hive' | null; drip: boolean; canal: boolean;
   weeds: boolean; idle: number; clean: number; snow: boolean; cleared: boolean;
   greenhousePlacedWeek?: number; // absent in older saves: already established
+  hivePlacedWeek?: number; // PSV-021 · same rule as the greenhouse: a hive pollinates from the week after it was set down
 }
 export interface Card { uid: number; def: string; extra?: [number, number][]; traits?: TraitId[]; temp?: boolean }
 export type CardLike = { def: string; extra?: [number, number][]; traits?: TraitId[] } | string;
@@ -186,6 +187,11 @@ export const wlvl = (s: GameState, id: WorkerId) => {
   return w && w.away <= 0 ? w.level : 0;
 };
 export const hasPet = (s: GameState, p: PetId) => s.pets.includes(p);
+/** PSV-032 · the crops mice will nibble at the week's end: storable lots of ten or more inside the barn (not the yard) */
+export function miceTargets(s: GameState): CropId[] {
+  if (hasPet(s, 'cat') || lvl(s, 'barn') >= 2) return [];
+  return CROP_IDS.filter((c) => CROPS[c].storable && s.storage.filter((l) => l.crop === c).reduce((n, l) => n + l.qty, 0) >= 10);
+}
 export const storageCap = (s: GameState) => BARN_CAP[Math.min(BARN_CAP.length - 1, lvl(s, 'barn'))];
 export const storageUsed = (s: GameState) => s.storage.reduce((a, l) => a + l.qty, 0);
 export const storageKeepWeeks = (s: GameState, c: CropId) => (CROPS[c].perishable ?? 99) + (lvl(s, 'house') >= 2 ? 1 : 0) + (lvl(s, 'barn') >= 3 ? 2 : 0) + (wlvl(s, 'greenhouser') >= 3 ? 2 : 0);
@@ -273,6 +279,12 @@ export function weekInfo(s: GameState, offset: number): WeekInfo {
   return { year, week, season, weekInSeason: w, absWeek: s.absWeek + offset, offset, temp: temps[week - 1] ?? 0 };
 }
 export const airTemp = (s: GameState, offset = 0) => weekInfo(s, offset).temp;
+/** PSV-019 · a copy whose whole calendar (week, season, week in season, absolute week) stands at the start of
+ *  `season` of this year. Previews use it instead of overwriting only `season`, so every season check agrees. */
+export function seasonView(s: GameState, season: 0 | 1 | 2 | 3): GameState {
+  const week = locOf(s).seasons.slice(0, season).reduce((a, b) => a + b, 0) + 1;
+  return { ...s, season, week, weekInSeason: 1, absWeek: s.yearStart + week - 1 };
+}
 // episodes of the week `abs` (this year and, past its end, the next one)
 export function episodesAt(s: GameState, abs: number): Episode[] {
   const own = s.plan.filter((e) => covers(e, abs));
@@ -533,6 +545,7 @@ function sisters(s: GameState, cells: [number, number][]) {
 export interface YieldPart { label: string; mult?: number; add?: number }
 // every multiplier of a bed, named (the bed panel shows them)
 export const greenhouseYieldReady = (s: GameState, t: Tile) => t.structure === 'greenhouse' && (t.greenhousePlacedWeek === undefined || t.greenhousePlacedWeek < s.absWeek);
+export const hiveYieldReady = (s: GameState, t: Tile) => t.structure === 'hive' && (t.hivePlacedWeek === undefined || t.hivePlacedWeek < s.absWeek);
 export function yieldParts(s: GameState, x: number, y: number, c: CropId, planting?: [number, number][], soilOverride?: number): YieldPart[] {
   const t = tile(s, x, y);
   const parts: YieldPart[] = [];
@@ -546,7 +559,7 @@ export function yieldParts(s: GameState, x: number, y: number, c: CropId, planti
     parts.push({ label: c === 'carrot' ? 'лук рядом' : 'морковь рядом', mult: 1.2 });
   if (CROPS[c].flowering || c === 'strawberry' || c === 'watermelon') {
     const area = wlvl(s, 'beekeeper') >= 1 ? neighbors8(x, y) : neighbors4(x, y);
-    if (area.some(([a, b]) => tile(s, a, b).structure === 'hive')) parts.push({ label: 'улей рядом', mult: (c === 'buckwheat' ? 1.5 : 1.25) * (wlvl(s, 'beekeeper') >= 3 ? 1.2 : 1) });
+    if (area.some(([a, b]) => hiveYieldReady(s, tile(s, a, b)))) parts.push({ label: 'улей рядом', mult: (c === 'buckwheat' ? 1.5 : 1.25) * (wlvl(s, 'beekeeper') >= 3 ? 1.2 : 1) });
   }
   if (greenhouseYieldReady(s, t)) {
     if (wlvl(s, 'greenhouser') >= 1) parts.push({ label: 'тепличница', mult: 1.5 });
@@ -654,6 +667,42 @@ export function placements(s: GameState, c: CardLike): { rot: number; tiles: [nu
         out.push({ rot, tiles });
       }
   return out;
+}
+
+/** PSV-018/020 · could this crop ever grow on (x,y) in this region? Only the land itself counts: ownership, crops,
+ *  weeds, buildings and canals change during a game; a river never becomes a bed and a drained swamp never comes back. */
+export function potentialTile(s: GameState, x: number, y: number, crop: CropId): boolean {
+  if (!inGrid(x, y)) return false;
+  const t = tile(s, x, y);
+  if (CROPS[crop].swamp) return t.terrain === 'swamp';
+  if (t.terrain === 'river') return false;
+  if (t.terrain === 'forest') return t.owned || trackAvailable(s, 'clearing');
+  return true; // plain and sand; rock and swamp can be cleared
+}
+/** how many ways the shape could ever be laid on this region's land (any rotation) */
+export function potentialPlacements(s: GameState, c: CardLike): number {
+  const crop = CARDS[asCard(c).def].crop;
+  if (!crop) return 0;
+  const seen = new Set<string>();
+  for (const rot of shapeRotations(c))
+    for (let y = 0; y < GRID; y++)
+      for (let x = 0; x < GRID; x++) {
+        const tiles = shapeTiles(c, x, y, rot);
+        if (tiles.every(([a, b]) => potentialTile(s, a, b, crop))) seen.add(tiles.map((p) => p.join(',')).sort().join(';'));
+      }
+  return seen.size;
+}
+export const extendedCard = (c: CardLike, cell: [number, number]) => ({ ...asCard(c), extra: [...(asCard(c).extra ?? []), cell] });
+/** a lab extension that leaves the seed with no possible place in this region is refused, never charged */
+export const spotFits = (s: GameState, c: CardLike, cell: [number, number]) => potentialPlacements(s, extendedCard(c, cell)) > 0;
+/** the crop can be produced here: some seed of it (owned or sold here) has a place on owned-or-buyable land */
+export function cropProducible(s: GameState, c: CropId): boolean {
+  if (!CROPS[c].swamp) return true;
+  if (!ownedTiles(s).some(([t]) => t.terrain === 'swamp')) return false;
+  const seed = `seed_${c}`;
+  const cards: CardLike[] = [...deckList(s), ...s.spare, ...s.projects.flatMap((p) => (p.kind === 'cell' || p.kind === 'trait') ? [p.card] : [])].filter((k) => k.def === seed && !k.temp);
+  if (shopCards(s).includes(seed)) cards.push(seed);
+  return cards.some((k) => potentialPlacements(s, k) > 0);
 }
 
 // ---------- market ----------
@@ -886,6 +935,8 @@ export function playableTargets(s: GameState, def: string): [number, number][] {
   }
   return out;
 }
+/** PSV-002 · the one day cost every view shows: the card face, its spoken label, the shop and the inventory */
+export const cardDaysShown = (s: GameState, card: CardLike): number => (s.phase === 'week' ? cardNeedDays(s, card) : cardDays(s, card));
 export function cardNeedDays(s: GameState, card: CardLike): number {
   const def = asCard(card).def;
   if (def === 'fertilizer') {
@@ -1554,7 +1605,7 @@ function resolveWeek(s: GameState, diagnostic?: Pick<WeekOutlook, 'threats'>) {
     l.qty = 0;
   }
   if (!hasPet(s, 'cat') && lvl(s, 'barn') < 2) {
-    for (const crop of CROP_IDS.filter((c) => CROPS[c].storable)) {
+    for (const crop of miceTargets(s)) {
       const lots = s.storage.filter((l) => l.crop === crop).sort((a, b) => b.age - a.age);
       const total = lots.reduce((n, l) => n + l.qty, 0);
       if (total < 10) continue;
@@ -1595,7 +1646,8 @@ function resolveWeek(s: GameState, diagnostic?: Pick<WeekOutlook, 'threats'>) {
     payOrBorrow(s, costs.heating);
     r.costs.push({ label: 'отопление теплиц', amount: costs.heating });
   }
-  if (hasPet(s, 'goat')) s.money = round2(s.money + Math.round(3 * infl(s.year)));
+  // PSV-031 · the goat's milk money is income too
+  if (hasPet(s, 'goat')) { const milk = Math.round(3 * infl(s.year)); s.money = round2(s.money + milk); s.earned = round2(s.earned + milk); }
   for (const e of s.effects) e.weeks -= 1;
   s.effects = s.effects.filter((e) => e.weeks > 0);
   s.strikes = s.strikes.filter((x) => x.week > s.absWeek);
@@ -1891,7 +1943,8 @@ export function orderCropAvailable(s: GameState,c: CropId): boolean {
   const ownsSeed=[...deckList(s),...s.spare].some(k=>k.def===seed&&!k.temp) || s.projects.some(p=>(p.kind==='cell'||p.kind==='trait')&&p.card.def===seed&&!p.card.temp);
   if(!shopCards(s).includes(seed)&&!ownsSeed)return false;
   if(CROPS[c].greenhouseOnly && !countStructure(s,'greenhouse'))return false;
-  if(CROPS[c].swamp && !ownedTiles(s).some(([t])=>t.terrain==='swamp'))return false;
+  // PSV-020 · an order needs a way to produce the crop (its shape must fit the swamps that are left) or stock to cover it
+  if(!cropProducible(s,c))return freeStock(s,c)>0;
   return true;
 }
 export function repairOpenOffers(state: GameState): GameState {
@@ -1935,6 +1988,8 @@ function makeQuest(s: GameState, o: OrgId, step: number): Quest {
   if(primary.length) { const first=primary[randInt(w,primary.length)]; crops=[first,...crops.filter(c=>c!==first)]; }
   const base = step < def.steps.length ? def.steps[step].qty : 8 + randInt(w, 7);
   const ls: QuestLine[] = crops.slice(0, lines).map((c) => ({ crop: c, qty: Math.max(3, Math.round(base * scale * (0.85 + rand(w) * 0.3) * (CROPS[c].yield >= 9 ? 1.4 : 1))) }));
+  // PSV-020 · a crop that can no longer be grown here is ordered only as far as the stock reaches
+  for (const l of ls) if (!cropProducible(s, l.crop)) l.qty = Math.max(1, Math.min(l.qty, freeStock(s, l.crop)));
   const pay = round2(ls.reduce((a, l) => a + l.qty * CROPS[l.crop].price, 0) * infl(s.year) * payK * (1.15 + rand(w) * 0.2));
   return { id: s.nextQuestId++, org: o, step, title, text, lines: ls, pay, rel: step >= def.steps.length ? 10 : step === def.steps.length - 1 ? 25 : 18, weeks, reward, createdWeek:s.absWeek, expires:s.absWeek+weeks, contract:step>=def.steps.length, deadline:s.absWeek+weeks };
 }
@@ -1996,8 +2051,10 @@ export function deliverProblem(s: GameState, o: OrgId): string | null {
   for (const l of q.lines) if (stockOf(s, l.crop) < l.qty) return `Не хватает ${l.qty - stockOf(s, l.crop)} ед. ${CROPS[l.crop].gen}`;
   return null;
 }
-function grant(s: GameState, rw: Reward, src: string) {
-  if (rw.money) s.money = round2(s.money + Math.round(rw.money * infl(s.year)));
+function grant(s: GameState, rw: Reward, src: string): number {
+  // PSV-031 · a cash bonus is income: it counts in «Заработано» and in the order earnings
+  const bonus = rw.money ? Math.round(rw.money * infl(s.year)) : 0;
+  if (bonus) { s.money = round2(s.money + bonus); s.earned = round2(s.earned + bonus); s.stats.orders = round2(s.stats.orders + bonus); }
   if (rw.pet && !s.pets.includes(rw.pet)) {
     s.pets.push(rw.pet);
     s.rewardsOut.push({ id: `${src}|pet`, kind: 'pet', value: rw.pet });
@@ -2022,6 +2079,7 @@ function grant(s: GameState, rw: Reward, src: string) {
   }
   if (rw.card) addCard(s, rw.card, { temp: true });
   if (rw.glory) addGlory(s, rw.glory, `${src}|glory`);
+  return bonus;
 }
 function addGlory(s: GameState, n: number, id: string) {
   s.glory += n;
@@ -2337,6 +2395,8 @@ export function apply(state: GameState, a: Action): GameState {
       if (!c || !isSeed(c.def)) fail('Выбери карту семян');
       // Selecting a hand card explicitly transfers that UID into the project.
       if (!Array.isArray(a.cell) || !upgradeSpots(s, c!).some(([x, y]) => x === a.cell[0] && y === a.cell[1])) fail('Сюда клетку не добавить');
+      // PSV-018 · never charge for a shape that has no possible place in this region
+      if (!spotFits(s, c!, [a.cell[0], a.cell[1]])) fail('Такой фигуре в этом регионе негде расти');
       spend(s, cellPrice(s, c!), 'build');
       const origin = s.spare.some((c) => c.uid === a.uid) ? 'spare' as const : 'deck' as const;
       const card = removeCard(s, a.uid);
@@ -2427,13 +2487,14 @@ export function apply(state: GameState, a: Action): GameState {
       st.active = null;
       st.wait = 1;
       const chain = q.step < ORGS[a.org].steps.length;
+      let bonus = 0;
       if (chain) {
         st.step += 1;
         addGlory(s, 10, `quest-${a.org}-${q.step}`);
-        if (q.reward) grant(s, q.reward, `${s.seed}|${s.loc}|${a.org}|${q.step}`);
+        if (q.reward) bonus = grant(s, q.reward, `${s.seed}|${s.loc}|${a.org}|${q.step}`);
         if (st.step === ORGS[a.org].steps.length) addGlory(s, 25, `chain-${a.org}`);
       }
-      feed(s, `${ORGS[a.org].short}: заказ сдан, +${money(pay)}.`, 'good');
+      feed(s, `${ORGS[a.org].short}: заказ сдан, +${money(pay)}${bonus ? ` и премия +${money(bonus)}` : ''}.`, 'good');
       break;
     }
     case 'borrow': {
@@ -2563,7 +2624,7 @@ function build(s: GameState, item: BuildItem, x: number, y: number) {
     const t = tile(s, x, y);
     t.canal = true;
     t.weeds = false;
-  } else { tile(s, x, y).structure = item; if(item === 'greenhouse') tile(s,x,y).greenhousePlacedWeek=s.absWeek; }
+  } else { tile(s, x, y).structure = item; if(item === 'greenhouse') tile(s,x,y).greenhousePlacedWeek=s.absWeek; if(item === 'hive') tile(s,x,y).hivePlacedWeek=s.absWeek; }
 }
 function unbuild(s: GameState, item: BuildItem, x: number, y: number) {
   if (!cellOk(x, y)) fail('Клетка вне поля');
@@ -2581,7 +2642,7 @@ function unbuild(s: GameState, item: BuildItem, x: number, y: number) {
     if (tile(s, x, y).structure !== item) fail('Здесь этого нет');
     if (item === 'greenhouse' && tile(s, x, y).crop && CROPS[tile(s, x, y).crop!.id].greenhouseOnly) fail('Сначала соберите культуру, которой нужна теплица');
     tile(s, x, y).structure = null;
-    delete tile(s,x,y).greenhousePlacedWeek;
+    delete tile(s,x,y).greenhousePlacedWeek; delete tile(s,x,y).hivePlacedWeek;
   }
 }
 

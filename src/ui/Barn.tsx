@@ -2,7 +2,7 @@ import { useEffect, useState } from 'preact/hooks';
 import { CARDS, CROPS, CROP_IDS, CropId, RATINGS, isSeed } from '../engine/data';
 import {
   GameState, priceOf, rub, cardShopPrice, creditLimit, deckLimit, deckList, forecast, insurancePrice, locOf, loanRate, lookahead, marketPrice, money, nextPayment,
-  outstanding, shopCards, stockOf, storageCap, storageUsed, weeklyCosts, yardUsed, fmt, lvl, obtainable, freeStock, reservedStock, storageKeepWeeks, deckCount,
+  outstanding, shopCards, stockOf, miceTargets, storageCap, storageUsed, weeklyCosts, yardUsed, fmt, lvl, obtainable, freeStock, reservedStock, storageKeepWeeks, deckCount,
 } from '../engine/game';
 import { Icon } from '../art/icons';
 import { CropSprite } from '../art/crops';
@@ -16,7 +16,7 @@ function ORGS_ACTIVE_NEED(s: GameState): Map<CropId, number> {
 }
 import { P } from '../art/palette';
 import { Bar, Btn, Dispatch } from './common';
-import { CardView, cardPrice, cardDescription } from './Card';
+import { CardView, cardPrice, cardDescription, cardDaysText } from './Card';
 
 // №9 · One horizon at a time. The words, the range and the arrow always speak of the same week — the next one
 // unless the player taps another point of the chart; the chart itself still shows several weeks.
@@ -116,6 +116,8 @@ function SaleControls({ s, c, act }: { s: GameState; c: CropId; act: Dispatch })
 export function BarnView({ s, act, target, onPayment }: { s: GameState; act: Dispatch; target?: { tab: 'market' | 'shop' | 'bank'; key: number }; onPayment: () => void }) {
   const [tab, setTab] = useState<'market' | 'shop' | 'bank'>('market');
   const [shopPick,setShopPick]=useState<string|null>(null);
+  const [bought,setBought]=useState<{def:string|null;n:number}>({def:null,n:0});
+  useEffect(()=>{setBought(b=>b.def===shopPick?b:{def:null,n:0});},[shopPick]);
   useEffect(() => { if (target) setTab(target.tab); }, [target?.key]);
   const used = storageUsed(s), cap = storageCap(s);
   const yard = yardUsed(s);
@@ -128,7 +130,8 @@ export function BarnView({ s, act, target, onPayment }: { s: GameState; act: Dis
   for (const l of s.storage) lots.set(l.crop, (lots.get(l.crop) ?? 0) + l.qty);
   const yardLoss = s.yard.reduce((n,l)=>n+l.qty*priceOf(s,l.crop)*0.6,0);
   // B-14: mice take every storable crop (grain, potatoes, rice…), and only from a lot of ten or more
-  const nibbled = lvl(s, 'barn') < 2 && !s.pets.includes('cat') ? CROP_IDS.filter(c => CROPS[c].storable && stockOf(s,c) >= 10) : [];
+  // PSV-032 · only what lies inside the barn: the yard is sold off at the week's end, mice never reach it
+  const nibbled = miceTargets(s);
   const mice = nibbled.length > 0;
   function row(c: CropId) {
     const have=stockOf(s,c), reserved=Math.min(have,reservedStock(s,c));
@@ -192,18 +195,27 @@ export function BarnView({ s, act, target, onPayment }: { s: GameState; act: Dis
               return (
                 <div class={`grid-card shop-card${picked ? ' picked' : ''}`}>
                   <CardView s={s} card={{ def }} mini noPrice selected={picked} onClick={()=>setShopPick(picked?null:def)} />
-                  <button type="button" class="buy-tag" onClick={()=>setShopPick(picked?null:def)} aria-label={`${CARDS[def].name}: купить за ${money(price)}`}><Icon name="coin" size={16}/>{money(price)}{winterOnly?<small> зима</small>:null}</button>
+                  <button type="button" class="buy-tag" onClick={()=>setShopPick(picked?null:def)} aria-pressed={picked} aria-controls="shop-choice" aria-label={`${CARDS[def].name}, ${money(price)}: выбрать`}><Icon name="coin" size={16}/>{money(price)}{winterOnly?<small> зима</small>:null}</button>
                 </div>
               );
             })}
           </div>
+          {/* PSV-003 · the chosen card and its «Купить» stay pinned to the bottom of the screen, next to the
+              catalogue the player is looking at; it says what the purchase costs now, later, and where it goes */}
           {shopPick && (() => {
             const def = shopPick, price = cardShopPrice(s, def), use = cardPrice(s, def);
-            return <div class="shop-choice" role="group" aria-label={`Карта «${CARDS[def].name}»`}>
-              <b>{CARDS[def].name}</b>
+            const why = s.phase==='shortfall'?'Сначала решите вопрос с платежом':s.money<price?'Не хватает денег':null;
+            return <div class="shop-choice" id="shop-choice" role="region" aria-label={`Покупка: ${CARDS[def].name}`}>
+              <div class="shop-choice-head">
+                <b>{CARDS[def].name}</b>
+                <button type="button" class="icon-btn shop-choice-x" onClick={()=>setShopPick(null)} aria-label="Закрыть выбор">✕</button>
+              </div>
               <p>{cardDescription(s,def)}</p>
-              <small>При применении: {use > 0 ? `${money(use)} · ` : ''}{CARDS[def].days} дн.{CARDS[def].winterOnly ? ' · только зимой' : CARDS[def].noWinter ? ' · не зимой' : ''}</small>
-              <Btn tone="primary" disabled={s.phase==='shortfall'?'Сначала решите вопрос с платежом':s.money<price?'Не хватает денег':null} onClick={()=>act({t:'buyCard',def})}>Купить · {money(price)}</Btn>
+              <small>При применении: {use > 0 ? `${money(use)} · ` : ''}{cardDaysText(s, { def })}{CARDS[def].winterOnly ? ' · только зимой' : CARDS[def].noWinter ? ' · не зимой' : ''}</small>
+              <small>{deckN < deckLimit(s) ? `Ляжет в колоду · ${deckN}/${deckLimit(s)}` : 'Колода полна — ляжет в запас'} · на счету {money(s.money)} → {money(Math.max(0, s.money - price))}</small>
+              <Btn tone="primary" disabled={why} onClick={()=>{ if (act({t:'buyCard',def})) setBought(b=>({def,n:b.def===def?b.n+1:1})); }}>Купить · {money(price)}</Btn>
+              <span class="sr-only" aria-live="polite">{bought.def===def&&bought.n?`Куплено: ${CARDS[def].name}${bought.n>1?` ×${bought.n}`:''}`:''}</span>
+              {bought.def===def&&bought.n>0&&<small class="shop-bought" aria-hidden="true">✓ Куплено{bought.n>1?` ×${bought.n}`:''}</small>}
             </div>;
           })()}
           {s.unlocked.length > 0 && <p class="panel-note">Открыто здесь: {s.unlocked.map((c) => CROPS[c].name.toLowerCase()).join(', ')}.</p>}

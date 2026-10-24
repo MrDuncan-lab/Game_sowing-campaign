@@ -3,6 +3,7 @@ import { CARDS, CROPS, TRACKS, TRAITS, TRAIT_IDS, TraitId, isSeed } from '../eng
 import {
   Card, GameState, bioPrice, cardCells, cellPrice, labBusy, labCrops, labProblem, labSlots, labWeeksFor, lvl, maxExtra, maxTraits, money, trackCost,
   trackProblem, trackWeeks, traitPrice, upgradeSpots, varietyPrice, isLabProject, wlvl, cardDays, seedCost, cardShape, placements, heated, cropMinT,
+  seasonView, spotFits,
 } from '../engine/game';
 import { Icon } from '../art/icons';
 import { CropIcon, CropSprite } from '../art/crops';
@@ -56,24 +57,29 @@ function ShapeEditor({ s, card, onPick, chosen }: { s: GameState; card: Card; on
       ))}
       {spots.map(([x, y]) => {
         const on = chosen?.[0] === x && chosen?.[1] === y;
+        // PSV-018 · a shape with no possible place in this region is shown but cannot be chosen
+        const fits = spotFits(s, card, [x, y]);
         return (
-          <g transform={`translate(${(x - minX) * C + 4} ${(y - minY) * C + 4})`} class={`spot${on ? ' chosen' : ''}`} data-spot={`${x},${y}`} role="button" tabindex={0} aria-pressed={on}
-            onClick={() => onPick([x, y])}
-            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onPick([x, y]); } else if (step([x, y], e.key)) e.preventDefault(); }}
-            aria-label={`Добавить клетку ${spotLabel(cells, [x, y], minX, minY)}`}>
-            <rect width={C - 4} height={C - 4} rx={7} fill="#fff8d6" stroke="#c8931f" stroke-width={2} stroke-dasharray="4 3" />
-            <text x={(C - 4) / 2} y={(C - 4) / 2 + 6} text-anchor="middle" class="plus">+</text>
+          <g transform={`translate(${(x - minX) * C + 4} ${(y - minY) * C + 4})`} class={`spot${on ? ' chosen' : ''}${fits ? '' : ' impossible'}`} data-spot={`${x},${y}`} role="button" tabindex={0} aria-pressed={on} aria-disabled={!fits || undefined}
+            onClick={() => { if (fits) onPick([x, y]); }}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (fits) onPick([x, y]); } else if (step([x, y], e.key)) e.preventDefault(); }}
+            aria-label={`Добавить клетку ${spotLabel(cells, [x, y], minX, minY)}${fits ? '' : ' — нельзя: в этом регионе такой фигуре негде расти'}`}>
+            <title>{fits ? '' : 'В этом регионе такой фигуре негде расти'}</title>
+            <rect width={C - 4} height={C - 4} rx={7} fill={fits ? '#fff8d6' : '#ece4d2'} stroke={fits ? '#c8931f' : '#a89a80'} stroke-width={2} stroke-dasharray="4 3" />
+            <text x={(C - 4) / 2} y={(C - 4) / 2 + 6} text-anchor="middle" class="plus">{fits ? '+' : '×'}</text>
           </g>
         );
       })}
     </svg>
     <p class="sr-only" aria-live="polite">{chosen ? `Выбрана клетка ${spotLabel(cells, chosen, minX, minY)}` : ''}</p>
+    {spots.some((p) => !spotFits(s, card, p)) && <p class="small muted shape-note">{spots.every((p) => !spotFits(s, card, p)) ? 'Расширять эту фигуру некуда: в регионе нет участка подходящей формы.' : '× — с такой клеткой фигуре в этом регионе негде расти.'}</p>}
   </>);
 }
 
 function ProjectPreview({s,card,cell}:{s:GameState;card:Card;cell:[number,number]}) {
  const next={...card,extra:[...(card.extra??[]),cell]},crop=CARDS[card.def].crop!;
- const winter:GameState={...s,season:3,tiles:s.tiles.map(t=>({...t,crop:null}))};
+ // PSV-019 · the whole calendar moves to winter, not only the season field
+ const winter:GameState={...seasonView(s,3),tiles:s.tiles.map(t=>({...t,crop:null}))};
  const before=cardCells(card).length,after=cardCells(next).length;
  return <div class="project-preview">
   <dl><dt>Грядки</dt><dd>{before} → {after}</dd><dt>Дни на посев</dt><dd>{cardDays(s,card)} → {cardDays(s,next)}</dd><dt>Цена посева</dt><dd>{money(seedCost(s,crop)*before)} → {money(seedCost(s,crop)*after)}</dd><dt>Базовый урожай</dt><dd>{CROPS[crop].yield*before} → {CROPS[crop].yield*after} ед.</dd></dl>

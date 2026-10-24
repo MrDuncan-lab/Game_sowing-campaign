@@ -15,12 +15,17 @@ export const STORABLE = names((c) => c.storable);
 const LEVEL: Partial<Record<TrackId, Record<number, string>>> = {
   irrigation: {
     // B-07: a line keeps the water a bed already has; it does not add any
-    1: '2 капельные линии. Линия сохраняет влагу в своём ряду: грядки под ней не сохнут за неделю. Сама не поливает — сухие сначала полейте. Ставятся в режиме построек',
+    // PSV-023: it cancels the ordinary weekly drying only — heat and drought still take their share
+    1: '2 капельные линии. Линия отменяет обычное недельное высыхание в своём ряду; жара и засуха всё равно сушат грядки. Сама не поливает — сухие сначала полейте. Ставятся в режиме построек',
     3: '4 капельные линии; засеянные грядки с влагой меньше 2 каждую неделю сами получают +2',
   },
   house: {
     // B-14б: the cellar keeps every perishable crop a week longer, not only tomatoes
     1: `2 работника · колода до 16 · скоропорт (${PERISHABLE}) хранится на неделю дольше`,
+  },
+  apiary: {
+    // PSV-021: like a moved greenhouse, a hive pollinates from the week after it was set down
+    0: '1 улей: гречка рядом ×1,5, тыква и подсолнечник ×1,25. Опыляет со следующей недели после установки или переноса',
   },
   barn: {
     // B-14в: mice take every storable crop, potatoes included

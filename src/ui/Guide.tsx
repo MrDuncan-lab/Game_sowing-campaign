@@ -123,7 +123,7 @@ function hint(t:TutorialSession,tab:TabId,visitLate=false):Hint{
     case 'place':{
       const placing=building==='drip'&&!q('.field-view[data-build-moving="true"]');
       return tab==='house'?{text:'Поставьте капельный полив на поле.',target:button('Разместить на поле')??q('[data-track="irrigation"]'),gesture:'tap',hello:'Капельный полив готов.'}
-        :{text:placing?'Нажмите на ряд — линия ляжет вдоль него.':'Загляните в дом: «Разместить на поле».',target:placing?bed(2,2):nav('house'),gesture:'tap',more:placing?'Линия сохраняет влагу в своём ряду — грядки не сохнут за неделю. Сама не поливает: сухие сначала полейте.':undefined,hello:placing?undefined:'Капельный полив готов.'};
+        :{text:placing?'Нажмите на ряд — линия ляжет вдоль него.':'Загляните в дом: «Разместить на поле».',target:placing?bed(2,2):nav('house'),gesture:'tap',more:placing?'Линия отменяет обычное высыхание в своём ряду; жара и засуха всё равно сушат. Сама не поливает: сухие сначала полейте.':undefined,hello:placing?undefined:'Капельный полив готов.'};
     }
     case 'practice':{
       if(tab==='orders'&&q('.orders-pane .hall')&&!t.delivered)return{text:'Вернитесь из зала славы к заказам.',target:q('.orders-pane .back-link'),gesture:'tap'};

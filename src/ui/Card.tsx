@@ -2,7 +2,7 @@ import type { JSX } from 'preact';
 import { CARDS, CROPS, TRAITS } from '../engine/data';
 import type { CropId, TraitId } from '../engine/data';
 import {
-  CardLike, GameState, cardCells, cardCost, cardDays, cardNeedDays, cardShape, cropGrow, cropMinT, plural, rub, round2, seedCost, shapeRotations,
+  CardLike, GameState, cardCells, cardCost, cardDaysShown, cardShape, cropGrow, cropMinT, plural, rub, round2, seedCost, shapeRotations,
   sidejobPay, wlvl, maxExtra, ripenIn, tile, inGrid, sowingSoil, lvl, soilHarvestCost,
 } from '../engine/game';
 import { CropIcon, CropSprite } from '../art/crops';
@@ -158,6 +158,13 @@ const SHORT_SUB: Record<string, string> = {
   water: 'влаги', fertilizer: 'урожай', mulch: 'бережёт влагу', care: 'в ряду', weeding: 'прополка', early: 'сбор сейчас', helpers: 'рабочий день',
   sidejob: 'раз в неделю', shelter: 'от града · тепло', compost: 'плодородие', bio: 'почва 2×2', snow: 'вода к весне', forage: 'из тайги',
 };
+/** PSV-002 · one day cost for the card face, its spoken label and every description (shop, inventory): the same
+ *  calculation the engine charges — seeds by area and machinery, fertilizer by the size of the planting it feeds. */
+export function cardDaysText(s: GameState, card: CardLike): string {
+  const d = cardDaysShown(s, card), def = typeof card === 'string' ? card : card.def;
+  return def === 'fertilizer' ? `от ${d} дн. — по размеру посадки` : `${d} дн.`;
+}
+
 export function CardView({
   s, card, selected, blocked, onClick, compact, rot = 0, onPointerDown, rotHint, mini, noPrice,
 }: {
@@ -174,7 +181,7 @@ export function CardView({
   onPointerDown?: (e: JSX.TargetedPointerEvent<HTMLButtonElement>) => void;
 }) {
   const d = CARDS[card.def];
-  const days = s.phase === 'week' ? cardNeedDays(s, card) : cardDays(s, card);
+  const days = cardDaysShown(s, card);
   const price = cardPrice(s, card);
   const st = cardStat(s, card);
   const rotatable = d.target === 'line' || (d.kind === 'seed' && shapeRotations(card).length > 1);
