@@ -11,6 +11,7 @@ import type { BuildItem } from '../engine/game';
 import { Icon } from '../art/icons';
 import { Btn, Dispatch, Money, Sheet, compactMoney } from './common';
 import { FieldView } from './FieldView';
+import type { VillageApi, VillageMode } from './Village';
 import { HouseView } from './House';
 import { LabView } from './Lab';
 import { BarnView } from './Barn';
@@ -25,6 +26,13 @@ export const TABS = [
   { id: 'orders', name: 'Заказы', short: 'Заказы', icon: 'orders' },
 ] as const;
 export type TabId = (typeof TABS)[number]['id'];
+// where each screen stands in the village: from the village a tab flies there first
+const TAB_PLACE: Partial<Record<TabId, (s: GameState) => string>> = {
+  lab: (s) => (lvl(s, 'lab') >= 1 ? 'lab' : 'lot-lab'),
+  house: () => 'house',
+  barn: () => 'barn',
+  orders: () => 'board',
+};
 
 function ShortfallSheet({ s, act, onBarn, onOrders, onClose, onRetry }: { s: GameState; act: Dispatch; onBarn: () => void; onOrders: () => void; onClose: () => void; onRetry?:()=>void }) {
   const due = s.due!;
@@ -92,6 +100,8 @@ export function FarmScreen({ s, dispatch, profile, fast, onFast, onMap, onRestar
   const [paymentOpen, setPaymentOpen] = useState(s.phase === 'shortfall');
   const [barnTarget, setBarnTarget] = useState<{ tab: 'market' | 'shop' | 'bank'; key: number }>({ tab: 'market', key: 0 });
   const [placeRequest, setPlaceRequest] = useState<{ item: BuildItem; key: number } | null>(null);
+  const villageApi = useRef<VillageApi | null>(null);
+  const [fieldMode, setFieldMode] = useState<VillageMode>('field');
   useEffect(() => { setPaymentOpen(s.phase === 'shortfall'); }, [s.phase]);
   const pager = useRef<HTMLDivElement>(null);
   const tabRef = useRef<TabId>('field');
@@ -176,19 +186,26 @@ export function FarmScreen({ s, dispatch, profile, fast, onFast, onMap, onRestar
         {TABS.map((t) => {
           const b = badges[t.id];
           return (
-            <button type="button" role="tab" data-tab={t.id} aria-selected={tab === t.id} class={`tab${tab === t.id ? ' on' : ''}${t.id === 'field' ? ' main' : ''}`} onClick={() => go(t.id)}>
+            <button type="button" role="tab" data-tab={t.id} aria-selected={tab === t.id} class={`tab${tab === t.id ? ' on' : ''}${t.id === 'field' ? ' main' : ''}`} onClick={() => {
+                const v = villageApi.current;
+                // the field's tab takes you to the field, and on the field between it and the village
+                if (t.id === 'field') { if (tab === 'field' && v?.available) v.toggle(); else go('field'); return; }
+                const place = TAB_PLACE[t.id];
+                if (tab === 'field' && v?.available && v.mode() !== 'field' && place) { void v.flyTo(place(s)).then(() => go(t.id)); return; }
+                go(t.id);
+              }}>
               <Icon name={t.icon} size={t.id === 'field' ? 26 : 22} />
-              <span>{t.short}</span>
+              <span>{t.id === 'field' && tab === 'field' && fieldMode !== 'field' ? 'Деревня' : t.short}</span>
               {b && <i aria-hidden="true" class={`tab-badge ${b.tone ?? ''}`}>{b.n}</i>}
             </button>
           );
         })}
       </nav>
-      {s.phase === 'shortfall' && !paymentOpen && tab !== 'field' && <div class="payment-reminder" role="status"><div class="pr-chip"><span>Платёж ожидает решения</span><button type="button" onClick={()=>setPaymentOpen(true)}>Решить платёж</button></div></div>}
+      {s.phase === 'shortfall' && !paymentOpen && (tab !== 'field' || fieldMode !== 'field') && <div class="payment-reminder" role="status"><div class="pr-chip"><span>Платёж ожидает решения</span><button type="button" onClick={()=>setPaymentOpen(true)}>Решить платёж</button></div></div>}
       <QuickProjects.Provider value={!!tutorial}><div class="pager" ref={pager}>
         <section class="pane" aria-label="Лаборатория"><LabView s={s} act={dispatch} active={tab === 'lab' && !menu && !paymentOpen && !suspended} teaching={tutorial?.session.step === 'lab'} /></section>
         <section class="pane" aria-label="Дом"><HouseView s={s} act={dispatch} onPlace={(item) => { setPlaceRequest({ item, key: Date.now() }); go('field'); }} /></section>
-        <section class="pane field-pane" aria-label="Поле"><FieldView teaching={!!tutorial} precheck={tutorial?.precheck} lessonVisit={tutorial?.session.step==='visit'} onVisitDone={()=>{if(tutorial?.session.step==='visit')tutorial.onNext();}} onOrder={org=>{setOrderTarget({org,key:Date.now()});go('orders');}} onPayment={()=>setPaymentOpen(true)} testing={testing} s={s} dispatch={dispatch} fast={fast} active={tab === 'field' && !menu && !paymentOpen && !suspended} placeRequest={placeRequest} onGo={(t) => t === 'barn' ? openBarn() : go(t as TabId)} /></section>
+        <section class="pane field-pane" aria-label="Поле"><FieldView teaching={!!tutorial} precheck={tutorial?.precheck} lessonVisit={tutorial?.session.step==='visit'} onVisitDone={()=>{if(tutorial?.session.step==='visit')tutorial.onNext();}} onOrder={org=>{setOrderTarget({org,key:Date.now()});go('orders');}} onPayment={()=>setPaymentOpen(true)} onMap={onMap} villageApi={villageApi} onVillageMode={setFieldMode} testing={testing} s={s} dispatch={dispatch} fast={fast} active={tab === 'field' && !menu && !paymentOpen && !suspended} placeRequest={placeRequest} onGo={(t) => t === 'barn' ? openBarn() : go(t as TabId)} /></section>
         <section class="pane" aria-label="Амбар"><BarnView s={s} act={dispatch} target={barnTarget} onPayment={()=>setPaymentOpen(true)} /></section>
         <section class="pane" aria-label="Заказы"><OrdersView teaching={!!tutorial} target={orderTarget} s={s} act={dispatch} profile={profile} /></section>
       </div></QuickProjects.Provider>

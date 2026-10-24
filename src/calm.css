@@ -1,0 +1,122 @@
+/* The quiet frame round the field. The field is the one bright patch on the screen: the bar, the tabs, the action
+   row and the tools are paper and ink, and only what needs a decision (a payment, an ended week) turns gold. */
+.farm {
+  --c-paper: #fbf3df; --c-bar: #f4e7cb; --c-line: #dcc69c; --c-line2: #cdb68a;
+  --c-ink: #3f2a1d; --c-soft: #8a7258; --c-brown: #6b4a33; --c-gold: #c8931f; --c-goldfill: #f2c13f;
+  background: var(--c-paper);
+}
+
+/* ---------- the top bar: season, money and the next payment, flat on paper ---------- */
+.farm > .topbar { background: var(--c-bar); border-bottom: 1px solid var(--c-line); box-shadow: none; color: var(--c-ink);
+  gap: 6px; padding: calc(3px + env(safe-area-inset-top, 0px)) 8px 3px 4px; }
+.farm > .topbar .menu-btn { width: 32px; height: 32px; border: 0; border-radius: 8px; background: none; box-shadow: none; }
+.farm > .topbar .menu-btn svg { width: 20px; height: 20px; }
+.farm > .topbar .menu-btn svg path { stroke: var(--c-ink); }
+.farm > .topbar .tb-date b { color: var(--c-ink); text-shadow: none; font-size: 15px; }
+.farm > .topbar .tb-date small { color: var(--c-soft); opacity: 1; margin-top: 2px; }
+.farm > .topbar .tb-money { border: 0; background: none; box-shadow: none; padding: 0 2px; color: var(--c-ink); font-size: .98rem; }
+.farm > .topbar .tb-pay { border: 1px solid var(--c-line); border-radius: 8px; background: var(--c-paper); box-shadow: none; color: var(--c-ink); padding: 2px 8px 6px; }
+.farm > .topbar .tb-pay small { color: var(--c-soft); font-weight: 500; }
+.farm > .topbar .tb-pay.due { border-color: #c0503a; background: #fbe9e2; }
+.farm > .topbar .tb-pay.due small { color: #a03a20; font-weight: 700; }
+.farm > .topbar .tb-pay .pay-bar { left: 7px; right: 7px; bottom: 2px; height: 2.5px; border: 0; border-radius: 2px; background: #e6d8b6; box-shadow: none; }
+.farm > .topbar .tb-pay .pay-bar > span { background: #6f9f4e; border-radius: 2px; }
+
+/* ---------- the tabs: thin, the icons wake only on the chosen one ---------- */
+.farm > .tabs { background: var(--c-bar); border-bottom: 1px solid var(--c-line); padding: 0; gap: 0; grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.farm > .tabs .tab { min-height: 34px; padding: 0 2px; gap: 4px; flex-direction: row; justify-content: center; align-items: center; border: 0; border-radius: 0;
+  background: none; box-shadow: none; transform: none; color: var(--c-soft); font: 700 12px/1 var(--display); letter-spacing: 0; }
+.farm > .tabs .tab svg { width: 18px; height: 18px; opacity: 1; filter: saturate(.12) opacity(.72); transition: filter .2s; }
+.farm > .tabs .tab span { overflow: hidden; text-overflow: ellipsis; }
+.farm > .tabs .tab.on { color: var(--c-ink); background: none; transform: none; box-shadow: none; }
+.farm > .tabs .tab.on svg { filter: none; }
+.farm > .tabs .tab.on::before { content: ''; position: absolute; left: 22%; right: 22%; bottom: 0; height: 2.5px; border-radius: 2px; background: var(--c-gold); }
+.farm > .tabs .tab:not(.on):hover { background: rgba(255, 250, 236, .55); }
+.farm > .tabs .tab:focus-visible { outline: 2px solid var(--c-gold); outline-offset: -3px; box-shadow: none; }
+.farm > .tabs .tab-badge { top: 3px; right: calc(50% - 30px); }
+
+/* ---------- the field: no paper round it. When the screen's height bounds it, its sky and its meadow go on
+   to the edges, so the sides read as more of the same land, not as margins ---------- */
+.farm .field-view .field-wrap { padding: 0; align-items: flex-start; }
+/* the sky is a strip of its own on top; over the yard the field is open to whatever lies behind it: the village's
+   hill, or (on farms without a village yet) more sky */
+.farm .field-view:not(.has-village) .field-wrap { background: linear-gradient(var(--sk1) 0, var(--sk2) calc(var(--sky-h, 60px) + var(--vpeek, 0px)), var(--sk3) calc(var(--sky-h, 60px) + var(--vpeek, 0px) + 40px)); }
+.farm .field-view .field-row { width: 100% !important; max-width: 100%; padding: 0 !important; grid-template-columns: minmax(0, 1fr); justify-items: center;
+  --fh: min(calc(100cqh - var(--vpeek, 0px)), calc((100cqw - var(--side) - var(--gap)) / var(--arn)));
+  background: linear-gradient(transparent calc(var(--sky-h, 60px) - 5px), var(--mg, #7dbb4f) calc(var(--sky-h, 60px) - 5px)); }
+.farm .field-view .field-stage { width: auto; height: 100%; aspect-ratio: var(--arn); border-radius: 0; box-shadow: none; }
+.farm .field-view .field-stage > .fx { border-radius: 0; }
+.farm.season-0 { --sk1: #c4e6f6; --sk2: #eef7e0; --sk3: #d9ebc0; }
+.farm.season-1 { --sk1: #bfe4f6; --sk2: #eef7e0; --sk3: #d6eab8; }
+.farm.season-2 { --sk1: #cfe3ec; --sk2: #f3ead6; --sk3: #e3dfb6; }
+.farm.season-3 { --sk1: #dfe9f1; --sk2: #f4f7fa; --sk3: #e8eff4; --mg: #e8f1f6; }
+
+/* the field's own tools: small cream discs in the sky */
+.farm .field-view .field-tools.sky-tools { --tb: clamp(30px, 8cqw, 36px); gap: 6px; }
+.farm .field-view .field-tools .tool-btn, .farm .field-view .lens-picker .tool-btn { border: 1px solid var(--c-line2); background: rgba(251, 243, 223, .9); box-shadow: none; color: var(--c-ink); }
+.farm .field-view .field-tools .tool-btn svg { width: calc(var(--tb) * .6); height: calc(var(--tb) * .6); }
+.farm .field-view .field-tools .tool-btn.on { background: #f6dd8f; border-color: #a77b14; box-shadow: none; }
+.farm .field-view .field-tools .tool-btn:hover { background: #fffaf0; }
+
+/* ---------- the action row: days as dots, the swap as a pill, the week's end outlined until it is time ---------- */
+.farm .field-view .dock { background: var(--c-paper); border-top: 1px solid #e8d8b4; }
+.farm .field-view .dock-top { height: 54px; min-height: 0; gap: 6px; align-items: center; }
+.farm .field-view .dock-top > .days { width: auto; height: auto; flex: none; flex-direction: row; align-items: center; gap: 4px; padding: 0 2px 0 4px;
+  border: 0; border-radius: 0; background: none; box-shadow: none; color: var(--c-ink); }
+.farm .field-view .dock-top > .days b { font: 700 21px/1 var(--display); }
+.farm .field-view .dock-top > .days > svg { display: none; }
+.farm .field-view .dock-top > .days small { font: 500 11px/1 var(--ui); color: var(--c-soft); }
+.day-pips { display: flex; gap: 3px; }
+.day-pips i { width: 7px; height: 7px; border-radius: 50%; border: 1.3px solid var(--c-gold, #c8931f); box-sizing: border-box; }
+.day-pips i.on { background: var(--c-goldfill, #f2c13f); }
+.farm .field-view .dock-top > .exchange-deck { width: auto; min-width: 0; height: 30px; margin: 0; padding: 0 9px 0 7px; flex-direction: row; gap: 4px; align-items: center;
+  border: 1px solid var(--c-line2); border-radius: 99px; background: var(--c-paper); box-shadow: none; }
+.farm .field-view .dock-top > .exchange-deck .deck-back { width: 15px; height: 15px; aspect-ratio: auto; transform: none !important; }
+.farm .field-view .dock-top > .exchange-deck .deck-back i { display: none; }
+.farm .field-view .dock-top > .exchange-deck .exchange-ring { position: static; width: 15px; height: 15px; border: 0; border-radius: 0; background: none; box-shadow: none; color: var(--c-brown); }
+.farm .field-view .dock-top > .exchange-deck small { max-width: none; white-space: nowrap; font: 700 11px/1 var(--ui); color: var(--c-brown); }
+.farm .field-view .dock-top > .exchange-deck.choosing { background: #f6dd8f; border-color: #a77b14; }
+.farm .field-view .dock-top > .exchange-deck:disabled { opacity: .55; }
+.farm .field-view .dock-top > .exchange-deck .deck-next { right: -8px; top: -9px; width: 20px; height: 20px; border-width: 1px; }
+.farm .field-view .dock .hand-summary { color: var(--c-soft); }
+.farm .field-view .dock .hand-count { font: italic 400 12px/1.15 var(--display); color: var(--c-soft); }
+.farm .field-view .dock .hand-count small { font-size: 11px; color: var(--c-soft); }
+.farm .field-view .dock .btn.end-week { width: auto; min-width: 92px; max-width: 128px; height: 38px; padding: 2px 11px; border: 1.5px solid var(--c-brown); border-radius: 99px;
+  background: var(--c-paper); box-shadow: none; color: var(--c-ink); text-shadow: none; animation: none; }
+.farm .field-view .dock .btn.end-week span { font: 700 13px/1.05 var(--display); white-space: normal; text-align: center; }
+.farm .field-view .dock .btn.end-week small { margin-top: 2px; padding: 0; background: none; color: var(--c-soft); font: 600 10px/1 var(--ui); max-width: 112px; }
+.farm .field-view .dock .btn.end-week small.bad { background: none; color: #a03a20; }
+.farm .field-view .dock .btn.end-week.ready { background: linear-gradient(#ffe37a, #f2c13f); border-color: #a77b14; box-shadow: 0 2px 0 #8a6410; color: var(--c-ink); text-shadow: none; }
+.farm .field-view .dock .btn.end-week:disabled { opacity: .6; }
+.farm .field-view .dock .btn.end-week.pay-due { background: linear-gradient(#ffe37a, #f2c13f); border-color: #a77b14; box-shadow: 0 2px 0 #8a6410; animation: pay-glow 2.2s ease-in-out infinite; }
+.farm .field-view .dock .btn.end-week.pay-due small { color: #a03a20; font-weight: 800; }
+@media (prefers-reduced-motion: reduce) { .farm .field-view .dock .btn.end-week.pay-due { animation: none; } }
+
+/* the picked card's readout: a paper slip in the row, two lines */
+.farm .field-view .dock-top .card-readout { align-self: stretch; margin: 3px 0; padding: 2px 8px 2px 5px; border: 1px solid var(--c-line2); border-radius: 10px; background: #fffaf0; box-shadow: none; }
+.farm .field-view .dock-top .card-readout .ro-name { font-size: 14px; }
+.farm .field-view .dock-top .card-readout .ro-cost { font-size: 12px; }
+.farm .field-view .dock-top .card-readout .ro-facts { flex-wrap: nowrap; overflow: hidden; font-size: 12px; -webkit-mask-image: linear-gradient(90deg, #000 88%, transparent); mask-image: linear-gradient(90deg, #000 88%, transparent); }
+.farm .field-view .dock:not(.roomy) .dock-top .card-readout .ro-status { display: none; }
+.farm .field-view .dock .card-tools .keep-btn, .farm .field-view .dock .card-tools .tool-x { width: 32px; min-width: 0; height: 32px; padding: 0; border: 1px solid var(--c-line2); background: var(--c-paper); box-shadow: none; color: var(--c-ink); }
+.farm .field-view .dock .card-tools .keep-btn.on { background: #fbe3d6; border-color: #c9633f; }
+.farm .field-view .dock .card-tools .btn.primary.tool { border-radius: 99px; box-shadow: none; }
+.farm .field-view .dock.roomy .dock-top > .days, .farm .field-view .dock.roomy .dock-top > .deck-pile { height: auto; }
+.farm .field-view .dock.roomy .dock-top > .end-week { height: 36px; }
+
+/* ---------- the hand: softer heads, thinner edges ---------- */
+.farm .field-view .fan .card.pc { border-width: 1.5px; box-shadow: 0 .2em 0 rgba(63, 42, 29, .18); }
+.farm .field-view .fan .card.pc.kind-seed { --kind: linear-gradient(#e6f0d3, #d6e7bd); }
+.farm .field-view .fan .card.pc.kind-work { --kind: linear-gradient(#f5e6cb, #ecd6ae); }
+.farm .field-view .fan .card.pc.kind-finance { --kind: linear-gradient(#e0eef6, #cde3f0); }
+
+/* a narrow phone: the row keeps all four things, each a little tighter */
+@media (max-width: 380px) {
+  .farm .field-view .dock-top { gap: 4px; }
+  .farm .field-view .dock-top > .days b { font-size: 19px; }
+  .farm .field-view .dock-top > .days small { display: none; }
+  .farm .field-view .dock .btn.end-week { min-width: 84px; max-width: 104px; padding: 2px 8px; }
+  .farm .field-view .dock .btn.end-week span { font-size: 12px; }
+  .farm > .tabs .tab { font-size: 11px; gap: 3px; }
+  .farm > .tabs .tab svg { width: 16px; height: 16px; }
+}

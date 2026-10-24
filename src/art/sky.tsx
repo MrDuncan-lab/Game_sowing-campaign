@@ -110,7 +110,7 @@ function WeekChip({ k, sc }: { k: number; sc: number }) {
 }
 
 // ---------- raids seen coming ----------
-function Flock({ far }: { far: boolean }) {
+export function Flock({ far }: { far: boolean }) {
   return (
     <g class={`sky-flock${far ? ' far' : ''}`}>
       {/* one wide ring for the whole flock, each bird a fifth of a lap apart, the nearer ones a little bigger */}
@@ -147,8 +147,9 @@ export interface SkyBandProps {
   W: number; season: number; tokens: SkyToken[]; signs: RaidSign[]; meteoMax: boolean; px: number;
   onToken?: (t: SkyToken) => void; onFog?: () => void; onSign?: (s: RaidSign) => void;
   clear?: boolean; // the tools stand beside the field, not in the band
+  ext?: number; // the sky goes on this far beyond the field at both sides (the band spans the whole screen)
 }
-export function SkyBand({ W, season, tokens, signs, meteoMax, px, onToken, onFog, onSign, clear = false }: SkyBandProps) {
+export function SkyBand({ W, season, tokens, signs, meteoMax, px, onToken, onFog, onSign, clear = false, ext = 0 }: SkyBandProps) {
   const H = SKY_H;
   const [top, bottom, hill, front] = SEASON_SKY[season] ?? SEASON_SKY[1];
   const slots = skySlots(W, tokens.length, clear);
@@ -167,14 +168,14 @@ export function SkyBand({ W, season, tokens, signs, meteoMax, px, onToken, onFog
       <defs>
         <linearGradient id="sky-grad" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color={top} /><stop offset="1" stop-color={bottom} /></linearGradient>
         <linearGradient id="sky-fog" x1="0" x2="1" y1="0" y2="0"><stop offset="0" stop-color="#f7f2e6" stop-opacity="0" /><stop offset=".35" stop-color="#f7f2e6" stop-opacity=".88" /><stop offset="1" stop-color="#f4efe2" stop-opacity=".96" /></linearGradient>
-        <clipPath id="sky-clip"><path d={`M0 18 Q0 0 18 0 H${W - 18} Q${W} 0 ${W} 18 V${H + 2} H0 Z`} /></clipPath>
+        <clipPath id="sky-clip"><path d={ext ? `M${-ext} 0 H${W + ext} V${H + 2} H${-ext} Z` : `M0 18 Q0 0 18 0 H${W - 18} Q${W} 0 ${W} 18 V${H + 2} H0 Z`} /></clipPath>
       </defs>
       <g clip-path="url(#sky-clip)">
-        <rect width={W} height={H + 2} fill="url(#sky-grad)" />
-        <path d={`M0 ${H - 26} Q${W * 0.16} ${H - 40} ${W * 0.33} ${H - 30} Q${W * 0.5} ${H - 44} ${W * 0.66} ${H - 32} Q${W * 0.82} ${H - 42} ${W} ${H - 30} V${H + 2} H0 Z`} fill={hill} />
+        <rect x={-ext} width={W + 2 * ext} height={H + 2} fill="url(#sky-grad)" />
+        <path d={`M${-ext} ${H - 26} L0 ${H - 26} Q${W * 0.16} ${H - 40} ${W * 0.33} ${H - 30} Q${W * 0.5} ${H - 44} ${W * 0.66} ${H - 32} Q${W * 0.82} ${H - 42} ${W} ${H - 30} L${W + ext} ${H - 30} V${H + 2} H${-ext} Z`} fill={hill} />
         {/* a dark strip of forest on the far right hill, where flocks gather */}
         <path d={`M${W * 0.7} ${H - 34} q6 -12 12 0 q6 -14 12 0 q6 -10 12 0 q6 -13 12 0 q6 -11 12 0 V${H - 26} H${W * 0.7} Z`} fill={season === 3 ? '#c9d6de' : '#6f9a4a'} opacity={0.55} />
-        <path d={`M0 ${H - 12} Q${W * 0.25} ${H - 22} ${W * 0.5} ${H - 14} Q${W * 0.75} ${H - 6} ${W} ${H - 16} V${H + 2} H0 Z`} fill={front} opacity={0.9} />
+        <path d={`M${-ext} ${H - 12} L0 ${H - 12} Q${W * 0.25} ${H - 22} ${W * 0.5} ${H - 14} Q${W * 0.75} ${H - 6} ${W} ${H - 16} L${W + ext} ${H - 16} V${H + 2} H${-ext} Z`} fill={front} opacity={0.9} />
         {/* the conveyor of weeks: keyed by the absolute week so a new week slides each picture one place closer */}
         {tokens.map((t, i) => {
           const s = slots[i];
@@ -194,7 +195,7 @@ export function SkyBand({ W, season, tokens, signs, meteoMax, px, onToken, onFog
         {/* fog past the forecast */}
         {fogX < W - 8 && (
           <g class="sky-fogbank" role="button" tabindex={0} aria-label="Туман: дальше прогноза" onClick={(e) => { e.stopPropagation(); onFog?.(); }} onKeyDown={(e) => key(e, () => onFog?.())}>
-            <rect x={fogX - 30} y={0} width={W - fogX + 30} height={H - 8} fill="url(#sky-fog)" />
+            <rect x={fogX - 30} y={0} width={W - fogX + 30 + ext} height={H - 8} fill="url(#sky-fog)" />
             {[[0.2, 24], [0.45, 40], [0.12, 56]].map(([f, y], i) => (
               <path class="sky-wisp" d={`M${fogX + (W - fogX) * f} ${y} q10 -5 20 0 t20 0 t20 0`} stroke="#e2d9c6" stroke-width={3} fill="none" stroke-linecap="round" style={{ animationDelay: `${-i * 2.3}s` }} />
             ))}

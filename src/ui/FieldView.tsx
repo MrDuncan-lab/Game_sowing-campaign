@@ -16,7 +16,7 @@ import {
   cardCost, cardDays, clearDays, clearPrice, cropGrow, cropMinT, crowsOpen, drawProblem, expectedYield, frostVictims, growNote, guardPrice, guardable,
   trackCost, trackWeeks, trackProblem, handMax, handWaterMax, isGuarded, knownEpisodes, landPrice, lineCells, locOf, lookahead, money, neighbors4, ownedTiles, pidCells, placementYield,
   plantBlock, plantingYield, playableTargets, plural, ripenIn, seasonLen, shapeRotations, shapeTiles, soilMult, soilTemp, sowingSoil, tile, waterArea,
-  weekInfo, weekOutlook, weedsOnLine, yieldParts, cardNeedDays, cellReasons, sortiesPerSeason, weeklyDraw, episodesAt, mischiefOn, frostLimit, frostShield, lvl, deckCount, buildMoveSpots, winterCareTarget,
+  weekDays, weekInfo, weekOutlook, weedsOnLine, yieldParts, cardNeedDays, cellReasons, sortiesPerSeason, weeklyDraw, episodesAt, mischiefOn, frostLimit, frostShield, lvl, deckCount, buildMoveSpots, winterCareTarget,
 } from '../engine/game';
 import { EPISODES } from '../engine/calendar';
 import type { Episode } from '../engine/calendar';
@@ -27,7 +27,8 @@ import { CardArt, CardView, PinIcon, cardPrice, seedWeeks } from './Card';
 import { CardReadout } from './CardReadout';
 import { CELL, FarmerPos, FarmerState, Flock, Floater, FxKind, Highlight, Lens, PAD, QueueMark, Scene, TileFx, FIELD_YARD, camera, farmerXY, BuildView, type SkyView } from './Scene';
 import { skyTokens, raidSigns, fogText, type SkyToken, type SkyKind } from './skyForecast';
-import { SkyPicture } from '../art/sky';
+import { SkyPicture, SKY_H, SkyBand } from '../art/sky';
+import { Village, useVillagePager, hasVillage, cartRun, type VillageApi, type VillageMode } from './Village';
 import { Btn, Dispatch, Sheet, weeksShort } from './common';
 import { SeasonFx } from './SeasonFx';
 import { FieldVoice } from './FieldVoice';
@@ -396,8 +397,8 @@ export const FAN_PIVOT = 2.2;
 const PEEK_SCALE = 1.04;
 // `grow` — extra card width the screen can afford (see the room planner in FieldView)
 function fanLayout(width: number, n: number, selected: number, peek = -1, short = false, grow = 0) {
-  // five cards at most: a phone fan stays compact and leaves the height to the field
-  const base = (short ? 86 : width < 340 ? 90 : width < 420 ? 98 : width < 700 ? 112 : 122) + grow;
+  // seven cards: a phone fan stays compact and leaves the height to the field
+  const base = (short ? 78 : width < 340 ? 80 : width < 420 ? 90 : width < 700 ? 104 : 116) + grow;
   const fit = n > 1 ? Math.floor((width - 8) / (1 + (n - 1) * 0.86)) : base;
   const cw = Math.max(base - 8, Math.min(base, fit));
   const h = cw * 1.4;
@@ -452,7 +453,7 @@ function calendarPage(s: GameState, offset: number): CalPage {
   return page;
 }
 
-export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment, placeRequest, testing=false, teaching=false, precheck, lessonVisit=false, onVisitDone }: { s: GameState; dispatch: Dispatch; fast: boolean; active: boolean; onGo: (tab: string) => void; onOrder?:(org:OrgId)=>void; onPayment?:()=>void; placeRequest?: { item: BuildItem; key: number } | null; testing?:boolean; teaching?:boolean; precheck?:(a:Action)=>string|null; lessonVisit?:boolean; onVisitDone?:()=>void }) {
+export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment, onMap, villageApi, onVillageMode, placeRequest, testing=false, teaching=false, precheck, lessonVisit=false, onVisitDone }: { s: GameState; dispatch: Dispatch; fast: boolean; active: boolean; onGo: (tab: string) => void; onOrder?:(org:OrgId)=>void; onPayment?:()=>void; onMap?:()=>void; villageApi?: { current: VillageApi | null }; onVillageMode?: (m: VillageMode) => void; placeRequest?: { item: BuildItem; key: number } | null; testing?:boolean; teaching?:boolean; precheck?:(a:Action)=>string|null; lessonVisit?:boolean; onVisitDone?:()=>void }) {
   const [resume]=useState(()=>testing||teaching?null:readWeekResume(s));
   const playbackRecord=useRef<WeekResume|null>(resume);
   const playbackTimer=useRef<number|null>(null);
@@ -506,6 +507,19 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
   // the field's tools beside it, on rails, when the screen is short and the field leaves paper at its sides
   const [rails, setRails] = useState(0);
   const railsRef = useRef(0);
+  // the strip of village hill shown over the yard when the screen has height to spare, and the wrap's width
+  const [vpeek, setVpeek] = useState(0);
+  const vpeekRef = useRef(0);
+  const [wrapW, setWrapW] = useState(0);
+  const [vmode, setVmode] = useState<VillageMode>('field');
+  // the field and the dock side by side (a phone on its side): no room for a village above the field
+  const [sideBySide, setSideBySide] = useState(false);
+  const [vsay, setVsay] = useState<string | null>(null);
+  const vsayTimer = useRef<number | null>(null);
+  const moveRef = useRef<HTMLDivElement>(null);
+  const dockRef = useRef<HTMLElement>(null);
+  const villageRoot = useRef<HTMLDivElement>(null);
+  const blockRef = useRef(false);
   const roomRef = useRef(room);
   const [night, setNight] = useState<'off' | 'in' | 'out' | 'hold' | 'fade'>('off');
   const [pages, setPages] = useState<[CalPage, CalPage] | null>(null);
@@ -1299,7 +1313,8 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
         if (want !== railsRef.current) { railsRef.current = want; setRails(want); }
       }
       // only where the dock stands under the field (phones); side by side there is nothing to share
-      if (dock.getBoundingClientRect().top < wrap.getBoundingClientRect().bottom - 2) { if (was.grow || was.read || was.fanMin) { roomRef.current = { grow: 0, read: 0, top: 0, fanMin: 0 }; setRoom(roomRef.current); } return; }
+      if (dock.getBoundingClientRect().top < wrap.getBoundingClientRect().bottom - 2) { if (was.grow || was.read || was.fanMin) { roomRef.current = { grow: 0, read: 0, top: 0, fanMin: 0 }; setRoom(roomRef.current); } if (vpeekRef.current) { vpeekRef.current = 0; setVpeek(0); } setSideBySide(true); return; }
+      setSideBySide(false);
       // the side column may be gone (0 px): only a missing value falls back to the old instrument width
       const sideV = parseFloat(rs.getPropertyValue('--side')), gapV = parseFloat(rs.getPropertyValue('--gap'));
       const side = Number.isFinite(sideV) ? sideV : 44, gap = Number.isFinite(gapV) ? gapV : 4;
@@ -1313,12 +1328,18 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
       const topBase = top.offsetHeight - was.read;
       // the dock as it would be with a full hand and no extra room: paddings, the action row, the fan
       const dockBase = dock.offsetHeight - fanEl.offsetHeight - was.read + fanConst + fanH(0);
-      const free = Math.floor(view.clientHeight - fieldNeed - dockBase - 6);
+      const all = Math.floor(view.clientHeight - fieldNeed - dockBase - 6);
+      // the first room goes over the yard: a strip of the village's hill with the road going up to it
+      const strip = hasVillage(sRef.current) && !teaching ? Math.min(40, Math.max(0, all - 12)) : 0;  // (only when stacked: see above)
+      const free = all - strip;
       // a third line (status) from 34 px of room; the card's rule in words from 76 px
       const read = free >= 76 ? 56 : free >= 34 ? 22 : 0;
-      const cap = fw >= 400 ? 34 : 24;
+      const cap = fw >= 400 ? 22 : 16;
       let grow = Math.max(0, Math.min(cap, Math.floor(((free - read - 10) * 0.7) / 1.4)));
       while (grow > 0 && read + fanH(grow) - fanH(0) > free - 4) grow -= 2;
+      // what is left goes there too: more of the land behind the field (the village, or more sky)
+      const vp = strip + Math.max(0, Math.floor(free - read - (fanH(grow) - fanH(0)) - 4));
+      if (vp !== vpeekRef.current) { vpeekRef.current = vp; setVpeek(vp); }
       // the fan keeps the height of a full hand, so playing a card never shifts what is above it
       const fanMin = Math.ceil(fanH(grow) + fanConst);
       if (grow !== was.grow || read !== was.read || fanMin !== was.fanMin) { roomRef.current = { grow, read, top: topBase, fanMin }; setRoom(roomRef.current); }
@@ -1345,12 +1366,13 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
       const cam = camera(sRef.current, yard);
       const k = Math.min(r.width / cam.W, r.height / cam.H);
       if (k > 0 && Math.abs(k - px) > 0.01) setPx(k);
+      if (el.clientWidth !== wrapW) setWrapW(el.clientWidth);
     };
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     measure();
     return () => ro.disconnect();
-  }, [s.bought, px]);
+  }, [s.bought, px, wrapW]);
   // cards that just arrived slide in from the deck
   const handKey = s.hand.map((c) => c.uid).join(',');
   useEffect(() => {
@@ -1468,9 +1490,61 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
   })();
   const endBad = !!outlook && (outlook.frost > 0 || outlook.dying > 0 || (outlook.payment?.short ?? 0) > 0);
 
+  // ---- the village above the field
+  const villageOn = hasVillage(s) && !teaching && !sideBySide;
+  const skyPx = Math.round(SKY_H * px);
+  // the sky goes on past the field to the edges of the screen
+  const skyExt = Math.max(0, Math.ceil((wrapW / Math.max(0.05, px) - cam.W) / 2) + 2);
+  blockRef.current = !!(drag || selected !== null || sheet || build || lens || night !== 'off' || weekPlaying || exchanging || watering || info || compostOpen || meetingOpen || layers || moveFrom);
+  const village = useVillagePager({
+    enabled: villageOn, viewRef, rootRef: villageRoot, moveRef, dockRef,
+    skyH: skyPx, crest: Math.round(vpeek + (SKY_H - 8) * px),
+    blocked: () => blockRef.current,
+    onMode: (m) => { setVmode(m); onVillageMode?.(m); },
+    cart: { run: cartRun(s), key: `${s.seed}:${s.loc}` },
+    reduce: reducedMotion(),
+  });
+  if (villageApi) villageApi.current = village;
+  const villageSay = (text: string) => {
+    setVsay(text);
+    if (vsayTimer.current) clearTimeout(vsayTimer.current);
+    vsayTimer.current = window.setTimeout(() => setVsay(null), 3600);
+  };
+  const onVillagePlace = (k: string) => {
+    if ((locOf(s).orgs as string[]).includes(k)) { (onOrder ?? (() => onGo('orders')))(k as OrgId); return; }
+    if (k.startsWith('g-')) { const o = k.slice(2) as OrgId; villageSay(`${ORGS[o].short} дружит с вами: ${ORGS[o].perk.charAt(0).toLowerCase()}${ORGS[o].perk.slice(1)}.`); return; }
+    const next = weatherOf(s, 1);
+    const say: Record<string, string> = {
+      palych: `Палыч: «На той неделе ${tStr(next.temp)}, ${next.name.toLowerCase()}. ${s.season === 3 ? 'Зимой земля отдыхает — и мы с ней.' : 'Землю слушай — она подскажет.'}»`,
+      well: 'Колодец на площади: вода тут на всю деревню.',
+      mill: 'Мельница на дальнем холме мелет зерно со всей округи.',
+      hay: 'Стог сена на зиму.',
+      farhouse: 'Дальние дома: там живут соседи с хуторов.', farhouse2: 'Дальние дома: там живут соседи с хуторов.', farhouse3: 'Дальние дома: там живут соседи с хуторов.',
+      izba1: 'Дом соседей.', izba2: 'Дом соседей.', izba3: 'Дом соседей: бельё сохнет на верёвке.',
+      lot: 'Участок на вырост: со временем здесь поселятся новые соседи.', 'lot-school': 'Участок на вырост: со временем здесь поселятся новые соседи.', 'lot-tower': 'Участок на вырост: со временем здесь поселятся новые соседи.',
+    };
+    switch (k) {
+      case 'house': case 'meteo': case 'hives': onGo('house'); return;
+      case 'barn': case 'fair': onGo('barn'); return;
+      case 'lab': case 'lot-lab': onGo('lab'); return;
+      case 'board': onGo('orders'); return;
+      case 'signpost': if (onMap) onMap(); else villageSay('Указатель: дороги на Кубань и на Алтай.'); return;
+      case 'gate': village.toField(); return;
+      default: if (say[k]) villageSay(say[k]);
+    }
+  };
+
   return (
-    <div style={{['--arn' as string]:String(cam.W/cam.H)}} data-week-event={weekCue?.kind??morning?.kind??(pestHits.length?'pests':'')} data-busy={night!=='off'||weekPlaying||!!morning||!!pestHits.length||farmer.walking||farmer.action!=='idle'} data-drag-active={drag?.active ? 'true' : 'false'} data-peek-uid={peek ?? ''} data-building={!!build} data-build-item={build??''} data-build-moving={!!moveFrom} data-bed-menu={info?.join(',')??''} data-water-cells={watering?.map(p=>p.join(',')).join(';')??''} data-card-rotation={rot} ref={viewRef} class={`field-view${!active||!pageVisible||!!sheet||meetingOpen?' scene-paused':''}${drag ? ' dragging' : ''}${card ? ' picking' : ''}`}>
-      <div class={`field-wrap${!active||!pageVisible||!!sheet||meetingOpen?' scene-paused':''}${room.fanMin ? ' balanced' : ''}${rails ? ' rails' : ''}`} style={rails ? { ['--rail' as string]: `${rails}px`, ['--rail2' as string]: `${rails * 2}px` } : undefined} ref={fieldRef}>
+    <div style={{['--arn' as string]:String(cam.W/cam.H)}} data-week-event={weekCue?.kind??morning?.kind??(pestHits.length?'pests':'')} data-busy={night!=='off'||weekPlaying||!!morning||!!pestHits.length||farmer.walking||farmer.action!=='idle'} data-drag-active={drag?.active ? 'true' : 'false'} data-peek-uid={peek ?? ''} data-building={!!build} data-build-item={build??''} data-build-moving={!!moveFrom} data-bed-menu={info?.join(',')??''} data-water-cells={watering?.map(p=>p.join(',')).join(';')??''} data-card-rotation={rot} ref={viewRef} class={`field-view${!active||!pageVisible||!!sheet||meetingOpen?' scene-paused':''}${drag ? ' dragging' : ''}${card ? ' picking' : ''}${villageOn ? ` has-village v-${vmode}` : ''}`}>
+      {villageOn && <Village s={s} rootRef={villageRoot} onPlace={onVillagePlace} />}
+      <div class={`field-wrap${!active||!pageVisible||!!sheet||meetingOpen?' scene-paused':''}${room.fanMin ? ' balanced' : ''}${rails ? ' rails' : ''}`} style={{ ['--sky-h' as string]: `${skyPx}px`, ['--vpeek' as string]: `${vpeek}px`, ...(rails ? { ['--rail' as string]: `${rails}px`, ['--rail2' as string]: `${rails * 2}px` } : {}) }} ref={fieldRef}>
+        {/* the sky with the forecast stays on top; the field slides down under it when the village opens */}
+        <div class="sky-strip" style={{ height: `${skyPx}px` }}>
+          <svg class="sky-svg" viewBox={`${-skyExt} 0 ${cam.W + 2 * skyExt} ${SKY_H}`} style={{ width: `${(cam.W + 2 * skyExt) * px}px`, height: `${skyPx}px` }} aria-label="Небо: погода на эту и следующие недели">
+            <SkyBand W={cam.W} season={fieldState.season} tokens={skyView.tokens} signs={skyView.signs} meteoMax={skyView.meteoMax} px={px} onToken={skyView.onToken} onFog={skyView.onFog} onSign={skyView.onSign} clear={skyView.clear} ext={skyExt} />
+          </svg>
+        </div>
+        <div class="field-move" ref={moveRef}>
         <div class="field-row" style={{ ['--arn' as string]: String(cam.W / cam.H) }}>
           <div class="field-stage">
             <Scene
@@ -1498,24 +1572,29 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
               pestHits={pestHits} morning={morning}
               scouts={scouting && kidsAhead(s) <= 1}
               onScouts={() => say(thievesBlocked(s) ? 'Дети из интерната что-то высматривают у спелых грядок. Пёс и сторож их приметили — на набег не решатся.' : `Дети из интерната высматривают спелые грядки. ${kidsAhead(s) >= 2 ? 'Через две недели' : 'На следующей неделе'} полезут за урожаем: укройте грядки, заведите пса или сторожа.`)}
-              sky={skyView}
+              sky={skyView} skyOutside
               compost={{built:compostBuilt,building:!!compostProject,ready:!!s.compostReady,fill:compostBuilt?s.compostTick/Math.max(1,compostWeeks(s)):0,selected:!!card&&!compostProblem(s,card.uid),open:compostOpen,over:overCompost,pulse:compostPulse,onClick:()=>setCompostOpen(v=>!v)}}
             />
             {!weekPlaying&&night==='off'&&<SeasonFx kind={(['spring', 'summer', 'autumn', 'winter'] as const)[s.season]} rain={!winter && s.flags.rain} heat={!winter && (s.flags.dry || airTemp(s) >= 28)} />}
-            <div class="field-tools sky-tools sky-left">
-              <button type="button" class={`tool-btn journal-button${chips.some(c=>c.tone==='bad')||crowsNow||thievesNow||endBad?' urgent':''}`} onClick={()=>openSheet('journal')} title="Журнал фермы" aria-label="События недели и действия"><Icon name="journal" size={29}/><i aria-hidden="true"/></button>
-            </div>
-            <div class="field-tools sky-tools sky-right" role="toolbar" aria-label="Приборы поля">
-              <button type="button" class={`tool-btn${lens ? ' on' : ''}`} disabled={weekPlaying} aria-pressed={!!lens} onClick={() => { setBuild(null); setMoveFrom(null); setSelected(null); closeContext(); if(lens){setLens(null);setLensMenu(false);}else setLensMenu(!lensMenu); }} aria-label={`Линзы${lens ? `: ${lens === 'water' ? 'влага' : lens === 'soil' ? 'плодородие' : 'температура'}` : ''}`} title="Линзы">
-                <Icon name={lens === 'water' ? 'drop' : lens === 'soil' ? 'compost' : lens === 'temp' ? 'thermo' : 'lens'} size={22} />
-              </button>
-              <button type="button" class={`tool-btn${build ? ' on' : ''}`} disabled={weekPlaying} aria-pressed={!!build} onClick={() => { setLens(null); setLensMenu(false); setMoveFrom(null); setSelected(null); closeContext(); setBuild(build ? null : 'menu'); }} aria-label={build ? "Завершить перемещение построек" : "Постройки"} title="Постройки">
-                <Icon name="build" size={22} />
-              </button>
-              {lensMenu && <div class="lens-picker" role="group" aria-label="Выберите линзу">{(['water','soil','temp'] as const).map(l=><button type="button" class="tool-btn" aria-label={l==='water'?'Влага':l==='soil'?'Плодородие':'Температура почвы'} onClick={()=>{setLens(l);setLensMenu(false);}}><Icon name={l==='water'?'drop':l==='soil'?'compost':'thermo'} size={23}/></button>)}</div>}
-            </div>
           </div>
         </div>
+        </div>
+        {/* the field's tools float over the sky and over the field's side strips */}
+        <div class="sky-box" style={{ width: `${cam.W * px}px`, height: `${skyPx}px` }}>
+              <div class="field-tools sky-tools sky-left">
+                <button type="button" class={`tool-btn journal-button${chips.some(c=>c.tone==='bad')||crowsNow||thievesNow||endBad?' urgent':''}`} onClick={()=>openSheet('journal')} title="Журнал фермы" aria-label="События недели и действия"><Icon name="journal" size={29}/><i aria-hidden="true"/></button>
+              </div>
+              <div class="field-tools sky-tools sky-right" role="toolbar" aria-label="Приборы поля">
+                <button type="button" class={`tool-btn${lens ? ' on' : ''}`} disabled={weekPlaying} aria-pressed={!!lens} onClick={() => { setBuild(null); setMoveFrom(null); setSelected(null); closeContext(); if(lens){setLens(null);setLensMenu(false);}else setLensMenu(!lensMenu); }} aria-label={`Линзы${lens ? `: ${lens === 'water' ? 'влага' : lens === 'soil' ? 'плодородие' : 'температура'}` : ''}`} title="Линзы">
+                  <Icon name={lens === 'water' ? 'drop' : lens === 'soil' ? 'compost' : lens === 'temp' ? 'thermo' : 'lens'} size={22} />
+                </button>
+                <button type="button" class={`tool-btn${build ? ' on' : ''}`} disabled={weekPlaying} aria-pressed={!!build} onClick={() => { setLens(null); setLensMenu(false); setMoveFrom(null); setSelected(null); closeContext(); setBuild(build ? null : 'menu'); }} aria-label={build ? "Завершить перемещение построек" : "Постройки"} title="Постройки">
+                  <Icon name="build" size={22} />
+                </button>
+                {lensMenu && <div class="lens-picker" role="group" aria-label="Выберите линзу">{(['water','soil','temp'] as const).map(l=><button type="button" class="tool-btn" aria-label={l==='water'?'Влага':l==='soil'?'Плодородие':'Температура почвы'} onClick={()=>{setLens(l);setLensMenu(false);}}><Icon name={l==='water'?'drop':l==='soil'?'compost':'thermo'} size={23}/></button>)}</div>}
+              </div>
+        </div>
+        {villageOn && vmode === 'field' && vpeek >= 26 && <button type="button" class="v-hint" style={{ top: `${skyPx + Math.max(4, vpeek / 2 - 13)}px` }} onClick={() => village.toggle()}><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 8 L6 4 L10 8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>Деревня</button>}
 
         {compostOpen && <div class="compost-popover" role="group" aria-label="Компостная куча" style={compostAt?{top:`${compostAt.top}px`,right:`${compostAt.right}px`,maxWidth:`min(250px, calc(100% - ${compostAt.right+8}px))`,['--tip' as string]:`${compostAt.tip}px`}:{visibility:'hidden'}}>
           <button type="button" class="compost-close" aria-label="Закрыть" onClick={()=>setCompostOpen(false)}>×</button>
@@ -1548,11 +1627,12 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
         {flash && <div class="flash" role="status">{flash}</div>}
       </div>
 
-      <footer class={`dock${card ? ' picking' : ''}${shown ? ' reading' : ''}${room.read ? ' roomy' : ''}${room.read > 40 ? ' roomy-2' : ''}${build || lens ? ' viewing' : ''}`}>
+      <footer ref={dockRef} class={`dock${card ? ' picking' : ''}${shown ? ' reading' : ''}${room.read ? ' roomy' : ''}${room.read > 40 ? ' roomy-2' : ''}${build || lens ? ' viewing' : ''}`}>
         <div class="dock-top" style={room.read ? { height: `${room.top + room.read}px` } : undefined}>
           <div class="days" aria-label={`Рабочих дней: ${s.days}`}>
             <b>{s.days}</b>
             <Icon name="day" size={18} />
+            {Math.max(weekDays(s), s.days) <= 5 && <span class="day-pips" aria-hidden="true">{Array.from({ length: Math.max(weekDays(s), s.days) }, (_, i) => <i class={i < s.days ? 'on' : ''} />)}</span>}
             <small>{plural(s.days, 'день', 'дня', 'дней')}</small>
           </div>
           <button type="button" class={`deck-pile dock exchange-deck${exchanging?' choosing':''}`} disabled={weekPlaying} aria-pressed={exchanging==='card'} onClick={()=>{
@@ -1561,7 +1641,7 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
             else {closeContext();setBuild(null);setLens(null);setExchanging(exchanging==='card'?false:'card');}
           }} title="Заменить одну карту за 1 день · раз в неделю" aria-label="Обменять карту за 1 день">
             <span class="deck-back" aria-hidden="true"><i/><i/><i/><svg class="exchange-ring" viewBox="0 0 32 32" fill="none"><path d="M25 11a10 10 0 1 0 1 8M25 4v8h-8" stroke="currentColor" stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-            <small>{exchangesUsed(s)>=exchangesPerWeek(s)?'обменён':exchangesPerWeek(s)-exchangesUsed(s)>1?`обмен ×${exchangesPerWeek(s)-exchangesUsed(s)} · 1 д.`:'обмен · 1 д.'}</small>
+            <small>{exchangesUsed(s)>=exchangesPerWeek(s)?'обменён':exchangesPerWeek(s)-exchangesUsed(s)>1?`×${exchangesPerWeek(s)-exchangesUsed(s)} · 1 д.`:'1 д.'}</small>
             {nextDraw(s) && <span class="deck-next" title="Следующая карта колоды"><CardArt def={nextDraw(s)!.def} size={18} /></span>}
           </button>
           {shown ? (
@@ -1619,6 +1699,8 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
         </div>
       </footer>
 
+      {villageOn && <button type="button" class="v-back" tabIndex={vmode === 'village' ? 0 : -1} onClick={() => village.toField()}><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 4 L6 8 L10 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>К полю</button>}
+      {villageOn && vsay && <div class="v-say" role="status"><span>{vsay}</span></div>}
       {compostFlight&&<div class={`compost-flight${compostFlight.claim?' claiming':''}`} style={{left:compostFlight.x,top:compostFlight.y,'--fly-x':`${compostFlight.dx}px`,'--fly-y':`${compostFlight.dy}px`}} aria-hidden="true"><CardView s={s} card={compostFlight.card}/></div>}
       {drag?.active && drag.touch && hover && CELL*px<44 && <PrecisionLoupe s={s} hover={hover} highlight={highlight} x={drag.x} y={drag.y-TOUCH_AIM_OFFSET}/> }
       {drag?.active && dragCard && (

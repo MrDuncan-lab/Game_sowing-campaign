@@ -619,11 +619,26 @@ function plantingBadges(s: GameState, hidden?: Map<string, Tile>): Map<string, n
 
 export interface BuildView { item: string; spots: Set<string>; rows: boolean; corners: boolean; removable: Set<string> }
 
+// The top of the field when the sky is drawn outside it: a low hill crest, so the field reads as the nearest hill
+// of the land behind it. `top` is where the yard begins (the sky's height); the crest rises a little above it.
+function crestPts(W: number, top: number): string {
+  const y = (f: number) => (top - 4 - 6 * Math.sin(f * Math.PI * 2 + .6) * .5 - 3 * Math.sin(f * Math.PI * 5) * .4).toFixed(1);
+  let d = `M0 ${y(0)}`;
+  for (let k = 1; k <= 24; k++) d += ` L${(W * k / 24).toFixed(1)} ${y(k / 24)}`;
+  return d;
+}
+export const crestLine = (W: number, top: number) => crestPts(W, top);
+export const fieldCrest = (W: number, H: number, top: number) => `${crestPts(W, top)} L${W} ${H - 18} Q${W} ${H} ${W - 18} ${H} H18 Q0 ${H} 0 ${H - 18} Z`;
+const openRule = (W: number, H: number, i: number, r: number, top: number) => `M${i} ${top} V${H - i - r} Q${i} ${H - i} ${i + r} ${H - i} H${W - i - r} Q${W - i} ${H - i} ${W - i} ${H - i - r} V${top}`;
+
 export function Scene({
-  s, highlight, onTile, onCorner, hoverTile, onHover, farmer, floaters, hidden, effects = [], yard = YARD, px = 1, queue, flock = 'off', lens = null, build = null, pets = [], lifeActive = true, showWarnings = true, sceneCue = null, pestHits = [], pestPaused=false, morning = null, compost, scouts = false, onScouts, aftermath, spentDry, sky = null,
+  s, highlight, onTile, onCorner, hoverTile, onHover, farmer, floaters, hidden, effects = [], yard = YARD, px = 1, queue, flock = 'off', lens = null, build = null, pets = [], lifeActive = true, showWarnings = true, sceneCue = null, pestHits = [], pestPaused=false, morning = null, compost, scouts = false, onScouts, aftermath, spentDry, sky = null, skyOutside = false,
 }: {
   /** the forecast sky over the yard; the yard height then includes it */
   sky?: SkyView | null;
+  /** the field view draws the sky itself, above the scene: the scene leaves its top clear, so the land behind
+   *  (the village's hills) shows over the yard, and the field can slide down under a sky that stays */
+  skyOutside?: boolean;
   /** the week before a raid: two orphanage kids loiter behind a bush in the yard */
   scouts?: boolean;
   onScouts?: () => void;
@@ -683,10 +698,15 @@ export function Scene({
         <GrassPattern winter={winter} />
         <clipPath id="field-land"><path d={`M0 ${yard} H${cam.W} V${cam.H - 18} Q${cam.W} ${cam.H} ${cam.W - 18} ${cam.H} H18 Q0 ${cam.H} 0 ${cam.H - 18} Z`} /></clipPath>
       </defs>
-      <rect x={0} y={0} width={cam.W} height={cam.H} rx={18} fill="url(#grass-tex)" />
+      {skyOutside
+        ? <path d={fieldCrest(cam.W, cam.H, SKY_H)} fill="url(#grass-tex)" />
+        : <rect x={0} y={0} width={cam.W} height={cam.H} rx={18} fill="url(#grass-tex)" />}
       {/* the yard strip: a path, the fence, the pets and the crates that did not fit the barn */}
-      {sky && <SkyBand W={cam.W} season={s.season} tokens={sky.tokens} signs={sky.signs} meteoMax={sky.meteoMax} px={px} onToken={sky.onToken} onFog={sky.onFog} onSign={sky.onSign} clear={sky.clear} />}
-      <rect x={0} y={yardTop} width={cam.W} height={yard - yardTop} rx={sky ? 0 : 18} fill={winter ? '#f4f8fb' : '#a9d27f'} opacity={sky ? 0.45 : 0.6} />
+      {sky && !skyOutside && <SkyBand W={cam.W} season={s.season} tokens={sky.tokens} signs={sky.signs} meteoMax={sky.meteoMax} px={px} onToken={sky.onToken} onFog={sky.onFog} onSign={sky.onSign} clear={sky.clear} />}
+      {skyOutside
+        ? <path d={`${crestLine(cam.W, SKY_H)} L${cam.W} ${yard} H0 Z`} fill={winter ? '#f4f8fb' : '#a9d27f'} opacity={0.45} />
+        : <rect x={0} y={yardTop} width={cam.W} height={yard - yardTop} rx={sky ? 0 : 18} fill={winter ? '#f4f8fb' : '#a9d27f'} opacity={sky ? 0.45 : 0.6} />}
+      {skyOutside && <path d={crestLine(cam.W, SKY_H)} fill="none" stroke={winter ? '#9fb6c4' : '#6fae45'} stroke-width={2.4} opacity={0.75} />}
       <YardDecor W={cam.W} yard={yard} season={s.season as Season} />
       <EdgeDecor W={cam.W} H={cam.H} yard={yard} season={s.season as Season} />
       {yardCrates > 0 && (
@@ -955,9 +975,14 @@ export function Scene({
       </g>
       {/* an engraver's double rule round the plot, like the plates of the atlas */}
       <g class="board-rule" pointer-events="none" fill="none">
-        <rect x={.8} y={.8} width={cam.W - 1.6} height={cam.H - 1.6} rx={17.4} stroke={winter ? '#7f98a8' : '#3f6526'} stroke-width={1.6} opacity={.55} />
-        <rect x={5} y={5} width={cam.W - 10} height={cam.H - 10} rx={13.5} stroke={winter ? '#9fb6c4' : '#4a7a2c'} stroke-width={1} opacity={.55} />
-        <rect x={8} y={8} width={cam.W - 16} height={cam.H - 16} rx={11} stroke={winter ? '#b7c9d4' : '#5f9a3a'} stroke-width={.6} opacity={.35} stroke-dasharray="2 3" />
+        {skyOutside ? <>
+          <path d={openRule(cam.W, cam.H, .8, 17.4, SKY_H + 4)} stroke={winter ? '#7f98a8' : '#3f6526'} stroke-width={1.6} opacity={.55} />
+          <path d={openRule(cam.W, cam.H, 5, 13.5, SKY_H + 8)} stroke={winter ? '#9fb6c4' : '#4a7a2c'} stroke-width={1} opacity={.55} />
+        </> : <>
+          <rect x={.8} y={.8} width={cam.W - 1.6} height={cam.H - 1.6} rx={17.4} stroke={winter ? '#7f98a8' : '#3f6526'} stroke-width={1.6} opacity={.55} />
+          <rect x={5} y={5} width={cam.W - 10} height={cam.H - 10} rx={13.5} stroke={winter ? '#9fb6c4' : '#4a7a2c'} stroke-width={1} opacity={.55} />
+          <rect x={8} y={8} width={cam.W - 16} height={cam.H - 16} rx={11} stroke={winter ? '#b7c9d4' : '#5f9a3a'} stroke-width={.6} opacity={.35} stroke-dasharray="2 3" />
+        </>}
       </g>
 
       {compost&&<g class={`compost-button field-compost${compost.ready?' ready':''}${compost.selected?' accepting':''}${compost.over?' drag-over':''}${compost.open?' open':''}`} transform={`translate(${cam.W-108} ${yardTop+2})`} role="button" tabindex={0} aria-label={!compost.built?(compost.building?'Компостная куча строится':'Обустроить компостную кучу'):compost.ready?'Компост готов':'Компостная куча'} aria-expanded={compost.open} onClick={compost.onClick} onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();compost.onClick();}}}>
