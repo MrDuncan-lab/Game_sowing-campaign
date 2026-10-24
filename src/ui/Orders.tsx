@@ -217,12 +217,13 @@ export function OrdersView({ s, act, profile, target, teaching=false }: { s: Gam
     <div class="pane-inner orders-pane" ref={root}>
       <div class="orders-top"><b>В работе {active}/{questSlots(s)}</b><button type="button" class="hall-link" onClick={()=>showHall(true)} aria-label="Открыть зал славы"><Icon name="trophy" size={20}/>{r.name}</button></div>
       <div class="orgs">
-        {busyOrgs.map((o) => <OrgCard s={s} o={o} act={act} teaching={teaching} />)}
+        {/* PSV-035 · stable keys: an open «details» and focus stay with their organisation when the list re-sorts */}
+        {busyOrgs.map((o) => <OrgCard key={o} s={s} o={o} act={act} teaching={teaching} />)}
         {!busyOrgs.length && <p class="quest-empty orders-none">{teaching ? 'Учебный заказ появится, когда он понадобится в уроке.' : s.season === 3 ? 'Зимой новых заказов нет.' : 'Сейчас заказов нет — покупатели ниже скажут, когда придут.'}</p>}
       </div>
       {quietOrgs.length > 0 && <section class="org-list" aria-label="Знакомые покупатели">
         <h3>Знакомые покупатели</h3>
-        {quietOrgs.map((o) => <OrgRow s={s} o={o} teaching={teaching} />)}
+        {quietOrgs.map((o) => <OrgRow key={o} s={s} o={o} teaching={teaching} />)}
       </section>}
     </div>
   );

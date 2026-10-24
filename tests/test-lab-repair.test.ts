@@ -45,7 +45,9 @@ test('orders distinguish an unresearched culture from its seeds and required equ
  assert.ok(c);assert.equal(G.orderCropAvailable(s,c),false);s.spare.push(card(s,`seed_${c}`));assert.equal(G.orderCropAvailable(s,c),true);
  s.unlocked.push('tomato');assert.equal(G.orderCropAvailable(s,'tomato'),false);G.tile(s,2,2).structure='greenhouse';assert.equal(G.orderCropAvailable(s,'tomato'),true);
  s.levels.apiary=3;assert.equal(G.orderCropAvailable(s,'honey'),false);G.tile(s,2,1).structure='hive';assert.equal(G.orderCropAvailable(s,'honey'),true);
- s.spare.push(card(s,'seed_cranberry'));for(const t of s.tiles)if(t.terrain==='swamp')t.owned=false;assert.equal(G.orderCropAvailable(s,'cranberry'),false);Object.assign(G.tile(s,3,2),{terrain:'swamp',owned:true});assert.equal(G.orderCropAvailable(s,'cranberry'),true);
+ s.spare.push(card(s,'seed_cranberry'));for(const t of s.tiles)if(t.terrain==='swamp')t.owned=false;assert.equal(G.orderCropAvailable(s,'cranberry'),false);Object.assign(G.tile(s,3,2),{terrain:'swamp',owned:true});
+ // PSV-020: one isolated swamp cannot take the two-cell cranberry; a pair can
+ assert.equal(G.orderCropAvailable(s,'cranberry'),false);Object.assign(G.tile(s,4,2),{terrain:'swamp',owned:false});assert.equal(G.orderCropAvailable(s,'cranberry'),true);
 });
 test('repair removes inaccessible offers without penalising reputation or altering accepted contracts',()=>{
  const s=testFixture('orders');const org=D.LOCATIONS[s.loc].orgs[0],active=s.orgs[org]!.active!;active.lines=[{crop:'honey',qty:8}];

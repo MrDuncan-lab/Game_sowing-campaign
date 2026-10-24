@@ -14,12 +14,18 @@ let sheetId = 0;
 // №14 · one blocking surface at a time: a sheet opened over another hides it until it closes
 const openSheets: HTMLElement[] = [];
 const restack = () => openSheets.forEach((el, i) => { el.dataset.covered = i < openSheets.length - 1 ? 'true' : 'false'; });
-/** `info` — a small explanation (a bed, the weather, the week): a light paper card over a barely dimmed farm. */
-export function Sheet({ title, onClose, children, footer, wide, icon, variant }: { title: ComponentChildren; onClose?: () => void; children: ComponentChildren; footer?: ComponentChildren; wide?: boolean; icon?: string; variant?: 'visit' | 'book' | 'atlas' | 'info' }) {
-  const ref = useRef<HTMLDivElement>(null);
+export const reducedMotionNow = () => typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+/** PSV-036 · one rule for every programmatic scroll: no smooth travel when the system asks for less motion. */
+export const scrollBehavior = (): ScrollBehavior => (reducedMotionNow() ? 'auto' : 'smooth');
+
+/**
+ * PSV-007 · the one modal behaviour every blocking layer shares (sheets, the closed farm, the tutorial certificate):
+ * the layer is the dialog's parent; everything beside it along the path to <body> becomes inert, focus starts on the
+ * first control, Tab cycles inside, Escape closes when there is a way to close, and focus returns where it was.
+ */
+export function useModal(ref: { current: HTMLElement | null }, onClose?: () => void) {
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
-  const titleId = useRef(`sheet-title-${++sheetId}`).current;
   useEffect(() => {
     const prev = document.activeElement as HTMLElement | null;
     const dialog = ref.current!;
@@ -58,12 +64,21 @@ export function Sheet({ title, onClose, children, footer, wide, icon, variant }:
     return () => {
       window.removeEventListener('keydown', key, true);
       document.removeEventListener('focusin', keepFocus);
-      for (const { node, inert } of hidden) node.inert = inert;
+      // A node that owns its inert state elsewhere (a hidden farm section) says so in data-inert-base:
+      // its owner may have changed it while this layer was open, so that wins over the saved value.
+      for (const { node, inert } of hidden) node.inert = node.dataset.inertBase !== undefined ? node.dataset.inertBase === 'true' : inert;
       const at = openSheets.indexOf(backdrop); if (at >= 0) openSheets.splice(at, 1); restack();
       document.body.style.overflow = previousOverflow;
       if (prev?.isConnected && !prev.closest('[inert]')) prev.focus?.({preventScroll:true});
     };
   }, []);
+}
+
+/** `info` — a small explanation (a bed, the weather, the week): a light paper card over a barely dimmed farm. */
+export function Sheet({ title, onClose, children, footer, wide, icon, variant }: { title: ComponentChildren; onClose?: () => void; children: ComponentChildren; footer?: ComponentChildren; wide?: boolean; icon?: string; variant?: 'visit' | 'book' | 'atlas' | 'info' }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const titleId = useRef(`sheet-title-${++sheetId}`).current;
+  useModal(ref, onClose);
   return (
     <div class={variant==='visit'?'sheet-back visit-back':variant==='book'?'sheet-back book-back':variant==='info'?'sheet-back info-back':'sheet-back'} onClick={(e) => { if (e.target === e.currentTarget && onClose) onClose(); }}>
       <div class={`sheet${wide ? ' wide' : ''}${variant==='visit'?' visit-sheet':variant==='book'?' book-sheet':variant==='atlas'?' atlas-sheet':variant==='info'?' info-sheet':''}`} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} ref={ref}>

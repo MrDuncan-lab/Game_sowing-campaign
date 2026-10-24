@@ -25,3 +25,15 @@
   text-overflow: clip;
 }
 .dock.roomy-2 .card-readout .ro-desc { grid-column: 1 / -1; }
+
+/* PSV-034 · the full card rule, one tap away on a low dock */
+.card-readout { position: relative; }
+.card-readout .ro-about { position: absolute; z-index: 2; bottom: 5px; right: 6px; width: 24px; height: 24px; margin: 0; display: inline-grid; box-shadow: 0 1px 0 rgba(63, 42, 29, .25); place-items: center; border-radius: 50%; border: 1.5px solid #8a6a4a; background: #fffaf0; color: #3a2616; font: 800 13px/1 var(--ui); cursor: pointer; }
+.card-readout .ro-about:focus-visible { outline: 2px solid var(--atlas-gold, #c8931f); outline-offset: 2px; }
+
+/* PSV-012 · long names: two lines at one steady size, never shrunk to micro-text */
+.card.pc .pc-name.two { font-size: .98em; line-height: .92; white-space: normal; overflow-wrap: normal; hyphens: manual; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.card.pc .pc-band:has(.pc-name.two) { padding-top: .5em; }
+.card.pc .pc-band .pc-name.two { font-size: 1.08em; line-height: .92; }
+.card-readout .ro-about::after { content: ''; position: absolute; inset: -9px; }
+.card-readout:has(.ro-about) .ro-facts, .card-readout:has(.ro-about) .ro-status { padding-right: 26px; }

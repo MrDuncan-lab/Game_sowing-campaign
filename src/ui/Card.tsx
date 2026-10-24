@@ -2,7 +2,7 @@ import type { JSX } from 'preact';
 import { CARDS, CROPS, TRAITS } from '../engine/data';
 import type { CropId, TraitId } from '../engine/data';
 import {
-  CardLike, GameState, cardCells, cardCost, cardDays, cardNeedDays, cardShape, cropGrow, cropMinT, plural, rub, round2, seedCost, shapeRotations,
+  CardLike, GameState, cardCells, cardCost, cardDaysShown, cardShape, cropGrow, cropMinT, plural, rub, round2, seedCost, shapeRotations,
   sidejobPay, wlvl, maxExtra, ripenIn, tile, inGrid, sowingSoil, lvl, soilHarvestCost,
 } from '../engine/game';
 import { CropIcon, CropSprite } from '../art/crops';
@@ -184,10 +184,21 @@ export function TraitBadges({ traits, size = 14 }: { traits?: TraitId[]; size?: 
 function nameFit(name: string): number {
   return Math.max(0.8, Math.min(1.36, 7.7 / (name.length * 0.63)));
 }
+// PSV-012 · a long name takes two lines at a steady size instead of shrinking to micro-text;
+// a single long word breaks at the soft hyphens of SHY
+const TWO_LINE = 13;
+const nameLines = (name: string) => (name.length >= TWO_LINE ? 2 : 1);
 const SHORT_SUB: Record<string, string> = {
   water: 'влаги', fertilizer: 'урожай', mulch: 'бережёт влагу', care: 'в ряду', weeding: 'прополка', early: 'сбор сейчас', helpers: 'рабочий день',
   sidejob: 'раз в неделю', shelter: 'от града · тепло', compost: 'плодородие', bio: 'почва 2×2', snow: 'вода к весне', forage: 'из тайги',
 };
+/** PSV-002 · one day cost for the card face, its spoken label and every description (shop, inventory): the same
+ *  calculation the engine charges — seeds by area and machinery, fertilizer by the size of the planting it feeds. */
+export function cardDaysText(s: GameState, card: CardLike): string {
+  const d = cardDaysShown(s, card), def = typeof card === 'string' ? card : card.def;
+  return def === 'fertilizer' ? `от ${d} дн. — по размеру посадки` : `${d} дн.`;
+}
+
 export function CardView({
   s, card, selected, blocked, onClick, compact, rot = 0, onPointerDown, rotHint, mini, noPrice,
 }: {
@@ -204,7 +215,7 @@ export function CardView({
   onPointerDown?: (e: JSX.TargetedPointerEvent<HTMLButtonElement>) => void;
 }) {
   const d = CARDS[card.def];
-  const days = s.phase === 'week' ? cardNeedDays(s, card) : cardDays(s, card);
+  const days = cardDaysShown(s, card);
   const price = cardPrice(s, card);
   const st = cardStat(s, card);
   const rotatable = d.target === 'line' || (d.kind === 'seed' && shapeRotations(card).length > 1);
@@ -222,7 +233,9 @@ export function CardView({
       title={`${d.name}. ${cardDescription(s,card.def)}${blocked ? ` — ${blocked}` : ''}`}
     >
       <span class="pc-face">
-        <span class="pc-band"><span class="pc-name" style={{ fontSize: `${nameFit(d.name)}em` }}>{d.name}</span></span>
+        <span class="pc-band">{nameLines(d.name) === 2
+          ? <span class="pc-name two">{SHY[card.def] ?? d.name}</span>
+          : <span class="pc-name" style={{ fontSize: `${nameFit(d.name)}em` }}>{d.name}</span>}</span>
         <span class="pc-art">
           {d.kind === 'seed' ? (
             <span key={rot} class={selected && rotHint ? 'shape-turn' : 'shape-still'}>

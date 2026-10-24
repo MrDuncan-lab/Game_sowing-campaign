@@ -166,14 +166,18 @@ function OwnedApp() {
   if(testing)return <TestLab initialLoc={testRegion} onExit={()=>{setTesting(false);if(window.location.hash==='#test')window.history.replaceState(null,'',window.location.pathname+window.location.search);}}/>;
   return (
     <>
-      {saveStatus && <aside role="status" aria-live="polite" style={{ position: 'relative', width: 'min(94vw, 470px)', margin: '8px auto', background: '#fff3d6', color: '#562b18', border: '2px solid #b85e36', borderRadius: '10px', padding: '7px 10px', fontSize: '12px', boxShadow: '0 3px 12px #0003' }}>
-        <span>{saveStatus}</span>
-        <div style={{ display: 'flex', gap: '8px', marginTop: '5px' }}>
-          <Btn small onClick={retrySave}>Сохранить</Btn>
-          {profileRecoveryRequired() && <Btn small onClick={() => setRecoverProfile(true)}>Восстановление профиля</Btn>}
-        </div>
-      </aside>}
-      {screen}
+      {/* PSV-025 · the notice and the game share one viewport-high column: the notice takes its own height,
+          the game the rest, so the hand and the bottom controls never slide below the screen */}
+      <div class={`app-shell${saveStatus ? ' with-notice' : ''}`}>
+        {saveStatus && <aside class="save-notice" role="status" aria-live="polite">
+          <span>{saveStatus}</span>
+          <div class="save-notice-actions">
+            <Btn small onClick={retrySave}>Сохранить</Btn>
+            {profileRecoveryRequired() && <Btn small onClick={() => setRecoverProfile(true)}>Восстановление профиля</Btn>}
+          </div>
+        </aside>}
+        <div class="app-screen">{screen}</div>
+      </div>
       {recoverProfile && <Sheet title="Восстановление профиля" onClose={() => setRecoverProfile(false)}>
         <p>Повреждённый профиль не удалось прочитать. Сохраним его отдельной копией и запишем текущий профиль. Ранее заработанные награды могут отсутствовать в текущем профиле.</p>
         <div class="btn-row"><Btn tone="danger" onClick={() => { if (saveProfile(profRef.current, true)) setRecoverProfile(false); }}>Записать текущий профиль</Btn><Btn tone="ghost" onClick={() => setRecoverProfile(false)}>Отмена</Btn></div>

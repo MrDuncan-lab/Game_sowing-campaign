@@ -4,7 +4,7 @@ import { useSceneQueue, chooseScene, finishScenes, completed, type SceneCue } fr
 import { buildWeekPlayback, CALENDAR_MS, theftStagger, type WeekEvent } from './weekPlayback';
 import {readWeekResume,saveWeekResume,clearWeekResume,type WeekResume} from './weekResume';
 import { PrecisionLoupe } from './PrecisionLoupe';
-import { greenhouseYieldReady } from '../engine/game';
+import { greenhouseYieldReady, hiveYieldReady, neighbors8, inGrid, wlvl } from '../engine/game';
 
 import { exchangeProblem, compostProblem, compostWeeks, growthMoisture, frostKills, wetCanals, idx, thievesBlocked, handMax as maxHand, exchangesUsed, exchangesPerWeek, nextDraw, keepSlots, keptCount } from '../engine/game';
 import type { JSX } from 'preact';
@@ -25,7 +25,7 @@ import { CropIcon } from '../art/crops';
 import type { FarmerAction } from '../art/farm';
 import { CardArt, CardView, PinIcon, cardPrice, seedWeeks } from './Card';
 import { CardReadout } from './CardReadout';
-import { CELL, FarmerPos, FarmerState, Flock, Floater, FxKind, Highlight, Lens, PAD, QueueMark, Scene, TileFx, FIELD_YARD, camera, farmerXY, BuildView, type SkyView } from './Scene';
+import { CELL, FarmerPos, FarmerState, Flock, Floater, FxKind, Highlight, Lens, PAD, QueueMark, Scene, TileFx, FIELD_YARD, camera, farmerXY, BuildView, FX_LIFE, FX_CONTACT, type SkyView } from './Scene';
 import { skyTokens, raidSigns, fogText, type SkyToken, type SkyKind } from './skyForecast';
 import { SkyPicture, SKY_H, SkyBand } from '../art/sky';
 import { Village, useVillagePager, hasVillage, cartRun, type VillageApi, type VillageMode } from './Village';
@@ -364,6 +364,7 @@ function TileDetails({ s, x, y, act, onClose }: { s: GameState; x: number; y: nu
         {p && <span><Icon name="frost" size={16} /> гибнет при {tStr(frostLimit(p) - frostShield(s, t))} и ниже</span>}
       </div>
       {t.structure==='greenhouse' && !greenhouseYieldReady(s,t) && (lvl(s,'greenhouse')>=4 || s.team.some(w=>w.id==='greenhouser'&&w.away<=0)) && <p class="small muted">Защита уже работает. Бонус урожая — со следующей недели.</p>}
+      {p && (CROPS[p.id].flowering || p.id === 'strawberry' || p.id === 'watermelon') && (wlvl(s,'beekeeper')>=1 ? neighbors8(x,y) : neighbors4(x,y)).some(([a,b])=>inGrid(a,b)&&tile(s,a,b).structure==='hive'&&!hiveYieldReady(s,tile(s,a,b))) && <p class="small muted">Улей рядом поставлен на этой неделе: опыление — со следующей.</p>}
       {p && frostKills(s,x,y) && <p class="small bad">Не переживёт заморозок этой недели. Нужно укрытие или ранний сбор.</p>}
       {p && !note && <p class="small up">На этой неделе будет расти.{t.structure==='greenhouse' ? ' Теплица защищает и от перегрева.' : ''}</p>}
       {p && growthMoisture(s)[idx(x,y)]!==t.moisture && <p class="small">До роста дождь и орошение дадут влагу {growthMoisture(s)[idx(x,y)]}/3.</p>}
@@ -453,7 +454,7 @@ function calendarPage(s: GameState, offset: number): CalPage {
   return page;
 }
 
-export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment, onMap, villageApi, onVillageMode, placeRequest, testing=false, teaching=false, precheck, lessonVisit=false, onVisitDone }: { s: GameState; dispatch: Dispatch; fast: boolean; active: boolean; onGo: (tab: string) => void; onOrder?:(org:OrgId)=>void; onPayment?:()=>void; onMap?:()=>void; villageApi?: { current: VillageApi | null }; onVillageMode?: (m: VillageMode) => void; placeRequest?: { item: BuildItem; key: number } | null; testing?:boolean; teaching?:boolean; precheck?:(a:Action)=>string|null; lessonVisit?:boolean; onVisitDone?:()=>void }) {
+export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment, onMap, villageApi, onVillageMode, placeRequest, testing=false, teaching=false, precheck, lessonVisit=false, onVisitDone, onPresent }: { s: GameState; dispatch: Dispatch; fast: boolean; active: boolean; onGo: (tab: string) => void; onOrder?:(org:OrgId)=>void; onPayment?:()=>void; onMap?:()=>void; villageApi?: { current: VillageApi | null }; onVillageMode?: (m: VillageMode) => void; placeRequest?: { item: BuildItem; key: number } | null; testing?:boolean; teaching?:boolean; precheck?:(a:Action)=>string|null; lessonVisit?:boolean; onVisitDone?:()=>void; /** PSV-028 · the week the field is showing while last week's events play (null when it shows the current one) */ onPresent?:(shown:GameState|null)=>void }) {
   const [resume]=useState(()=>testing||teaching?null:readWeekResume(s));
   const playbackRecord=useRef<WeekResume|null>(resume);
   const playbackTimer=useRef<number|null>(null);
@@ -663,12 +664,16 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
     later(walkMs + 16, () => {
       const actMs = rm ? 0 : Math.round(Math.max(step.actMs ?? 700, 1200) * pace);
       setFarmer({ ...fRef.current, walking: false, facing: workFacing, action: step.action, bubble: step.bubble ?? null, ms: 0, cycle: actMs });
+      // PSV-015/016 · gesture, particles, the bed's new look and the clean-up share one pace: particles play at the
+      // action's rate, the bed changes when they have landed, and nothing is removed before its own end
+      const contact = Math.max(0, ...(step.fx ?? []).map((f) => FX_CONTACT[f.kind] ?? 0));
       if (step.fx?.length && !rm) {
-        const items: TileFx[] = step.fx.map((f, i) => ({ key: fxKey++, ...f, delay: i * 40 }));
+        const items: TileFx[] = step.fx.map((f, i) => ({ key: fxKey++, ...f, delay: i * 40, rate: 1 / pace }));
         setTileFx((prev) => [...prev, ...items]);
-        later(1100, () => setTileFx((prev) => prev.filter((p) => !items.includes(p))));
+        const life = Math.max(...items.map((f) => FX_LIFE[f.kind]));
+        later(Math.ceil(life * pace) + 60, () => setTileFx((prev) => prev.filter((p) => !items.includes(p))));
       }
-      later(Math.round(actMs * .65), () => reveal(step.reveal ?? []));
+      later(rm ? 0 : Math.min(actMs, Math.max(Math.round(actMs * .65), Math.ceil(contact * pace) + 16)), () => reveal(step.reveal ?? []));
       later(actMs + (rm ? 0 : 80), () => {
         if (step.mark) {
           const k = step.mark;
@@ -803,15 +808,16 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
     const keys=st.cells.map(c=>`${c.x},${c.y}`);
     setHidden(h=>{const m=new Map(h);st.cells.forEach(c=>{const k=key(c.x,c.y);m.set(k,{...tile(sRef.current,c.x,c.y),crop:c.after ?? null});});return m;});
     const notes=st.cells.filter(c=>c.note);
-    if(notes.length){setFloaters(f=>[...f,...notes.map((c,i)=>({key:floaterKey++,x:c.x,y:c.y,text:c.note!,tone:'bad' as const,delay:i*90}))]);const ks=new Set(notes.map(c=>`${c.x},${c.y}`));morningTimers.current.push(clock.schedule(()=>setFloaters(f=>f.filter(x=>!(x.tone==='bad'&&ks.has(`${x.x},${x.y}`)))),2100+notes.length*90));}
+    // PSV-016 · a damage label lives its full 2 s fade even when the next event starts; a newer label on the
+    // same bed replaces it, so two never stack
+    if(notes.length){const ks=new Set(notes.map(c=>`${c.x},${c.y}`));const fresh=notes.map((c,i)=>({key:floaterKey++,x:c.x,y:c.y,text:c.note!,tone:'bad' as const,delay:i*90}));setFloaters(f=>[...f.filter(x=>!(x.tone==='bad'&&ks.has(`${x.x},${x.y}`))),...fresh]);later(2100+notes.length*90,()=>setFloaters(f=>f.filter(x=>!fresh.some(n=>n.key===x.key))));}
     // Weather removes the fading original plant, leaving its own remains. A generic
     // green wither sprite would otherwise look like a new plant appearing here.
     const wither:TileFx[]=['thieves','frost','dry'].includes(st.kind)?[]:st.cells.filter(c=>c.killed).map((c,i)=>({key:fxKey++,x:c.x,y:c.y,kind:'wither' as const,delay:i*60}));
-    if(wither.length){setTileFx(p=>[...p,...wither]);morningTimers.current.push(clock.schedule(()=>setTileFx(p=>p.filter(f=>!wither.includes(f))),900));}
+    if(wither.length){setTileFx(p=>[...p,...wither]);later(FX_LIFE.wither+60+(wither.length-1)*60,()=>setTileFx(p=>p.filter(f=>!wither.includes(f))));}
   }
   function runMorning(events: WeekEvent[],elapsed=0){
     morningTimers.current.forEach(t=>clock.cancel(t));morningTimers.current=[];
-    setFloaters(f=>f.filter(x=>x.tone!=='bad'));setTileFx([]);
     setMorning(null);setPestHits([]);setWeekCue(null);
     if(!events.length){finishHarvest();return;}
     const [event,...rest]=events;
@@ -911,7 +917,7 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
     for (let y = 0; y < GRID; y++) for (let x = 0; x < GRID; x++) if (!held.has(`${x},${y}`) && !next.lastReport?.fieldDamage?.some(h=>h.x===x&&h.y===y) && !next.lastReport?.pestHits?.some(h=>h.x===x&&h.y===y) && tile(prev, x, y).crop && !tile(next, x, y).crop && !hs.some((h) => h.x === x && h.y === y)) gone.push({ key: fxKey++, x, y, kind: 'wither' });
     if (gone.length) {
       setTileFx((p) => [...p, ...gone]);
-      later(700, () => setTileFx((p) => p.filter((f) => !gone.includes(f))));
+      later(FX_LIFE.wither + 60, () => setTileFx((p) => p.filter((f) => !gone.includes(f))));
     }
   }
 
@@ -1122,6 +1128,9 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
     if (act(a)) { setMoveFrom(null); setBuild('menu'); }
   }
   function pickCard(uid: number) {
+    // PSV-005 · while the week's events play, the hand is the next week's: nothing in it can be played yet,
+    // and picking a card must not take the "skip" control away
+    if (weekPlaying || ending.current) { say('Сначала досмотрите события недели или пропустите их'); return; }
     if(exchanging) {
       if(act(exchanging==='compost'?{t:'claimCompost',uid}:{t:'exchangeCard',uid})) {setExchanging(false);setSelected(null);setCompostOpen(false);}
       return;
@@ -1416,6 +1425,10 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
   const winter = s.season === 3;
   const presentation=weekPlaying?(pendingHarvest.current??resume):null;
   const fieldState=presentation?.prev??s;
+  // PSV-028 · the top bar follows the field: last week's date and money until its events have played
+  const presentPrev=presentation?.prev??null;
+  useEffect(()=>{onPresent?.(presentPrev);},[presentPrev]);
+  useEffect(()=>()=>onPresent?.(null),[]);
   const aftermath=presentation?new Map([...killers(presentation.next)].filter(([k])=>hidden.has(k)&&!hidden.get(k)!.crop)):new Map();
   const spentDry=presentation&&!(playbackRecord.current?.events??[]).some(e=>e.cue?.kind==='thieves')
     ?new Set(kidMisses(presentation.prev,presentation.next).filter(m=>m.cause==='dry').map(m=>key(m.x,m.y))):new Set<string>();
@@ -1548,6 +1561,8 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
         <div class="field-row" style={{ ['--arn' as string]: String(cam.W / cam.H) }}>
           <div class="field-stage">
             <Scene
+              scenePaused={!active||!pageVisible||!!sheet||meetingOpen}
+              menuTile={info && !card && !build ? info.join(',') : null}
               s={fieldState}
               hidden={hidden}
               aftermath={aftermath} spentDry={spentDry}
@@ -1629,11 +1644,11 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
 
       <footer ref={dockRef} class={`dock${card ? ' picking' : ''}${shown ? ' reading' : ''}${room.read ? ' roomy' : ''}${room.read > 40 ? ' roomy-2' : ''}${build || lens ? ' viewing' : ''}`}>
         <div class="dock-top" style={room.read ? { height: `${room.top + room.read}px` } : undefined}>
-          <div class="days" aria-label={`Рабочих дней: ${s.days}`}>
-            <b>{s.days}</b>
+          <div class="days" aria-label={`Рабочих дней: ${fieldState.days}`}>
+            <b>{fieldState.days}</b>
             <Icon name="day" size={18} />
-            {Math.max(weekDays(s), s.days) <= 5 && <span class="day-pips" aria-hidden="true">{Array.from({ length: Math.max(weekDays(s), s.days) }, (_, i) => <i class={i < s.days ? 'on' : ''} />)}</span>}
-            <small>{plural(s.days, 'день', 'дня', 'дней')}</small>
+            {Math.max(weekDays(s), fieldState.days) <= 5 && <span class="day-pips" aria-hidden="true">{Array.from({ length: Math.max(weekDays(s), fieldState.days) }, (_, i) => <i class={i < fieldState.days ? 'on' : ''} />)}</span>}
+            <small>{plural(fieldState.days, 'день', 'дня', 'дней')}</small>
           </div>
           <button type="button" class={`deck-pile dock exchange-deck${exchanging?' choosing':''}`} disabled={weekPlaying} aria-pressed={exchanging==='card'} onClick={()=>{
             const why=exchangeProblem(s,card?.uid); if(why)return say(why);
@@ -1664,15 +1679,16 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
               <button type="button" class="icon-btn tool-x" onClick={() => setSelected(null)} aria-label="Отменить выбор">✕</button>
             </div>
           )}
-          {!shown && s.phase === 'shortfall' && onPayment && <button type="button" class="btn end-week pay-due" onClick={onPayment}>
+          {!shown && !weekPlaying && s.phase === 'shortfall' && onPayment && <button type="button" class="btn end-week pay-due" onClick={onPayment}>
             <span>Решить платёж</span><small class="bad">к оплате {money(s.due?.amount ?? 0)}</small>
           </button>}
-          {!shown && !(s.phase === 'shortfall' && onPayment) && <button type="button" class={`btn end-week${ready ? ' ready' : ''}${weekPlaying?' skip-morning':''}`} disabled={night!=='off'&&night!=='fade'||!weekPlaying&&(s.phase !== 'week'||endWaiting)} onClick={weekPlaying?cancelMorning:endWeek}>
+          {(!shown || weekPlaying) && !(s.phase === 'shortfall' && onPayment && !weekPlaying) && <button type="button" class={`btn end-week${ready ? ' ready' : ''}${weekPlaying?' skip-morning':''}`} disabled={night!=='off'&&night!=='fade'||!weekPlaying&&(s.phase !== 'week'||endWaiting)} onClick={weekPlaying?cancelMorning:endWeek}>
             <span>{weekPlaying?'Пропустить анимацию':endWaiting?'Завершаем работы…':'Завершить неделю'}</span>
             {!weekPlaying && endText && <small class={endBad ? 'bad' : ''}>{endText}</small>}
           </button>}
         </div>
-        <div class="hand-row" style={{ ['--cw' as string]: `${fan.cw}px` }}>
+        <div class={`hand-row${weekPlaying ? ' upcoming' : ''}`} style={{ ['--cw' as string]: `${fan.cw}px` }}>
+          {weekPlaying && <small class="hand-next">Карты новой недели</small>}
           <div
             class={`hand fan${fan.tight ? ' tight' : ''}${peek !== null ? ' peeking' : ''}`}
             ref={(el) => { fanRef.current = el; }}

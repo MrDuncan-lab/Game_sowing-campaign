@@ -1,8 +1,10 @@
 import type { ComponentChildren } from 'preact';
 import { CARDS, CROPS } from '../engine/data';
 import type { Card, GameState } from '../engine/game';
-import { airTemp, cardCells, cardNeedDays, cropMinT, plural, rub, wlvl } from '../engine/game';
+import { useState } from 'preact/hooks';
+import { airTemp, cardCells, cardDaysShown, cropMinT, plural, rub, wlvl } from '../engine/game';
 import { CardArt, cardDescription, cardPrice, cardStat, seedWeeks } from './Card';
+import { Sheet } from './common';
 
 /** The second reading level of a card: the picked (or browsed) card, read in full at sizes that never
  *  shrink with the fan. The fan itself only needs the culture, the name start and the cost. */
@@ -33,7 +35,9 @@ export function cardFacts(s: GameState, card: Card): { text: string; tone?: 'war
 
 export function CardReadout({ s, card, status, browsing, desc, children }: { s: GameState; card: Card; status: ReadoutStatus | null; browsing?: boolean; desc?: boolean; children?: ComponentChildren }) {
   const d = CARDS[card.def];
-  const days = cardNeedDays(s, card);
+  const days = cardDaysShown(s, card);
+  // PSV-034 · when the dock is too low for the full rule, it is one tap away, never gone
+  const [about, setAbout] = useState(false);
   const price = cardPrice(s, card);
   const facts = cardFacts(s, card);
   // a preview or a refusal is the freshest news: on a low dock it takes the facts' place
@@ -46,12 +50,17 @@ export function CardReadout({ s, card, status, browsing, desc, children }: { s: 
         <span class="ro-cost">
           <span class="ro-days">{card.def === 'fertilizer' ? 'от ' : ''}{days} {plural(days, 'день', 'дня', 'дней')}</span>
           {price > 0 && <span class={`ro-money${d.kind === 'seed' && s.money < price ? ' short' : ''}`}>{rub(price)} ₽</span>}
+          {!desc && !browsing && <button type="button" class="ro-about" onClick={() => setAbout(true)} aria-label={`О карте «${d.name}»`} title="О карте">?</button>}
         </span>
       </div>
       <div class="ro-facts">{facts.map((f) => <span class={`ro-fact${f.tone ? ` ${f.tone}` : ''}`}>{f.text}</span>)}</div>
       {status && <div class={`ro-status ${status.tone}`}>{status.text}</div>}
       {desc && <div class="ro-desc">{cardDescription(s, card.def)}</div>}
       {children}
+      {about && <Sheet title={d.name} variant="info" onClose={() => setAbout(false)}>
+        <p>{cardDescription(s, card.def)}</p>
+        <p class="small muted">{days} {plural(days, 'день', 'дня', 'дней')}{price > 0 ? ` · ${rub(price)} ₽` : ''} · {facts.map((f) => f.text).join(' · ')}</p>
+      </Sheet>}
     </div>
   );
 }

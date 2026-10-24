@@ -1,15 +1,16 @@
 import {GuideHint,type TutorialControls} from './Guide';
 import {QuickProjects} from './lesson';
 import { useEffect, useRef, useState } from 'preact/hooks';
+import type { ComponentChildren, JSX } from 'preact';
 import { LOCATIONS, SEASON_NAMES } from '../engine/data';
 import {
   GameState, deliverProblem, labBusy, labSlots, lvl, money, nextPayment, plural, seasonLen, storageCap, storageUsed, workshopBusy, workshopSlots,
-  yardUsed, creditLimit, locOf,
+  yardUsed, creditLimit, locOf, loanRate, outstanding, fmt, round2,
 } from '../engine/game';
 import type { OrgId } from '../engine/data';
 import type { BuildItem } from '../engine/game';
 import { Icon } from '../art/icons';
-import { Btn, Dispatch, Money, Sheet, compactMoney } from './common';
+import { Btn, Dispatch, Money, Sheet, compactMoney, reducedMotionNow, useModal } from './common';
 import { FieldView } from './FieldView';
 import type { VillageApi, VillageMode } from './Village';
 import { HouseView } from './House';
@@ -40,6 +41,10 @@ function ShortfallSheet({ s, act, onBarn, onOrders, onClose, onRetry }: { s: Gam
   const sellable = storageUsed(s) + yardUsed(s) > 0;
   const deliverable = locOf(s).orgs.some((o) => s.orgs[o]?.active && !deliverProblem(s, o));
   const creditWhy = deficit <= 0 ? 'Уже хватает на платёж' : s.rating === 0 || creditLimit(s) < deficit ? 'Банк не даст столько' : null;
+  // PSV-010 · the credit's terms are known before the choice, like the postponement's +20% and rating −2
+  const ratePct = `${fmt(loanRate(s) * 100)}% в неделю`;
+  const ratingHit = s.shortfallBorrowed ? '' : ' · рейтинг −1';
+  const creditTerms = `Ставка ${ratePct} · долг станет ${money(round2(outstanding(s) + deficit))}${ratingHit}`;
   // one clear next step, the other ways stay below in a quiet list
   const main = deficit <= 0 ? 'pay' : sellable ? 'barn' : deliverable ? 'orders' : !creditWhy ? 'credit' : 'postpone';
   return (
@@ -52,12 +57,12 @@ function ShortfallSheet({ s, act, onBarn, onOrders, onClose, onRetry }: { s: Gam
       {main === 'pay' && <Btn tone="primary" onClick={() => act({ t: 'pay' })}>Внести {money(due.amount)}</Btn>}
       {main === 'barn' && <Btn tone="primary" onClick={onBarn}>Продать урожай в амбаре</Btn>}
       {main === 'orders' && <Btn tone="primary" onClick={onOrders}>Сдать готовый заказ</Btn>}
-      {main === 'credit' && <Btn tone="primary" onClick={() => act({ t: 'emergency' })}>Экстренный кредит {money(deficit)}</Btn>}
+      {main === 'credit' && <><Btn tone="primary" onClick={() => act({ t: 'emergency' })}>Экстренный кредит {money(deficit)}</Btn><p class="small credit-terms">{creditTerms}</p></>}
       {main === 'postpone' && <Btn tone="primary" disabled={s.restructured ? 'Переносить можно один раз' : null} onClick={() => act({ t: 'restructure' })}>Перенести платёж · +20%</Btn>}
       <div class="due-other">
         {main !== 'pay' && deficit > 0 && main !== 'barn' && sellable && <Btn small tone="ghost" onClick={onBarn}>Продать урожай</Btn>}
         {main !== 'orders' && deliverable && <Btn small tone="ghost" onClick={onOrders}>Сдать заказ</Btn>}
-        {main !== 'credit' && deficit > 0 && <Btn small tone="ghost" disabled={creditWhy} onClick={() => act({ t: 'emergency' })}>Кредит {money(deficit)} · рейтинг −1</Btn>}
+        {main !== 'credit' && deficit > 0 && <Btn small tone="ghost" disabled={creditWhy} title={creditTerms} onClick={() => act({ t: 'emergency' })}>Кредит {money(deficit)} · {ratePct}{ratingHit}</Btn>}
         {main !== 'postpone' && deficit > 0 && <Btn small tone="ghost" disabled={s.restructured ? 'Переносить можно один раз' : null} onClick={() => act({ t: 'restructure' })}>Перенести · +20%, рейтинг −2</Btn>}
       </div>
       {onRetry&&<div class="stack tight"><p class="small muted">Это учебная ферма. Можно вернуться к началу задания и попробовать ещё раз.</p><Btn onClick={onRetry}>Повторить этот шаг</Btn></div>}
@@ -69,11 +74,23 @@ function ShortfallSheet({ s, act, onBarn, onOrders, onClose, onRetry }: { s: Gam
   );
 }
 
-function GameOver({ s, onMap, onRestart }: { s: GameState; onMap: () => void; onRestart: () => void }) {
+/** PSV-007 · the closed farm is a real modal: focus inside, Tab cycles its two actions, the farm behind is inert. */
+export function ClosedLayer({ title, children }: { title: string; children: ComponentChildren }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useModal(ref);
   return (
     <div class="gameover">
-      <div class="panel">
-        <h1>Ферма закрыта</h1>
+      <div class="panel" role="dialog" aria-modal="true" aria-labelledby="gameover-title" tabIndex={-1} ref={ref}>
+        <h1 id="gameover-title">{title}</h1>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function GameOver({ s, onMap, onRestart }: { s: GameState; onMap: () => void; onRestart: () => void }) {
+  return (
+    <ClosedLayer title="Ферма закрыта">
         <p>{s.over?.reason}</p>
         <div class="bank-grid">
           <div class="kv"><span>Прожито лет</span><b>{s.yearsCompleted}</b></div>
@@ -86,8 +103,7 @@ function GameOver({ s, onMap, onRestart }: { s: GameState; onMap: () => void; on
           <Btn tone="primary" onClick={onRestart}>Начать заново</Btn>
           <Btn onClick={onMap}>На карту</Btn>
         </div>
-      </div>
-    </div>
+    </ClosedLayer>
   );
 }
 
@@ -95,6 +111,9 @@ export function FarmScreen({ s, dispatch, profile, fast, onFast, onMap, onRestar
   s: GameState; dispatch: Dispatch; profile: Profile; fast: boolean; onFast: () => void; onMap: () => void; onRestart: () => void; error: string | null; onTest?:()=>void; testing?:boolean; onTestTools?:()=>void; suspended?:boolean; tutorial?:TutorialControls;
 }) {
   const [tab, setTab] = useState<TabId>('field');
+  // PSV-028 · while last week's events play, the top bar shows that week too (the save is already the new one)
+  const [present, setPresent] = useState<GameState | null>(null);
+  const hud = present && s.phase === 'week' ? present : s;
   const [menu, setMenu] = useState(false);
   const [orderTarget,setOrderTarget]=useState<{org:OrgId;key:number}|null>(null);
   const [paymentOpen, setPaymentOpen] = useState(s.phase === 'shortfall');
@@ -111,7 +130,7 @@ export function FarmScreen({ s, dispatch, profile, fast, onFast, onMap, onRestar
   function go(t: TabId, smooth = true) {
     const el = pager.current;
     if (!el) return;
-    const animate=smooth&&!window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const animate=smooth&&!reducedMotionNow();
     navigationTarget.current=t;
     el.scrollTo({ left: idx(t) * el.clientWidth, behavior: animate ? 'smooth' : 'auto' });
     setTab(t);
@@ -154,7 +173,19 @@ export function FarmScreen({ s, dispatch, profile, fast, onFast, onMap, onRestar
       window.removeEventListener('resize', onResize);
     };
   }, []);
-  const np = nextPayment(s);
+  // PSV-006 · only the shown section is in the Tab order and the accessibility tree. Swiping still works:
+  // the pager scrolls, and the section that settles in view becomes the live one.
+  const paneProps = (id: TabId) => ({ id: `pane-${id}`, role: 'tabpanel' as const, 'aria-labelledby': `tab-${id}`, inert: tab !== id, 'data-inert-base': String(tab !== id) });
+  // a tablist with one Tab stop: arrows, Home and End move between sections
+  function onTabKey(e: JSX.TargetedKeyboardEvent<HTMLElement>) {
+    const at = idx(tabRef.current);
+    const to = e.key === 'ArrowRight' ? Math.min(TABS.length - 1, at + 1) : e.key === 'ArrowLeft' ? Math.max(0, at - 1) : e.key === 'Home' ? 0 : e.key === 'End' ? TABS.length - 1 : -1;
+    if (to < 0) return;
+    e.preventDefault();
+    go(TABS[to].id);
+    document.getElementById(`tab-${TABS[to].id}`)?.focus();
+  }
+  const np = nextPayment(hud);
   const loc = LOCATIONS[s.loc];
   const ready = locOf(s).orgs.filter((o) => s.orgs[o]?.active && !deliverProblem(s, o)).length;
   const offers = locOf(s).orgs.filter((o) => s.orgs[o]?.offer && !s.orgs[o]?.active).length;
@@ -172,21 +203,21 @@ export function FarmScreen({ s, dispatch, profile, fast, onFast, onMap, onRestar
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14M5 12h14M5 17h14" stroke="#3f2a1d" stroke-width="2.6" stroke-linecap="round" /></svg>
         </button>
         <div class="tb-date">
-          <b>{SEASON_NAMES[s.season]} · {s.weekInSeason}/{seasonLen(s)}</b>
-          <small>{tutorial?'Учебная ферма':`${testing?'Проверка · ':''}${s.year}-й год`}</small>
+          <b>{SEASON_NAMES[hud.season]} · {hud.weekInSeason}/{seasonLen(hud)}</b>
+          <small>{present && hud === present ? 'события прошлой недели' : tutorial?'Учебная ферма':`${testing?'Проверка · ':''}${s.year}-й год`}</small>
         </div>
-        <div class="tb-money"><Money v={s.money} size={20} /></div>
-        <button type="button" class={`tb-pay${s.money >= np.amount ? ' ok' : ''}${s.phase === 'shortfall' ? ' due' : ''}`} onClick={() => s.phase === 'shortfall' ? setPaymentOpen(true) : openBarn('bank')} aria-label={s.due ? `Решить платёж ${money(s.due.amount)}` : `Платёж «${np.name}» ${money(np.amount)} через ${np.weeksLeft} нед.`}>
+        <div class="tb-money"><Money v={hud.money} size={20} /></div>
+        <button type="button" class={`tb-pay${hud.money >= np.amount ? ' ok' : ''}${s.phase === 'shortfall' ? ' due' : ''}`} onClick={() => s.phase === 'shortfall' ? setPaymentOpen(true) : openBarn('bank')} aria-label={s.due ? `Решить платёж ${money(s.due.amount)}` : `Платёж «${np.name}» ${money(np.amount)} через ${np.weeksLeft} нед.`}>
           <small>{s.phase === 'shortfall' ? 'к оплате' : np.weeksLeft <= 1 ? 'в конце недели' : `через ${np.weeksLeft} нед.`}</small>
           <b>{compactMoney(s.due?.amount ?? np.amount)}</b>
-          <span class="pay-bar"><span style={{ width: `${Math.min(100, (s.money / Math.max(1, np.amount)) * 100)}%` }} /></span>
+          <span class="pay-bar"><span style={{ width: `${Math.min(100, (hud.money / Math.max(1, np.amount)) * 100)}%` }} /></span>
         </button>
       </header>
-      <nav class="tabs" role="tablist" aria-label="Разделы фермы">
+      <nav class="tabs" role="tablist" aria-label="Разделы фермы" onKeyDown={onTabKey}>
         {TABS.map((t) => {
           const b = badges[t.id];
           return (
-            <button type="button" role="tab" data-tab={t.id} aria-selected={tab === t.id} class={`tab${tab === t.id ? ' on' : ''}${t.id === 'field' ? ' main' : ''}`} onClick={() => {
+            <button type="button" role="tab" id={`tab-${t.id}`} aria-controls={`pane-${t.id}`} tabIndex={tab === t.id ? 0 : -1} data-tab={t.id} aria-selected={tab === t.id} class={`tab${tab === t.id ? ' on' : ''}${t.id === 'field' ? ' main' : ''}`} onClick={() => {
                 const v = villageApi.current;
                 // the field's tab takes you to the field, and on the field between it and the village
                 if (t.id === 'field') { if (tab === 'field' && v?.available) v.toggle(); else go('field'); return; }
@@ -203,16 +234,16 @@ export function FarmScreen({ s, dispatch, profile, fast, onFast, onMap, onRestar
       </nav>
       {s.phase === 'shortfall' && !paymentOpen && (tab !== 'field' || fieldMode !== 'field') && <div class="payment-reminder" role="status"><div class="pr-chip"><span>Платёж ожидает решения</span><button type="button" onClick={()=>setPaymentOpen(true)}>Решить платёж</button></div></div>}
       <QuickProjects.Provider value={!!tutorial}><div class="pager" ref={pager}>
-        <section class="pane" aria-label="Лаборатория"><LabView s={s} act={dispatch} active={tab === 'lab' && !menu && !paymentOpen && !suspended} teaching={tutorial?.session.step === 'lab'} /></section>
-        <section class="pane" aria-label="Дом"><HouseView s={s} act={dispatch} onPlace={(item) => { setPlaceRequest({ item, key: Date.now() }); go('field'); }} /></section>
-        <section class="pane field-pane" aria-label="Поле"><FieldView teaching={!!tutorial} precheck={tutorial?.precheck} lessonVisit={tutorial?.session.step==='visit'} onVisitDone={()=>{if(tutorial?.session.step==='visit')tutorial.onNext();}} onOrder={org=>{setOrderTarget({org,key:Date.now()});go('orders');}} onPayment={()=>setPaymentOpen(true)} onMap={onMap} villageApi={villageApi} onVillageMode={setFieldMode} testing={testing} s={s} dispatch={dispatch} fast={fast} active={tab === 'field' && !menu && !paymentOpen && !suspended} placeRequest={placeRequest} onGo={(t) => t === 'barn' ? openBarn() : go(t as TabId)} /></section>
-        <section class="pane" aria-label="Амбар"><BarnView s={s} act={dispatch} target={barnTarget} onPayment={()=>setPaymentOpen(true)} /></section>
-        <section class="pane" aria-label="Заказы"><OrdersView teaching={!!tutorial} target={orderTarget} s={s} act={dispatch} profile={profile} /></section>
+        <section class="pane" {...paneProps('lab')}><LabView s={s} act={dispatch} active={tab === 'lab' && !menu && !paymentOpen && !suspended} teaching={tutorial?.session.step === 'lab'} /></section>
+        <section class="pane" {...paneProps('house')}><HouseView s={s} act={dispatch} onPlace={(item) => { setPlaceRequest({ item, key: Date.now() }); go('field'); }} /></section>
+        <section class="pane field-pane" {...paneProps('field')}><FieldView onPresent={setPresent} teaching={!!tutorial} precheck={tutorial?.precheck} lessonVisit={tutorial?.session.step==='visit'} onVisitDone={()=>{if(tutorial?.session.step==='visit')tutorial.onNext();}} onOrder={org=>{setOrderTarget({org,key:Date.now()});go('orders');}} onPayment={()=>setPaymentOpen(true)} onMap={onMap} villageApi={villageApi} onVillageMode={setFieldMode} testing={testing} s={s} dispatch={dispatch} fast={fast} active={tab === 'field' && !menu && !paymentOpen && !suspended} placeRequest={placeRequest} onGo={(t) => t === 'barn' ? openBarn() : go(t as TabId)} /></section>
+        <section class="pane" {...paneProps('barn')}><BarnView s={s} act={dispatch} target={barnTarget} onPayment={()=>setPaymentOpen(true)} /></section>
+        <section class="pane" {...paneProps('orders')}><OrdersView teaching={!!tutorial} target={orderTarget} s={s} act={dispatch} profile={profile} /></section>
       </div></QuickProjects.Provider>
       {tutorial&&!menu&&!paymentOpen&&s.phase!=='gameover'&&<GuideHint controls={tutorial} tab={tab}/>}
       {error && !(tutorial && !menu && !paymentOpen && s.phase !== 'gameover' && tutorial.session.hiddenHintStep !== tutorial.session.step) && <div class="toast" role="alert">{error}</div>}
       {s.phase === 'shortfall' && paymentOpen && <ShortfallSheet s={s} act={dispatch} onBarn={() => openBarn()} onOrders={() => { setPaymentOpen(false); go('orders'); }} onClose={() => setPaymentOpen(false)} onRetry={tutorial?.onRetry} />}
-      {s.phase === 'gameover' && (tutorial?<div class="gameover"><div class="panel"><h1>Учебная ферма закрыта</h1><p>Можно повторить последнее задание. Предыдущие уроки проходить заново не нужно.</p><div class="btn-row"><Btn tone="primary" onClick={tutorial.onRetry}>Повторить этот шаг</Btn><Btn onClick={onMap}>На карту</Btn></div></div></div>:<GameOver s={s} onMap={onMap} onRestart={onRestart} />)}
+      {s.phase === 'gameover' && (tutorial?<ClosedLayer title="Учебная ферма закрыта"><p>Можно повторить последнее задание. Предыдущие уроки проходить заново не нужно.</p><div class="btn-row"><Btn tone="primary" onClick={tutorial.onRetry}>Повторить этот шаг</Btn><Btn onClick={onMap}>На карту</Btn></div></ClosedLayer>:<GameOver s={s} onMap={onMap} onRestart={onRestart} />)}
       {menu && (
         <Sheet title={`${loc.name} · ${loc.place}`} icon="map" onClose={() => setMenu(false)}>
           <div class="stack">

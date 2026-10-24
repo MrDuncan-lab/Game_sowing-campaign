@@ -19,6 +19,7 @@ import './collisions.css';
 import './sky-field.css';
 import './calm.css';
 import './village.css';
+import './contrast.css';
 
 // favicon is set from code so the single-file build keeps it inlined
 if (!document.querySelector('link[rel="icon"]')) {

@@ -1810,3 +1810,23 @@ details.sale-more > summary { min-height: 36px; font-size: .9rem; }
 .sale-trend .spark {display:block;} .sale-trend .forecast-pick {margin-left:auto;flex:0 0 96px;}
 
 .field-view.scene-paused * { animation-play-state:paused!important; }
+/* PSV-001: the farm pauses under a dialog, the dialog does not. A sheet opened from the field
+   lives inside .field-view; its own entrance (fade, sheet-in, book-in, book-tools) keeps running. */
+.field-view.scene-paused .sheet-back, .field-view.scene-paused .sheet-back * { animation-play-state:running!important; }
+
+/* PSV-003 · the purchase panel stays at the bottom of the screen while the catalogue scrolls */
+.shop-choice { position: sticky; bottom: calc(6px + env(safe-area-inset-bottom, 0px)); z-index: 5; border: 2px solid var(--frame, #7a5232); background: #fff8e6; box-shadow: 0 -2px 0 rgba(63, 42, 29, .08), 0 8px 22px rgba(30, 18, 8, .28); }
+.shop-choice-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.shop-choice-x { flex: none; width: 34px; height: 34px; border-radius: 50%; border: 1.5px solid var(--hair); background: var(--paper); color: var(--ink); font-size: .9rem; cursor: pointer; }
+.shop-choice p { max-height: 4.2em; overflow: auto; }
+.shop-bought { color: #2f5f1d; font-weight: 700; }
+.buy-tag[aria-pressed="true"] { outline: 2px solid #3e7a2a; outline-offset: 1px; }
+
+/* PSV-028 · during last week's events the hand is already the new week's: say so */
+.hand-row.upcoming { position: relative; }
+.hand-next { position: absolute; z-index: 30; top: -2px; left: 50%; transform: translateX(-50%); padding: 2px 10px; border-radius: 999px; background: rgba(255, 248, 230, .94); border: 1px solid var(--hair); color: var(--ink); font: 700 .78rem/1.3 var(--ui); pointer-events: none; white-space: nowrap; }
+.hand-row.upcoming .fan { opacity: .82; }
+
+/* PSV-018 · an extension with no place in this region */
+.shape-editor .spot.impossible { cursor: not-allowed; }
+.shape-note { margin: 4px 0 0; }

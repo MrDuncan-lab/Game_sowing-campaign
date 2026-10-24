@@ -26,5 +26,20 @@ export function BedPopover({s, at, field, children, onClose}: {s: GameState; at:
     document.addEventListener('pointerdown',outside);
     return()=>{ro.disconnect();document.removeEventListener('pointerdown',outside);};
   },[field,at[0],at[1],s.tiles.length,children]);
-  return <div ref={ref} class={`bed-popover${pos.below?' below':''}`} role="group" aria-label="Действия на выбранной грядке" style={{left:pos.left,top:pos.top,visibility:pos.ready?'visible':'hidden',['--tip' as string]:`${pos.tip}px`}}>{children}</div>;
+  // PSV-033 · opened from a focused bed (keyboard or tap), the menu takes focus at once; Escape gives it back to the bed
+  const bed = () => field?.querySelector<SVGGElement>(`[data-tile="${at[0]},${at[1]}"]`) ?? null;
+  useLayoutEffect(() => {
+    if (!pos.ready || !ref.current) return;
+    if (document.activeElement && document.activeElement === bed()) {
+      ref.current.querySelector<HTMLElement>('button:not([disabled]), [tabindex="0"]')?.focus({ preventScroll: true });
+    }
+  }, [pos.ready, at[0], at[1]]);
+  const onKey = (e: KeyboardEvent) => {
+    if (e.key !== 'Escape') return;
+    e.preventDefault(); e.stopPropagation();
+    const back = bed();
+    onClose();
+    back?.focus({ preventScroll: true });
+  };
+  return <div ref={ref} id="bed-menu" class={`bed-popover${pos.below?' below':''}`} role="group" aria-label={`Действия на грядке ${at[0]+1}:${at[1]+1}`} onKeyDown={onKey} style={{left:pos.left,top:pos.top,visibility:pos.ready?'visible':'hidden',['--tip' as string]:`${pos.tip}px`}}>{children}</div>;
 }

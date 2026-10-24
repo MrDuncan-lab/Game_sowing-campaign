@@ -1,5 +1,5 @@
 import {Companion,PetPose} from '../art/companions';
-import {petMoment,petArea,PetArea,lifeMoment,lifeSize} from './petMotion';
+import {petMoment,petArea,PetArea,lifeMoment,lifeSize,startGlide,glideAt,type Glide} from './petMotion';
 import {motionFrame} from './motionClock';
 import {AnimationClock} from './animationClock';
 import {useReducedMotion} from './useReducedMotion';
@@ -50,19 +50,27 @@ function droneRoute(s:GameState,cam:Camera){
 
 function RoamingCompanion({id,cam,px,interactive,paused,area,hidden,reducedMotion}:{id:'cat'|'dog';cam:Camera;px:number;interactive:boolean;paused:boolean;area:PetArea;hidden:boolean;reducedMotion:boolean}){
  const root=useRef<SVGGElement>(null),clock=useRef(0),last=useRef(0);
+ // PSV-017 · where the pet really stands, and a glide from there when its route is rebuilt (a canal, a new field)
+ const at=useRef<[number,number]|null>(null),glide=useRef<Glide|null>(null);
  const {react,greet}=useGreeting(paused,id==='cat'?1900:2600);
  const [pose,setPose]=useState<PetPose>('sit'),[facing,setFacing]=useState(1);
  const size=Math.max(64,cam.W*.115),hit=Math.max(size,45/Math.max(.1,px));
+ const doors=(area.reach??[]).join(',');
  useLayoutEffect(()=>{
   last.current=0;let moved='';
+  const start=petMoment(cam,id,clock.current,area);
+  glide.current=reducedMotion?null:startGlide(at.current,start,clock.current);
   const tick=(now:number)=>{
    if(last.current&&!paused&&!react&&!document.hidden&&!reducedMotion)clock.current+=Math.min(80,now-last.current)/1000;
    last.current=now;const m=petMoment(cam,id,clock.current,area);
-   const transform=`translate(${Math.max(0,Math.min(cam.W-size,m.x-size/2)).toFixed(2)}px, ${Math.max(0,m.y-size*.9).toFixed(2)}px)`;
+   let x=m.x,y=m.y,walking=false;const g=glide.current;
+   if(g){const o=glideAt(g,clock.current);x+=o.dx;y+=o.dy;walking=!o.done;if(o.done)glide.current=null;}
+   at.current=[x,y];
+   const transform=`translate(${Math.max(0,Math.min(cam.W-size,x-size/2)).toFixed(2)}px, ${Math.max(0,y-size*.9).toFixed(2)}px)`;
    if(transform!==moved){if(root.current)root.current.style.transform=transform;moved=transform;}
-   setPose(react?'play':m.pose);setFacing(m.facing);
+   setPose(react?'play':walking?'walk':m.pose);setFacing(walking&&g&&Math.abs(g.dx)>1?(g.dx>0?-1:1):m.facing);
   };tick(performance.now());if(reducedMotion||paused||react)return;return motionFrame(tick);
- },[cam.W,cam.H,cam.yard,id,paused,react,reducedMotion,area.x,area.y,area.w,area.h]);
+ },[cam.W,cam.H,cam.yard,id,paused,react,reducedMotion,area.x,area.y,area.w,area.h,doors]);
  return <g ref={root} class={`roaming-companion ${paused?'paused':''}`} data-pet={id} data-pose={pose} style={{visibility:hidden?'hidden':undefined}}>
   <g class={`pet-friend${react?' greeted':''}`} role={interactive?'button':undefined} tabindex={interactive?0:undefined} aria-label={`Погладить: ${PETS[id].name}`} pointer-events={interactive?'auto':'none'} onPointerDown={e=>{e.stopPropagation();greet();}} onClick={e=>{e.stopPropagation();greet();}} onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();greet();}}}>
    <rect class="pet-hit" x={(size-hit)/2} y={(size-hit)/2} width={hit} height={hit} fill="transparent"/>

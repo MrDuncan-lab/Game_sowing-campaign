@@ -15,6 +15,7 @@ import {PORTRAIT_IMAGES} from '../art/portraits';
 import {BUYERS} from '../content/orderDialogue';
 import {weekDate} from '../content/rules';
 import {visibleCardFocus} from './coachGeometry';
+import {useModal} from './common';
 export interface TutorialControls {session:TutorialSession;onNext:()=>void;onChapterRead:()=>void;onExit:()=>void;onRetry:()=>void;onReset:()=>void;onHideHint:(hidden:boolean)=>void;error?:string|null;precheck?:(a:Action)=>string|null}
 const visible=(e:Element)=>{const r=e.getBoundingClientRect();return r.width>0&&r.height>0&&r.right>0&&r.left<innerWidth&&r.bottom>75&&r.top<innerHeight;};
 const located=(e:Element)=>{const r=e.getBoundingClientRect();return r.width>0&&r.height>0&&r.right>0&&r.left<innerWidth;};
@@ -122,7 +123,7 @@ function hint(t:TutorialSession,tab:TabId,visitLate=false):Hint{
     case 'place':{
       const placing=building==='drip'&&!q('.field-view[data-build-moving="true"]');
       return tab==='house'?{text:'Поставьте капельный полив на поле.',target:button('Разместить на поле')??q('[data-track="irrigation"]'),gesture:'tap',hello:'Капельный полив готов.'}
-        :{text:placing?'Нажмите на ряд — линия ляжет вдоль него.':'Загляните в дом: «Разместить на поле».',target:placing?bed(2,2):nav('house'),gesture:'tap',more:placing?'Линия сохраняет влагу в своём ряду — грядки не сохнут за неделю. Сама не поливает: сухие сначала полейте.':undefined,hello:placing?undefined:'Капельный полив готов.'};
+        :{text:placing?'Нажмите на ряд — линия ляжет вдоль него.':'Загляните в дом: «Разместить на поле».',target:placing?bed(2,2):nav('house'),gesture:'tap',more:placing?'Линия отменяет обычное высыхание в своём ряду; жара и засуха всё равно сушат. Сама не поливает: сухие сначала полейте.':undefined,hello:placing?undefined:'Капельный полив готов.'};
     }
     case 'practice':{
       if(tab==='orders'&&q('.orders-pane .hall')&&!t.delivered)return{text:'Вернитесь из зала славы к заказам.',target:q('.orders-pane .back-link'),gesture:'tap'};
@@ -186,8 +187,11 @@ function Gest({kind}:{kind:Gesture}){
 // ---------- the chapter certificate ----------
 function Certificate({chapter,onPrimary,primary,onSecondary,secondary}:{chapter:'I'|'II';primary:string;onPrimary:()=>void;secondary?:string;onSecondary?:()=>void}){
   const items=chapter==='I'?CH1:CH2;
-  return <div class="coach-cert-back" role="dialog" aria-modal="true" aria-labelledby="coach-cert-title">
-    <div class="coach-cert">
+  // PSV-007 · a real modal: focus on the first action, Tab stays inside, the farm behind is inert
+  const ref=useRef<HTMLDivElement>(null);
+  useModal(ref);
+  return <div class="coach-cert-back">
+    <div class="coach-cert" role="dialog" aria-modal="true" aria-labelledby="coach-cert-title" tabIndex={-1} ref={ref}>
       <div class="cc-seal" aria-hidden="true"><span>{chapter}</span></div>
       <small class="cc-kicker">учебная ферма · глава {chapter}</small>
       <h2 id="coach-cert-title">{chapter==='I'?'Первый урожай':'Своё хозяйство'}</h2>

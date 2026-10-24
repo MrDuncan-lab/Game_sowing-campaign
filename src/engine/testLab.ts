@@ -53,7 +53,7 @@ export function testDate(s:G.GameState,season:number,year=s.year){
  s.temps=loc.seasons.flatMap((n,k)=>Array.from({length:n},(_,i)=>Math.round(baseTemp(loc,k,i+1))));
  s.plan=[];s.flags={rain:false,dry:false,warm:false};s.strikes=[];s.crows=null;s.thieves=null;s.scenes=[];s.lastReport=null;s.phase='week';s.due=null;
  delete s.exchangeWeek;delete s.shortfallBorrowed;
- for(const t of s.tiles)if(t.greenhousePlacedWeek!==undefined)t.greenhousePlacedWeek=Math.min(t.greenhousePlacedWeek,s.absWeek-1);
+ for(const t of s.tiles){if(t.greenhousePlacedWeek!==undefined)t.greenhousePlacedWeek=Math.min(t.greenhousePlacedWeek,s.absWeek-1);if(t.hivePlacedWeek!==undefined)t.hivePlacedWeek=Math.min(t.hivePlacedWeek,s.absWeek-1);}
 }
 export function testHand(s:G.GameState,defs:string[]){
  s.discard.push(...s.hand);s.hand=defs.slice(0,G.handMax(s)).map(def=>({uid:s.nextUid++,def}));

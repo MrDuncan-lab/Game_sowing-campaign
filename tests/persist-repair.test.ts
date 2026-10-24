@@ -117,10 +117,10 @@ test('failed backup and failed replacement retain the old live slot and expose a
     failKey = key;
     assert.equal(saveFarm(replacement, true), false);
     assert.equal(values.get(farmKey), raw);
-    assert.match(persistenceStatus(), /не сохранён/);
+    assert.match(persistenceStatus(), /не сохран(ён|ена):/);
     // Visiting the map must not clear a failed write by merely reading old data.
     allFarms();
-    assert.match(persistenceStatus(), /не сохранён/);
+    assert.match(persistenceStatus(), /не сохран(ён|ена):/);
   }
   failKey = null;
   assert.equal(saveFarm(replacement, true), true);
