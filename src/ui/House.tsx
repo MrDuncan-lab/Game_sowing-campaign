@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import { COMMON_TRACKS, PETS, TRACKS, WORKERS, TrackId, WorkerId, DECK_MIN } from '../engine/data';
 import {
   GameState, deckCount, deckLimit, deckList, hirePrice, lvl, money, trackAvailable, trackCost, trackProblem, trackWeeks, trainPrice, trainWeeks,
@@ -10,7 +10,7 @@ import { Pet } from '../art/extra';
 import { Room, RoomSeat } from '../art/room';
 import { Estate } from '../art/estate';
 import { Portrait, PersonId } from '../art/portraits';
-import { Bar, Btn, Dispatch, Pips, Section, Sheet, weeksShort } from './common';
+import { Bar, Btn, Dispatch, Pips, Section, Sheet, scrollBehavior, weeksShort } from './common';
 import { levelText } from '../content/rules';
 import { CardView, cardDescription } from './Card';
 import { useLessonWeeks } from './lesson';
@@ -24,6 +24,9 @@ function WorkerSheet({ s, id, act, onClose }: { s: GameState; id: WorkerId; act:
   const price = w ? trainPrice(s, id) : hirePrice(s, id);
   const salary = money(Math.round(d.salary * Math.pow(1.2, s.year - 1)));
   const next = level < 3 ? d.levels[level] : null;
+  const [firing, setFiring] = useState(false);
+  const confirmRef = useRef<HTMLDivElement>(null);
+  useEffect(() => { if (firing) confirmRef.current?.focus({ preventScroll: false }); }, [firing]);
   return (
     <Sheet title={d.name} onClose={onClose}>
       <div class="person-head">
@@ -56,7 +59,16 @@ function WorkerSheet({ s, id, act, onClose }: { s: GameState; id: WorkerId; act:
         </ol>
         {w && level < 3 && <p class="small muted">Пока работник учится, зарплата идёт, а умения не действуют.</p>}
       </details>
-      {w && <Btn tone="ghost" small onClick={() => { if (act({ t: 'fire', id })) onClose(); }}>Уволить</Btn>}
+      {w && (firing ? (
+        // PSV-027 · letting someone go loses their level and training: say so, and ask once more
+        <div class="fire-confirm" role="group" aria-labelledby="fire-confirm-text" ref={confirmRef} tabIndex={-1}>
+          <p id="fire-confirm-text"><b>Уволить: {d.name}?</b> {level > 1 ? `Уровень ${level} и пройденная учёба пропадут.` : 'Работник уйдёт с фермы.'}{w.away ? ' Оплаченная учёба не вернётся.' : ''} Вернуть в команду можно, только если снова появится среди кандидатов, и уже с первого уровня.</p>
+          <div class="btn-row">
+            <Btn tone="danger" small onClick={() => { if (act({ t: 'fire', id })) onClose(); }}>Да, уволить</Btn>
+            <Btn small onClick={() => setFiring(false)}>Оставить</Btn>
+          </div>
+        </div>
+      ) : <Btn tone="ghost" small class="fire-btn" onClick={() => setFiring(true)}>Уволить…</Btn>)}
     </Sheet>
   );
 }
@@ -145,7 +157,7 @@ export function HouseView({ s, act, onPlace }: { s: GameState; act: Dispatch; on
   const winter = s.season === 3;
   useEffect(() => { setEditingDeck(false); setInventoryPick(null); }, [s.season]);
   const rearranging = winter && editingDeck;
-  const jump = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const jump = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: scrollBehavior(), block: 'start' });
   const buildingNow = s.projects.filter((p) => p.kind === 'track' && p.track !== 'house');
   const toPlace = ownedTracks.flatMap((t) => { const item = PLACE[t]; const st = item ? buildStock(s)[item] : null; const n = st ? Math.max(0, st.have - st.used) : 0; return item && n > 0 ? [[t, item, n] as const] : []; });
   return (
@@ -190,7 +202,7 @@ export function HouseView({ s, act, onPlace }: { s: GameState; act: Dispatch; on
         </div>
       </div>
 
-      <Interior s={s} onWorker={setWorker} onHire={() => document.getElementById('hire')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} />
+      <Interior s={s} onWorker={setWorker} onHire={() => document.getElementById('hire')?.scrollIntoView({ behavior: scrollBehavior(), block: 'start' })} />
 
       <Section id="workshop" title="Мастерская" icon="build" extra={<span class={`slots${busy >= workshopSlots(s) ? ' full' : ''}`}>верстаки {busy}/{workshopSlots(s)}</span>}>
         <div class="tracks">

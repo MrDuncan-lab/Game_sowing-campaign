@@ -6,7 +6,7 @@ import {
 } from '../engine/game';
 import { Icon } from '../art/icons';
 import { CropIcon, CropSprite } from '../art/crops';
-import { Bar, Btn, Dispatch, Pips, Section, weeksShort } from './common';
+import { Bar, Btn, Dispatch, Pips, Section, scrollBehavior, weeksShort } from './common';
 import { levelText } from '../content/rules';
 import { CardView, TraitBadges, cardPrice, cardStat } from './Card';
 import { useLessonWeeks } from './lesson';
@@ -20,6 +20,14 @@ function LabScene({ built, busy, level }: { built: boolean; busy: number; level:
   return built ? <LabDesk level={level} busy={busy > 0} /> : <LabBlueprint />;
 }
 
+/** PSV-009 · where a new cell would grow, in words: the side of the shape it touches plus its row/column in the scheme. */
+export function spotLabel(cells: [number, number][], spot: [number, number], minX: number, minY: number): string {
+  const [x, y] = spot;
+  const has = (a: number, b: number) => cells.some(([cx, cy]) => cx === a && cy === b);
+  const sides = [has(x, y + 1) && 'сверху', has(x, y - 1) && 'снизу', has(x + 1, y) && 'слева', has(x - 1, y) && 'справа'].filter(Boolean) as string[];
+  return `${sides.length ? sides.join(' и ') : 'рядом'} · ряд ${y - minY + 1}, столбец ${x - minX + 1}`;
+}
+
 function ShapeEditor({ s, card, onPick, chosen }: { s: GameState; card: Card; onPick: (cell: [number, number]) => void; chosen: [number,number] | null }) {
   const cells = cardCells(card);
   const spots = upgradeSpots(s, card);
@@ -28,22 +36,39 @@ function ShapeEditor({ s, card, onPick, chosen }: { s: GameState; card: Card; on
   const maxX = Math.max(...all.map((c) => c[0])), maxY = Math.max(...all.map((c) => c[1]));
   const C = 48;
   const crop = CARDS[card.def].crop!;
-  return (
-    <svg viewBox={`0 0 ${(maxX - minX + 1) * C + 8} ${(maxY - minY + 1) * C + 8}`} class="shape-editor" style={{ maxWidth: `${(maxX - minX + 1) * C + 8}px` }}>
+  const box = useRef<SVGSVGElement>(null);
+  // arrows walk to the nearest free spot in that direction
+  const step = (from: [number, number], key: string) => {
+    const d = key === 'ArrowRight' ? [1, 0] : key === 'ArrowLeft' ? [-1, 0] : key === 'ArrowDown' ? [0, 1] : key === 'ArrowUp' ? [0, -1] : null;
+    if (!d) return false;
+    const ahead = spots.filter(([x, y]) => (x - from[0]) * d[0] + (y - from[1]) * d[1] > 0)
+      .sort((a, b) => Math.hypot(a[0] - from[0], a[1] - from[1]) - Math.hypot(b[0] - from[0], b[1] - from[1]));
+    if (ahead[0]) box.current?.querySelector<SVGGElement>(`[data-spot="${ahead[0][0]},${ahead[0][1]}"]`)?.focus();
+    return true;
+  };
+  return (<>
+    <svg ref={box} viewBox={`0 0 ${(maxX - minX + 1) * C + 8} ${(maxY - minY + 1) * C + 8}`} class="shape-editor" style={{ maxWidth: `${(maxX - minX + 1) * C + 8}px` }} role="group" aria-label={`Фигура: ${cells.length} ${cells.length === 1 ? 'клетка' : cells.length < 5 ? 'клетки' : 'клеток'}, места для новой клетки: ${spots.length}. Стрелки переходят между местами.`}>
       {cells.map(([x, y]) => (
         <g transform={`translate(${(x - minX) * C + 4} ${(y - minY) * C + 4})`}>
           <rect width={C - 4} height={C - 4} rx={7} fill={P.soil} stroke={P.ink} stroke-width={1.6} />
           <svg x={2} y={0} width={C - 8} height={C - 6} viewBox="-4 -6 108 108"><CropSprite id={crop} stage={2} /></svg>
         </g>
       ))}
-      {spots.map(([x, y]) => (
-        <g transform={`translate(${(x - minX) * C + 4} ${(y - minY) * C + 4})`} class={`spot${chosen?.[0]===x&&chosen?.[1]===y?' chosen':''}`} role="button" tabindex={0} onClick={() => onPick([x, y])} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onPick([x, y]); } }} aria-label="Добавить клетку сюда">
-          <rect width={C - 4} height={C - 4} rx={7} fill="#fff8d6" stroke="#c8931f" stroke-width={2} stroke-dasharray="4 3" />
-          <text x={(C - 4) / 2} y={(C - 4) / 2 + 6} text-anchor="middle" class="plus">+</text>
-        </g>
-      ))}
+      {spots.map(([x, y]) => {
+        const on = chosen?.[0] === x && chosen?.[1] === y;
+        return (
+          <g transform={`translate(${(x - minX) * C + 4} ${(y - minY) * C + 4})`} class={`spot${on ? ' chosen' : ''}`} data-spot={`${x},${y}`} role="button" tabindex={0} aria-pressed={on}
+            onClick={() => onPick([x, y])}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onPick([x, y]); } else if (step([x, y], e.key)) e.preventDefault(); }}
+            aria-label={`Добавить клетку ${spotLabel(cells, [x, y], minX, minY)}`}>
+            <rect width={C - 4} height={C - 4} rx={7} fill="#fff8d6" stroke="#c8931f" stroke-width={2} stroke-dasharray="4 3" />
+            <text x={(C - 4) / 2} y={(C - 4) / 2 + 6} text-anchor="middle" class="plus">+</text>
+          </g>
+        );
+      })}
     </svg>
-  );
+    <p class="sr-only" aria-live="polite">{chosen ? `Выбрана клетка ${spotLabel(cells, chosen, minX, minY)}` : ''}</p>
+  </>);
 }
 
 function ProjectPreview({s,card,cell}:{s:GameState;card:Card;cell:[number,number]}) {
@@ -67,6 +92,7 @@ export function LabView({ s, act, active = true, teaching = false }: { s: GameSt
   const editor = useRef<HTMLDivElement>(null);
   const lastPick = useRef<number | null>(null);
   const seedList = useRef<HTMLDivElement>(null);
+  const editorTitle = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
     const onVisibility = () => setVisible(!document.hidden);
     document.addEventListener('visibilitychange', onVisibility);
@@ -91,8 +117,11 @@ export function LabView({ s, act, active = true, teaching = false }: { s: GameSt
   const chosen = seeds.find((c) => c.uid === pick) ?? null;
   useLayoutEffect(() => {
     if (chosen) {
+      // PSV-008 · the list (and the button that had focus) is gone: continue from the editor's title
+      const fresh = lastPick.current !== chosen.uid;
       lastPick.current = chosen.uid;
       editor.current?.scrollIntoView({ block: 'start', inline: 'nearest' });
+      if (fresh) editorTitle.current?.focus({ preventScroll: true });
     } else if (lastPick.current !== null) {
       const previous = seedList.current?.querySelector<HTMLElement>(`[data-card-uid="${lastPick.current}"]`);
       previous?.focus({ preventScroll: true });
@@ -117,7 +146,7 @@ export function LabView({ s, act, active = true, teaching = false }: { s: GameSt
     </div>
   ) : null;
   const busyNow = labBusy(s), slots = labSlots(s);
-  const scrollTo = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start', inline: 'nearest' });
+  const scrollTo = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: scrollBehavior(), block: 'start', inline: 'nearest' });
   const toDesks = () => scrollTo('lab-desks');
   const toNew = () => scrollTo('lab-new');
   const projectCrop = (p: Project) => p.kind === 'cell' || p.kind === 'trait' ? CARDS[p.card.def].crop : p.kind === 'variety' ? p.crop : undefined;
@@ -221,7 +250,7 @@ export function LabView({ s, act, active = true, teaching = false }: { s: GameSt
                       <CardView s={s} card={chosen} mini selected onClick={() => setPick(null)} />
                     </div>
                     <div class="seed-passport-facts">
-                      <h3>{CARDS[chosen.def].name}</h3>
+                      <h3 tabIndex={-1} ref={editorTitle}>{CARDS[chosen.def].name}</h3>
                       <dl>
                         <dt>Грядки</dt><dd>{cardCells(chosen).length}</dd>
                         <dt>Посев</dt><dd>{cardDays(s, chosen)} дн. · {money(cardPrice(s, chosen))}</dd>
@@ -240,6 +269,7 @@ export function LabView({ s, act, active = true, teaching = false }: { s: GameSt
                       <>
                         <p class="small muted">Только эта карта. Посев станет дороже.</p>
                         <ShapeEditor s={s} card={chosen} chosen={cellPick} onPick={setCellPick}/>
+
                         {cellPick&&<ProjectPreview s={s} card={chosen} cell={cellPick}/>}
                         {cellPick&&<Btn tone="primary" disabled={why || (s.money<cellPrice(s,chosen)?'Не хватает денег':null)} onClick={()=>{if(act({t:'labCell',uid:chosen.uid,cell:cellPick})){setPick(null);setCellPick(null);}}}>Начать · {money(cellPrice(s,chosen))} · {weeksShort(lessonWeeks(labWeeksFor(s,'cell')))}</Btn>}
                       </>

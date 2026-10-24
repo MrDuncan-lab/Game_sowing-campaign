@@ -15,6 +15,7 @@ import {PORTRAIT_IMAGES} from '../art/portraits';
 import {BUYERS} from '../content/orderDialogue';
 import {weekDate} from '../content/rules';
 import {visibleCardFocus} from './coachGeometry';
+import {useModal} from './common';
 export interface TutorialControls {session:TutorialSession;onNext:()=>void;onChapterRead:()=>void;onExit:()=>void;onRetry:()=>void;onReset:()=>void;onHideHint:(hidden:boolean)=>void;error?:string|null;precheck?:(a:Action)=>string|null}
 const visible=(e:Element)=>{const r=e.getBoundingClientRect();return r.width>0&&r.height>0&&r.right>0&&r.left<innerWidth&&r.bottom>75&&r.top<innerHeight;};
 const located=(e:Element)=>{const r=e.getBoundingClientRect();return r.width>0&&r.height>0&&r.right>0&&r.left<innerWidth;};
@@ -186,8 +187,11 @@ function Gest({kind}:{kind:Gesture}){
 // ---------- the chapter certificate ----------
 function Certificate({chapter,onPrimary,primary,onSecondary,secondary}:{chapter:'I'|'II';primary:string;onPrimary:()=>void;secondary?:string;onSecondary?:()=>void}){
   const items=chapter==='I'?CH1:CH2;
-  return <div class="coach-cert-back" role="dialog" aria-modal="true" aria-labelledby="coach-cert-title">
-    <div class="coach-cert">
+  // PSV-007 · a real modal: focus on the first action, Tab stays inside, the farm behind is inert
+  const ref=useRef<HTMLDivElement>(null);
+  useModal(ref);
+  return <div class="coach-cert-back">
+    <div class="coach-cert" role="dialog" aria-modal="true" aria-labelledby="coach-cert-title" tabIndex={-1} ref={ref}>
       <div class="cc-seal" aria-hidden="true"><span>{chapter}</span></div>
       <small class="cc-kicker">учебная ферма · глава {chapter}</small>
       <h2 id="coach-cert-title">{chapter==='I'?'Первый урожай':'Своё хозяйство'}</h2>

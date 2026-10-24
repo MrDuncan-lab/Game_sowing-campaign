@@ -146,7 +146,7 @@ function write<T>(key: string, value: T, valid: (v: unknown) => v is T, replaceI
     issue(`${key}:write`);
     return true;
   } catch {
-    issue(`${key}:write`, `${label(key)} не сохранён: запись недоступна или недостаточно места. Прогресс остаётся в этой вкладке; повторите сохранение.`);
+    issue(`${key}:write`, `${label(key)} не ${key === PROFILE ? "сохранён" : "сохранена"}: запись недоступна или недостаточно места. Прогресс остаётся в этой вкладке; повторите сохранение.`);
     return false;
   }
 }

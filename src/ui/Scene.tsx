@@ -1,4 +1,6 @@
 import type {SceneCue} from './useSceneQueue';
+import type { ComponentChildren } from 'preact';
+import { useLayoutEffect, useRef } from 'preact/hooks';
 import {THEFT_ARRIVAL_MS, THEFT_IMPACT_MS, theftStagger, theftDelay} from './weekPlayback';
 import { FarmLife } from './FarmLife';
 import { MorningLayer, MorningStep, morningPlantClass, morningCellDelay } from './Morning';
@@ -598,9 +600,44 @@ function plantingBadges(s: GameState, hidden?: Map<string, Tile>): Map<string, n
 
 export interface BuildView { item: string; spots: Set<string>; rows: boolean; corners: boolean; removable: Set<string> }
 
+/**
+ * PSV-004 · the farmer walks on the scene's own clock. A CSS transition cannot be paused, so the walk is a Web
+ * Animation from wherever he stands now to the new spot; a pause freezes it mid-step and play() finishes the rest.
+ */
+function Walker({ x, y, ms, paused, cycle, children }: { x: number; y: number; ms: number; paused: boolean; cycle: number; children: ComponentChildren }) {
+  const ref = useRef<SVGGElement>(null);
+  const anim = useRef<Animation | null>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const to = `translate(${x}px, ${y}px)`;
+    const from = el.style.transform ? getComputedStyle(el).transform : '';
+    anim.current?.cancel();
+    anim.current = null;
+    el.style.transform = to;
+    if (ms > 0 && from && from !== 'none' && typeof el.animate === 'function') {
+      const a = el.animate([{ transform: from }, { transform: to }], { duration: ms, easing: 'linear' });
+      if (paused) a.pause();
+      a.onfinish = () => { if (anim.current === a) anim.current = null; };
+      anim.current = a;
+    }
+  }, [x, y, ms]);
+  useLayoutEffect(() => {
+    const a = anim.current;
+    if (!a) return;
+    if (paused) a.pause(); else if (a.playState === 'paused') a.play();
+  }, [paused]);
+  return <g ref={ref} class="farmer" pointer-events="none" style={{ ['--work-cycle' as string]: `${cycle}ms` }}>{children}</g>;
+}
+
 export function Scene({
+  scenePaused = false, menuTile = null,
   s, highlight, onTile, onCorner, hoverTile, onHover, farmer, floaters, hidden, effects = [], yard = YARD, px = 1, queue, flock = 'off', lens = null, build = null, pets = [], lifeActive = true, showWarnings = true, sceneCue = null, pestHits = [], pestPaused=false, morning = null, compost, scouts = false, onScouts, aftermath, spentDry,
 }: {
+  /** the world is paused (a dialog, another section, a hidden page): the farmer's walk stops with it */
+  scenePaused?: boolean;
+  /** the bed whose action menu is open ("x,y") */
+  menuTile?: string | null;
   /** the week before a raid: two orphanage kids loiter behind a bush in the yard */
   scouts?: boolean;
   onScouts?: () => void;
@@ -727,6 +764,8 @@ export function Scene({
                 onMouseLeave={() => onHover(null)}
                 role={clickable ? 'button' : undefined}
                 tabindex={clickable ? 0 : undefined}
+                aria-expanded={clickable && menuTile === k ? true : undefined}
+                aria-controls={clickable && menuTile === k ? 'bed-menu' : undefined}
                 aria-label={t.terrain === 'river' ? 'Река' : t.terrain === 'forest' ? (clearable ? 'Тайга: можно раскорчевать' : 'Тайга') : t.owned ? `Грядка ${x + 1}:${y + 1}${crop ? `, ${CROPS[crop.id].name}` : t.weeds ? ', сорняки' : ', пусто'}` : buyable ? `Участок на продажу за ${price} ₽` : 'Чужая земля'}
                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onTile(x, y); } }}
               >
@@ -942,7 +981,7 @@ export function Scene({
     </svg>
     <svg viewBox={`0 0 ${cam.W} ${cam.H}`} class="life-svg" pointer-events="none">
       <g visibility={hidePlants?'hidden':'visible'}><FarmLife s={s} cam={cam} px={px} cue={sceneCue} active={lifeActive&&!hidePlants} interactive={!hidePlants&&!highlight.tiles.size&&!highlight.preview&&!highlight.area.size}/></g>
-      <g class="farmer" pointer-events="none" style={{ transform: `translate(${fx}px, ${fy}px)`, transition: `transform ${farmer.ms}ms linear`, ['--work-cycle' as string]: `${farmer.cycle ?? 1200}ms` }}>
+      <Walker x={fx} y={fy} ms={farmer.ms} paused={scenePaused} cycle={farmer.cycle ?? 1200}>
         <g transform={`scale(${farmer.facing * 0.8} 0.8)`}>
           <Farmer action={farmer.action} walking={farmer.walking} bubble={null} rest={farmer.pos.kind !== 'tile'} />
         </g>
@@ -955,7 +994,7 @@ export function Scene({
             </g>
           </g>
         )}
-      </g>
+      </Walker>
     </svg>
   </>);
 }

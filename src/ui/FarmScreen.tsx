@@ -1,6 +1,7 @@
 import {GuideHint,type TutorialControls} from './Guide';
 import {QuickProjects} from './lesson';
 import { useEffect, useRef, useState } from 'preact/hooks';
+import type { ComponentChildren, JSX } from 'preact';
 import { LOCATIONS, SEASON_NAMES } from '../engine/data';
 import {
   GameState, deliverProblem, labBusy, labSlots, lvl, money, nextPayment, plural, seasonLen, storageCap, storageUsed, workshopBusy, workshopSlots,
@@ -9,7 +10,7 @@ import {
 import type { OrgId } from '../engine/data';
 import type { BuildItem } from '../engine/game';
 import { Icon } from '../art/icons';
-import { Btn, Dispatch, Money, Sheet, compactMoney } from './common';
+import { Btn, Dispatch, Money, Sheet, compactMoney, reducedMotionNow, useModal } from './common';
 import { FieldView } from './FieldView';
 import { HouseView } from './House';
 import { LabView } from './Lab';
@@ -61,11 +62,23 @@ function ShortfallSheet({ s, act, onBarn, onOrders, onClose, onRetry }: { s: Gam
   );
 }
 
-function GameOver({ s, onMap, onRestart }: { s: GameState; onMap: () => void; onRestart: () => void }) {
+/** PSV-007 · the closed farm is a real modal: focus inside, Tab cycles its two actions, the farm behind is inert. */
+export function ClosedLayer({ title, children }: { title: string; children: ComponentChildren }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useModal(ref);
   return (
     <div class="gameover">
-      <div class="panel">
-        <h1>Ферма закрыта</h1>
+      <div class="panel" role="dialog" aria-modal="true" aria-labelledby="gameover-title" tabIndex={-1} ref={ref}>
+        <h1 id="gameover-title">{title}</h1>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function GameOver({ s, onMap, onRestart }: { s: GameState; onMap: () => void; onRestart: () => void }) {
+  return (
+    <ClosedLayer title="Ферма закрыта">
         <p>{s.over?.reason}</p>
         <div class="bank-grid">
           <div class="kv"><span>Прожито лет</span><b>{s.yearsCompleted}</b></div>
@@ -78,8 +91,7 @@ function GameOver({ s, onMap, onRestart }: { s: GameState; onMap: () => void; on
           <Btn tone="primary" onClick={onRestart}>Начать заново</Btn>
           <Btn onClick={onMap}>На карту</Btn>
         </div>
-      </div>
-    </div>
+    </ClosedLayer>
   );
 }
 
@@ -101,7 +113,7 @@ export function FarmScreen({ s, dispatch, profile, fast, onFast, onMap, onRestar
   function go(t: TabId, smooth = true) {
     const el = pager.current;
     if (!el) return;
-    const animate=smooth&&!window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const animate=smooth&&!reducedMotionNow();
     navigationTarget.current=t;
     el.scrollTo({ left: idx(t) * el.clientWidth, behavior: animate ? 'smooth' : 'auto' });
     setTab(t);
@@ -144,6 +156,18 @@ export function FarmScreen({ s, dispatch, profile, fast, onFast, onMap, onRestar
       window.removeEventListener('resize', onResize);
     };
   }, []);
+  // PSV-006 · only the shown section is in the Tab order and the accessibility tree. Swiping still works:
+  // the pager scrolls, and the section that settles in view becomes the live one.
+  const paneProps = (id: TabId) => ({ id: `pane-${id}`, role: 'tabpanel' as const, 'aria-labelledby': `tab-${id}`, inert: tab !== id, 'data-inert-base': String(tab !== id) });
+  // a tablist with one Tab stop: arrows, Home and End move between sections
+  function onTabKey(e: JSX.TargetedKeyboardEvent<HTMLElement>) {
+    const at = idx(tabRef.current);
+    const to = e.key === 'ArrowRight' ? Math.min(TABS.length - 1, at + 1) : e.key === 'ArrowLeft' ? Math.max(0, at - 1) : e.key === 'Home' ? 0 : e.key === 'End' ? TABS.length - 1 : -1;
+    if (to < 0) return;
+    e.preventDefault();
+    go(TABS[to].id);
+    document.getElementById(`tab-${TABS[to].id}`)?.focus();
+  }
   const np = nextPayment(s);
   const loc = LOCATIONS[s.loc];
   const ready = locOf(s).orgs.filter((o) => s.orgs[o]?.active && !deliverProblem(s, o)).length;
@@ -172,11 +196,11 @@ export function FarmScreen({ s, dispatch, profile, fast, onFast, onMap, onRestar
           <span class="pay-bar"><span style={{ width: `${Math.min(100, (s.money / Math.max(1, np.amount)) * 100)}%` }} /></span>
         </button>
       </header>
-      <nav class="tabs" role="tablist" aria-label="Разделы фермы">
+      <nav class="tabs" role="tablist" aria-label="Разделы фермы" onKeyDown={onTabKey}>
         {TABS.map((t) => {
           const b = badges[t.id];
           return (
-            <button type="button" role="tab" data-tab={t.id} aria-selected={tab === t.id} class={`tab${tab === t.id ? ' on' : ''}${t.id === 'field' ? ' main' : ''}`} onClick={() => go(t.id)}>
+            <button type="button" role="tab" id={`tab-${t.id}`} aria-controls={`pane-${t.id}`} tabIndex={tab === t.id ? 0 : -1} data-tab={t.id} aria-selected={tab === t.id} class={`tab${tab === t.id ? ' on' : ''}${t.id === 'field' ? ' main' : ''}`} onClick={() => go(t.id)}>
               <Icon name={t.icon} size={t.id === 'field' ? 26 : 22} />
               <span>{t.short}</span>
               {b && <i aria-hidden="true" class={`tab-badge ${b.tone ?? ''}`}>{b.n}</i>}
@@ -186,16 +210,16 @@ export function FarmScreen({ s, dispatch, profile, fast, onFast, onMap, onRestar
       </nav>
       {s.phase === 'shortfall' && !paymentOpen && <div class="payment-reminder" role="status"><span>Платёж ожидает решения</span><button type="button" onClick={()=>setPaymentOpen(true)}>Решить платёж</button></div>}
       <QuickProjects.Provider value={!!tutorial}><div class="pager" ref={pager}>
-        <section class="pane" aria-label="Лаборатория"><LabView s={s} act={dispatch} active={tab === 'lab' && !menu && !paymentOpen && !suspended} teaching={tutorial?.session.step === 'lab'} /></section>
-        <section class="pane" aria-label="Дом"><HouseView s={s} act={dispatch} onPlace={(item) => { setPlaceRequest({ item, key: Date.now() }); go('field'); }} /></section>
-        <section class="pane field-pane" aria-label="Поле"><FieldView teaching={!!tutorial} precheck={tutorial?.precheck} lessonVisit={tutorial?.session.step==='visit'} onVisitDone={()=>{if(tutorial?.session.step==='visit')tutorial.onNext();}} onOrder={org=>{setOrderTarget({org,key:Date.now()});go('orders');}} testing={testing} s={s} dispatch={dispatch} fast={fast} active={tab === 'field' && !menu && !paymentOpen && !suspended} placeRequest={placeRequest} onGo={(t) => t === 'barn' ? openBarn() : go(t as TabId)} /></section>
-        <section class="pane" aria-label="Амбар"><BarnView s={s} act={dispatch} target={barnTarget} onPayment={()=>setPaymentOpen(true)} /></section>
-        <section class="pane" aria-label="Заказы"><OrdersView teaching={!!tutorial} target={orderTarget} s={s} act={dispatch} profile={profile} /></section>
+        <section class="pane" {...paneProps('lab')}><LabView s={s} act={dispatch} active={tab === 'lab' && !menu && !paymentOpen && !suspended} teaching={tutorial?.session.step === 'lab'} /></section>
+        <section class="pane" {...paneProps('house')}><HouseView s={s} act={dispatch} onPlace={(item) => { setPlaceRequest({ item, key: Date.now() }); go('field'); }} /></section>
+        <section class="pane field-pane" {...paneProps('field')}><FieldView teaching={!!tutorial} precheck={tutorial?.precheck} lessonVisit={tutorial?.session.step==='visit'} onVisitDone={()=>{if(tutorial?.session.step==='visit')tutorial.onNext();}} onOrder={org=>{setOrderTarget({org,key:Date.now()});go('orders');}} testing={testing} s={s} dispatch={dispatch} fast={fast} active={tab === 'field' && !menu && !paymentOpen && !suspended} placeRequest={placeRequest} onGo={(t) => t === 'barn' ? openBarn() : go(t as TabId)} /></section>
+        <section class="pane" {...paneProps('barn')}><BarnView s={s} act={dispatch} target={barnTarget} onPayment={()=>setPaymentOpen(true)} /></section>
+        <section class="pane" {...paneProps('orders')}><OrdersView teaching={!!tutorial} target={orderTarget} s={s} act={dispatch} profile={profile} /></section>
       </div></QuickProjects.Provider>
       {tutorial&&!menu&&!paymentOpen&&s.phase!=='gameover'&&<GuideHint controls={tutorial} tab={tab}/>}
       {error && !(tutorial && !menu && !paymentOpen && s.phase !== 'gameover' && tutorial.session.hiddenHintStep !== tutorial.session.step) && <div class="toast" role="alert">{error}</div>}
       {s.phase === 'shortfall' && paymentOpen && <ShortfallSheet s={s} act={dispatch} onBarn={() => openBarn()} onOrders={() => { setPaymentOpen(false); go('orders'); }} onClose={() => setPaymentOpen(false)} onRetry={tutorial?.onRetry} />}
-      {s.phase === 'gameover' && (tutorial?<div class="gameover"><div class="panel"><h1>Учебная ферма закрыта</h1><p>Можно повторить последнее задание. Предыдущие уроки проходить заново не нужно.</p><div class="btn-row"><Btn tone="primary" onClick={tutorial.onRetry}>Повторить этот шаг</Btn><Btn onClick={onMap}>На карту</Btn></div></div></div>:<GameOver s={s} onMap={onMap} onRestart={onRestart} />)}
+      {s.phase === 'gameover' && (tutorial?<ClosedLayer title="Учебная ферма закрыта"><p>Можно повторить последнее задание. Предыдущие уроки проходить заново не нужно.</p><div class="btn-row"><Btn tone="primary" onClick={tutorial.onRetry}>Повторить этот шаг</Btn><Btn onClick={onMap}>На карту</Btn></div></ClosedLayer>:<GameOver s={s} onMap={onMap} onRestart={onRestart} />)}
       {menu && (
         <Sheet title={`${loc.name} · ${loc.place}`} icon="map" onClose={() => setMenu(false)}>
           <div class="stack">

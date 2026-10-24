@@ -1083,6 +1083,9 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, placeReque
     if (act(a)) { setMoveFrom(null); setBuild('menu'); }
   }
   function pickCard(uid: number) {
+    // PSV-005 · while the week's events play, the hand is the next week's: nothing in it can be played yet,
+    // and picking a card must not take the "skip" control away
+    if (weekPlaying || ending.current) { say('Сначала досмотрите события недели или пропустите их'); return; }
     if(exchanging) {
       if(act({t:'exchangeCard',uid})) {setExchanging(false);setSelected(null);}
       return;
@@ -1428,6 +1431,8 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, placeReque
         <div class="field-row" style={{ ['--arn' as string]: String(cam.W / cam.H) }}>
           <div class="field-stage">
             <Scene
+              scenePaused={!active||!pageVisible||!!sheet||meetingOpen}
+              menuTile={info && !card && !build ? info.join(',') : null}
               s={fieldState}
               hidden={hidden}
               aftermath={aftermath} spentDry={spentDry}
@@ -1531,7 +1536,7 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, placeReque
               <button type="button" class="icon-btn tool-x" onClick={() => setSelected(null)} aria-label="Отменить выбор">✕</button>
             </div>
           )}
-          {!shown && <button type="button" class={`btn end-week${ready ? ' ready' : ''}${weekPlaying?' skip-morning':''}`} disabled={night!=='off'&&night!=='fade'||!weekPlaying&&(s.phase !== 'week'||endWaiting)} onClick={weekPlaying?cancelMorning:endWeek}>
+          {(!shown || weekPlaying) && <button type="button" class={`btn end-week${ready ? ' ready' : ''}${weekPlaying?' skip-morning':''}`} disabled={night!=='off'&&night!=='fade'||!weekPlaying&&(s.phase !== 'week'||endWaiting)} onClick={weekPlaying?cancelMorning:endWeek}>
             <span>{weekPlaying?'Пропустить анимацию':endWaiting?'Завершаем работы…':'Завершить неделю'}</span>
             {!weekPlaying && endText && <small class={endBad ? 'bad' : ''}>{endText}</small>}
           </button>}

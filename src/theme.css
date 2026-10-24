@@ -1810,3 +1810,6 @@ details.sale-more > summary { min-height: 36px; font-size: .9rem; }
 .sale-trend .spark {display:block;} .sale-trend .forecast-pick {margin-left:auto;flex:0 0 96px;}
 
 .field-view.scene-paused * { animation-play-state:paused!important; }
+/* PSV-001: the farm pauses under a dialog, the dialog does not. A sheet opened from the field
+   lives inside .field-view; its own entrance (fade, sheet-in, book-in, book-tools) keeps running. */
+.field-view.scene-paused .sheet-back, .field-view.scene-paused .sheet-back * { animation-play-state:running!important; }
