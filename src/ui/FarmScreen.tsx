@@ -184,11 +184,11 @@ export function FarmScreen({ s, dispatch, profile, fast, onFast, onMap, onRestar
           );
         })}
       </nav>
-      {s.phase === 'shortfall' && !paymentOpen && <div class="payment-reminder" role="status"><span>Платёж ожидает решения</span><button type="button" onClick={()=>setPaymentOpen(true)}>Решить платёж</button></div>}
+      {s.phase === 'shortfall' && !paymentOpen && tab !== 'field' && <div class="payment-reminder" role="status"><div class="pr-chip"><span>Платёж ожидает решения</span><button type="button" onClick={()=>setPaymentOpen(true)}>Решить платёж</button></div></div>}
       <QuickProjects.Provider value={!!tutorial}><div class="pager" ref={pager}>
         <section class="pane" aria-label="Лаборатория"><LabView s={s} act={dispatch} active={tab === 'lab' && !menu && !paymentOpen && !suspended} teaching={tutorial?.session.step === 'lab'} /></section>
         <section class="pane" aria-label="Дом"><HouseView s={s} act={dispatch} onPlace={(item) => { setPlaceRequest({ item, key: Date.now() }); go('field'); }} /></section>
-        <section class="pane field-pane" aria-label="Поле"><FieldView teaching={!!tutorial} precheck={tutorial?.precheck} lessonVisit={tutorial?.session.step==='visit'} onVisitDone={()=>{if(tutorial?.session.step==='visit')tutorial.onNext();}} onOrder={org=>{setOrderTarget({org,key:Date.now()});go('orders');}} testing={testing} s={s} dispatch={dispatch} fast={fast} active={tab === 'field' && !menu && !paymentOpen && !suspended} placeRequest={placeRequest} onGo={(t) => t === 'barn' ? openBarn() : go(t as TabId)} /></section>
+        <section class="pane field-pane" aria-label="Поле"><FieldView teaching={!!tutorial} precheck={tutorial?.precheck} lessonVisit={tutorial?.session.step==='visit'} onVisitDone={()=>{if(tutorial?.session.step==='visit')tutorial.onNext();}} onOrder={org=>{setOrderTarget({org,key:Date.now()});go('orders');}} onPayment={()=>setPaymentOpen(true)} testing={testing} s={s} dispatch={dispatch} fast={fast} active={tab === 'field' && !menu && !paymentOpen && !suspended} placeRequest={placeRequest} onGo={(t) => t === 'barn' ? openBarn() : go(t as TabId)} /></section>
         <section class="pane" aria-label="Амбар"><BarnView s={s} act={dispatch} target={barnTarget} onPayment={()=>setPaymentOpen(true)} /></section>
         <section class="pane" aria-label="Заказы"><OrdersView teaching={!!tutorial} target={orderTarget} s={s} act={dispatch} profile={profile} /></section>
       </div></QuickProjects.Provider>

@@ -61,20 +61,28 @@ export const PAD = 22;
 export const YARD = 64;
 // the field screen draws the forecast sky above the yard strip
 export const FIELD_YARD = YARD + SKY_H;
-export interface SkyView { tokens: SkyToken[]; signs: RaidSign[]; meteoMax: boolean; onToken: (t: SkyToken) => void; onFog: () => void; onSign: (s: RaidSign) => void }
+export interface SkyView { tokens: SkyToken[]; signs: RaidSign[]; meteoMax: boolean; onToken: (t: SkyToken) => void; onFog: () => void; onSign: (s: RaidSign) => void; clear?: boolean }
 
 export interface Camera { vx: number; vy: number; span: number; W: number; H: number; yard: number }
+// how much of the meadow round the owned land the frame shows, in cells: whole plots only — a plot cut by
+// the frame edge reads as broken
+export const RING = 1;
 export function camera(s: GameState, yard = YARD): Camera {
-  let x0 = GRID, y0 = GRID, x1 = 0, y1 = 0;
+  let x0 = GRID, y0 = GRID, x1 = -1, y1 = -1;
   for (let y = 0; y < GRID; y++) for (let x = 0; x < GRID; x++) if (tile(s, x, y).owned) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
-  x0 = Math.max(0, x0 - 1); y0 = Math.max(0, y0 - 1); x1 = Math.min(GRID - 1, x1 + 1); y1 = Math.min(GRID - 1, y1 + 1);
-  for (let y = 0; y < GRID; y++) for (let x = 0; x < GRID; x++) if (tile(s, x, y).terrain !== 'plain' && tile(s, x, y).terrain !== 'forest') { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
-  const span = Math.max(x1 - x0, y1 - y0) + 1;
-  const cx = (x0 + x1 + 1) / 2, cy = (y0 + y1 + 1) / 2;
+  if (x1 < 0) { x0 = y0 = 0; x1 = y1 = GRID - 1; }
+  // the frame's edges in cells (right and bottom exclusive); rivers and other terrain always come in whole
+  let l = Math.max(0, x0 - RING), t = Math.max(0, y0 - RING), r = Math.min(GRID, x1 + 1 + RING), b = Math.min(GRID, y1 + 1 + RING);
+  for (let y = 0; y < GRID; y++) for (let x = 0; x < GRID; x++) if (tile(s, x, y).terrain !== 'plain' && tile(s, x, y).terrain !== 'forest') { l = Math.min(l, x); t = Math.min(t, y); r = Math.max(r, x + 1); b = Math.max(b, y + 1); }
+  const span = Math.min(GRID, Math.max(r - l, b - t));
+  const cx = (l + r) / 2, cy = (t + b) / 2;
   const vx = Math.max(0, Math.min(GRID - span, cx - span / 2));
   const vy = Math.max(0, Math.min(GRID - span, cy - span / 2));
   return { vx, vy, span, W: span * CELL + PAD * 2, H: yard + span * CELL + PAD * 2, yard };
 }
+// a cell is drawn when any part of it is inside the frame (the edge plots are cut, not dropped)
+export const inCam = (cam: Camera, x: number, y: number) =>
+  x + 1 > cam.vx + 0.01 && x < cam.vx + cam.span - 0.01 && y + 1 > cam.vy + 0.01 && y < cam.vy + cam.span - 0.01;
 export function farmerXY(cam: Camera, pos: FarmerPos): [number, number] {
   if (pos.kind === 'home') return [54, Math.max(76, cam.yard - 4)];
   if (pos.kind === 'barn') return [cam.W - 70, Math.max(76, cam.yard - 4)];
@@ -165,7 +173,7 @@ function RiverLayer({ s, cam }: { s: GameState; cam: Camera }) {
   for (let y = 0; y < GRID; y++)
     for (let x = 0; x < GRID; x++) {
       if (tile(s, x, y).terrain !== 'river') continue;
-      if (x < cam.vx - 0.01 || x >= cam.vx + cam.span || y < cam.vy - 0.01 || y >= cam.vy + cam.span) continue;
+      if (!inCam(cam, x, y)) continue;
       cells.push([x, y]);
     }
   const at = (x: number, y: number) => `translate(${PAD + x * CELL} ${PAD + y * CELL})`;
@@ -367,7 +375,7 @@ function flockSpots(s: GameState, cam: Camera): [number, number, number][] {
   for (let y = 0; y < GRID; y++)
     for (let x = 0; x < GRID; x++) {
       const t = tile(s, x, y);
-      if (!t.owned || t.structure || x < cam.vx - 0.01 || y < cam.vy - 0.01 || x >= cam.vx + cam.span || y >= cam.vy + cam.span) continue;
+      if (!t.owned || t.structure || !inCam(cam, x, y)) continue;
       beds.push([x, y, hashXY(x + s.absWeek * 3, y + s.absWeek) + (t.crop ? 0 : 1)]);
     }
   beds.sort((a, b) => a[2] - b[2]);
@@ -654,7 +662,7 @@ export function Scene({
   const mWeeks = mk(15, 10.5), mDry = mk(20, 14), mNum = mk(13, 10), mCross = mk(26, 18), mLens = mk(28, 18);
   const hidePlants = !!lens || !!build;
   const badges = hidePlants ? new Map<string, number | null>() : plantingBadges(s, hidden);
-  const vis = (x: number, y: number) => x >= cam.vx - 0.01 && x < cam.vx + cam.span && y >= cam.vy - 0.01 && y < cam.vy + cam.span;
+  const vis = (x: number, y: number) => inCam(cam, x, y);
   const winter = s.season === 3;
   const locustBeds = new Set(s.strikes.filter((st) => st.kind === 'locust' && st.week === s.absWeek).flatMap((st) => strikeVictims(s, st)).filter(([x, y]) => !isGuarded(s, x, y)).map(([x, y]) => `${x},${y}`));
   // the beetle speaks the locusts' language: the insects on the plant they eat this week (guarded beds keep their shield)
@@ -673,19 +681,14 @@ export function Scene({
     <svg viewBox={`0 0 ${cam.W} ${cam.H}`} class={`scene-svg${winter ? ' winter' : ''}${lens ? ` lens-on` : ''}${build ? ' build-on' : ''}${highlight.preview || highlight.area.size || highlight.block || highlight.tiles.size ? ' previewing' : ''}`} role="group" aria-label="Поле">
       <defs>
         <GrassPattern winter={winter} />
+        <clipPath id="field-land"><path d={`M0 ${yard} H${cam.W} V${cam.H - 18} Q${cam.W} ${cam.H} ${cam.W - 18} ${cam.H} H18 Q0 ${cam.H} 0 ${cam.H - 18} Z`} /></clipPath>
       </defs>
       <rect x={0} y={0} width={cam.W} height={cam.H} rx={18} fill="url(#grass-tex)" />
       {/* the yard strip: a path, the fence, the pets and the crates that did not fit the barn */}
-      {sky && <SkyBand W={cam.W} season={s.season} tokens={sky.tokens} signs={sky.signs} meteoMax={sky.meteoMax} px={px} onToken={sky.onToken} onFog={sky.onFog} onSign={sky.onSign} />}
+      {sky && <SkyBand W={cam.W} season={s.season} tokens={sky.tokens} signs={sky.signs} meteoMax={sky.meteoMax} px={px} onToken={sky.onToken} onFog={sky.onFog} onSign={sky.onSign} clear={sky.clear} />}
       <rect x={0} y={yardTop} width={cam.W} height={yard - yardTop} rx={sky ? 0 : 18} fill={winter ? '#f4f8fb' : '#a9d27f'} opacity={sky ? 0.45 : 0.6} />
       <YardDecor W={cam.W} yard={yard} season={s.season as Season} />
       <EdgeDecor W={cam.W} H={cam.H} yard={yard} season={s.season as Season} />
-      {/* an engraver's double rule round the plot, like the plates of the atlas */}
-      <g class="board-rule" pointer-events="none" fill="none">
-        <rect x={.8} y={.8} width={cam.W - 1.6} height={cam.H - 1.6} rx={17.4} stroke={winter ? '#7f98a8' : '#3f6526'} stroke-width={1.6} opacity={.55} />
-        <rect x={5} y={5} width={cam.W - 10} height={cam.H - 10} rx={13.5} stroke={winter ? '#9fb6c4' : '#4a7a2c'} stroke-width={1} opacity={.55} />
-        <rect x={8} y={8} width={cam.W - 16} height={cam.H - 16} rx={11} stroke={winter ? '#b7c9d4' : '#5f9a3a'} stroke-width={.6} opacity={.35} stroke-dasharray="2 3" />
-      </g>
       {yardCrates > 0 && (
         <g transform={`translate(${cam.W / 2 - 40} ${yard - 44})`} class="yard-crates" pointer-events="none">
           {[0, 1, 2].slice(0, Math.min(3, Math.ceil(yardCrates / 6))).map((i) => (
@@ -711,6 +714,8 @@ export function Scene({
         </g>
       )}
 
+      {/* the plots: the cut edge plots stay under the yard line and inside the rounded board */}
+      <g clip-path="url(#field-land)">
       <g transform={`translate(${-cam.vx * CELL} ${yard - cam.vy * CELL})`}>
         <RiverLayer s={s} cam={cam} />
         {rows.map((y) =>
@@ -946,6 +951,13 @@ export function Scene({
           rows.map((y) => (
             <rect x={PAD - 6 + cam.vx * CELL} y={PAD + y * CELL + 2} width={cam.span * CELL + 12} height={CELL - 4} rx={14} class={`row-target${hoverTile?.endsWith(`,${y}`) ? ' on' : ''}`} pointer-events="none" />
           ))}
+      </g>
+      </g>
+      {/* an engraver's double rule round the plot, like the plates of the atlas */}
+      <g class="board-rule" pointer-events="none" fill="none">
+        <rect x={.8} y={.8} width={cam.W - 1.6} height={cam.H - 1.6} rx={17.4} stroke={winter ? '#7f98a8' : '#3f6526'} stroke-width={1.6} opacity={.55} />
+        <rect x={5} y={5} width={cam.W - 10} height={cam.H - 10} rx={13.5} stroke={winter ? '#9fb6c4' : '#4a7a2c'} stroke-width={1} opacity={.55} />
+        <rect x={8} y={8} width={cam.W - 16} height={cam.H - 16} rx={11} stroke={winter ? '#b7c9d4' : '#5f9a3a'} stroke-width={.6} opacity={.35} stroke-dasharray="2 3" />
       </g>
 
       {compost&&<g class={`compost-button field-compost${compost.ready?' ready':''}${compost.selected?' accepting':''}${compost.over?' drag-over':''}${compost.open?' open':''}`} transform={`translate(${cam.W-108} ${yardTop+2})`} role="button" tabindex={0} aria-label={!compost.built?(compost.building?'Компостная куча строится':'Обустроить компостную кучу'):compost.ready?'Компост готов':'Компостная куча'} aria-expanded={compost.open} onClick={compost.onClick} onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();compost.onClick();}}}>

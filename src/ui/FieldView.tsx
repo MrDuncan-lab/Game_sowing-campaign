@@ -38,6 +38,8 @@ import { kidsScouting, kidsAhead } from './foresight';
 import {killers,kidMisses} from './collisions';
 import { workEffectCells, workCardPreview } from '../engine/game';
 export const TOUCH_AIM_OFFSET = 60;
+// a rail of tools beside the field: up to a 42-px button and its gaps, at least a 34-px one
+const RAIL_W = 52, RAIL_MIN = 44;
 
 interface Step { pos: FarmerPos; action: FarmerAction; bubble?: string | null; reveal?: string[]; actMs?: number; fx?: { x: number; y: number; kind: FxKind }[]; mark?: string }
 const HOME: FarmerPos = { kind: 'home' };
@@ -450,7 +452,7 @@ function calendarPage(s: GameState, offset: number): CalPage {
   return page;
 }
 
-export function FieldView({ s, dispatch, fast, active, onGo, onOrder, placeRequest, testing=false, teaching=false, precheck, lessonVisit=false, onVisitDone }: { s: GameState; dispatch: Dispatch; fast: boolean; active: boolean; onGo: (tab: string) => void; onOrder?:(org:OrgId)=>void; placeRequest?: { item: BuildItem; key: number } | null; testing?:boolean; teaching?:boolean; precheck?:(a:Action)=>string|null; lessonVisit?:boolean; onVisitDone?:()=>void }) {
+export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment, placeRequest, testing=false, teaching=false, precheck, lessonVisit=false, onVisitDone }: { s: GameState; dispatch: Dispatch; fast: boolean; active: boolean; onGo: (tab: string) => void; onOrder?:(org:OrgId)=>void; onPayment?:()=>void; placeRequest?: { item: BuildItem; key: number } | null; testing?:boolean; teaching?:boolean; precheck?:(a:Action)=>string|null; lessonVisit?:boolean; onVisitDone?:()=>void }) {
   const [resume]=useState(()=>testing||teaching?null:readWeekResume(s));
   const playbackRecord=useRef<WeekResume|null>(resume);
   const playbackTimer=useRef<number|null>(null);
@@ -501,6 +503,9 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, placeReque
   const [fanW, setFanW] = useState(360);
   const viewRef = useRef<HTMLDivElement | null>(null);
   const [room, setRoom] = useState({ grow: 0, read: 0, top: 0, fanMin: 0 });
+  // the field's tools beside it, on rails, when the screen is short and the field leaves paper at its sides
+  const [rails, setRails] = useState(0);
+  const railsRef = useRef(0);
   const roomRef = useRef(room);
   const [night, setNight] = useState<'off' | 'in' | 'out' | 'hold' | 'fade'>('off');
   const [pages, setPages] = useState<[CalPage, CalPage] | null>(null);
@@ -1284,10 +1289,17 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, placeReque
       const top = view.querySelector<HTMLElement>('.dock-top'), fanEl = fanRef.current;
       if (!row || !dock || !top || !fanEl) return;
       const was = roomRef.current;
-      // only where the dock stands under the field (phones); side by side there is nothing to share
-      if (dock.getBoundingClientRect().top < wrap.getBoundingClientRect().bottom - 2) { if (was.grow || was.read || was.fanMin) { roomRef.current = { grow: 0, read: 0, top: 0, fanMin: 0 }; setRoom(roomRef.current); } return; }
       const cs = getComputedStyle(wrap), rs = getComputedStyle(row);
       const padY = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom), padX = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
+      {
+        // bound by the height, the field leaves paper at both sides: wide enough for a rail of tools each, use it
+        const cam0 = camera(sRef.current, yard), innerW = wrap.clientWidth - padX, innerH = wrap.clientHeight - padY;
+        const slack = innerW - Math.min(innerH, innerW / (cam0.W / cam0.H)) * (cam0.W / cam0.H);
+        const want = slack >= 2 * RAIL_MIN ? Math.min(RAIL_W, Math.floor(slack / 2)) : 0;
+        if (want !== railsRef.current) { railsRef.current = want; setRails(want); }
+      }
+      // only where the dock stands under the field (phones); side by side there is nothing to share
+      if (dock.getBoundingClientRect().top < wrap.getBoundingClientRect().bottom - 2) { if (was.grow || was.read || was.fanMin) { roomRef.current = { grow: 0, read: 0, top: 0, fanMin: 0 }; setRoom(roomRef.current); } return; }
       // the side column may be gone (0 px): only a missing value falls back to the old instrument width
       const sideV = parseFloat(rs.getPropertyValue('--side')), gapV = parseFloat(rs.getPropertyValue('--gap'));
       const side = Number.isFinite(sideV) ? sideV : 44, gap = Number.isFinite(gapV) ? gapV : 4;
@@ -1399,6 +1411,7 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, placeReque
     onToken: (t: SkyToken) => { const was = lastToken.current; lastToken.current = { abs: t.abs, at: performance.now() }; if (was && was.abs === t.abs && performance.now() - was.at < 2600) { lastToken.current = null; openSheet('forecast'); } else say(t.text); },
     onFog: () => say(fogText(fieldState)),
     onSign: (sg) => say(sg.text),
+    clear: rails > 0,
   };
   const dragCard = drag ? s.hand.find((c) => c.uid === drag.uid) : null;
 
@@ -1457,7 +1470,7 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, placeReque
 
   return (
     <div style={{['--arn' as string]:String(cam.W/cam.H)}} data-week-event={weekCue?.kind??morning?.kind??(pestHits.length?'pests':'')} data-busy={night!=='off'||weekPlaying||!!morning||!!pestHits.length||farmer.walking||farmer.action!=='idle'} data-drag-active={drag?.active ? 'true' : 'false'} data-peek-uid={peek ?? ''} data-building={!!build} data-build-item={build??''} data-build-moving={!!moveFrom} data-bed-menu={info?.join(',')??''} data-water-cells={watering?.map(p=>p.join(',')).join(';')??''} data-card-rotation={rot} ref={viewRef} class={`field-view${!active||!pageVisible||!!sheet||meetingOpen?' scene-paused':''}${drag ? ' dragging' : ''}${card ? ' picking' : ''}`}>
-      <div class={`field-wrap${!active||!pageVisible||!!sheet||meetingOpen?' scene-paused':''}${room.fanMin ? ' balanced' : ''}`} ref={fieldRef}>
+      <div class={`field-wrap${!active||!pageVisible||!!sheet||meetingOpen?' scene-paused':''}${room.fanMin ? ' balanced' : ''}${rails ? ' rails' : ''}`} style={rails ? { ['--rail' as string]: `${rails}px`, ['--rail2' as string]: `${rails * 2}px` } : undefined} ref={fieldRef}>
         <div class="field-row" style={{ ['--arn' as string]: String(cam.W / cam.H) }}>
           <div class="field-stage">
             <Scene
@@ -1571,7 +1584,10 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, placeReque
               <button type="button" class="icon-btn tool-x" onClick={() => setSelected(null)} aria-label="Отменить выбор">✕</button>
             </div>
           )}
-          {!shown && <button type="button" class={`btn end-week${ready ? ' ready' : ''}${weekPlaying?' skip-morning':''}`} disabled={night!=='off'&&night!=='fade'||!weekPlaying&&(s.phase !== 'week'||endWaiting)} onClick={weekPlaying?cancelMorning:endWeek}>
+          {!shown && s.phase === 'shortfall' && onPayment && <button type="button" class="btn end-week pay-due" onClick={onPayment}>
+            <span>Решить платёж</span><small class="bad">к оплате {money(s.due?.amount ?? 0)}</small>
+          </button>}
+          {!shown && !(s.phase === 'shortfall' && onPayment) && <button type="button" class={`btn end-week${ready ? ' ready' : ''}${weekPlaying?' skip-morning':''}`} disabled={night!=='off'&&night!=='fade'||!weekPlaying&&(s.phase !== 'week'||endWaiting)} onClick={weekPlaying?cancelMorning:endWeek}>
             <span>{weekPlaying?'Пропустить анимацию':endWaiting?'Завершаем работы…':'Завершить неделю'}</span>
             {!weekPlaying && endText && <small class={endBad ? 'bad' : ''}>{endText}</small>}
           </button>}

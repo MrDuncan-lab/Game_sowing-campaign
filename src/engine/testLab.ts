@@ -123,7 +123,7 @@ export function testFixture(which:TestScenario,loc:D.LocationId='chernozem'):G.G
  for(const t of s.tiles)if(t.owned)Object.assign(t,{terrain:'plain',crop:null,soil:3,moisture:2,weeds:false});
  testHand(s,['seed_radish','seed_bean','seed_potato','water','mulch','fertilizer']);
  if(['fullfield','gallery','pets','equipment','canal','flood'].includes(which))for(const t of s.tiles)Object.assign(t,{owned:true,terrain:'plain',crop:null,weeds:false,moisture:2,soil:3});
- if(which==='fullfield')testHand(s,Array.from({length:5},(_,i)=>['seed_radish','seed_bean','seed_potato'][i%3]));
+ if(which==='fullfield')testHand(s,Array.from({length:7},(_,i)=>['seed_radish','seed_bean','seed_potato'][i%3]));
  if(which==='gallery'){
   D.CROP_IDS.filter(c=>!D.CROPS[c].product).forEach((c,i)=>crop(s,i%6,Math.floor(i/6),c,Math.floor(D.CROPS[c].grow*(i%3)/3)));
   s.unlocked=D.CROP_IDS.filter(c=>!D.CROPS[c].product);testHand(s,['water','mulch','fertilizer','compost','bio','early']);

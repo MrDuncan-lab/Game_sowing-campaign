@@ -226,6 +226,8 @@ test('selling every radish and skipping optional care still gives a concrete rec
 test('legacy empty practice directs a paid exchange to an existing needed seed without duplicating cards',()=>{
  let t=play(createTutorial(),'practice',{freeWater:false});
  const order=t.farm.orgs[ORG(t)]!.offer!;order.lines=[{crop:'bean',qty:2}];
+ // a seven-card hand may already hold the bean: this case is about a hand without it
+ for(const c of t.farm.hand.filter(c=>CARDS[c.def].crop==='bean')){t.farm.hand.splice(t.farm.hand.indexOf(c),1);t.farm.discard.push(c);}
  const ids=cards(t.farm).map(c=>c.uid).sort((a,b)=>a-b),money=t.farm.money,days=t.farm.days;
  const normalized=normalizeTutorial(t);
  assert.deepEqual(cards(normalized.farm).map(c=>c.uid).sort((a,b)=>a-b),ids);

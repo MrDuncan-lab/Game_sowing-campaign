@@ -7,6 +7,13 @@
 .field-tools.sky-tools.sky-right {right:1.3%;left:auto;}
 .field-tools.sky-tools .tool-btn {width:var(--tb);height:var(--tb);min-width:0;min-height:0;}
 .field-tools.sky-tools .tool-btn svg {width:calc(var(--tb) * .64);height:calc(var(--tb) * .64);}
+/* a short screen leaves paper beside the field: the tools step out of the sky onto rails at its sides */
+.field-wrap.rails .field-row {--side:var(--rail2,104px);--gap:0px;padding:0 var(--rail,52px);box-sizing:border-box;}
+.field-wrap.rails .field-tools.sky-tools {--tb:calc(var(--rail,52px) - 10px);top:0;flex-direction:column;gap:8px;}
+.field-wrap.rails .field-tools.sky-tools.sky-left {left:auto;right:calc(100% + 6px);}
+.field-wrap.rails .field-tools.sky-tools.sky-right {right:auto;left:calc(100% + 6px);}
+.field-wrap.rails .sky-tools .lens-picker {top:0;right:calc(100% + 6px);left:auto;flex-direction:row;}
+
 .sky-tools .lens-picker {position:absolute;top:calc(var(--tb) + 6px);right:0;left:auto;}
 
 /* the conveyor of weeks: a new week slides each picture one place closer and makes it bigger */
@@ -34,9 +41,9 @@
 .sky-wisp {animation:sky-wisp 9s ease-in-out infinite alternate;}
 @keyframes sky-wisp {from{transform:translateX(-6px)}to{transform:translateX(8px)}}
 .sky-fogbank, .sky-sign {cursor:pointer;}
-.sky-orbit {animation:sky-orbit 5.5s linear infinite;}
-.sky-flock.far .sky-orbit {animation-duration:8s;}
-@keyframes sky-orbit {from{transform:rotate(0deg) translateX(13px) rotate(0deg)}to{transform:rotate(360deg) translateX(13px) rotate(-360deg)}}
+.sky-orbit {transform-box:fill-box;transform-origin:50% 50%;animation:sky-orbit 6.2s linear infinite;}
+.sky-flock.far .sky-orbit {animation-duration:9s;}
+@keyframes sky-orbit {0.000%{transform:translate(22.00px,-0.00px) scale(-0.930,0.930)}4.167%{transform:translate(21.25px,-1.71px) scale(-0.909,0.909)}8.333%{transform:translate(19.05px,-3.30px) scale(-0.890,0.890)}12.500%{transform:translate(15.56px,-4.67px) scale(-0.873,0.873)}16.667%{transform:translate(11.00px,-5.72px) scale(-0.861,0.861)}20.833%{transform:translate(5.69px,-6.38px) scale(-0.853,0.853)}25.000%{transform:translate(0.00px,-6.60px) scale(-0.850,0.850)}29.167%{transform:translate(-5.69px,-6.38px) scale(-0.853,0.853)}33.333%{transform:translate(-11.00px,-5.72px) scale(-0.861,0.861)}37.500%{transform:translate(-15.56px,-4.67px) scale(-0.873,0.873)}41.667%{transform:translate(-19.05px,-3.30px) scale(-0.890,0.890)}45.833%{transform:translate(-21.25px,-1.71px) scale(-0.909,0.909)}49.999%{transform:translate(-22.00px,-0.00px) scale(-0.930,0.930)}50%{transform:translate(-22.00px,-0.00px) scale(0.930,0.930)}54.167%{transform:translate(-21.25px,1.71px) scale(0.951,0.951)}58.333%{transform:translate(-19.05px,3.30px) scale(0.970,0.970)}62.500%{transform:translate(-15.56px,4.67px) scale(0.987,0.987)}66.667%{transform:translate(-11.00px,5.72px) scale(0.999,0.999)}70.833%{transform:translate(-5.69px,6.38px) scale(1.007,1.007)}75.000%{transform:translate(-0.00px,6.60px) scale(1.010,1.010)}79.167%{transform:translate(5.69px,6.38px) scale(1.007,1.007)}83.333%{transform:translate(11.00px,5.72px) scale(0.999,0.999)}87.500%{transform:translate(15.56px,4.67px) scale(0.987,0.987)}91.667%{transform:translate(19.05px,3.30px) scale(0.970,0.970)}95.833%{transform:translate(21.25px,1.71px) scale(0.951,0.951)}99.999%{transform:translate(22.00px,0.00px) scale(0.930,0.930)}100%{transform:translate(22.00px,0.00px) scale(-0.930,0.930)}}
 .sky-gnat {animation:sky-gnat .55s ease-in-out infinite alternate;}
 @keyframes sky-gnat {from{transform:translate(-1px,1px)}to{transform:translate(1.5px,-1.5px)}}
 .sky-swarm {animation:sky-drift 3.2s ease-in-out infinite alternate;}
@@ -91,3 +98,16 @@
 .dock .keep-btn.on {background:#fbe3d6;border-color:#c9633f;box-shadow:inset 0 2px 3px #7c4f2b33;}
 .deck-pile {position:relative;}
 .deck-pile .deck-next {position:absolute;right:-7px;top:-7px;width:24px;height:24px;border-radius:50%;background:#fffaf0;border:1.5px solid #3f2a1d;display:grid;place-items:center;z-index:2;}
+
+/* the payment reminder floats over the top of the screen instead of pushing the field down */
+.payment-reminder {display:block;position:relative;height:0;padding:0;border:0;background:none;z-index:30;overflow:visible;}
+.payment-reminder .pr-chip {position:absolute;left:50%;top:6px;transform:translateX(-50%);display:flex;align-items:center;gap:8px;max-width:calc(100% - 16px);
+  padding:3px 3px 3px 12px;border-radius:999px;background:#fff0ce;border:1.5px solid #c98a4a;box-shadow:0 3px 10px rgba(63,42,29,.28);white-space:nowrap;animation:pr-in .35s ease-out both;}
+.payment-reminder .pr-chip span {overflow:hidden;text-overflow:ellipsis;}
+.payment-reminder .pr-chip button {min-height:38px;}
+@keyframes pr-in {from{opacity:0;transform:translate(-50%,-6px)}to{opacity:1;transform:translate(-50%,0)}}
+@media (prefers-reduced-motion:reduce) {.payment-reminder .pr-chip {animation:none;}}
+.dock .btn.end-week.pay-due {background:linear-gradient(#ffe37a,#f2c13f);border-color:#a77b14;color:#3f2a1d;box-shadow:0 3px 0 #8a6410;animation:pay-glow 2.2s ease-in-out infinite;}
+.dock .btn.end-week.pay-due small {color:#a03a20;font-weight:800;}
+@keyframes pay-glow {0%,100%{box-shadow:0 3px 0 #8a6410,0 0 0 0 rgba(242,193,63,.0)}50%{box-shadow:0 3px 0 #8a6410,0 0 0 5px rgba(242,193,63,.45)}}
+@media (prefers-reduced-motion:reduce) {.dock .btn.end-week.pay-due {animation:none;}}

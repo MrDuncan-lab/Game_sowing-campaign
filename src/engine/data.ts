@@ -233,7 +233,7 @@ export const TRACKS: Record<TrackId, TrackDef> = {
     ],
   },
   planning: {
-    id: 'planning', name: 'Планёрка', icon: 'calendar', text: 'Каждую неделю — свежие 5 карт. Планёрка позволяет откладывать карты на следующую неделю.',
+    id: 'planning', name: 'Планёрка', icon: 'calendar', text: 'Каждую неделю — свежие 7 карт. Планёрка позволяет откладывать карты на следующую неделю.',
     levels: [
       { name: 'Блокнот', cost: 30, weeks: 1, text: 'отложить можно 2 карты' },
       { name: 'Доска планов', cost: 60, weeks: 2, text: 'отложить 3 карты · два обмена в неделю' },
@@ -497,7 +497,7 @@ export const LOCATIONS: Record<LocationId, LocationDef> = {
     map: ['......', '......', '......', '......', '......', '......'],
     soil: 3, seasons: [4, 12, 4, 3],
     temp: { spring: [6, 16], summer: [18, 27], autumn: [13, 3], winter: [-6, -12] },
-    glory: 0, mild: true, payMult: 1,
+    glory: 0, mild: true, payMult: 1.15,
     starter: ['seed_radish', 'seed_radish', 'seed_potato', 'seed_potato', 'seed_bean', 'seed_carrot', 'seed_onion', 'seed_cabbage', 'seed_wheat', 'water', 'water', 'fertilizer', 'mulch', 'shelter'],
     shop: ['radish', 'bean', 'potato', 'buckwheat', 'pumpkin', 'wheat', 'carrot', 'onion', 'cabbage'],
     lab: ['tomato', 'corn', 'sunflower', 'garlic', 'rye'],
@@ -511,7 +511,7 @@ export const LOCATIONS: Record<LocationId, LocationDef> = {
     map: ['....~.', '....~.', '....~.', '....~~', 'ss...~', 'sss..~'],
     soil: 2, seasons: [3, 14, 4, 2],
     temp: { spring: [10, 19], summer: [20, 30], autumn: [17, 7], winter: [-1, -5] },
-    glory: 40, hot: true, payMult: 1.12,
+    glory: 40, hot: true, payMult: 1.23,
     starter: ['seed_radish', 'seed_bean', 'seed_corn', 'seed_sunflower', 'seed_watermelon', 'seed_rice', 'seed_pumpkin', 'seed_wheat', 'water', 'water', 'water', 'mulch', 'mulch', 'fertilizer'],
     shop: ['radish', 'bean', 'corn', 'sunflower', 'watermelon', 'rice', 'pumpkin', 'wheat', 'onion', 'buckwheat'],
     lab: ['tomato', 'garlic', 'potato', 'carrot'],
@@ -525,7 +525,7 @@ export const LOCATIONS: Record<LocationId, LocationDef> = {
     map: ['~fffff', '~...rf', '~...ff', '~...wf', '~fwwff', '~fffff'],
     soil: 2, seasons: [4, 9, 3, 5],
     temp: { spring: [3, 13], summer: [15, 23], autumn: [9, 0], winter: [-10, -22] },
-    glory: 120, rainy: true, payMult: 1.05,
+    glory: 120, rainy: true, payMult: 1.26,
     starter: ['seed_radish', 'seed_radish', 'seed_potato', 'seed_potato', 'seed_cabbage', 'seed_carrot', 'seed_onion', 'seed_buckwheat', 'seed_buckwheat', 'water', 'mulch', 'shelter', 'shelter', 'forage'],
     shop: ['radish', 'potato', 'cabbage', 'carrot', 'onion', 'buckwheat', 'wheat', 'bean'],
     lab: ['garlic', 'rye', 'strawberry', 'pumpkin'],
@@ -553,6 +553,6 @@ export const RATING_RATE = [NaN, 0.05, 0.03, 0.02, 0.015, 0.01];
 export const RATING_LIMIT = [0, 1, 1.5, 2, 2.5, 3];
 
 export const GRID = 6;
-export const HAND_BASE = 5;
+export const HAND_BASE = 7;
 export const DECK_LIMIT = [14, 16, 18, 20, 22];
 export const DECK_MIN = 8;

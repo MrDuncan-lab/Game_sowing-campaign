@@ -65,13 +65,14 @@ export function SkyPicture({ kind }: { kind: SkyKind }) {
 // ---------- where each week sits ----------
 // this week is big and close; each farther week smaller and lower, toward the horizon
 export const skyScale = (k: number) => 1.45 / (1 + 0.38 * k);
-export function skySlots(W: number, n: number): { x: number; y: number; sc: number }[] {
+export function skySlots(W: number, n: number, clear = false): { x: number; y: number; sc: number }[] {
   const out: { x: number; y: number; sc: number }[] = [];
-  const x0 = Math.max(96, W * 0.185);
+  // with the tools in the band its corners are taken; with the tools beside the field the sky is all weather
+  const x0 = clear ? Math.max(62, W * 0.13) : Math.max(96, W * 0.185);
   // the right corner keeps room for the tools; long forecasts squeeze closer together
   let pairs = 0;
   for (let k = 1; k < n; k++) pairs += skyScale(k - 1) + skyScale(k);
-  const step = n > 1 ? Math.min(40, (W - 150 - x0 - 4 * (n - 1)) / pairs) : 40;
+  const step = n > 1 ? Math.min(40, (W - (clear ? 96 : 150) - x0 - 4 * (n - 1)) / pairs) : 40;
   let x = x0;
   for (let k = 0; k < n; k++) {
     const sc = skyScale(k);
@@ -112,8 +113,9 @@ function WeekChip({ k, sc }: { k: number; sc: number }) {
 function Flock({ far }: { far: boolean }) {
   return (
     <g class={`sky-flock${far ? ' far' : ''}`}>
-      {[[0, 0, 0], [16, -6, 1], [-14, -9, 2], [6, -16, 3], [-4, 8, 4]].map(([x, y, i]) => (
-        <g transform={`translate(${x} ${y})`}><g class="sky-orbit" style={{ animationDelay: `${-i * 0.9}s` }}><g transform="scale(.5)"><CrowFlying /></g></g></g>
+      {/* one wide ring for the whole flock, each bird a fifth of a lap apart, the nearer ones a little bigger */}
+      {[[-2, 1, 0], [3, .86, 1], [-6, .93, 2], [5, .8, 3], [0, .9, 4]].map(([dy, k, i]) => (
+        <g transform={`translate(0 ${dy}) scale(${k})`}><g class="sky-orbit" style={{ animationDelay: `${-i * 1.24}s` }}><g transform="scale(.5)"><CrowFlying /></g></g></g>
       ))}
     </g>
   );
@@ -144,18 +146,19 @@ function FarKids() {
 export interface SkyBandProps {
   W: number; season: number; tokens: SkyToken[]; signs: RaidSign[]; meteoMax: boolean; px: number;
   onToken?: (t: SkyToken) => void; onFog?: () => void; onSign?: (s: RaidSign) => void;
+  clear?: boolean; // the tools stand beside the field, not in the band
 }
-export function SkyBand({ W, season, tokens, signs, meteoMax, px, onToken, onFog, onSign }: SkyBandProps) {
+export function SkyBand({ W, season, tokens, signs, meteoMax, px, onToken, onFog, onSign, clear = false }: SkyBandProps) {
   const H = SKY_H;
   const [top, bottom, hill, front] = SEASON_SKY[season] ?? SEASON_SKY[1];
-  const slots = skySlots(W, tokens.length);
+  const slots = skySlots(W, tokens.length, clear);
   const last = slots[slots.length - 1];
   const fogX = last ? last.x + 36 * last.sc : W * 0.4;
   const flock = signs.find((x) => x.kind === 'crows');
   const swarm = signs.find((x) => x.kind === 'locust');
   const kidsFar = signs.find((x) => x.kind === 'kids' && x.ahead >= 2);
   // raids gather just past the known weeks, clear of the tools in the right corner
-  const signX = Math.min(W - 175, Math.max(W * 0.5, fogX + 24));
+  const signX = Math.min(W - (clear ? 120 : 175), Math.max(W * 0.5, fogX + 24));
   const key = (e: JSX.TargetedKeyboardEvent<SVGGElement>, fn: () => void) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fn(); } };
   // touch targets never smaller than about 40 screen pixels
   const hit = Math.max(30, 40 / Math.max(0.05, px));
