@@ -31,7 +31,7 @@ function Butterfly() {
   );
 }
 
-export function SeasonFx({ kind, rain }: { kind: FxKind; rain?: boolean }) {
+export function SeasonFx({ kind, rain, heat }: { kind: FxKind; rain?: boolean; heat?: boolean }) {
   const n = COUNT[kind];
   const [d0, d1] = DUR[kind];
   return (
@@ -68,6 +68,11 @@ export function SeasonFx({ kind, rain }: { kind: FxKind; rain?: boolean }) {
           return <b class="mote" style={{ left: `${r(i, 2) * 100}%`, animationDuration: `${dur}s`, animationDelay: `${-r(i, 3) * dur}s`, ['--drift' as string]: `${(r(i, 4) - 0.5) * 90}px` }} />;
         })}
       </>}
+      {heat && <div class="heat-haze">{Array.from({ length: 6 }, (_, i) => (
+        <i style={{ left: `${4 + i * 16 + r(i, 21) * 6}%`, animationDelay: `${-r(i, 22) * 4}s`, animationDuration: `${3.4 + r(i, 23) * 1.6}s` }}>
+          <svg viewBox="0 0 20 80" width="20" height="80"><path d="M10 80 q-6 -10 0 -20 t0 -20 t0 -20 t0 -20" fill="none" stroke="#fff6e0" stroke-width="2.4" stroke-linecap="round" /></svg>
+        </i>
+      ))}</div>}
       {rain && <>
         {Array.from({ length: 40 }, (_, i) => (
           <b class="rain" style={{ left: `${r(i, 7) * 110 - 5}%`, animationDuration: `${0.5 + r(i, 8) * 0.3}s`, animationDelay: `${-r(i, 9)}s` }} />

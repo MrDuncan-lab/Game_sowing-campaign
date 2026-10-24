@@ -1,25 +1,17 @@
-// Seeing next week's trouble a week early, honestly: the engine itself is asked what the coming morning
-// brings if the week ended now. Nothing is guessed and nothing is changed — `endWeek` works on a copy.
-import { endWeek } from '../engine/game';
+// Seeing next week's trouble early, honestly: the engine announces a raid of the orphanage children a week ahead
+// (two with the scout drone) and keeps it in the farm state. Nothing is guessed here.
 import type { GameState } from '../engine/game';
 
-const scouting = new WeakMap<GameState, boolean>();
-
-/** True in the week before an orphanage raid: if the player ended the week as things stand, the kids
- *  would come for the ripe beds next week. Shown as children loitering by the field. Anything the player
- *  does this week (harvesting, a delivered order) is taken into account, because the question is asked
- *  again for every new state. */
+/** True while a raid is announced for a coming week: children are seen hiding by the field. Not shown in the
+ *  raid week itself (then they are at the fence) or when nothing grows that they could come for. */
 export function kidsScouting(s: GameState): boolean {
-  const known = scouting.get(s);
-  if (known !== undefined) return known;
-  let v = false;
-  try {
-    const now = !!s.thieves && s.thieves.week === s.absWeek && !s.thieves.talked;
-    if (s.phase === 'week' && !now) {
-      const next = endWeek(s);
-      v = !!next.thieves && next.thieves.week === next.absWeek && next.thieves.targets.length > 0;
-    }
-  } catch { v = false; }
-  scouting.set(s, v);
-  return v;
+  if (s.phase !== 'week') return false;
+  if (s.thieves && s.thieves.week === s.absWeek && !s.thieves.talked) return false;
+  if (!(s.kidsWarn ?? []).some((w) => w > s.absWeek)) return false;
+  return s.tiles.some((t) => t.owned && !!t.crop && !t.crop.rest);
+}
+/** Weeks until the announced raid (1 or 2), or 0. */
+export function kidsAhead(s: GameState): number {
+  const w = (s.kidsWarn ?? []).filter((x) => x > s.absWeek).sort((a, b) => a - b)[0];
+  return w ? w - s.absWeek : 0;
 }

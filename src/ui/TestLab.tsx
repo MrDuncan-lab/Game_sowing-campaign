@@ -40,7 +40,7 @@ export function TestLab({onExit,initialLoc='chernozem'}:{onExit:()=>void;initial
     <Btn tone="primary" onClick={()=>update(n=>testHand(n,[cardDef]),true)}>Оставить в руке выбранную карту</Btn>
     <Btn disabled={s.hand.length>=G.handMax(s)?'Рука заполнена':null} onClick={()=>update(n=>n.hand.push({uid:n.nextUid++,def:cardDef}),true)}>Добавить карту в руку</Btn>
     <Btn onClick={()=>load('exchange')}>Подготовить полную руку для обмена</Btn>
-    <Btn onClick={()=>update(n=>{n.levels.planning=3;testHand(n,Array.from({length:9},()=>cardDef));},true)}>Девять экземпляров для проверки веера</Btn>
+    <Btn onClick={()=>update(n=>{testHand(n,Array.from({length:G.handMax(n)},()=>cardDef));},true)}>Полная рука этой карты для проверки веера</Btn>
     <p class="small muted">Выдача не обходит правила применения. Например, томатам всё ещё нужна теплица, а зимним картам — зима.</p>
    </div>}
    {panel==='conditions'&&<div class="stack">

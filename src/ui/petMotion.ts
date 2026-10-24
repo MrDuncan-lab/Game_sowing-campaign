@@ -18,7 +18,7 @@ export function petMoment(cam:Camera,id:'cat'|'dog',seconds:number,area?:PetArea
  const top=cam.yard+22+(zone.y-cam.vy)*100,bottom=cam.H-24,row=top+Math.max(1,Math.floor(zone.h/2))*100;
  const yardX=(k:number)=>Math.max(left+20,Math.min(right-20,cam.W*k));
  // Feet follow bed boundaries. Moving legs are used only between destinations.
- const route=dog?[[yardX(.54),57],[left,top],[left,row],[right,row],[right,top],[yardX(.57),57]]:[[yardX(.34),57],[right,top],[right,row],[mid,row],[mid,top],[yardX(.44),57]];
+ const yy=cam.yard-7,route=dog?[[yardX(.54),yy],[left,top],[left,row],[right,row],[right,top],[yardX(.57),yy]]:[[yardX(.34),yy],[right,top],[right,row],[mid,row],[mid,top],[yardX(.44),yy]];
  const cycle=108,t=((seconds%cycle)+cycle)%cycle,segment=Math.floor(t/18),part=t%18;
  const a=route[segment],b=route[(segment+1)%route.length];
  const moving=part>=7&&part<17,p=Math.max(0,Math.min(1,(part-7)/10)),ease=p*p*(3-2*p);

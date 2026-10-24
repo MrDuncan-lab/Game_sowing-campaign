@@ -15,7 +15,7 @@ function add(s:GameState,def:string,temp=false){const c={uid:s.nextUid++,def,tem
 
 test('exchange takes one day, works with a full hand, never returns its own UID, and is limited weekly',()=>{
  let s=farm();s.hand=[];while(s.hand.length<handMax(s))add(s,'seed_radish');const out=s.hand[0];s.draw=[];s.discard=[{uid:s.nextUid++,def:'water'}];const n=deckCount(s);
- s=apply(s,{t:'exchangeCard',uid:out.uid});assert.equal(s.days,7);assert.equal(s.hand.length,6);assert.ok(!s.hand.some(c=>c.uid===out.uid));assert.equal(s.hand.at(-1)!.def,'water');assert.equal(deckCount(s),n);
+ s=apply(s,{t:'exchangeCard',uid:out.uid});assert.equal(s.days,7);assert.equal(s.hand.length,handMax(s));assert.ok(!s.hand.some(c=>c.uid===out.uid));assert.equal(s.hand.at(-1)!.def,'water');assert.equal(deckCount(s),n);
  assert.throws(()=>apply(s,{t:'exchangeCard',uid:s.hand[0].uid}),/уже/);
 });
 test('empty exchange and invalid UID never spend a card or a day',()=>{

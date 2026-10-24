@@ -1,0 +1,225 @@
+// The sky over the field is the forecast. This week hangs big over the farm; the coming weeks shrink toward the
+// horizon; past what the barometer can tell lies fog. Raids announced ahead show here too: a flock circling over
+// the forest, a locust cloud on the horizon, children far off by the hills. Same ink language as the field.
+import type { JSX } from 'preact';
+import { P } from './palette';
+import { CrowFlying } from './crows';
+import { Hopper } from './locusts';
+import { icons } from './icons';
+import type { RaidSign, SkyKind, SkyToken } from '../ui/skyForecast';
+
+const INK = P.ink;
+export const SKY_H = 96;
+
+// ---------- weather pictures, centred on (0, 0), about 70 × 60 at scale 1 ----------
+const CLOUD: ([number, number, number] | [number, number, number, number])[] = [[-20, 2, 13], [0, -7, 17], [19, 1, 13], [-32, 4, 64, 15]];
+function Cloud({ fill = '#fff', sw = 2.2 }: { fill?: string; sw?: number }) {
+  const parts = (stroke: boolean) => CLOUD.map((p) => (p.length === 3
+    ? <circle cx={p[0]} cy={p[1]} r={p[2]} fill={fill} stroke={stroke ? INK : 'none'} stroke-width={stroke ? sw * 2 : 0} />
+    : <rect x={p[0]} y={p[1]} width={p[2]} height={p[3]} rx={7.5} fill={fill} stroke={stroke ? INK : 'none'} stroke-width={stroke ? sw * 2 : 0} />));
+  return <g class="sky-cloud">{parts(true)}{parts(false)}<path d="M-14 -4 q6 -6 12 0 M4 -10 q6 -6 12 0" stroke="#fff" stroke-width={2} fill="none" stroke-linecap="round" opacity={0.55} /></g>;
+}
+function Sun({ r = 15, hot = false }: { r?: number; hot?: boolean }) {
+  const col = hot ? '#f6a03a' : '#ffd25a', ray = hot ? '#d9822b' : '#e1a52b';
+  return (
+    <g class="sky-sun">
+      <g class="sky-rays">{Array.from({ length: 8 }, (_, i) => {
+        const a = (i * Math.PI) / 4, c = Math.cos(a), s = Math.sin(a);
+        return <path d={`M${c * (r + 4)} ${s * (r + 4)} L${c * (r + 10)} ${s * (r + 10)}`} stroke={ray} stroke-width={3} stroke-linecap="round" />;
+      })}</g>
+      <circle r={r} fill={col} stroke={INK} stroke-width={2.2} />
+      <path d={`M${-r * 0.45} ${-r * 0.35} q${r * 0.3} ${-r * 0.3} ${r * 0.6} 0`} stroke="#fff6c8" stroke-width={2} fill="none" stroke-linecap="round" opacity={0.7} />
+    </g>
+  );
+}
+function Heat({ y = 24, w = 34, n = 3 }: { y?: number; w?: number; n?: number }) {
+  return <g class="sky-heat">{Array.from({ length: n }, (_, i) => (
+    <path d={`M${-w / 2} ${y + i * 7} q${w / 8} -5 ${w / 4} 0 t${w / 4} 0 t${w / 4} 0 t${w / 4} 0`} fill="none" stroke="#e0823a" stroke-width={2.2} stroke-linecap="round" opacity={0.9 - i * 0.22} style={{ animationDelay: `${-i * 0.4}s` }} />
+  ))}</g>;
+}
+function Falling({ kind }: { kind: 'rain' | 'hail' | 'snow' }) {
+  const xs = [-18, -6, 6, 18];
+  if (kind === 'rain') return <g class="sky-fall rain">{xs.map((x, i) => <path d={`M${x} 24 l-3 9`} stroke="#3f97d0" stroke-width={2.4} stroke-linecap="round" style={{ animationDelay: `${-i * 0.23}s` }} />)}</g>;
+  if (kind === 'hail') return <g class="sky-fall hail">{xs.map((x, i) => <circle cx={x} cy={28} r={3.2} fill="#f2f8ff" stroke="#5f7f99" stroke-width={1.4} style={{ animationDelay: `${-i * 0.29}s` }} />)}</g>;
+  return <g class="sky-fall snow">{xs.map((x, i) => (
+    <path d={`M${x} 24 v8 M${x - 3.5} 26 l7 4 M${x - 3.5} 30 l7 -4`} stroke="#6fa6cf" stroke-width={1.8} stroke-linecap="round" style={{ animationDelay: `${-i * 0.5}s` }} />
+  ))}</g>;
+}
+export function SkyPicture({ kind }: { kind: SkyKind }) {
+  switch (kind) {
+    case 'sun': return <Sun />;
+    case 'hot': return <g><Sun hot /><Heat y={26} n={2} /></g>;
+    case 'dry': return <g><Sun hot r={16} /><Heat y={27} n={3} /></g>;
+    case 'warm': return <g><circle r={27} fill="#ffd9a0" opacity={0.45} class="sky-glow" /><Sun r={14} /></g>;
+    case 'cloud': return <g><g transform="translate(14 -12)"><Sun r={11} /></g><g transform="translate(-4 4) scale(.82)"><Cloud /></g></g>;
+    case 'cold': return <g transform="scale(.9)"><Cloud fill="#cfd8e2" /></g>;
+    case 'rain': return <g><Falling kind="rain" /><Cloud fill="#b9c7d4" /></g>;
+    case 'hail': return <g><Falling kind="hail" /><Cloud fill="#8c98a8" /></g>;
+    case 'flood': return <g><Falling kind="rain" /><Cloud fill="#9fb2c4" /><path class="sky-waves" d="M-26 40 q6.5 -5 13 0 t13 0 t13 0 t13 0" stroke="#2c86b8" stroke-width={2.6} fill="none" stroke-linecap="round" /></g>;
+    case 'snow': return <g><Falling kind="snow" /><Cloud fill="#e8f0f6" /></g>;
+    case 'frost': return <g><Falling kind="snow" /><Cloud fill="#d8ecfb" /><g transform="translate(22 -18) scale(.42)">{icons.snow()}</g></g>;
+    case 'thaw': return <g><g transform="translate(-10 -6)"><Sun r={11} /></g><g transform="translate(12 6) scale(.6)"><Cloud fill="#eef4f8" /></g></g>;
+  }
+}
+
+// ---------- where each week sits ----------
+// this week is big and close; each farther week smaller and lower, toward the horizon
+export const skyScale = (k: number) => 1.45 / (1 + 0.38 * k);
+export function skySlots(W: number, n: number): { x: number; y: number; sc: number }[] {
+  const out: { x: number; y: number; sc: number }[] = [];
+  const x0 = Math.max(96, W * 0.185);
+  // the right corner keeps room for the tools; long forecasts squeeze closer together
+  let pairs = 0;
+  for (let k = 1; k < n; k++) pairs += skyScale(k - 1) + skyScale(k);
+  const step = n > 1 ? Math.min(40, (W - 150 - x0 - 4 * (n - 1)) / pairs) : 40;
+  let x = x0;
+  for (let k = 0; k < n; k++) {
+    const sc = skyScale(k);
+    if (k > 0) x += step * (skyScale(k - 1) + sc) + 4;
+    out.push({ x, y: 40 + 16 * (1 - sc / 1.45), sc });
+  }
+  return out;
+}
+
+const SEASON_SKY = [
+  ['#c4e6f6', '#eef7e0', '#c4e39a', '#a9d27f'],
+  ['#bfe4f6', '#eef7e0', '#b9dd8a', '#a9d27f'],
+  ['#cfe3ec', '#f3ead6', '#cdd08a', '#b9c97a'],
+  ['#dfe9f1', '#f4f7fa', '#eef3f7', '#f4f8fb'],
+];
+
+function TempTag({ t, sc }: { t: number; sc: number }) {
+  const s = Math.min(1.1, Math.max(0.62, sc));
+  const label = `${t > 0 ? '+' : ''}${t}°`;
+  return (
+    <g transform={`translate(${22 * sc} ${22 * sc}) scale(${s})`} class="sky-temp">
+      <rect x={-19} y={-10} width={38} height={20} rx={7} fill="#fff8ea" stroke={INK} stroke-width={1.6} />
+      <text y={5} text-anchor="middle" class="sky-temp-text" fill={t <= 0 ? '#2c6fa8' : t >= 26 ? '#b9531f' : INK}>{label}</text>
+    </g>
+  );
+}
+function WeekChip({ k, sc }: { k: number; sc: number }) {
+  const s = Math.min(1, Math.max(0.6, sc));
+  return (
+    <g transform={`translate(${-28 * sc} ${-20 * sc}) scale(${s})`} class="sky-chip">
+      <circle r={9.5} fill="#fffaf0" stroke={INK} stroke-width={1.6} />
+      <text y={4.6} text-anchor="middle" class="sky-chip-text">{k}</text>
+    </g>
+  );
+}
+
+// ---------- raids seen coming ----------
+function Flock({ far }: { far: boolean }) {
+  return (
+    <g class={`sky-flock${far ? ' far' : ''}`}>
+      {[[0, 0, 0], [16, -6, 1], [-14, -9, 2], [6, -16, 3], [-4, 8, 4]].map(([x, y, i]) => (
+        <g transform={`translate(${x} ${y})`}><g class="sky-orbit" style={{ animationDelay: `${-i * 0.9}s` }}><g transform="scale(.5)"><CrowFlying /></g></g></g>
+      ))}
+    </g>
+  );
+}
+function Swarm({ far }: { far: boolean }) {
+  const dots = Array.from({ length: 26 }, (_, i) => {
+    const a = Math.sin(i * 12.9898) * 43758.5453, b = Math.sin(i * 78.233) * 12345.678;
+    return [(a - Math.floor(a) - 0.5) * 62, (b - Math.floor(b) - 0.5) * 20] as const;
+  });
+  return (
+    <g class={`sky-swarm${far ? ' far' : ''}`}>
+      <ellipse rx={36} ry={13} fill="#5b5a3a" opacity={0.16} />
+      {dots.map(([x, y], i) => <circle cx={x} cy={y} r={1.8} fill="#4a4a2a" class="sky-gnat" style={{ animationDelay: `${-(i % 7) * 0.13}s` }} />)}
+      {!far && <g transform="translate(22 6) scale(.9)" class="sky-hopper"><Hopper /></g>}
+    </g>
+  );
+}
+function FarKids() {
+  // two small heads over the far hill: children watching the farm from afar
+  return (
+    <g class="sky-kids">
+      <circle cx={-6} cy={-2} r={5} fill="#f0c4a0" stroke={INK} stroke-width={1.2} /><path d="M-11 -4 Q-6 -10 -1 -4 Z" fill="#c23a2c" stroke={INK} stroke-width={1} />
+      <circle cx={6} cy={-1} r={4.6} fill="#e8b48e" stroke={INK} stroke-width={1.2} /><path d="M1.6 -3 Q6 -9 10.6 -3 Z" fill="#3f6fb0" stroke={INK} stroke-width={1} />
+    </g>
+  );
+}
+
+export interface SkyBandProps {
+  W: number; season: number; tokens: SkyToken[]; signs: RaidSign[]; meteoMax: boolean; px: number;
+  onToken?: (t: SkyToken) => void; onFog?: () => void; onSign?: (s: RaidSign) => void;
+}
+export function SkyBand({ W, season, tokens, signs, meteoMax, px, onToken, onFog, onSign }: SkyBandProps) {
+  const H = SKY_H;
+  const [top, bottom, hill, front] = SEASON_SKY[season] ?? SEASON_SKY[1];
+  const slots = skySlots(W, tokens.length);
+  const last = slots[slots.length - 1];
+  const fogX = last ? last.x + 36 * last.sc : W * 0.4;
+  const flock = signs.find((x) => x.kind === 'crows');
+  const swarm = signs.find((x) => x.kind === 'locust');
+  const kidsFar = signs.find((x) => x.kind === 'kids' && x.ahead >= 2);
+  // raids gather just past the known weeks, clear of the tools in the right corner
+  const signX = Math.min(W - 175, Math.max(W * 0.5, fogX + 24));
+  const key = (e: JSX.TargetedKeyboardEvent<SVGGElement>, fn: () => void) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fn(); } };
+  // touch targets never smaller than about 40 screen pixels
+  const hit = Math.max(30, 40 / Math.max(0.05, px));
+  return (
+    <g class="sky-band">
+      <defs>
+        <linearGradient id="sky-grad" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color={top} /><stop offset="1" stop-color={bottom} /></linearGradient>
+        <linearGradient id="sky-fog" x1="0" x2="1" y1="0" y2="0"><stop offset="0" stop-color="#f7f2e6" stop-opacity="0" /><stop offset=".35" stop-color="#f7f2e6" stop-opacity=".88" /><stop offset="1" stop-color="#f4efe2" stop-opacity=".96" /></linearGradient>
+        <clipPath id="sky-clip"><path d={`M0 18 Q0 0 18 0 H${W - 18} Q${W} 0 ${W} 18 V${H + 2} H0 Z`} /></clipPath>
+      </defs>
+      <g clip-path="url(#sky-clip)">
+        <rect width={W} height={H + 2} fill="url(#sky-grad)" />
+        <path d={`M0 ${H - 26} Q${W * 0.16} ${H - 40} ${W * 0.33} ${H - 30} Q${W * 0.5} ${H - 44} ${W * 0.66} ${H - 32} Q${W * 0.82} ${H - 42} ${W} ${H - 30} V${H + 2} H0 Z`} fill={hill} />
+        {/* a dark strip of forest on the far right hill, where flocks gather */}
+        <path d={`M${W * 0.7} ${H - 34} q6 -12 12 0 q6 -14 12 0 q6 -10 12 0 q6 -13 12 0 q6 -11 12 0 V${H - 26} H${W * 0.7} Z`} fill={season === 3 ? '#c9d6de' : '#6f9a4a'} opacity={0.55} />
+        <path d={`M0 ${H - 12} Q${W * 0.25} ${H - 22} ${W * 0.5} ${H - 14} Q${W * 0.75} ${H - 6} ${W} ${H - 16} V${H + 2} H0 Z`} fill={front} opacity={0.9} />
+        {/* the conveyor of weeks: keyed by the absolute week so a new week slides each picture one place closer */}
+        {tokens.map((t, i) => {
+          const s = slots[i];
+          return (
+            <g key={t.abs} class={`sky-token k${Math.min(t.k, 3)}${t.bad ? ' bad' : ''}`} style={{ transform: `translate(${s.x}px, ${s.y}px)` }}
+              role="button" tabindex={0} aria-label={t.text} onClick={(e) => { e.stopPropagation(); onToken?.(t); }} onKeyDown={(e) => key(e, () => onToken?.(t))}>
+              <g class="sky-token-scale" style={{ transform: `scale(${s.sc})` }}>
+                <circle r={34} fill="transparent" />
+                <SkyPicture kind={t.kind} />
+              </g>
+              <TempTag t={t.temp} sc={s.sc} />
+              {t.k > 0 && <WeekChip k={t.k} sc={s.sc} />}
+              <rect x={-hit / 2} y={-hit / 2} width={hit} height={hit} fill="transparent" />
+            </g>
+          );
+        })}
+        {/* fog past the forecast */}
+        {fogX < W - 8 && (
+          <g class="sky-fogbank" role="button" tabindex={0} aria-label="Туман: дальше прогноза" onClick={(e) => { e.stopPropagation(); onFog?.(); }} onKeyDown={(e) => key(e, () => onFog?.())}>
+            <rect x={fogX - 30} y={0} width={W - fogX + 30} height={H - 8} fill="url(#sky-fog)" />
+            {[[0.2, 24], [0.45, 40], [0.12, 56]].map(([f, y], i) => (
+              <path class="sky-wisp" d={`M${fogX + (W - fogX) * f} ${y} q10 -5 20 0 t20 0 t20 0`} stroke="#e2d9c6" stroke-width={3} fill="none" stroke-linecap="round" style={{ animationDelay: `${-i * 2.3}s` }} />
+            ))}
+            {!meteoMax && <g transform={`translate(${Math.min(W - 70, fogX + (W - fogX) * 0.38)} 46) scale(.55)`} opacity={0.5}>{icons.sensor()}</g>}
+          </g>
+        )}
+        {kidsFar && (
+          <g transform={`translate(${Math.min(W - 170, Math.max(W * 0.46, fogX + 10))} ${H - 37})`} class="sky-sign" role="button" tabindex={0} aria-label={kidsFar.text} onClick={(e) => { e.stopPropagation(); onSign?.(kidsFar); }} onKeyDown={(e) => key(e, () => onSign?.(kidsFar))}>
+            <rect x={-hit / 2} y={-hit / 2} width={hit} height={hit} fill="transparent" />
+            <FarKids />
+          </g>
+        )}
+      </g>
+      {/* raids fly over the sky's edge */}
+      {flock && (
+        <g transform={`translate(${signX + (flock.ahead >= 2 ? 30 : 0)} ${flock.ahead >= 2 ? 30 : 34}) scale(${flock.ahead >= 2 ? 0.8 : 1.15})`} class="sky-sign" role="button" tabindex={0} aria-label={flock.text}
+          onClick={(e) => { e.stopPropagation(); onSign?.(flock); }} onKeyDown={(e) => key(e, () => onSign?.(flock))}>
+          <rect x={-hit / 2} y={-hit / 2} width={hit} height={hit} fill="transparent" />
+          <Flock far={flock.ahead >= 2} />
+        </g>
+      )}
+      {swarm && (
+        <g transform={`translate(${signX + (flock ? 52 : 10)} ${swarm.ahead >= 2 ? 60 : 56}) scale(${swarm.ahead >= 2 ? 0.62 : 0.9})`} class="sky-sign" role="button" tabindex={0} aria-label={swarm.text}
+          onClick={(e) => { e.stopPropagation(); onSign?.(swarm); }} onKeyDown={(e) => key(e, () => onSign?.(swarm))}>
+          <rect x={-hit / 2} y={-hit / 2} width={hit} height={hit} fill="transparent" />
+          <Swarm far={swarm.ahead >= 2} />
+        </g>
+      )}
+    </g>
+  );
+}

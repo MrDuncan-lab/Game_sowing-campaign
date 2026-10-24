@@ -16,6 +16,7 @@ import './lab-polish.css';
 import './tutorial-polish.css';
 import './event-sync.css';
 import './collisions.css';
+import './sky-field.css';
 
 // favicon is set from code so the single-file build keeps it inlined
 if (!document.querySelector('link[rel="icon"]')) {

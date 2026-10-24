@@ -6,7 +6,7 @@ import {readWeekResume,saveWeekResume,clearWeekResume,type WeekResume} from './w
 import { PrecisionLoupe } from './PrecisionLoupe';
 import { greenhouseYieldReady } from '../engine/game';
 
-import { exchangeProblem, compostProblem, compostWeeks, growthMoisture, frostKills, wetCanals, idx, thievesBlocked, handMax as maxHand } from '../engine/game';
+import { exchangeProblem, compostProblem, compostWeeks, growthMoisture, frostKills, wetCanals, idx, thievesBlocked, handMax as maxHand, exchangesUsed, exchangesPerWeek, nextDraw, keepSlots, keptCount } from '../engine/game';
 import type { JSX } from 'preact';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { CARDS, CROPS, GRID, ORGS, SEASON_NAMES, TRACKS, TRAITS } from '../engine/data';
@@ -23,16 +23,18 @@ import type { Episode } from '../engine/calendar';
 import { Icon } from '../art/icons';
 import { CropIcon } from '../art/crops';
 import type { FarmerAction } from '../art/farm';
-import { CardArt, CardView, cardPrice, seedWeeks } from './Card';
+import { CardArt, CardView, PinIcon, cardPrice, seedWeeks } from './Card';
 import { CardReadout } from './CardReadout';
-import { CELL, FarmerPos, FarmerState, Flock, Floater, FxKind, Highlight, Lens, PAD, QueueMark, Scene, TileFx, YARD, camera, farmerXY, BuildView } from './Scene';
+import { CELL, FarmerPos, FarmerState, Flock, Floater, FxKind, Highlight, Lens, PAD, QueueMark, Scene, TileFx, FIELD_YARD, camera, farmerXY, BuildView, type SkyView } from './Scene';
+import { skyTokens, raidSigns, fogText, type SkyToken, type SkyKind } from './skyForecast';
+import { SkyPicture } from '../art/sky';
 import { Btn, Dispatch, Sheet, weeksShort } from './common';
 import { SeasonFx } from './SeasonFx';
 import { FieldVoice } from './FieldVoice';
 import {OrderVisit} from './OrderVisit';
 import { BedPopover } from './BedPopover';
 import { morningCellDelay, type MorningStep } from './Morning';
-import { kidsScouting } from './foresight';
+import { kidsScouting, kidsAhead } from './foresight';
 import {killers,kidMisses} from './collisions';
 import { workEffectCells, workCardPreview } from '../engine/game';
 export const TOUCH_AIM_OFFSET = 60;
@@ -237,7 +239,7 @@ function JournalNow(c: JournalCtx & {compact?:boolean}) {
       <h3 class="page-title">Эта неделя</h3>
       {quiet && <div class="book-calm"><SproutDoodle /><p>Срочных дел нет. Можно спокойно сажать и ухаживать за грядками.</p></div>}
       {deadlines.map(d => <p class="ink-line bad" key={d.text}>{d.text}</p>)}
-      {s.weekInSeason === seasonLen(s) && <p class="ink-line">После этой недели сменится сезон. Карты в руке останутся; новые придут на свободные места.</p>}
+      {s.weekInSeason === seasonLen(s) && <p class="ink-line">После этой недели сменится сезон. Отложенные карты останутся в руке, остальные уйдут в колоду.</p>}
       {crowsOpen(s) && <div class="book-note"><Icon name="crow" size={30} /><div class="grow"><b>Вороны на поле</b><p>Задержат рост молодых всходов или поклюют созревающий урожай. Теплицы и пугала защищают.</p></div><div class="book-acts"><Btn small disabled={s.days < 1 ? 'Нужен рабочий день' : null} onClick={() => act({ t: 'shoo' })}>Отогнать · 1 д.</Btn>{sortiesPerSeason(s) > s.dronesUsed && <Btn small onClick={() => act({ t: 'droneCrows' })}>Дрон</Btn>}</div></div>}
       {risky && outlook && <div class="book-note"><Icon name="thermo" size={28} /><div class="grow"><b>К концу этой недели</b>{outlook.frost > 0 && <p class="bad">Мороз угрожает {outlook.frost} грядкам. Проверьте укрытия.</p>}{outlook.dying > 0 && <p class="bad">Без полива погибнет {outlook.dying} грядок.</p>}{outlook.threats.map(t => <p class={t.guard === 'дрон' ? 'up' : 'bad'}>{t.name}: {t.beds} гр. · {t.guard === 'дрон' ? 'защитит дрон' : t.guard ? 'урожай пострадает; страховка выплатит деньги' : 'нужна защита'}.</p>)}</div><div class="book-acts"><Btn small onClick={onClose}>На поле</Btn></div></div>}
       {scouting && <div class="book-note"><Icon name="kids" size={28} /><div class="grow"><b>У поля крутятся дети</b><p>{thievesBlocked(s) ? 'Ребята из интерната приглядываются к спелым грядкам, но пёс и сторож их не подпустят.' : 'Ребята из интерната приглядываются к спелым грядкам. На следующей неделе могут прийти за урожаем — укройте грядки или заведите пса либо сторожа.'}</p></div></div>}
@@ -392,7 +394,8 @@ export const FAN_PIVOT = 2.2;
 const PEEK_SCALE = 1.04;
 // `grow` — extra card width the screen can afford (see the room planner in FieldView)
 function fanLayout(width: number, n: number, selected: number, peek = -1, short = false, grow = 0) {
-  const base = (short ? 86 : width < 340 ? 94 : width < 420 ? 110 : width < 700 ? 116 : 122) + grow;
+  // five cards at most: a phone fan stays compact and leaves the height to the field
+  const base = (short ? 86 : width < 340 ? 90 : width < 420 ? 98 : width < 700 ? 112 : 122) + grow;
   const fit = n > 1 ? Math.floor((width - 8) / (1 + (n - 1) * 0.86)) : base;
   const cw = Math.max(base - 8, Math.min(base, fit));
   const h = cw * 1.4;
@@ -424,11 +427,27 @@ type FanIntent = 'wait' | 'browse' | 'lift';
 // distances in CSS px; the same rules in the lesson and in ordinary play
 const INTENT_DEAD = 10, BROWSE_RATIO = 2, LIFT_RISE = 22;
 
-interface CalPage { season: string; num: string; sub: string; winter: boolean; of: number }
+// A calendar page; the coming week's page carries what is already known about it: its sky and the raids on the way.
+interface CalPage { season: string; num: string; sub: string; winter: boolean; of: number; sky?: SkyKind; temp?: number; signs: string[]; bad: string[] }
+const SKY_BAD: Partial<Record<SkyKind, string>> = { hail: 'град', flood: 'паводок', frost: 'заморозок', dry: 'засуха' };
 function calendarPage(s: GameState, offset: number): CalPage {
   const i = weekInfo(s, offset);
   const of = seasonLen(s, i.season);
-  return { season: `${SEASON_NAMES[i.season]} · ${i.year}-й год`, num: String(i.weekInSeason), sub: `неделя из ${of}`, winter: i.season === 3, of };
+  const page: CalPage = { season: `${SEASON_NAMES[i.season]} · ${i.year}-й год`, num: String(i.weekInSeason), sub: `неделя из ${of}`, winter: i.season === 3, of, signs: [], bad: [] };
+  if (offset > 0) {
+    const tok = skyTokens(s)[offset];
+    if (tok) { page.sky = tok.kind; page.temp = tok.temp; if (SKY_BAD[tok.kind]) page.bad.push(SKY_BAD[tok.kind]!); }
+    const abs = s.absWeek + offset;
+    const add = (icon: string, word: string) => { if (!page.signs.includes(icon)) { page.signs.push(icon); page.bad.push(word); } };
+    if (s.crowWarn?.includes(abs)) add('crow', 'вороны');
+    if (s.kidsWarn?.includes(abs) && !thievesBlocked(s)) add('kids', 'дети за урожаем');
+    for (const st of s.strikes) if (st.week === abs) {
+      if (st.kind === 'beetle') add('beetle', 'жуки');
+      if (st.kind === 'locust') add('locust', 'саранча');
+      if (st.kind === 'weedsurge') add('weeds', 'сорняки');
+    }
+  }
+  return page;
 }
 
 export function FieldView({ s, dispatch, fast, active, onGo, onOrder, placeRequest, testing=false, teaching=false, precheck, lessonVisit=false, onVisitDone }: { s: GameState; dispatch: Dispatch; fast: boolean; active: boolean; onGo: (tab: string) => void; onOrder?:(org:OrgId)=>void; placeRequest?: { item: BuildItem; key: number } | null; testing?:boolean; teaching?:boolean; precheck?:(a:Action)=>string|null; lessonVisit?:boolean; onVisitDone?:()=>void }) {
@@ -441,7 +460,8 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, placeReque
   rotRef.current = rot;
   const [hover, setHover] = useState<string | null>(null);
   const [info, setInfo] = useState<[number, number] | null>(null);
-  const [exchanging,setExchanging]=useState(false);
+  // 'card' — the exchange picks a card; 'compost' — the ready compost takes the place of a card in a full hand
+  const [exchanging,setExchanging]=useState<false|'card'|'compost'>(false);
   const [compostOpen,setCompostOpen]=useState(false);
   const [compostPulse,setCompostPulse]=useState(0);
   const [overCompost,setOverCompost]=useState(false);
@@ -566,7 +586,7 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, placeReque
   },[morning,pestHits,weekCue,weekPlaying,active,pageVisible,sheet,meetingOpen]);
   useEffect(()=>{const fn=()=>{clock.setPaused(!active||document.hidden||!!sheet||meetingOpen);setPageVisible(!document.hidden);};fn();document.addEventListener('visibilitychange',fn);return()=>document.removeEventListener('visibilitychange',fn);},[active,sheet,meetingOpen]);
   useEffect(()=>()=>clock.dispose(),[]);
-  const yard = YARD;
+  const yard = FIELD_YARD;
   useEffect(() => {
     if (!placeRequest) return;
     setSelected(null); setInfo(null); setLens(null); setMoveFrom(null); setBuild(placeRequest.item);
@@ -1084,7 +1104,7 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, placeReque
   }
   function pickCard(uid: number) {
     if(exchanging) {
-      if(act({t:'exchangeCard',uid})) {setExchanging(false);setSelected(null);}
+      if(act(exchanging==='compost'?{t:'claimCompost',uid}:{t:'exchangeCard',uid})) {setExchanging(false);setSelected(null);setCompostOpen(false);}
       return;
     }
     closeContext(); setLensMenu(false);
@@ -1268,11 +1288,13 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, placeReque
       if (dock.getBoundingClientRect().top < wrap.getBoundingClientRect().bottom - 2) { if (was.grow || was.read || was.fanMin) { roomRef.current = { grow: 0, read: 0, top: 0, fanMin: 0 }; setRoom(roomRef.current); } return; }
       const cs = getComputedStyle(wrap), rs = getComputedStyle(row);
       const padY = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom), padX = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
-      const side = parseFloat(rs.getPropertyValue('--side')) || 44, gap = parseFloat(rs.getPropertyValue('--gap')) || 4;
+      // the side column may be gone (0 px): only a missing value falls back to the old instrument width
+      const sideV = parseFloat(rs.getPropertyValue('--side')), gapV = parseFloat(rs.getPropertyValue('--gap'));
+      const side = Number.isFinite(sideV) ? sideV : 44, gap = Number.isFinite(gapV) ? gapV : 4;
       const c = camera(sRef.current, yard), arn = c.W / c.H;
       const fieldNeed = (wrap.clientWidth - padX - side - gap) / arn + padY;
       const n = Math.max(handMax(sRef.current), sRef.current.hand.length);
-      const short = innerHeight < 640, fw = fanEl.clientWidth || fanW;
+      const short = innerHeight < 700, fw = fanEl.clientWidth || fanW;
       const fanH = (grow: number) => { const f = fanLayout(fw, n, -1, -1, short, grow); return f.cw * 1.4 + f.sink; };
       const cur = fanLayout(fw, sRef.current.hand.length, -1, -1, short, was.grow);
       const fanConst = fanEl.offsetHeight - (cur.cw * 1.4 + cur.sink);
@@ -1335,7 +1357,7 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, placeReque
 
   const hand = s.hand;
   // a phone held sideways leaves little height: smaller cards
-  const short = typeof window !== 'undefined' && window.innerHeight < 640;
+  const short = typeof window !== 'undefined' && window.innerHeight < 700;
   const fan = fanLayout(fanW, hand.length, hand.findIndex((c) => c.uid === selected), hand.findIndex((c) => c.uid === peek), short, room.grow);
   const blockReason = card ? cardBlockReason(s, card) : null;
   const rotatable = !!card && !!def && (def.target === 'line' || (def.kind === 'seed' && shapeRotations(card).length > 1));
@@ -1367,6 +1389,17 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, placeReque
   const thievesNow = !!s.thieves && s.thieves.week === s.absWeek && !s.thieves.talked && !thievesBlocked(s);
   // the week before a raid (the engine's own next morning, computed on a copy and cached per state)
   const scouting = kidsScouting(s);
+  // the sky: this week's picture and the coming weeks; raids seen coming. The week being played shows its own sky.
+  const tokens = useMemo(() => skyTokens(fieldState), [fieldState]);
+  const signs = useMemo(() => (weekPlaying || night !== 'off' ? [] : raidSigns(fieldState)), [fieldState, weekPlaying, night]);
+  const lastToken = useRef<{ abs: number; at: number } | null>(null);
+  const skyView: SkyView = {
+    tokens, signs, meteoMax: lvl(fieldState, 'meteo') >= 3,
+    // a second tap on the same picture opens the full forecast
+    onToken: (t: SkyToken) => { const was = lastToken.current; lastToken.current = { abs: t.abs, at: performance.now() }; if (was && was.abs === t.abs && performance.now() - was.at < 2600) { lastToken.current = null; openSheet('forecast'); } else say(t.text); },
+    onFog: () => say(fogText(fieldState)),
+    onSign: (sg) => say(sg.text),
+  };
   const dragCard = drag ? s.hand.find((c) => c.uid === drag.uid) : null;
 
   function cardLine(): { text: string; tone: 'instr' | 'up' | 'down' } {
@@ -1450,24 +1483,24 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, placeReque
               showWarnings={!weekPlaying&&night==='off'}
               sceneCue={sceneCue}
               pestHits={pestHits} morning={morning}
-              scouts={scouting}
-              onScouts={() => say(thievesBlocked(s) ? 'Дети из интерната что-то высматривают у спелых грядок. Пёс и сторож их приметили — на набег не решатся.' : 'Дети из интерната высматривают спелые грядки. Похоже, на следующей неделе полезут за урожаем: укройте грядки, заведите пса или сторожа.')}
+              scouts={scouting && kidsAhead(s) <= 1}
+              onScouts={() => say(thievesBlocked(s) ? 'Дети из интерната что-то высматривают у спелых грядок. Пёс и сторож их приметили — на набег не решатся.' : `Дети из интерната высматривают спелые грядки. ${kidsAhead(s) >= 2 ? 'Через две недели' : 'На следующей неделе'} полезут за урожаем: укройте грядки, заведите пса или сторожа.`)}
+              sky={skyView}
               compost={{built:compostBuilt,building:!!compostProject,ready:!!s.compostReady,fill:compostBuilt?s.compostTick/Math.max(1,compostWeeks(s)):0,selected:!!card&&!compostProblem(s,card.uid),open:compostOpen,over:overCompost,pulse:compostPulse,onClick:()=>setCompostOpen(v=>!v)}}
             />
-            {!weekPlaying&&night==='off'&&<SeasonFx kind={(['spring', 'summer', 'autumn', 'winter'] as const)[s.season]} rain={!winter && s.flags.rain} />}
-          </div>
-          <div class="field-side">
-            <div class="field-tools" role="toolbar" aria-label="Приборы поля">
+            {!weekPlaying&&night==='off'&&<SeasonFx kind={(['spring', 'summer', 'autumn', 'winter'] as const)[s.season]} rain={!winter && s.flags.rain} heat={!winter && (s.flags.dry || airTemp(s) >= 28)} />}
+            <div class="field-tools sky-tools sky-left">
+              <button type="button" class={`tool-btn journal-button${chips.some(c=>c.tone==='bad')||crowsNow||thievesNow||endBad?' urgent':''}`} onClick={()=>openSheet('journal')} title="Журнал фермы" aria-label="События недели и действия"><Icon name="journal" size={29}/><i aria-hidden="true"/></button>
+            </div>
+            <div class="field-tools sky-tools sky-right" role="toolbar" aria-label="Приборы поля">
               <button type="button" class={`tool-btn${lens ? ' on' : ''}`} disabled={weekPlaying} aria-pressed={!!lens} onClick={() => { setBuild(null); setMoveFrom(null); setSelected(null); closeContext(); if(lens){setLens(null);setLensMenu(false);}else setLensMenu(!lensMenu); }} aria-label={`Линзы${lens ? `: ${lens === 'water' ? 'влага' : lens === 'soil' ? 'плодородие' : 'температура'}` : ''}`} title="Линзы">
                 <Icon name={lens === 'water' ? 'drop' : lens === 'soil' ? 'compost' : lens === 'temp' ? 'thermo' : 'lens'} size={22} />
               </button>
               <button type="button" class={`tool-btn${build ? ' on' : ''}`} disabled={weekPlaying} aria-pressed={!!build} onClick={() => { setLens(null); setLensMenu(false); setMoveFrom(null); setSelected(null); closeContext(); setBuild(build ? null : 'menu'); }} aria-label={build ? "Завершить перемещение построек" : "Постройки"} title="Постройки">
                 <Icon name="build" size={22} />
               </button>
-              <button type="button" class={`tool-btn journal-button${chips.some(c=>c.tone==='bad')||crowsNow||thievesNow||endBad?' urgent':''}`} onClick={()=>openSheet('journal')} title="Журнал фермы" aria-label="События недели и действия"><Icon name="journal" size={29}/><i aria-hidden="true"/></button>
               {lensMenu && <div class="lens-picker" role="group" aria-label="Выберите линзу">{(['water','soil','temp'] as const).map(l=><button type="button" class="tool-btn" aria-label={l==='water'?'Влага':l==='soil'?'Плодородие':'Температура почвы'} onClick={()=>{setLens(l);setLensMenu(false);}}><Icon name={l==='water'?'drop':l==='soil'?'compost':'thermo'} size={23}/></button>)}</div>}
             </div>
-            <WeatherPlate s={fieldState} onOpen={()=>openSheet('forecast')}/>
           </div>
         </div>
 
@@ -1478,7 +1511,9 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, placeReque
             : <><b>Компостная куча</b><small>Карта «Компост» раз в {compostWeeks({...s,levels:{...s.levels,compost:1}})} нед.</small>
                 <Btn small tone="primary" disabled={compostBuildProblem} onClick={()=>act({t:'track',track:'compost'})}>Обустроить · {money(trackCost(s,'compost',1))} · {weeksShort(trackWeeks(s,'compost',1))}</Btn></>)
           : s.compostReady
-            ? <><b>Компост готов</b><Btn small tone="primary" disabled={s.hand.length>=maxHand(s)?'Рука полна':null} onClick={()=>{if(act({t:'claimCompost'}))setCompostOpen(false);}}>Забрать карту</Btn></>
+            ? <><b>Компост готов</b>{s.hand.length>=maxHand(s)
+                ? <Btn small tone="primary" onClick={()=>{closeContext();setSelected(null);setExchanging('compost');}}>Забрать вместо карты</Btn>
+                : <Btn small tone="primary" onClick={()=>{if(act({t:'claimCompost'}))setCompostOpen(false);}}>Забрать карту</Btn>}</>
             : <><b>Созреет через {weeksShort(Math.max(1,compostWeeks(s)-s.compostTick))}</b>
                 {card ? <Btn small tone="primary" disabled={compostProblem(s,card.uid)} onClick={()=>{if(act({t:'compostCard',uid:card.uid}))setSelected(null);}}>Бросить «{CARDS[card.def].name}» · −1 нед.</Btn>
                   : <small>Бросьте сюда ненужную карту — созреет на неделю раньше.</small>}</>}
@@ -1507,19 +1542,20 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, placeReque
             <Icon name="day" size={18} />
             <small>{plural(s.days, 'день', 'дня', 'дней')}</small>
           </div>
-          <button type="button" class={`deck-pile dock exchange-deck${exchanging?' choosing':''}`} disabled={weekPlaying} aria-pressed={exchanging} onClick={()=>{
+          <button type="button" class={`deck-pile dock exchange-deck${exchanging?' choosing':''}`} disabled={weekPlaying} aria-pressed={exchanging==='card'} onClick={()=>{
             const why=exchangeProblem(s,card?.uid); if(why)return say(why);
             if(card) {if(act({t:'exchangeCard',uid:card.uid}))setSelected(null);}
-            else {closeContext();setBuild(null);setLens(null);setExchanging(!exchanging);}
+            else {closeContext();setBuild(null);setLens(null);setExchanging(exchanging==='card'?false:'card');}
           }} title="Заменить одну карту за 1 день · раз в неделю" aria-label="Обменять карту за 1 день">
             <span class="deck-back" aria-hidden="true"><i/><i/><i/><svg class="exchange-ring" viewBox="0 0 32 32" fill="none"><path d="M25 11a10 10 0 1 0 1 8M25 4v8h-8" stroke="currentColor" stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-            <small>{s.exchangeWeek===s.absWeek?'обменён':'обмен · 1 д.'}</small>
+            <small>{exchangesUsed(s)>=exchangesPerWeek(s)?'обменён':exchangesPerWeek(s)-exchangesUsed(s)>1?`обмен ×${exchangesPerWeek(s)-exchangesUsed(s)} · 1 д.`:'обмен · 1 д.'}</small>
+            {nextDraw(s) && <span class="deck-next" title="Следующая карта колоды"><CardArt def={nextDraw(s)!.def} size={18} /></span>}
           </button>
           {shown ? (
             <CardReadout s={s} card={shown} browsing={shown !== card} desc={room.read > 40} status={shown === card ? cardLine() : { text: 'Отпустите — выбрать · вверх — на поле', tone: 'instr' }} />
           ) : (
             <div class="info hand-summary">
-              {weekPlaying ? <FieldVoice s={s} active={lifeActive&&pageVisible} cue={weekCue} quiet={true} testReplay={testing} onOpen={()=>openSheet('journal')} fallback={<span class="hand-count">События недели</span>}/> : exchanging ? <><strong>Выберите карту для обмена</strong><small>1 день · один раз в неделю</small><button class="exchange-cancel" onClick={()=>setExchanging(false)}>Отмена</button></> : watering ? <><strong>Полив {watering.length}/{handWaterMax(s)}</strong><small>Отметьте соседние грядки · подтвердите лейкой</small></> : build ? <><strong>{buildItem ? BUILD_NAMES[buildItem].name : 'Перемещение'}</strong><small>{buildItem === 'scarecrow' ? 'Коснитесь угла грядки' : moveFrom || buildItem ? 'Коснитесь подсветки' : 'Коснитесь постройки'}</small></> : lens ? <><strong>{lens === 'water' ? 'Влага 0–3' : lens === 'soil' ? 'Плодородие 1–5' : 'Температура почвы'}</strong><small>{lens === 'water' ? 'Без воды рост останавливается' : lens === 'soil' ? 'Урожай ×0,6…×1,6' : 'Минимум роста — на карте'}</small></> : <><FieldVoice onOrder={onOrder ?? (()=>onGo('orders'))} testReplay={testing} s={s} active={sceneActive} cue={sceneCue} quiet={teaching} onOpen={() => openSheet('journal')} fallback={<span class="hand-count">Рука {hand.length}/{handMax(s)}<small>колода {deckCount(s)} · +{weeklyDraw(s)}/нед.</small></span>}/></>}
+              {weekPlaying ? <FieldVoice s={s} active={lifeActive&&pageVisible} cue={weekCue} quiet={true} testReplay={testing} onOpen={()=>openSheet('journal')} fallback={<span class="hand-count">События недели</span>}/> : exchanging ? <><strong>{exchanging==='compost'?'Выберите карту, которую заменит компост':'Выберите карту для обмена'}</strong><small>{exchanging==='compost'?'карта уйдёт в сброс':'1 день · обмены этой недели'}</small><button class="exchange-cancel" onClick={()=>setExchanging(false)}>Отмена</button></> : watering ? <><strong>Полив {watering.length}/{handWaterMax(s)}</strong><small>Отметьте соседние грядки · подтвердите лейкой</small></> : build ? <><strong>{buildItem ? BUILD_NAMES[buildItem].name : 'Перемещение'}</strong><small>{buildItem === 'scarecrow' ? 'Коснитесь угла грядки' : moveFrom || buildItem ? 'Коснитесь подсветки' : 'Коснитесь постройки'}</small></> : lens ? <><strong>{lens === 'water' ? 'Влага 0–3' : lens === 'soil' ? 'Плодородие 1–5' : 'Температура почвы'}</strong><small>{lens === 'water' ? 'Без воды рост останавливается' : lens === 'soil' ? 'Урожай ×0,6…×1,6' : 'Минимум роста — на карте'}</small></> : <><FieldVoice onOrder={onOrder ?? (()=>onGo('orders'))} testReplay={testing} s={s} active={sceneActive} cue={sceneCue} quiet={teaching} onOpen={() => openSheet('journal')} fallback={<span class="hand-count">Рука {hand.length}/{handMax(s)}<small>колода {deckCount(s)} · отложено {keptCount(s)}/{keepSlots(s)}</small></span>}/></>}
 
             </div>
           )}
@@ -1528,6 +1564,10 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, placeReque
 
               {def.target === 'none' && !blockReason && <button type="button" class="btn primary tool" onClick={() => { if (act({ t: 'play', uid: card.uid })) setSelected(null); }}>Сыграть</button>}
 
+              {!card.temp && s.phase === 'week' && <button type="button" class={`icon-btn keep-btn${card.keep ? ' on' : ''}`} aria-pressed={!!card.keep}
+                title={card.keep ? 'Отложена на следующую неделю' : `Отложить на следующую неделю: ${keptCount(s)} из ${keepSlots(s)}`}
+                aria-label={card.keep ? 'Не откладывать карту' : 'Отложить карту на следующую неделю'}
+                onClick={() => { if (!card.keep && keptCount(s) >= keepSlots(s)) return say(keepSlots(s) === 1 ? 'Отложить можно одну карту: снимите булавку с другой' : `Отложить можно не больше ${keepSlots(s)} карт`); act({ t: 'keepCard', uid: card.uid }); }}><PinIcon /></button>}
               <button type="button" class="icon-btn tool-x" onClick={() => setSelected(null)} aria-label="Отменить выбор">✕</button>
             </div>
           )}
@@ -1575,12 +1615,18 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, placeReque
         {pages && (
           <div class="wt-box">
             <div class="wt-cal">
-              <div class={`wt-page wt-next${pages[1].winter ? ' wt-winter' : ''}`}><div class="wt-head">{pages[1].season}</div><div class="wt-num">{pages[1].num}</div><div class="wt-sub">{pages[1].sub}</div></div>
+              <div class={`wt-page wt-next${pages[1].winter ? ' wt-winter' : ''}`}><div class="wt-head">{pages[1].season}</div><div class="wt-num">{pages[1].num}</div><div class="wt-sub">{pages[1].sub}</div>
+                {(pages[1].sky || pages[1].signs.length > 0) && <div class={`wt-omen${pages[1].bad.length ? ' bad' : ''}`}>
+                  {pages[1].sky && <svg class="wt-sky" viewBox="-42 -38 84 84" aria-hidden="true"><SkyPicture kind={pages[1].sky} /></svg>}
+                  {pages[1].temp !== undefined && <b>{pages[1].temp > 0 ? '+' : ''}{pages[1].temp}°</b>}
+                  {pages[1].signs.map((ic) => <Icon name={ic} size={20} />)}
+                </div>}
+              </div>
               <div class={`wt-page wt-cur${pages[0].winter ? ' wt-winter' : ''}`}><div class="wt-head">{pages[0].season}</div><div class="wt-num">{pages[0].num}</div><div class="wt-sub">{pages[0].sub}</div></div>
             </div>
             <div class="wt-caption">
               {night === 'hold' ? `Неделя ${pages[1].num}` : 'Неделя прошла'}
-              <small>{night === 'hold' ? `${pages[1].season.split(' · ')[0].toLowerCase()}, ${pages[1].num}-я из ${pages[1].of}` : 'всё подросло, созревшее собрано'}</small>
+              <small>{night === 'hold' ? `${pages[1].season.split(' · ')[0].toLowerCase()}, ${pages[1].num}-я из ${pages[1].of}${pages[1].bad.length ? ` · впереди: ${pages[1].bad.join(', ')}` : ''}` : 'всё подросло, созревшее собрано'}</small>
             </div>
             <div class="wt-skip">пропустить ›</div>
           </div>

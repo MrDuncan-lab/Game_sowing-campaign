@@ -136,6 +136,36 @@ export function ShapeGlyph({ def, rot = 0, cell = 7, irrigated = false }: { def:
   );
 }
 
+// the footprint in the corner index: green cells for a planting, orange for a work card
+export function MiniShape({ card }: { card: CardLike }) {
+  const k = asCard(card);
+  const d = CARDS[k.def];
+  let cells: [number, number][] | null = null;
+  if (d.kind === 'seed') cells = cardShape(k, 0);
+  else if (k.def === 'water' || k.def === 'mulch' || k.def === 'compost') cells = [[1, 0], [0, 1], [1, 1], [2, 1], [1, 2]];
+  else if (d.target === 'block') cells = [[0, 0], [1, 0], [0, 1], [1, 1]];
+  else if (k.def === 'care' || k.def === 'snow') cells = [[0, 0], [1, 0], [2, 0]];
+  else if (k.def === 'weeding') cells = [[0, 0], [1, 0], [2, 0], [3, 0]];
+  else if (d.target === 'cropTile' || d.target === 'tile') cells = [[0, 0]];
+  if (!cells) return null;
+  const c = 6, g = 1.2;
+  const w = Math.max(...cells.map((p) => p[0])) + 1, h = Math.max(...cells.map((p) => p[1])) + 1;
+  return (
+    <svg class="mini-shape" viewBox={`-1 -1 ${w * (c + g) + 2} ${h * (c + g) + 2}`} aria-hidden="true">
+      {cells.map(([x, y]) => <rect x={x * (c + g)} y={y * (c + g)} width={c} height={c} rx={1.4} fill={d.kind === 'seed' ? '#5f9a3a' : '#c8742c'} stroke="#3f2a1d" stroke-width={0.8} />)}
+    </svg>
+  );
+}
+export function PinIcon({ size = 20 }: { size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden="true">
+      <path d="M12 13 L12 22" stroke="#3f2a1d" stroke-width={2.2} stroke-linecap="round" />
+      <path d="M8 3 H16 L14.6 8.6 L17.6 12.6 H6.4 L9.4 8.6 Z" fill="#d0503c" stroke="#3f2a1d" stroke-width={1.6} stroke-linejoin="round" />
+      <path d="M10 5 H13" stroke="#fff3e6" stroke-width={1.4} stroke-linecap="round" opacity={0.8} />
+    </svg>
+  );
+}
+
 export function TraitBadges({ traits, size = 14 }: { traits?: TraitId[]; size?: number }) {
   if (!traits?.length) return null;
   return (
@@ -162,7 +192,7 @@ export function CardView({
   s, card, selected, blocked, onClick, compact, rot = 0, onPointerDown, rotHint, mini, noPrice,
 }: {
   s: GameState;
-  card: { def: string; extra?: [number, number][]; traits?: TraitId[]; temp?: boolean };
+  card: { def: string; extra?: [number, number][]; traits?: TraitId[]; temp?: boolean; keep?: boolean };
   noPrice?: boolean;
   selected?: boolean;
   blocked?: string | null;
@@ -184,7 +214,7 @@ export function CardView({
     <button
       type="button"
       data-card-uid={'uid' in card?String(card.uid):undefined}
-      class={`card pc kind-${d.kind}${card.temp ? ' temp' : ' perm'}${selected ? ' selected' : ''}${blocked ? ' blocked' : ''}${compact ? ' compact' : ''}${mini ? ' mini' : ''}`}
+      class={`card pc kind-${d.kind}${card.temp ? ' temp' : ' perm'}${card.keep ? ' kept' : ''}${selected ? ' selected' : ''}${blocked ? ' blocked' : ''}${compact ? ' compact' : ''}${mini ? ' mini' : ''}`}
       onClick={onClick}
       onPointerDown={onPointerDown}
       aria-pressed={selected}
@@ -212,8 +242,10 @@ export function CardView({
           <small>{sub}</small>
         </span>
       </span>
-      {/* the culture at the card's left edge — the part a neighbour in the fan never covers */}
+      {/* the corner index, as on a playing card: days, what it is and its footprint — the part a neighbour never covers */}
       <span class="pc-index" aria-hidden="true"><CardArt def={card.def} size={20} /></span>
+      <span class="pc-shape" aria-hidden="true"><MiniShape card={card} /></span>
+      {card.keep && <span class="pc-keep" title="Отложена на следующую неделю" aria-hidden="true"><PinIcon /></span>}
       <span class="gem gem-day" aria-hidden="true">{card.def === 'fertilizer' ? `${days}+` : days}</span>
       {price > 0 && !noPrice && <span class={`gem gem-money${d.kind === 'seed' && s.money < price ? ' debt' : ''}`} aria-hidden="true">{rub(price)}</span>}
       {minT !== null && <span class={`pc-temp${minT >= 12 ? ' warm' : minT <= 3 ? ' cold' : ''}`} title={`Растёт, когда почва не холоднее ${minT}°`}>от {minT > 0 ? '+' : ''}{minT}°</span>}

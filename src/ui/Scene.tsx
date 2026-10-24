@@ -27,6 +27,9 @@ import { Bed, DryBadge, EdgeArrow, Mark, SoilDelta, WeeksBadge } from '../art/be
 import { KidsPeek } from '../art/people';
 import { ScoutingKids } from '../art/scouts';
 import { P } from '../art/palette';
+import { SkyBand, SKY_H } from '../art/sky';
+import { HailShadow, FloodMark, WeedSeeds, BeetleScouts } from '../art/omens';
+import type { RaidSign, SkyToken } from './skyForecast';
 
 export type Lens = 'water' | 'soil' | 'temp' | null;
 export type Highlight = {
@@ -56,6 +59,9 @@ export interface TileFx { key: number; x: number; y: number; kind: FxKind; delay
 export const CELL = 100;
 export const PAD = 22;
 export const YARD = 64;
+// the field screen draws the forecast sky above the yard strip
+export const FIELD_YARD = YARD + SKY_H;
+export interface SkyView { tokens: SkyToken[]; signs: RaidSign[]; meteoMax: boolean; onToken: (t: SkyToken) => void; onFog: () => void; onSign: (s: RaidSign) => void }
 
 export interface Camera { vx: number; vy: number; span: number; W: number; H: number; yard: number }
 export function camera(s: GameState, yard = YARD): Camera {
@@ -526,14 +532,18 @@ function NoteBadge({ kind, m = 1 }: { kind: 'cold' | 'hot' | 'flood'; m?: number
     </g>
   );
 }
+// this week's frost on a bed that will not survive it: rime over the soil and ice crystals, no badge
+const RIME: [number, number, number][] = [[20, 24, 1], [78, 30, 0.8], [26, 74, 0.9], [80, 76, 1.1], [52, 50, 0.7]];
 function FrostMark({ m = 1 }: { m?: number }) {
   return (
     <g pointer-events="none" class="frost-mark">
-      <rect x={4} y={6} width={92} height={88} rx={12} fill="rgba(180,220,255,0.28)" stroke="#9fd3ff" stroke-width={3} stroke-dasharray="7 5" />
-      <g transform={`translate(20 80) scale(${m})`}>
-        <circle r={12} fill="#e8f5ff" stroke={P.ink} stroke-width={1.8} />
-        <g transform="translate(-9 -9) scale(0.375)">{icons.snow()}</g>
-      </g>
+      <rect x={4} y={6} width={92} height={88} rx={12} fill="rgba(205,232,255,0.42)" />
+      {RIME.map(([x, y, k], i) => (
+        <g transform={`translate(${x} ${y}) scale(${k * Math.min(1.4, m)})`}><g class="frost-crystal" style={{ animationDelay: `${-i * 0.5}s` }}>
+          <path d="M0 -7 V7 M-6 -3.5 L6 3.5 M-6 3.5 L6 -3.5 M0 -7 l-2 -2 M0 -7 l2 -2 M0 7 l-2 2 M0 7 l2 2" stroke="#ffffff" stroke-width={2.4} stroke-linecap="round" />
+          <path d="M0 -7 V7 M-6 -3.5 L6 3.5 M-6 3.5 L6 -3.5" stroke="#6fa6cf" stroke-width={1} stroke-linecap="round" />
+        </g></g>
+      ))}
     </g>
   );
 }
@@ -571,13 +581,16 @@ function LensCell({ s, x, y, lens, minT, m }: { s: GameState; x: number; y: numb
   );
 }
 
-const STRIKE_ICON: Record<StrikeKind, string> = { hail: 'hail', flood: 'flood', beetle: 'beetle', locust: 'locust', weedsurge: 'weeds' };
-function dangerMarks(s: GameState): Map<string, StrikeKind> {
-  const out = new Map<string, StrikeKind>();
+// What strikes the beds: this week's blows, and next week's hail zone the scout drone already sees.
+// Raids still on their way (beetles, locusts, weeds) are drawn as signs, not here.
+interface Danger { kind: StrikeKind; now: boolean }
+function dangerMarks(s: GameState): Map<string, Danger> {
+  const out = new Map<string, Danger>();
   for (const st of s.strikes) {
-    if (st.week < s.absWeek || st.kind === 'locust') continue;
+    const now = st.week === s.absWeek;
+    if (st.week < s.absWeek || st.kind === 'locust' || (!now && st.kind !== 'hail' && st.kind !== 'flood')) continue;
     const cells = st.kind === 'weedsurge' ? strikeVictims(s, st) : st.zone ? st.cells.map(([x, y]) => [x, y] as [number, number]) : strikeVictims(s, st);
-    for (const [x, y] of cells) if (tile(s, x, y).owned && tile(s, x, y).structure !== 'greenhouse') out.set(`${x},${y}`, st.kind);
+    for (const [x, y] of cells) if (tile(s, x, y).owned && tile(s, x, y).structure !== 'greenhouse' && !out.get(`${x},${y}`)?.now) out.set(`${x},${y}`, { kind: st.kind, now });
   }
   return out;
 }
@@ -599,8 +612,10 @@ function plantingBadges(s: GameState, hidden?: Map<string, Tile>): Map<string, n
 export interface BuildView { item: string; spots: Set<string>; rows: boolean; corners: boolean; removable: Set<string> }
 
 export function Scene({
-  s, highlight, onTile, onCorner, hoverTile, onHover, farmer, floaters, hidden, effects = [], yard = YARD, px = 1, queue, flock = 'off', lens = null, build = null, pets = [], lifeActive = true, showWarnings = true, sceneCue = null, pestHits = [], pestPaused=false, morning = null, compost, scouts = false, onScouts, aftermath, spentDry,
+  s, highlight, onTile, onCorner, hoverTile, onHover, farmer, floaters, hidden, effects = [], yard = YARD, px = 1, queue, flock = 'off', lens = null, build = null, pets = [], lifeActive = true, showWarnings = true, sceneCue = null, pestHits = [], pestPaused=false, morning = null, compost, scouts = false, onScouts, aftermath, spentDry, sky = null,
 }: {
+  /** the forecast sky over the yard; the yard height then includes it */
+  sky?: SkyView | null;
   /** the week before a raid: two orphanage kids loiter behind a bush in the yard */
   scouts?: boolean;
   onScouts?: () => void;
@@ -645,6 +660,10 @@ export function Scene({
   // the beetle speaks the locusts' language: the insects on the plant they eat this week (guarded beds keep their shield)
   const beetleBeds = new Set(s.strikes.filter((st) => st.kind === 'beetle' && st.week === s.absWeek).flatMap((st) => strikeVictims(s, st)).filter(([x, y]) => !isGuarded(s, x, y) && tile(s, x, y).structure !== 'greenhouse').map(([x, y]) => `${x},${y}`));
   const danger = dangerMarks(s);
+  const yardTop = sky ? SKY_H - 2 : 0;
+  // raids on their way, drawn on the beds they go for
+  const omen = new Map<string, RaidSign['kind']>();
+  if (sky) for (const sg of sky.signs) for (const [x, y] of sg.cells) if (!omen.has(`${x},${y}`)) omen.set(`${x},${y}`, sg.kind);
   const frost = new Set(frostVictims(s).map(([x, y]) => `${x},${y}`));
   const thieves = new Set(s.thieves && s.thieves.week === s.absWeek && !s.thieves.talked && !thievesBlocked(s) ? s.thieves.targets.filter((g) => tile(s, g.x, g.y).structure !== 'greenhouse' && tile(s, g.x, g.y).crop?.pid === g.pid && !isGuarded(s, g.x, g.y)).map((g) => `${g.x},${g.y}`) : []);
   const yardCrates = s.yard.reduce((a, l) => a + l.qty, 0);
@@ -657,7 +676,8 @@ export function Scene({
       </defs>
       <rect x={0} y={0} width={cam.W} height={cam.H} rx={18} fill="url(#grass-tex)" />
       {/* the yard strip: a path, the fence, the pets and the crates that did not fit the barn */}
-      <rect x={0} y={0} width={cam.W} height={yard} rx={18} fill={winter ? '#f4f8fb' : '#a9d27f'} opacity={0.6} />
+      {sky && <SkyBand W={cam.W} season={s.season} tokens={sky.tokens} signs={sky.signs} meteoMax={sky.meteoMax} px={px} onToken={sky.onToken} onFog={sky.onFog} onSign={sky.onSign} />}
+      <rect x={0} y={yardTop} width={cam.W} height={yard - yardTop} rx={sky ? 0 : 18} fill={winter ? '#f4f8fb' : '#a9d27f'} opacity={sky ? 0.45 : 0.6} />
       <YardDecor W={cam.W} yard={yard} season={s.season as Season} />
       <EdgeDecor W={cam.W} H={cam.H} yard={yard} season={s.season as Season} />
       {/* an engraver's double rule round the plot, like the plates of the atlas */}
@@ -773,15 +793,20 @@ export function Scene({
                 {showWarnings && !hidePlants && crop && beetleBeds.has(k) && <Beetles phase={(x * 2 + y) * 0.31} />}
                 {showWarnings && !hidePlants && thieves.has(k) && <Footprints />}
                 {showWarnings && frost.has(k) && !hidePlants && <FrostMark m={mNum} />}
-                {showWarnings && danger.has(k) && !hidePlants && !beetleBeds.has(k) && (
-                  <g pointer-events="none" class={isGuarded(s, x, y) ? 'guarded' : 'danger'}>
-                    <rect x={4} y={6} width={92} height={88} rx={12} class={isGuarded(s, x, y) ? 'guard-ring' : 'danger-ring'} />
+                {showWarnings && danger.has(k) && !hidePlants && !beetleBeds.has(k) && (isGuarded(s, x, y) ? (
+                  <g pointer-events="none" class="guarded">
+                    <rect x={4} y={6} width={92} height={88} rx={12} class="guard-ring" />
                     <g transform={`translate(20 80) scale(${mNum})`}>
-                      <circle r={12} fill={isGuarded(s, x, y) ? '#dff1fb' : '#fff3df'} stroke={P.ink} stroke-width={1.8} />
-                      <g transform="translate(-9 -9) scale(0.375)">{(icons[isGuarded(s, x, y) ? 'guard' : STRIKE_ICON[danger.get(k)!]] ?? icons.star)()}</g>
+                      <circle r={12} fill="#dff1fb" stroke={P.ink} stroke-width={1.8} />
+                      <g transform="translate(-9 -9) scale(0.375)">{(icons.guard ?? icons.star)()}</g>
                     </g>
                   </g>
-                )}
+                ) : danger.get(k)!.kind === 'hail' ? <HailShadow faint={!danger.get(k)!.now} />
+                  : danger.get(k)!.kind === 'flood' ? <FloodMark />
+                  : danger.get(k)!.kind === 'weedsurge' ? <WeedSeeds landing />
+                  : null)}
+                {showWarnings && !hidePlants && omen.get(k) === 'beetle' && crop && <BeetleScouts />}
+                {showWarnings && !hidePlants && omen.get(k) === 'weedsurge' && !crop && <WeedSeeds />}
                 {lens && t.owned && !t.canal && <LensCell s={s} x={x} y={y} lens={lens} minT={highlight.minT} m={mLens} />}
                 {inArea && <rect x={4} y={6} width={92} height={88} rx={12} class={`area-overlay${highlight.areaKind ? ` k-${highlight.areaKind}` : ''}`} pointer-events="none" />}
                 {build?.removable.has(k) && (
@@ -923,7 +948,7 @@ export function Scene({
           ))}
       </g>
 
-      {compost&&<g class={`compost-button field-compost${compost.ready?' ready':''}${compost.selected?' accepting':''}${compost.over?' drag-over':''}${compost.open?' open':''}`} transform={`translate(${cam.W-108} 2)`} role="button" tabindex={0} aria-label={!compost.built?(compost.building?'Компостная куча строится':'Обустроить компостную кучу'):compost.ready?'Компост готов':'Компостная куча'} aria-expanded={compost.open} onClick={compost.onClick} onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();compost.onClick();}}}>
+      {compost&&<g class={`compost-button field-compost${compost.ready?' ready':''}${compost.selected?' accepting':''}${compost.over?' drag-over':''}${compost.open?' open':''}`} transform={`translate(${cam.W-108} ${yardTop+2})`} role="button" tabindex={0} aria-label={!compost.built?(compost.building?'Компостная куча строится':'Обустроить компостную кучу'):compost.ready?'Компост готов':'Компостная куча'} aria-expanded={compost.open} onClick={compost.onClick} onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();compost.onClick();}}}>
        <rect x={-6} y={-2} width={Math.max(104,48/px)} height={Math.max(72,48/px)} fill="transparent" class="compost-hit"/>
        <g class="compost-lift"><g key={compost.pulse??0} class={compost.pulse?'compost-settle':''}><CompostHeap built={compost.built} building={compost.building} fill={compost.fill} ready={compost.ready}/></g></g>
       </g>}

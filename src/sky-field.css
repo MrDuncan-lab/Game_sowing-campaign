@@ -1,0 +1,93 @@
+/* The forecast sky over the field. The field takes the whole width; the tools float over the sky. */
+.field-row {--side:0px;--gap:0px;grid-template-columns:minmax(0,1fr);}
+.field-stage {position:relative;}
+.field-side {display:none;}
+.field-tools.sky-tools {position:absolute;top:1.1%;bottom:auto;z-index:6;display:flex;flex-direction:row;gap:5px;--tb:clamp(30px,8.6cqw,42px);}
+.field-tools.sky-tools.sky-left {left:1.3%;right:auto;}
+.field-tools.sky-tools.sky-right {right:1.3%;left:auto;}
+.field-tools.sky-tools .tool-btn {width:var(--tb);height:var(--tb);min-width:0;min-height:0;}
+.field-tools.sky-tools .tool-btn svg {width:calc(var(--tb) * .64);height:calc(var(--tb) * .64);}
+.sky-tools .lens-picker {position:absolute;top:calc(var(--tb) + 6px);right:0;left:auto;}
+
+/* the conveyor of weeks: a new week slides each picture one place closer and makes it bigger */
+.sky-token {transition:transform 1.1s cubic-bezier(.3,.7,.2,1);cursor:pointer;animation:sky-in .7s ease-out both;}
+.sky-token-scale {transition:transform 1.1s cubic-bezier(.3,.7,.2,1);}
+@keyframes sky-in {from{opacity:0}to{opacity:1}}
+.sky-token:focus-visible {outline:none;}
+.sky-token:focus-visible .sky-token-scale > circle {stroke:#9c702b;stroke-width:3;}
+.sky-temp-text {font:800 13px/1 var(--ui);}
+.sky-chip-text {font:800 12px/1 var(--ui);fill:#3f2a1d;}
+.sky-token.bad .sky-temp rect {stroke:#a92e25;}
+.sky-rays {animation:sky-spin 26s linear infinite;}
+@keyframes sky-spin {to{transform:rotate(360deg)}}
+.sky-fall > * {animation:sky-drop 1.1s linear infinite;}
+.sky-fall.hail > * {animation-duration:.9s;}
+.sky-fall.snow > * {animation-duration:2.6s;}
+@keyframes sky-drop {0%{transform:translateY(-6px);opacity:0}20%{opacity:1}100%{transform:translateY(16px);opacity:0}}
+.sky-heat path {animation:sky-shimmer 1.6s ease-in-out infinite alternate;}
+@keyframes sky-shimmer {from{transform:translateX(-2px)}to{transform:translateX(2px)}}
+.sky-cloud {animation:sky-drift 7s ease-in-out infinite alternate;}
+@keyframes sky-drift {from{transform:translateX(-2px)}to{transform:translateX(3px)}}
+.sky-glow {animation:sky-glow 3s ease-in-out infinite alternate;}
+@keyframes sky-glow {from{opacity:.25}to{opacity:.55}}
+.sky-waves {animation:sky-shimmer 1.4s ease-in-out infinite alternate;}
+.sky-wisp {animation:sky-wisp 9s ease-in-out infinite alternate;}
+@keyframes sky-wisp {from{transform:translateX(-6px)}to{transform:translateX(8px)}}
+.sky-fogbank, .sky-sign {cursor:pointer;}
+.sky-orbit {animation:sky-orbit 5.5s linear infinite;}
+.sky-flock.far .sky-orbit {animation-duration:8s;}
+@keyframes sky-orbit {from{transform:rotate(0deg) translateX(13px) rotate(0deg)}to{transform:rotate(360deg) translateX(13px) rotate(-360deg)}}
+.sky-gnat {animation:sky-gnat .55s ease-in-out infinite alternate;}
+@keyframes sky-gnat {from{transform:translate(-1px,1px)}to{transform:translate(1.5px,-1.5px)}}
+.sky-swarm {animation:sky-drift 3.2s ease-in-out infinite alternate;}
+.sky-kids {animation:sky-peek 4s ease-in-out infinite;}
+@keyframes sky-peek {0%,60%,100%{transform:translateY(0)}70%,90%{transform:translateY(5px)}}
+
+/* trouble on the beds */
+.omen-pellet {animation:omen-pellet 2.2s ease-in infinite;}
+@keyframes omen-pellet {0%{transform:translateY(-12px);opacity:0}25%{opacity:1}55%,100%{transform:translateY(0);opacity:1}}
+.omen-hail.faint rect {animation:omen-faint 3s ease-in-out infinite alternate;}
+@keyframes omen-faint {from{fill-opacity:.08}to{fill-opacity:.2}}
+.omen-wave {animation:sky-shimmer 1.8s ease-in-out infinite alternate;}
+.omen-fluff {animation:omen-fluff 4.6s ease-in-out infinite;}
+.omen-weeds.landing .omen-fluff {animation:omen-settle 3.4s ease-out infinite;}
+@keyframes omen-fluff {0%{transform:translate(-16px,-20px) rotate(-25deg);opacity:0}25%{opacity:1}100%{transform:translate(12px,10px) rotate(25deg);opacity:0}}
+@keyframes omen-settle {0%{transform:translate(-8px,-14px);opacity:0}40%{transform:translate(0,0);opacity:1}100%{transform:translate(0,0);opacity:1}}
+.omen-sprout {animation:omen-sprout 3.4s ease-out infinite;transform-box:fill-box;transform-origin:50% 100%;}
+@keyframes omen-sprout {0%,40%{transform:scaleY(0)}70%,100%{transform:scaleY(1)}}
+.omen-crawl {animation:omen-crawl 7s ease-in-out infinite;}
+@keyframes omen-crawl {0%{transform:translateX(0)}40%{transform:translateX(18px)}50%{transform:translateX(18px) scaleX(-1)}90%{transform:translateX(0) scaleX(-1)}100%{transform:translateX(0)}}
+
+/* the coming week's page of the tear-off calendar tells what is already known about it */
+.wt-cal {height:186px;}
+.wt-omen {display:flex;align-items:center;justify-content:center;gap:3px;margin-top:4px;padding:2px 6px;border-radius:10px;color:#3f2a1d;font:800 .82rem/1 var(--ui);}
+.wt-omen.bad {background:#fbe3d6;box-shadow:inset 0 0 0 1.5px #c9633f;}
+.wt-omen .wt-sky {width:34px;height:34px;overflow:visible;}
+
+/* this week's weather on the field itself */
+.frost-crystal {animation:frost-twinkle 2.6s ease-in-out infinite alternate;}
+@keyframes frost-twinkle {from{opacity:.55;transform:rotate(0deg) scale(.92)}to{opacity:1;transform:rotate(18deg) scale(1.05)}}
+.fx .heat-haze {position:absolute;inset:18% 0 0 0;pointer-events:none;}
+.fx .heat-haze i {position:absolute;bottom:0;opacity:0;animation:heat-rise 4s ease-in infinite;}
+@keyframes heat-rise {0%{transform:translateY(20%) scaleX(1);opacity:0}30%{opacity:.5}100%{transform:translateY(-70%) scaleX(1.6);opacity:0}}
+
+@media (prefers-reduced-motion: reduce) {
+  .frost-crystal, .fx .heat-haze i {animation:none !important;}
+  .sky-band *, .omen-hail *, .omen-weeds *, .omen-beetles *, .omen-flood * {animation:none !important;}
+  .sky-token, .sky-token-scale {transition:none;}
+}
+
+/* the five-card hand: a corner index like a playing card — days (gem), what it is, its footprint; a pin for a card kept */
+.card.pc .pc-shape {display:none;}
+.fan-slot .card.pc .pc-shape {display:block;position:absolute;left:.42em;top:5.5em;z-index:1;}
+.fan-slot.peek .card.pc .pc-shape, .fan-slot .card.pc.selected .pc-shape {display:none;}
+.pc-shape .mini-shape {display:block;width:1.95em;height:auto;max-height:2.4em;}
+.card.pc .pc-keep {position:absolute;left:2.65em;top:2.8em;z-index:3;width:1.55em;height:1.55em;display:grid;place-items:center;border-radius:50%;
+  background:#fffaf0;border:1.5px solid #3f2a1d;box-shadow:0 1px 0 rgba(63,42,29,.25);}
+.card.pc .pc-keep svg {width:1.15em;height:1.15em;}
+.fan-slot.peek .card.pc .pc-keep, .fan-slot .card.pc.selected .pc-keep {left:auto;right:.4em;top:2.4em;}
+.card.pc.kept {outline:2px solid #d0503c;outline-offset:-3px;}
+.dock .keep-btn {width:34px;height:34px;display:grid;place-items:center;border-radius:50%;border:2px solid #80532d;background:linear-gradient(#fff8e6,#f3dfb5);}
+.dock .keep-btn.on {background:#fbe3d6;border-color:#c9633f;box-shadow:inset 0 2px 3px #7c4f2b33;}
+.deck-pile {position:relative;}
+.deck-pile .deck-next {position:absolute;right:-7px;top:-7px;width:24px;height:24px;border-radius:50%;background:#fffaf0;border:1.5px solid #3f2a1d;display:grid;place-items:center;z-index:2;}

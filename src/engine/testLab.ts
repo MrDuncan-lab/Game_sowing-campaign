@@ -4,7 +4,7 @@ import * as D from './data';
 import {EpisodeKind,baseTemp} from './calendar';
 export const TEST_SCENARIOS=[
  ['planting','Посадка и поворот','Выберите карту; повторный тап поворачивает фигуру.'],
- ['fullfield','Полное поле и 9 карт','Перетащите карту: прицел выше пальца, на маленьких клетках появляется увеличение.'],
+ ['fullfield','Полное поле и полная рука','Перетащите карту: прицел выше пальца, на маленьких клетках появляется увеличение.'],
  ['gallery','Все растения','Разные стадии роста. Линзы показывают влагу, почву и температуру.'],
  ['exchange','Обмен','В руке редис; в колоде его копия и другая карта. Стрелка должна выдать другую.'],
  ['compost','Компост','Яма почти готова; отправьте карту или дождитесь конца недели.'],
@@ -28,6 +28,9 @@ export const TEST_SCENARIOS=[
  ['crowraid','Дети и вороны','Дети разгонят птиц на своих грядках и заберут урожай.'],
  ['collisions','Ненастья наперегонки','Мороз, засуха, саранча и жук успевают к грядкам раньше детей и ворон. Четверо разных детей.'],
  ['scouts','Дети высматривают поле','За неделю до набега двое детей прячутся за кустом у двора. Нажмите на куст.'],
+ ['flockwarn','Стая над лесом','Вороны кружат за неделю до налёта. Нажмите на стаю: на следующей неделе она сядет на всходы.'],
+ ['pestwarn','Жуки, саранча и сорняки на подходе','Жуки ползут к картошке, саранча на горизонте, ветер несёт сорняки — за неделю до удара.'],
+ ['omens','Дрон-разведчик: набеги за две недели','С разведчиком всё видно за две недели: стая, саранча, дети вдалеке.'],
  ['dog','Собака против воров','Завершите неделю: урожай сохранится, появятся погоня и реплика.'],
  ['watchman','Сторож против воров','Завершите неделю: сторож защитит поле.'],
  ['drone','Защитный вылет дрона','Завершите неделю: дрон остановит удар насекомых.'],
@@ -91,16 +94,12 @@ export function testFixture(which:TestScenario,loc:D.LocationId='chernozem'):G.G
   return s;
  }
  if(which==='scouts'){
-  // The week before a raid: an angry orphanage, ripe beds, no guard. A seed is picked whose next morning has the raid.
-  const base=testFixture('thieves',loc);
-  for(let i=0;i<80;i++){
-   const s:G.GameState=JSON.parse(JSON.stringify(base));s.seed=`TEST-scouts-${i}`;s.thieves=null;
-   for(const t of s.tiles)if(t.owned){t.moisture=3;if(t.crop)t.crop.grown=2;}
-   for(const o of D.LOCATIONS[s.loc].orgs)if(D.ORGS[o].mischief==='thieves'&&s.orgs[o])s.orgs[o]!.rel=-50;
-   const n=G.endWeek(s);
-   if(n.thieves&&n.thieves.week===n.absWeek&&n.thieves.targets.length)return s;
-  }
-  return base;
+  // The week before a raid: an angry orphanage, ripe beds, no guard. The raid is announced for next week.
+  const s=testFixture('thieves',loc);s.thieves=null;
+  for(const t of s.tiles)if(t.owned){t.moisture=3;if(t.crop)t.crop.grown=2;}
+  for(const o of D.LOCATIONS[s.loc].orgs)if(D.ORGS[o].mischief==='thieves'&&s.orgs[o])s.orgs[o]!.rel=-50;
+  s.kidsWarn=[s.absWeek+1];s.kidsRolled=[s.absWeek+1];
+  return s;
  }
  if(which==='eventchain'||which==='emptyraid'||which==='crowraid'){
   const s=testFixture('thieves',loc);
@@ -119,12 +118,12 @@ export function testFixture(which:TestScenario,loc:D.LocationId='chernozem'):G.G
  }
  const s=G.newGame({loc,seed:`TEST-${which}-${Date.now()}-${++serial}`});
  if(which==='normal')return s;
- s.money=1000;s.days=8;s.plan=[];s.strikes=[];s.crows=null;s.thieves=null;s.flags={rain:false,dry:false,warm:false};s.temps.fill(20);s.levels.planning=3;
+ s.money=1000;s.days=8;s.plan=[];s.strikes=[];s.crows=null;s.thieves=null;s.flags={rain:false,dry:false,warm:false};s.temps.fill(20);
  for(const o of Object.values(s.orgs))if(o){o.offer=null;o.active=null;o.wait=1;}
  for(const t of s.tiles)if(t.owned)Object.assign(t,{terrain:'plain',crop:null,soil:3,moisture:2,weeds:false});
  testHand(s,['seed_radish','seed_bean','seed_potato','water','mulch','fertilizer']);
  if(['fullfield','gallery','pets','equipment','canal','flood'].includes(which))for(const t of s.tiles)Object.assign(t,{owned:true,terrain:'plain',crop:null,weeds:false,moisture:2,soil:3});
- if(which==='fullfield')testHand(s,Array.from({length:9},(_,i)=>['seed_radish','seed_bean','seed_potato'][i%3]));
+ if(which==='fullfield')testHand(s,Array.from({length:5},(_,i)=>['seed_radish','seed_bean','seed_potato'][i%3]));
  if(which==='gallery'){
   D.CROP_IDS.filter(c=>!D.CROPS[c].product).forEach((c,i)=>crop(s,i%6,Math.floor(i/6),c,Math.floor(D.CROPS[c].grow*(i%3)/3)));
   s.unlocked=D.CROP_IDS.filter(c=>!D.CROPS[c].product);testHand(s,['water','mulch','fertilizer','compost','bio','early']);
@@ -175,6 +174,24 @@ export function testFixture(which:TestScenario,loc:D.LocationId='chernozem'):G.G
   if(which==='dog'||which==='guide')s.pets=['dog'];
   if(which==='watchman')s.team=[{id:'watchman',level:1,away:0}];
   if(which==='guide'){s.guide=[];s.thieves=null;testAnimation(s,'dogThieves');}
+ }
+ if(which==='flockwarn'||which==='pestwarn'||which==='omens'){
+  // raids seen coming: a week ahead, two with the scout drone
+  testDate(s,1);s.temps.fill(20);s.days=8;
+  const pid=s.nextPid++;for(const[x,y]of [[1,1],[2,1],[1,2]])crop(s,x,y,'potato',1,pid);
+  crop(s,2,2,'bean',0);crop(s,3,1,'bean',0);crop(s,3,2,'wheat',1);
+  const lead=which==='omens'?2:1;if(which==='omens')s.levels.drone=1;
+  const at=s.absWeek+lead;
+  if(which!=='pestwarn'){s.plan.push({id:910,kind:'crows',start:at,len:1});s.crowWarn=[at];s.crowRolled=[at];}
+  if(which!=='flockwarn'){
+   const potato=G.ownedTiles(s).filter(([t])=>t.crop?.id==='potato').map(([t,x,y])=>[x,y,t.crop!.pid] as [number,number,number]);
+   s.plan.push({id:911,kind:'beetle',start:at-1,len:2});s.strikes.push({kind:'beetle',ep:911,week:at,cells:potato,zone:false});
+   const wheat=G.ownedTiles(s).filter(([t])=>t.crop?.id==='wheat'||t.crop?.id==='bean').map(([t,x,y])=>[x,y,t.crop!.pid] as [number,number,number]);
+   s.plan.push({id:912,kind:'locust',start:at-1,len:3});s.strikes.push({kind:'locust',ep:912,week:at,cells:wheat,zone:false});
+   const free=G.ownedTiles(s).filter(([t])=>!t.crop).slice(0,2).map(([,x,y])=>[x,y,0] as [number,number,number]);
+   s.plan.push({id:913,kind:'weedsurge',start:at,len:1});s.strikes.push({kind:'weedsurge',ep:913,week:at,cells:free,zone:true});
+  }
+  if(which==='omens'){for(const o of D.LOCATIONS[s.loc].orgs)if(D.ORGS[o].mischief==='thieves'&&s.orgs[o])s.orgs[o]!.rel=-50;s.kidsWarn=[at];s.kidsRolled=[s.absWeek+1,at];}
  }
  if(which==='weeds'){for(const[x,y]of [[1,1],[2,1],[3,1],[2,2]])G.tile(s,x,y).weeds=true;s.pets=['geese'];testHand(s,['weeding','weeding','seed_radish']);}
  if(which==='bees'){testDate(s,1);s.temps.fill(20);s.days=8;s.levels.apiary=3;G.tile(s,2,2).structure='hive';crop(s,2,1,'buckwheat',1);testHand(s,['seed_buckwheat','seed_pumpkin','water']);}

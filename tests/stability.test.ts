@@ -15,9 +15,12 @@ test('saved hand survives all regional season and year boundaries with spare slo
   const n=D.LOCATIONS[loc].seasons[season]-1;s.week+=n;s.absWeek+=n;s.weekInSeason+=n;
   if(full)while(s.hand.length<G.handMax(s))G.drawCards(s,1);else s.discard.push(...s.hand.splice(2));
   s.hand[0]={...s.hand[0],traits:['fast'],extra:[[9,9]],temp:true};
-  const held=structuredClone(s.hand);s=G.endWeek(JSON.parse(JSON.stringify(s)));
+  // a one-off card and a card put aside stay; every other card goes to the discard and a fresh hand is dealt
+  s.hand[1]={...s.hand[1],keep:true};
+  const held=structuredClone(s.hand.slice(0,2)),rest=s.hand.slice(2).map(c=>c.uid),count=G.deckCount(s);s=G.endWeek(JSON.parse(JSON.stringify(s)));
   for(const c of held)assert.deepEqual(s.hand.find(x=>x.uid===c.uid),c);
-  assert.ok(s.hand.length<=G.handMax(s));
+  for(const uid of rest)assert.ok(!s.hand.some(c=>c.uid===uid)||s.hand.find(c=>c.uid===uid)?.keep===undefined);
+  assert.ok(s.hand.length<=G.handMax(s));assert.equal(G.deckCount(s),count);
  }
 });
 test('lab explicitly takes the selected hand UID and returns it once after research',()=>{
@@ -51,7 +54,7 @@ test('one paid side job per week survives save/load and does not charge rejected
  const first=s.hand[0].uid,second=s.hand[1].uid;const earned=G.sidejobPay(s),cash=s.money;
  s=G.apply(s,{t:'play',uid:first});assert.equal(s.money,cash+earned);
  s=JSON.parse(JSON.stringify(s));const snapshot=JSON.stringify(s);assert.throws(()=>G.apply(s,{t:'play',uid:second}),/неделе/);assert.equal(JSON.stringify(s),snapshot);
- s=G.endWeek(s);assert.ok(s.hand.some(c=>c.uid===second));assert.equal(G.cardBlockReason(s,s.hand.find(c=>c.uid===second)!),null);
+ s=G.apply(s,{t:'keepCard',uid:second});s=G.endWeek(s);assert.ok(s.hand.some(c=>c.uid===second));assert.equal(G.cardBlockReason(s,s.hand.find(c=>c.uid===second)!),null);
 });
 test('acceptance never shifts offer deadline; ignored offers expire without relationship penalty',()=>{
  let s=quiet();const org=D.LOCATIONS[s.loc].orgs[0];const st=s.orgs[org]!;

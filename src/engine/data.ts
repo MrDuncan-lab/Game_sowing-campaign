@@ -154,7 +154,7 @@ export const TRACKS: Record<TrackId, TrackDef> = {
       { name: 'Погреб', cost: 35, weeks: 1, text: '2 работника · колода до 16 · томаты хранятся на неделю дольше' },
       { name: 'Мастерская', cost: 70, weeks: 2, text: '3 работника · колода до 18 · +1 рабочий день' },
       { name: 'Кабинет', cost: 120, weeks: 2, text: '4 работника · колода до 20 · второй слот мастерской, 4 заказа в работе' },
-      { name: 'Усадьба', cost: 220, weeks: 3, text: '5 работников · колода до 22 · +1 карта в неделю' },
+      { name: 'Усадьба', cost: 220, weeks: 3, text: '5 работников · колода до 22 · +1 обмен в неделю' },
     ],
   },
   lab: {
@@ -194,7 +194,7 @@ export const TRACKS: Record<TrackId, TrackDef> = {
   drone: {
     id: 'drone', name: 'Дрон', icon: 'drone', text: 'Разведка и защита с воздуха.',
     levels: [
-      { name: 'Разведчик', cost: 25, weeks: 2, text: 'цели угроз видны за неделю до удара' },
+      { name: 'Разведчик', cost: 25, weeks: 2, text: 'набеги видны за 2 недели, зона града — за неделю' },
       { name: 'Защитник', cost: 50, weeks: 2, text: '1 вылет за сезон: жук, саранча или вороны' },
       { name: 'Опрыскиватель', cost: 100, weeks: 3, text: '2 вылета за сезон', needHouse: 3 },
     ],
@@ -233,11 +233,11 @@ export const TRACKS: Record<TrackId, TrackDef> = {
     ],
   },
   planning: {
-    id: 'planning', name: 'Планёрка', icon: 'calendar', text: 'Сколько карт держать в руке.',
+    id: 'planning', name: 'Планёрка', icon: 'calendar', text: 'Каждую неделю — свежие 5 карт. Планёрка позволяет откладывать карты на следующую неделю.',
     levels: [
-      { name: 'Блокнот', cost: 30, weeks: 1, text: 'в руке до 7 карт' },
-      { name: 'Доска планов', cost: 60, weeks: 2, text: 'в руке до 8 карт' },
-      { name: 'Штаб', cost: 110, weeks: 2, text: 'в руке до 9 карт, +1 карта в неделю', needHouse: 3 },
+      { name: 'Блокнот', cost: 30, weeks: 1, text: 'отложить можно 2 карты' },
+      { name: 'Доска планов', cost: 60, weeks: 2, text: 'отложить 3 карты · два обмена в неделю' },
+      { name: 'Штаб', cost: 110, weeks: 2, text: 'видна следующая карта колоды · +1 рабочий день', needHouse: 3 },
     ],
   },
   compost: {
@@ -271,7 +271,7 @@ export const BARN_CAP = [40, 60, 90, 130, 180];
 export type WorkerId = 'foreman' | 'agronomist' | 'irrigator' | 'beekeeper' | 'marketer' | 'mechanic' | 'breeder' | 'soilsci' | 'watchman' | 'greenhouser';
 export interface WorkerDef { id: WorkerId; name: string; title: string; price: number; salary: number; levels: [string, string, string]; portrait: string; color: string }
 export const WORKERS: Record<WorkerId, WorkerDef> = {
-  foreman: { id: 'foreman', name: 'Степан', title: 'Бригадир', price: 18, salary: 2, portrait: 'foreman', color: '#d9822b', levels: ['+1 рабочий день', '+1 день и +1 карта в неделю', '+2 рабочих дня и +1 карта'] },
+  foreman: { id: 'foreman', name: 'Степан', title: 'Бригадир', price: 18, salary: 2, portrait: 'foreman', color: '#d9822b', levels: ['+1 рабочий день', '+1 день и +1 обмен в неделю', '+2 рабочих дня и +1 обмен'] },
   agronomist: { id: 'agronomist', name: 'Нина', title: 'Агроном', price: 20, salary: 2, portrait: 'agronomist', color: '#7cae4a', levels: ['+1 ед. с каждой собранной грядки', 'повтор культуры не портит почву', '+2 ед. с грядки'] },
   irrigator: { id: 'irrigator', name: 'Айдар', title: 'Поливальщик', price: 22, salary: 1, portrait: 'irrigator', color: '#3f8fbf', levels: ['полив — весь ряд и столбец', 'засуха сушит на 1 меньше', 'каждую неделю сам поливает 3 самые сухие посадки'] },
   beekeeper: { id: 'beekeeper', name: 'Пётр', title: 'Пчеловод', price: 22, salary: 1, portrait: 'beekeeper', color: '#e9c45c', levels: ['улей действует на 8 соседей', 'мёда вдвое больше', 'бонус улья ещё ×1,2'] },
@@ -511,7 +511,7 @@ export const LOCATIONS: Record<LocationId, LocationDef> = {
     map: ['....~.', '....~.', '....~.', '....~~', 'ss...~', 'sss..~'],
     soil: 2, seasons: [3, 14, 4, 2],
     temp: { spring: [10, 19], summer: [20, 30], autumn: [17, 7], winter: [-1, -5] },
-    glory: 40, hot: true, payMult: 1.1,
+    glory: 40, hot: true, payMult: 1.12,
     starter: ['seed_radish', 'seed_bean', 'seed_corn', 'seed_sunflower', 'seed_watermelon', 'seed_rice', 'seed_pumpkin', 'seed_wheat', 'water', 'water', 'water', 'mulch', 'mulch', 'fertilizer'],
     shop: ['radish', 'bean', 'corn', 'sunflower', 'watermelon', 'rice', 'pumpkin', 'wheat', 'onion', 'buckwheat'],
     lab: ['tomato', 'garlic', 'potato', 'carrot'],
@@ -525,7 +525,7 @@ export const LOCATIONS: Record<LocationId, LocationDef> = {
     map: ['~fffff', '~...rf', '~...ff', '~...wf', '~fwwff', '~fffff'],
     soil: 2, seasons: [4, 9, 3, 5],
     temp: { spring: [3, 13], summer: [15, 23], autumn: [9, 0], winter: [-10, -22] },
-    glory: 120, rainy: true, payMult: 0.9,
+    glory: 120, rainy: true, payMult: 1.05,
     starter: ['seed_radish', 'seed_radish', 'seed_potato', 'seed_potato', 'seed_cabbage', 'seed_carrot', 'seed_onion', 'seed_buckwheat', 'seed_buckwheat', 'water', 'mulch', 'shelter', 'shelter', 'forage'],
     shop: ['radish', 'potato', 'cabbage', 'carrot', 'onion', 'buckwheat', 'wheat', 'bean'],
     lab: ['garlic', 'rye', 'strawberry', 'pumpkin'],
@@ -553,6 +553,6 @@ export const RATING_RATE = [NaN, 0.05, 0.03, 0.02, 0.015, 0.01];
 export const RATING_LIMIT = [0, 1, 1.5, 2, 2.5, 3];
 
 export const GRID = 6;
-export const HAND_BASE = 6;
+export const HAND_BASE = 5;
 export const DECK_LIMIT = [14, 16, 18, 20, 22];
 export const DECK_MIN = 8;

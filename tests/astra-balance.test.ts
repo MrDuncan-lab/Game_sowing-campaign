@@ -22,7 +22,7 @@ test('Altai forage pays its original first yield, rejects repeats atomically acr
  assert.ok(amount===base||amount===base+1);assert.equal(s.days,days-1);
  assert.equal(saveFarm(s),true);s=loadFarm(s.loc)!;const snapshot=JSON.stringify(s);
  assert.match(G.cardBlockReason(s,second)!,/неделе/);assert.throws(()=>G.apply(s,{t:'play',uid:second.uid}),/неделе/);assert.equal(JSON.stringify(s),snapshot);
- s=G.endWeek(s);assert.equal(G.cardBlockReason(s,second),null);s=G.apply(s,{t:'play',uid:second.uid});assert.equal(s.forageWeek,s.absWeek);
+ s=G.apply(s,{t:'keepCard',uid:second.uid});s=G.endWeek(s);assert.equal(G.cardBlockReason(s,second),null);s=G.apply(s,{t:'play',uid:second.uid});assert.equal(s.forageWeek,s.absWeek);
 });
 
 test('sprinklers, automation and a skilled irrigator sustain heated greenhouse growth in winter',()=>{

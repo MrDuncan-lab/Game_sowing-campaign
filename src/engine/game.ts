@@ -20,7 +20,7 @@ export interface Tile {
   weeds: boolean; idle: number; clean: number; snow: boolean; cleared: boolean;
   greenhousePlacedWeek?: number; // absent in older saves: already established
 }
-export interface Card { uid: number; def: string; extra?: [number, number][]; traits?: TraitId[]; temp?: boolean }
+export interface Card { uid: number; def: string; extra?: [number, number][]; traits?: TraitId[]; temp?: boolean; keep?: boolean }
 export type CardLike = { def: string; extra?: [number, number][]; traits?: TraitId[] } | string;
 export interface Lot { crop: CropId; qty: number; age: number; bornWeek?: number }
 export interface Loan { id: number; principal: number; rate: number }
@@ -92,6 +92,8 @@ export interface GameState {
   crows: CrowRaid | null;
   raids: number; // flocks this summer
   thieves: Thieves | null;
+  // raids announced ahead (a flock circling, children at the fence) and the weeks already decided
+  crowWarn?: number[]; crowRolled?: number[]; kidsWarn?: number[]; kidsRolled?: number[];
   guards: [number, number][];
   scarecrows: [number, number][];
   levels: Partial<Record<TrackId, number>>;
@@ -112,7 +114,7 @@ export interface GameState {
   autoShoo: boolean; // this summer's one free scaring of a flock is used
   effects: Effect[];
   compostTick: number;
-  compostReady?: boolean; exchangeWeek?: number; shortfallBorrowed?: boolean;
+  compostReady?: boolean; exchangeWeek?: number; exchanges?: number; shortfallBorrowed?: boolean;
   scenes?: { id: string; kind: 'dogThieves' | 'thieves' | 'watchman' | 'drone' | 'geese'; week: number; at?: [number,number]; visit?: { outcome: 'stolen' | 'empty'; targets: [number,number][]; crows: [number,number][] } }[];
   report: WeekReport;
   lastReport: WeekReport | null;
@@ -190,7 +192,11 @@ export const storageCap = (s: GameState) => BARN_CAP[Math.min(BARN_CAP.length - 
 export const storageUsed = (s: GameState) => s.storage.reduce((a, l) => a + l.qty, 0);
 export const storageKeepWeeks = (s: GameState, c: CropId) => (CROPS[c].perishable ?? 99) + (lvl(s, 'house') >= 2 ? 1 : 0) + (lvl(s, 'barn') >= 3 ? 2 : 0) + (wlvl(s, 'greenhouser') >= 3 ? 2 : 0);
 export const yardUsed = (s: GameState) => s.yard.reduce((a, l) => a + l.qty, 0);
-export const handMax = (s: GameState) => HAND_BASE + Math.min(3, lvl(s, 'planning'));
+// The hand never grows: five cards always fit the fan. Each week brings a fresh hand; the planning track
+// lets the player put more cards aside for the next week.
+export const handMax = (_s: GameState) => HAND_BASE;
+export const keepSlots = (s: GameState) => 1 + Math.min(2, lvl(s, 'planning'));
+export const keptCount = (s: GameState) => s.hand.filter((c) => c.keep && !c.temp).length;
 export const deckLimit = (s: GameState) => DECK_LIMIT[Math.min(4, lvl(s, 'house') - 1)];
 export const workerSlots = (s: GameState) => lvl(s, 'house');
 export const workshopSlots = (s: GameState) => 1 + (lvl(s, 'house') >= 4 ? 1 : 0) + (wlvl(s, 'mechanic') >= 3 ? 1 : 0);
@@ -287,7 +293,7 @@ export function knownEpisodes(s: GameState): Episode[] {
   const showMarket = lvl(s, 'meteo') >= 2;
   const own = s.plan;
   const next = yearPlanFor(s, s.year + 1).episodes.map((e) => ({ ...e, start: e.start + s.yearStart + yearLen(s) - 1 }));
-  return [...own, ...next].filter((e) => e.kind !== 'crows' && e.start <= until && episodeEnd(e) >= s.absWeek && (showMarket || EPISODES[e.kind].row !== 'market' || e.start <= s.absWeek));
+  return [...own, ...next].filter((e) => !EPISODES[e.kind].biotic && e.start <= until && episodeEnd(e) >= s.absWeek && (showMarket || EPISODES[e.kind].row !== 'market' || e.start <= s.absWeek));
 }
 
 // ---------- shapes ----------
@@ -763,9 +769,17 @@ export function weekDays(s: GameState): number {
   d += f >= 3 ? 2 : f >= 1 ? 1 : 0;
   if (s.season === 1 && locOf(s).orgs.includes('orphanage') && friends(s, 'orphanage')) d += 1;
   if (activeEpisodes(s).some((e) => e.kind === 'helpers')) d += 1;
+  if (lvl(s, 'planning') >= 3) d += 1;
   return d;
 }
-export const weeklyDraw = (s: GameState) => 3 + (lvl(s, 'planning') >= 3 ? 1 : 0) + (lvl(s, 'house') >= 5 ? 1 : 0) + (wlvl(s, 'foreman') >= 2 ? 1 : 0);
+// Every new week deals a fresh hand: one-off cards and the cards put aside stay, the rest go to the discard.
+export const weeklyDraw = (s: GameState) => Math.max(0, handMax(s) - s.hand.filter((c) => c.temp || c.keep).length);
+// Exchanges (and cards sent to the compost pit) share one weekly allowance.
+export const exchangesPerWeek = (s: GameState) => 1 + (lvl(s, 'planning') >= 2 ? 1 : 0) + (lvl(s, 'house') >= 5 ? 1 : 0) + (wlvl(s, 'foreman') >= 2 ? 1 : 0);
+export const exchangesUsed = (s: GameState) => (s.exchangeWeek === s.absWeek ? s.exchanges ?? 1 : 0);
+export const exchangeDays = (_s: GameState) => 1;
+/** The card the next draw brings, when the planning headquarters lets the player see it (null: unknown). */
+export const nextDraw = (s: GameState): Card | null => (lvl(s, 'planning') >= 3 && s.draw.length ? s.draw[s.draw.length - 1] : null);
 export function drawCards(s: GameState, n: number) {
   for (let i = 0; i < n && s.hand.length < handMax(s); i++) {
     if (!s.draw.length) {
@@ -773,8 +787,21 @@ export function drawCards(s: GameState, n: number) {
       s.draw = shuffle(s, s.discard);
       s.discard = [];
     }
-    s.hand.push(s.draw.pop()!);
+    const c = s.draw.pop()!;
+    delete c.keep;
+    s.hand.push(c);
   }
+}
+// The new week's hand: one-off cards and up to keepSlots cards put aside stay, the rest go to the discard.
+function dealWeek(s: GameState) {
+  let slots = keepSlots(s);
+  const stay: Card[] = [];
+  for (const c of s.hand) {
+    if (c.temp || (c.keep && slots-- > 0)) stay.push(c);
+    else { delete c.keep; s.discard.push(c); }
+  }
+  s.hand = stay;
+  drawCards(s, handMax(s) - s.hand.length);
 }
 export const deckList = (s: GameState): Card[] => [...s.hand, ...s.draw, ...s.discard];
 // A laboratory project reserves its permanent active slot until it returns.
@@ -793,8 +820,8 @@ export function exchangeIdentity(c: CardLike): string {
 }
 export function exchangeProblem(s: GameState, uid?: number): string | null {
   if(s.phase!=='week') return 'Сначала решите вопрос с платежом';
-  if(s.exchangeWeek===s.absWeek) return 'Обмен уже использован на этой неделе';
-  if(s.days<1) return 'Нужен рабочий день';
+  if(exchangesUsed(s)>=exchangesPerWeek(s)) return exchangesPerWeek(s)>1 ? 'Обмены этой недели закончились' : 'Обмен уже использован на этой неделе';
+  if(s.days<exchangeDays(s)) return 'Нужен рабочий день';
   if(!s.hand.length) return 'В руке нет карт для обмена';
   if(uid!==undefined && !s.hand.some(c=>c.uid===uid)) return 'Карты нет в руке';
   if(!s.draw.length && !s.discard.length) return 'Нет другой карты для обмена';
@@ -804,8 +831,8 @@ export const compostWeeks = (s: GameState) => lvl(s,'compost')>=2 ? 2 : 3;
 export function compostProblem(s: GameState, uid: number): string | null {
   if(lvl(s,'compost')<1) return 'Сначала постройте компостную яму';
   if(s.compostReady) return 'Сначала заберите готовый компост';
-  if(s.exchangeWeek===s.absWeek) return 'На этой неделе карта уже обменена или отправлена в компост';
-  if(s.days<1) return 'Нужен рабочий день';
+  if(exchangesUsed(s)>=exchangesPerWeek(s)) return 'На этой неделе карта уже обменена или отправлена в компост';
+  if(s.days<exchangeDays(s)) return 'Нужен рабочий день';
   const c=s.hand.find(c=>c.uid===uid);
   if(!c) return 'Выберите карту в руке';
   if(c.temp || c.def==='compost' || c.def==='bio') return 'Готовое удобрение и одноразовые карты сюда не идут';
@@ -1042,16 +1069,15 @@ function startWeek(s: GameState) {
     const beds = s.strikes.filter((st) => st.week === s.absWeek && st.kind !== 'weedsurge').flatMap((st) => strikeVictims(s, st));
     for (const [x, y] of beds.slice(0, 2)) if (!isGuarded(s, x, y)) s.guards.push([x, y]);
   }
-  // Five cards only at game start; later draws fill available slots.
-  if (s.absWeek === 1) drawCards(s, Math.max(0, 5 - s.hand.length));
-  else drawCards(s, weeklyDraw(s));
+  // Every week brings a fresh hand of five.
+  dealWeek(s);
 }
 
 function seasonStart(s: GameState) {
   s.dronesUsed = 0;
   s.candidates = pickCandidates(s);
   if (s.season === 1) {
-    s.raids = 0;
+    s.raids = (s.crowWarn ?? []).filter((w) => w >= s.absWeek).length;
     s.autoShoo = false;
   }
   if (s.season === 0) {
@@ -1085,6 +1111,8 @@ function seasonStart(s: GameState) {
     s.crows = null;
     s.thieves = null;
     s.strikes = [];
+    s.crowWarn = [];
+    s.kidsWarn = [];
   }
   const names = ['Весна', 'Лето', 'Осень', 'Зима'];
   feed(s, `${names[s.season]}, ${s.year}-й год.`, 'info');
@@ -1169,28 +1197,32 @@ function declareStrike(s: GameState, kind: StrikeKind, ep: number, week: number,
   }
   s.strikes.push({ kind, ep, week, cells, zone, ...(wave ? { wave } : {}) });
 }
+// Raids give warning: beetles, locusts, weeds, a flock and the orphanage children show up a week before they
+// strike, two weeks with the scout drone. They are not in the weather forecast.
+export const raidLead = (s: GameState) => (lvl(s, 'drone') >= 1 ? 2 : 1);
 function morningThreats(s: GameState) {
   s.strikes = s.strikes.filter((x) => x.week >= s.absWeek);
   if (s.crows && s.crows.week < s.absWeek) s.crows = null;
   const scout = lvl(s, 'drone') >= 1;
+  const lead = raidLead(s);
   const has = (ep: number, week: number) => s.strikes.some((x) => x.ep === ep && x.week === week);
   for (const e of s.plan) {
     const k = e.kind;
-    if (k === 'hail' || k === 'flood' || k === 'weedsurge') {
+    // weather: seen in the sky; the struck beds are known on the morning, with the scout a week early
+    if (k === 'hail' || k === 'flood') {
       if (e.start === s.absWeek && !has(e.id, e.start)) declareStrike(s, k, e.id, s.absWeek);
       if (scout && e.start === s.absWeek + 1 && !has(e.id, e.start)) declareStrike(s, k, e.id, e.start);
     }
-    if (k === 'beetle' && (e.start === s.absWeek || (scout && e.start === s.absWeek + 1))) {
-      const st = s.strikes.find((x) => x.ep === e.id);
-      // a beetle that found no potato yet looks again when its week comes
-      if (st && !st.cells.length && s.absWeek === e.start) s.strikes = s.strikes.filter((x) => x !== st);
-      if (!has(e.id, e.start + 1)) declareStrike(s, 'beetle', e.id, e.start + 1);
-    }
-    if (k === 'locust')
-      for (const wave of [1, 2]) {
-        const wk = e.start + wave;
-        if ((wk === s.absWeek || (scout && wk === s.absWeek + 1)) && !has(e.id, wk)) declareStrike(s, 'locust', e.id, wk, wave);
-      }
+    const raid = (kind: StrikeKind, week: number, wave?: number) => {
+      const ahead = week - s.absWeek;
+      const st = s.strikes.find((x) => x.ep === e.id && x.week === week);
+      // a raid that found nothing to go for looks again every morning until its week
+      if (st && !st.cells.length && ahead >= 0) { s.strikes = s.strikes.filter((x) => x !== st); declareStrike(s, kind, e.id, week, wave); return; }
+      if (!st && ahead >= 1 && ahead <= lead) declareStrike(s, kind, e.id, week, wave);
+    };
+    if (k === 'weedsurge') raid('weedsurge', e.start);
+    if (k === 'beetle') raid('beetle', e.start + 1);
+    if (k === 'locust') for (const wave of [1, 2]) raid('locust', e.start + wave, wave);
   }
 }
 export const isGuarded = (s: GameState, x: number, y: number) => s.guards.some(([a, b]) => a === x && b === y);
@@ -1314,18 +1346,31 @@ export const scarecrowCells = (x: number, y: number): [number, number][] => [[x,
 export const underScarecrow = (s: GameState, x: number, y: number) => s.scarecrows.some(([a, b]) => x >= a && x <= a + 1 && y >= b && y <= b + 1);
 export const crowsOpen = (s: GameState) => !!s.crows && s.crows.week === s.absWeek && !s.crows.shoo && !s.crows.drone;
 function crowMorning(s: GameState) {
-  if (s.season !== 1) return;
-  if (!s.plan.some((e) => e.kind === 'crows' && e.start === s.absWeek)) return;
-  if (s.raids >= (s.year === 1 ? 1 : 2)) return;
+  s.crowWarn = (s.crowWarn ?? []).filter((w) => w >= s.absWeek);
+  s.crowRolled = (s.crowRolled ?? []).filter((w) => w >= s.absWeek);
+  if (s.season === 1 && s.crowWarn.includes(s.absWeek)) landFlock(s);
+  // the next flock is decided once, when it can first be seen: it circles over the farm until its week
+  const lead = raidLead(s);
+  for (const e of s.plan) {
+    if (e.kind !== 'crows' || e.start <= s.absWeek || e.start - s.absWeek > lead || s.crowRolled.includes(e.start)) continue;
+    s.crowRolled.push(e.start);
+    if (s.raids >= (s.year === 1 ? 1 : 2)) continue;
+    const food = crowFood(s);
+    const p = crowChance(food.young.length, food.ripe.length);
+    if (!p || rand(world(s, 'crows', e.start)) >= p) continue;
+    s.crowWarn.push(e.start);
+    s.raids += 1;
+    feed(s, `Над лесом кружит стая ворон. ${e.start - s.absWeek === 1 ? 'На следующей неделе' : `Через ${e.start - s.absWeek} нед.`} сядет на поле.`, 'bad');
+  }
+}
+function landFlock(s: GameState) {
   const food = crowFood(s);
-  const p = crowChance(food.young.length, food.ripe.length);
-  if (!p || rand(world(s, 'crows', s.absWeek)) >= p) return;
   const w = world(s, 'crowtargets', s.absWeek);
   const pool = [...food.ripe.map((c) => [c, 'ripe'] as const), ...food.young.map((c) => [c, 'young'] as const)];
   shuffle(w, pool);
   const n = Math.max(1, (s.year === 1 ? 2 : 3) - (hasPet(s, 'dog') ? 1 : 0));
+  if (!pool.length) { feed(s, 'Стая покружила над полем и улетела: клевать нечего.', 'info'); return; }
   s.crows = { week: s.absWeek, targets: pool.slice(0, n).map(([[x, y], type]) => ({ x, y, pid: tile(s, x, y).crop!.pid, type })), shoo: false, drone: false };
-  s.raids += 1;
   // the watchman or the lodge scare one flock a summer by themselves
   if (!s.autoShoo && (wlvl(s, 'watchman') >= 2 || lvl(s, 'guard') >= 3)) {
     s.autoShoo = true;
@@ -1333,7 +1378,7 @@ function crowMorning(s: GameState) {
     feed(s, 'Прилетели вороны, но сторож их отогнал.', 'good');
     return;
   }
-  feed(s, 'Над полем кружат вороны: можно отогнать за рабочий день.', 'bad');
+  feed(s, 'Вороны сели на поле: можно отогнать за рабочий день.', 'bad');
 }
 function resolveCrows(s: GameState): Set<string> {
   const blocked = new Set<string>();
@@ -1382,10 +1427,20 @@ function scene(s: GameState, kind: NonNullable<GameState['scenes']>[number]['kin
 }
 function thievesMorning(s: GameState) {
   s.thieves = null;
-  if (s.season !== 1 && s.season !== 2) return;
-  const angry = locOf(s).orgs.filter((o) => ORGS[o].mischief === 'thieves' && mischiefOn(s, o));
-  if (!angry.length) return;
-  if (rand(world(s, 'thieves', s.absWeek)) > 0.6) return;
+  s.kidsWarn = (s.kidsWarn ?? []).filter((w) => w >= s.absWeek);
+  s.kidsRolled = (s.kidsRolled ?? []).filter((w) => w >= s.absWeek);
+  const angry = () => locOf(s).orgs.some((o) => ORGS[o].mischief === 'thieves' && mischiefOn(s, o));
+  // the coming weeks: the children decide early and are seen hiding by the field until they come
+  const lead = raidLead(s);
+  for (let d = 1; d <= lead; d++) {
+    const wk = s.absWeek + d, season = weekInfo(s, d).season;
+    if (s.kidsRolled.includes(wk)) continue;
+    s.kidsRolled.push(wk);
+    if ((season === 1 || season === 2) && angry() && rand(world(s, 'thieves', wk)) <= 0.6) s.kidsWarn.push(wk);
+  }
+  if (!s.kidsWarn.includes(s.absWeek) || (s.season !== 1 && s.season !== 2)) return;
+  // relations mended in the meantime: they do not come
+  if (!angry()) return;
   const ripe = ownedTiles(s).filter(([t]) => t.crop && !t.crop.rest && t.structure !== 'greenhouse' && targetGrow(s, t.crop) - t.crop.grown <= 2);
   if (!ripe.length) return;
   shuffle(world(s, 'thieftargets', s.absWeek), ripe);
@@ -2036,9 +2091,10 @@ export type Action =
   | { t: 'guide'; lesson: 'rotate' | 'off' }
   | { t: 'drawCard' }
   | { t: 'discardCard'; uid: number }
+  | { t: 'keepCard'; uid: number }
   | { t: 'exchangeCard'; uid: number }
   | { t: 'compostCard'; uid: number }
-  | { t: 'claimCompost' }
+  | { t: 'claimCompost'; uid?: number }
   | { t: 'waterHand'; tiles: [number, number][] }
   | { t: 'weed'; x: number; y: number }
   | { t: 'guard'; x: number; y: number }
@@ -2085,6 +2141,11 @@ function removeCard(s: GameState, uid: number): Card {
   }
   return fail('Карта не найдена');
 }
+const useExchange = (s: GameState) => {
+  needDay(s, exchangeDays(s));
+  s.exchanges = exchangesUsed(s) + 1;
+  s.exchangeWeek = s.absWeek;
+};
 const needDay = (s: GameState, n = 1) => {
   if (s.days < n) fail(n === 1 ? 'Нужен рабочий день' : `Нужно ${n} ${plural(n, 'рабочий день', 'рабочих дня', 'рабочих дней')}`);
   s.days -= n;
@@ -2129,7 +2190,7 @@ export function apply(state: GameState, a: Action): GameState {
     case 'exchangeCard': {
       const why=exchangeProblem(s,a.uid); if(why) fail(why);
       const i=s.hand.findIndex(c=>c.uid===a.uid), [out]=s.hand.splice(i,1);
-      needDay(s); s.exchangeWeek=s.absWeek;
+      useExchange(s);
       // Draw before discarding: the exchanged card cannot immediately come back.
       const identity=exchangeIdentity(out);
       let pile=s.draw, choices=pile.filter(c=>exchangeIdentity(c)!==identity);
@@ -2144,7 +2205,7 @@ export function apply(state: GameState, a: Action): GameState {
     }
     case 'compostCard': {
       const why=compostProblem(s,a.uid); if(why) fail(why);
-      needDay(s); s.exchangeWeek=s.absWeek;
+      useExchange(s);
       s.discard.push(...s.hand.splice(s.hand.findIndex(c=>c.uid===a.uid),1));
       s.compostTick=Math.min(compostWeeks(s),s.compostTick+1);
       s.compostReady=s.compostTick>=compostWeeks(s);
@@ -2152,8 +2213,24 @@ export function apply(state: GameState, a: Action): GameState {
     }
     case 'claimCompost': {
       if(lvl(s,'compost')<1 || !s.compostReady) fail('Компост ещё созревает');
-      if(s.hand.length>=handMax(s)) fail('Освободите место в руке. Компост останется в яме');
+      if(s.hand.length>=handMax(s)) {
+        // A full hand gives up one card of the player's choice for the compost.
+        const i=a.uid===undefined?-1:s.hand.findIndex(c=>c.uid===a.uid);
+        if(i<0) fail('Освободите место в руке или выберите карту на замену. Компост останется в яме');
+        const [out]=s.hand.splice(i,1); if(!out.temp) s.discard.push(out);
+      }
       deliverTemporary(s,'compost'); s.compostReady=false; s.compostTick=0;
+      break;
+    }
+    case 'keepCard': {
+      const c = s.hand.find((h) => h.uid === a.uid);
+      if (!c) fail('Карты нет в руке');
+      if (c.temp) fail('Разовая карта и так останется в руке');
+      if (c.keep) delete c.keep;
+      else {
+        if (keptCount(s) >= keepSlots(s)) fail(keepSlots(s) === 1 ? 'Отложить можно одну карту' : `Отложить можно не больше ${keepSlots(s)} карт`);
+        c.keep = true;
+      }
       break;
     }
     case 'discardCard': {

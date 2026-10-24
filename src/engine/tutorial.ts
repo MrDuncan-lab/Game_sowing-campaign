@@ -36,6 +36,9 @@ export function createTutorial(): TutorialSession {
   const take=(def:string):Card=>{const i=all.findIndex(c=>c.def===def);return i<0?{uid:s.nextUid++,def}:all.splice(i,1)[0];};
   const radish=take('seed_radish'),bean=take('seed_bean'),compost=take('compost'),water=take('water'),research=take('seed_radish');
   s.hand=[radish,bean,compost,water,research];
+  // Every week deals a fresh hand; the lesson's compost and the spare radish are put aside for their lessons
+  // (the training farm has the planning notebook: two cards can wait).
+  s.levels.planning=1;compost.keep=true;research.keep=true;
   const cover=all.findIndex(c=>c.def==='shelter');if(cover>=0)all.push(...all.splice(cover,1));
   s.draw=all;s.discard=[];
   for(const o of Object.values(s.orgs)){o.offer=null;o.active=null;o.wait=999;}
@@ -138,6 +141,8 @@ export function practiceNeed(t:TutorialSession) {
 function preparePracticeSeed(t:TutorialSession) {
   if(t.step!=='practice'||t.delivered)return;
   const need=practiceNeed(t);
+  // the seed already in hand waits for the morning: it is put aside so the new week's hand keeps it
+  if(need?.seed&&need.have<need.qty&&!need.plants.length&&!need.seed.keep){const c=t.farm.hand.find(c=>c.uid===need.seed!.uid);if(c&&!c.temp&&t.farm.hand.filter(h=>h.keep).length<1+Math.min(2,t.farm.levels.planning??0))c.keep=true;}
   if(!need||need.have>=need.qty||need.plants.length||need.seed)return;
   // Only this fixed lesson controls the next draw. Reuse an existing UID;
   // exchange still costs the normal day and replaces a real card.
@@ -202,7 +207,7 @@ export function applyTutorial(t:TutorialSession,a:Action):TutorialSession {
     if(p?.kind==='track'&&entry?.text.startsWith('Началась стройка:'))entry.text=`Началась стройка: ${TRACKS[p.track].levels[p.level-1].name}, ${p.weeks} неделя.`;
   }
   switch(t.step){
-    case 'plant':if(a.t==='play')n=advance({...n,plantedAt:a.tiles![0],labUid:s.hand.find(c=>c.def==='seed_radish')?.uid??t.labUid},'rotate');break;
+    case 'plant':if(a.t==='play'){const spare=s.hand.find(c=>c.def==='seed_radish');if(spare)spare.keep=true;n=advance({...n,plantedAt:a.tiles![0],labUid:spare?.uid??t.labUid},'rotate');}break;
     case 'rotate':if(a.t==='guide'&&a.lesson==='rotate')n=advance(n,'bean');break;
     case 'bean':if(a.t==='play')n=advance(n,'night');break;
     case 'night':if(a.t==='endWeek')n=advance(n,'water');break;

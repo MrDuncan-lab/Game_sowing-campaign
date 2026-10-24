@@ -660,7 +660,7 @@ button.hero { appearance: none; text-align: left; cursor: pointer; color: var(--
 @keyframes pet-breathe {50%{transform:scaleY(.96)}}
 @keyframes pet-greet {50%{transform:translateY(-5px) rotate(-5deg)}}
 @keyframes heart-rise {0%{opacity:0;transform:translateY(5px)}20%{opacity:1}100%{opacity:0;transform:translateY(-12px)}}
-@keyframes drone-patrol {0%,100%{transform:translate(65px,22px)}45%,55%{transform:translate(var(--flight-x),var(--flight-y))}}
+@keyframes drone-patrol {0%,100%{transform:translate(65px,var(--home-y,22px))}45%,55%{transform:translate(var(--flight-x),var(--flight-y))}}
 @keyframes drone-bob {50%{transform:translateY(4px) rotate(4deg)}}
 @keyframes run-leg {from{transform:rotate(-25deg)}to{transform:rotate(25deg)}}
 @keyframes run-bob {to{transform:translateY(-3px)}}

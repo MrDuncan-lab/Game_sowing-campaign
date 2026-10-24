@@ -210,7 +210,9 @@ test('care and snow reject already ineffective targets without consuming a card'
 test('ready compost stays in the pit through a full-hand season change until claimed', () => {
   let s = farm(); s.levels.compost = 1; s.compostTick = 2;
   const n = deckCount(s); s.discard.push(...s.hand); s.hand = []; s = endWeek(s);
-  assert.equal(s.compostReady,true); s=apply(s,{t:'claimCompost'});
+  assert.equal(s.compostReady,true);
+  // the refill leaves the hand full: the compost takes the place of a card the player gives up
+  assert.throws(()=>apply(s,{t:'claimCompost'}),/место/); s=apply(s,{t:'claimCompost',uid:s.hand[0].uid});
   assert.ok(s.hand.some(c=>c.def==='compost'&&c.temp));assert.equal(deckCount(s),n);
   date(s,LOCATIONS[s.loc].seasons[0]);s=endWeek(s);
   assert.ok([...s.hand,...s.draw,...s.discard].some(c=>c.temp&&c.def==='compost'));assert.equal(deckCount(s),n);

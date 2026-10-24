@@ -19,15 +19,15 @@ export const EPISODES: Record<EpisodeKind, EpisodeDef> = {
   thaw: { kind: 'thaw', name: 'Оттепель', icon: 'warm', row: 'climate', bad: false, text: 'Зимняя оттепель: около нуля, снег оседает.' },
   hail: { kind: 'hail', name: 'Град', icon: 'hail', row: 'threat', bad: true, text: 'Град побьёт отмеченные грядки вне теплиц: урожай вдвое меньше.' },
   flood: { kind: 'flood', name: 'Паводок', icon: 'flood', row: 'threat', bad: true, text: 'Река разольётся: у воды урожай вдвое меньше.' },
-  beetle: { kind: 'beetle', name: 'Колорадский жук', icon: 'beetle', row: 'threat', bad: true, biotic: true, text: 'Жук выбрал посадку картофеля. Через неделю съест половину урожая.' },
-  locust: { kind: 'locust', name: 'Саранча', icon: 'locust', row: 'threat', bad: true, biotic: true, text: 'Неделя на подготовку, потом два удара по самой большой посадке.' },
-  weedsurge: { kind: 'weedsurge', name: 'Сорняки', icon: 'weeds', row: 'threat', bad: true, biotic: true, text: 'Отмеченные пустые грядки зарастут к концу недели.' },
+  beetle: { kind: 'beetle', name: 'Колорадский жук', icon: 'beetle', row: 'threat', bad: true, biotic: true, text: 'Жуки ползут к посадке картофеля. Неделю спустя съедят половину урожая.' },
+  locust: { kind: 'locust', name: 'Саранча', icon: 'locust', row: 'threat', bad: true, biotic: true, text: 'Стая видна за неделю до каждого из двух ударов по самой большой посадке.' },
+  weedsurge: { kind: 'weedsurge', name: 'Сорняки', icon: 'weeds', row: 'threat', bad: true, biotic: true, text: 'Ветер несёт семена сорняков: пустые грядки зарастут к концу следующей недели.' },
   export: { kind: 'export', name: 'Спрос на зерно', icon: 'up', row: 'market', bad: false, text: 'Пшеница и рис дороже в 1,6 раза.' },
   fair: { kind: 'fair', name: 'Ярмарка', icon: 'up', row: 'market', bad: false, text: 'Тыква, томаты, клубника и мёд дороже в 1,4 раза.' },
   glut: { kind: 'glut', name: 'Падение цены', icon: 'down', row: 'market', bad: true, text: 'Одна культура на 40% дешевле.' },
   seeds: { kind: 'seeds', name: 'Семена дешевле', icon: 'seed', row: 'market', bad: false, text: 'Семена одной культуры на 25% дешевле.' },
   helpers: { kind: 'helpers', name: 'Соседи помогают', icon: 'hand', row: 'help', bad: false, text: 'На этой неделе на один рабочий день больше.' },
-  crows: { kind: 'crows', name: 'Вороны', icon: 'crow', row: 'threat', bad: true, biotic: true, text: 'Неделя, когда может прилететь стая.' },
+  crows: { kind: 'crows', name: 'Вороны', icon: 'crow', row: 'threat', bad: true, biotic: true, text: 'Стая кружит над лесом за неделю до того, как сесть на поле.' },
 };
 
 // start and len in absolute weeks once the game shifts them; planYear works in weeks of the year (1-based)
