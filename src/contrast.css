@@ -1,0 +1,10 @@
+/* PSV-026 · the main green buttons keep their bright green; the label turns dark so it reads at ≥ 4.5:1 on
+   every point of the gradient (#173010 on #86d35b → #5aae3a: 7.8 → 5.2; on #7cc65a → #5aa83c: 6.9 → 4.8).
+   Imported last on purpose: it must win over the older light-label rules. */
+:root { --cta-ink: #173010; }
+.btn.primary, .end-week.ready, .guide-next.primary, .atlas-continue .ac-go {
+  color: var(--cta-ink);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, .3);
+}
+.btn.primary svg, .end-week.ready svg { color: var(--cta-ink); }
+.atlas-lesson.done .al-go { color: var(--cta-ink); }

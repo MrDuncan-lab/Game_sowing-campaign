@@ -185,7 +185,8 @@ function RiverLayer({ s, cam }: { s: GameState; cam: Camera }) {
   const at = (x: number, y: number) => `translate(${PAD + x * CELL} ${PAD + y * CELL})`;
   return (
     <g class="river" pointer-events="none">
-      {cells.map(([x, y]) => <rect transform={at(x, y)} x={0} y={0} width={100} height={100} fill={P.grass} />)}
+      {/* PSV-014 · the banks under the river follow the season (snow in winter), not a summer-green strip */}
+      {cells.map(([x, y]) => <rect transform={at(x, y)} x={0} y={0} width={100} height={100} fill={s.season === 3 ? '#e4edf3' : P.grass} />)}
       {cells.map(([x, y]) => <path transform={at(x, y)} d={riverPath(s, x, y)} fill="#2c6f94" stroke="#2c6f94" stroke-width={6} stroke-linejoin="round" />)}
       {cells.map(([x, y]) => <path transform={at(x, y)} d={riverPath(s, x, y)} fill="#4f9fcf" />)}
       {cells.map(([x, y]) => (
@@ -198,17 +199,28 @@ function RiverLayer({ s, cam }: { s: GameState; cam: Camera }) {
   );
 }
 
-function Forest({ x, y }: { x: number; y: number }) {
+// PSV-014 · tayga in winter: the ground under snow like the meadow around it, firs with snow on their
+// branches, broad-leaved trees bare
+function Forest({ x, y, winter = false }: { x: number; y: number; winter?: boolean }) {
   const r = hashN(x, y, 4);
   return (
-    <g>
-      <rect x={0} y={0} width={100} height={100} fill="#6aa843" />
+    <g class={winter ? 'forest winter' : 'forest'}>
+      <rect x={0} y={0} width={100} height={100} fill={winter ? '#e4edf3' : '#6aa843'} />
+      {winter && <path d="M8 88 q14 -6 28 0 t28 0 t28 0" stroke="#c9dbe6" stroke-width={2} fill="none" stroke-linecap="round" />}
       {[[26, 70, 1], [70, 62, 0.9], [48, 38, 1.1]].map(([cx, cy, k], i) => (
         <g transform={`translate(${cx + (r - 0.5) * 10} ${cy}) scale(${k})`}>
-          <ellipse cx={0} cy={18} rx={16} ry={5} fill="rgba(0,0,0,0.18)" />
+          <ellipse cx={0} cy={18} rx={16} ry={5} fill={winter ? 'rgba(80,110,130,0.18)' : 'rgba(0,0,0,0.18)'} />
           <rect x={-3} y={4} width={6} height={14} fill={P.woodDark} stroke={P.ink} stroke-width={1.6} />
           {(i + Math.floor(r * 3)) % 2 ? (
-            <path d="M0 -30 L18 8 H-18z" fill="#3e7a2a" stroke={P.ink} stroke-width={2} stroke-linejoin="round" />
+            <g>
+              <path d="M0 -30 L18 8 H-18z" fill={winter ? '#2f6a2a' : '#3e7a2a'} stroke={P.ink} stroke-width={2} stroke-linejoin="round" />
+              {winter && <path d="M0 -30 L7 -16 Q3 -12 0 -15 Q-3 -12 -7 -16z M-12 -4 Q-6 -1 0 -4 Q6 -1 12 -4 L15 2 Q8 5 0 2 Q-8 5 -15 2z" fill="#fbfdff" stroke={P.ink} stroke-width={1} stroke-linejoin="round" />}
+            </g>
+          ) : winter ? (
+            <g fill="none" stroke-linecap="round">
+              <path d="M0 4 V-18 M0 -6 L-11 -18 M0 -10 L10 -22 M-6 -12 L-8 -22 M5 -16 L12 -16 M0 -18 L-3 -26" stroke="#6b5a4a" stroke-width={2.2} />
+              <path d="M-12 -19 q2 -2 4 0 M9 -23 q2 -2 4 0 M-5 -27 q2 -2 4 0" stroke="#fbfdff" stroke-width={2.6} />
+            </g>
           ) : (
             <circle cx={0} cy={-8} r={17} fill="#4f9a34" stroke={P.ink} stroke-width={2} />
           )}
@@ -236,15 +248,17 @@ function Rocks({ x, y, owned }: { x: number; y: number; owned: boolean }) {
   );
 }
 
-function Swamp({ x, y, owned }: { x: number; y: number; owned: boolean }) {
+// PSV-014 · in winter the bog freezes: ice instead of open water, dry reeds, snow around
+function Swamp({ x, y, owned, winter = false }: { x: number; y: number; owned: boolean; winter?: boolean }) {
   const r = hashN(x, y, 6);
   return (
     <g>
-      {!owned && <rect x={0} y={0} width={100} height={100} fill="#79a85a" />}
-      <ellipse cx={46 + r * 8} cy={56} rx={30} ry={18} fill="#5f8f86" stroke="#3c615b" stroke-width={2.2} />
-      <ellipse cx={40 + r * 8} cy={52} rx={12} ry={4} fill="#9cc6be" opacity={0.7} />
+      {!owned && <rect x={0} y={0} width={100} height={100} fill={winter ? '#e4edf3' : '#79a85a'} />}
+      <ellipse cx={46 + r * 8} cy={56} rx={30} ry={18} fill={winter ? '#cfe2ec' : '#5f8f86'} stroke={winter ? '#8fb0c2' : '#3c615b'} stroke-width={2.2} />
+      <ellipse cx={40 + r * 8} cy={52} rx={12} ry={4} fill={winter ? '#f6fbff' : '#9cc6be'} opacity={winter ? 0.9 : 0.7} />
+      {winter && <path d={`M${30 + r * 8} 60 l10 -4 M${52 + r * 8} 62 l8 -5`} stroke="#9fbccb" stroke-width={1.2} stroke-linecap="round" />}
       {[[18, 40], [74, 34], [80, 70], [22, 76]].map(([a, b]) => (
-        <g transform={`translate(${a} ${b})`} stroke={P.leafDark} stroke-width={2.2} stroke-linecap="round" fill="none">
+        <g transform={`translate(${a} ${b})`} stroke={winter ? '#9a8a66' : P.leafDark} stroke-width={2.2} stroke-linecap="round" fill="none">
           <path d="M0 0 l-3 -16 M0 0 l1 -20 M0 0 l5 -14" />
           <ellipse cx={1} cy={-20} rx={2.4} ry={5} fill="#7a4e2a" stroke="none" />
         </g>
@@ -253,11 +267,11 @@ function Swamp({ x, y, owned }: { x: number; y: number; owned: boolean }) {
   );
 }
 
-function SandDunes({ x, y }: { x: number; y: number }) {
+function SandDunes({ x, y, winter = false }: { x: number; y: number; winter?: boolean }) {
   const r = hashN(x, y, 7);
   return (
     <g>
-      <rect x={2} y={2} width={96} height={96} rx={10} fill="#e9d29a" />
+      <rect x={2} y={2} width={96} height={96} rx={10} fill={winter ? '#ece6d6' : '#e9d29a'} />
       <path d={`M10 ${60 + r * 10} Q30 ${46 + r * 6} 52 60 T92 ${56 + r * 8}`} stroke="#cfb175" stroke-width={3} fill="none" />
       <path d="M16 32 Q30 24 44 32 M58 28 Q70 22 82 28" stroke="#cfb175" stroke-width={2.5} fill="none" />
       {r > 0.5 && <path d="M70 76 v-12 M70 70 h-5 v-6 M70 68 h5 v-8" stroke="#6a9a3a" stroke-width={3} stroke-linecap="round" fill="none" />}
@@ -442,7 +456,8 @@ function SnowCover({ x, y, row }: { x: number; y: number; row: boolean }) {
   const r = hashXY(x + 3, y + 11);
   return (
     <g pointer-events="none" class="snow-cover">
-      <path d={`M6 ${30 + r * 8} Q30 ${20 + r * 6} 50 ${28} T94 ${26 + r * 6} V90 Q50 96 6 90z`} fill="#f7fbff" opacity={0.92} />
+      {/* PSV-029 · the snow lies inside the bed's own rounded outline: no white wedges over its corners or rim */}
+      <path d={`M7.1 ${30 + r * 8} Q30 ${20 + r * 6} 50 ${28} T92.9 ${26 + r * 6} V79 A10.9 10.9 0 0 1 82 88.9 H18 A10.9 10.9 0 0 1 7.1 79 Z`} fill="#f7fbff" opacity={0.92} />
       <path d={`M14 ${36 + r * 6} Q40 ${30} 70 ${36}`} stroke="#d4e6f2" stroke-width={3} fill="none" />
       {row && <path d="M8 22 H92 M14 14 V30 M50 14 V30 M86 14 V30" stroke={P.woodDark} stroke-width={3.4} stroke-linecap="round" />}
     </g>
@@ -578,9 +593,16 @@ function LensCell({ s, x, y, lens, minT, m }: { s: GameState; x: number; y: numb
     fill = tempColor(v, minT);
     label = `${v > 0 ? '+' : ''}${v}°`;
   }
+  // PSV-013 · the lens keeps the field readable: what grows here (a small sprite), whether it is under glass,
+  // and — on the water lens — which planted bed has run dry and needs water first
+  const crop = t.crop;
+  const thirsty = lens === 'water' && !!crop && !crop.rest && t.moisture === 0 && t.structure !== 'greenhouse';
   return (
-    <g pointer-events="none" class={`lens-cell lens-${lens}`}>
+    <g pointer-events="none" class={`lens-cell lens-${lens}${crop ? ' planted' : ' empty'}${thirsty ? ' thirsty' : ''}`}>
       <rect x={6} y={8} width={88} height={82} rx={12} fill={fill} opacity={0.72} />
+      {crop && <svg x={8} y={8} width={34} height={34} viewBox="10 6 80 82" class="lens-crop"><CropSprite id={crop.id} stage={crop.rest ? 1 : cropStage(crop.grown, targetGrow(s, crop))} /></svg>}
+      {t.structure === 'greenhouse' && <path d="M62 40 Q62 16 78 14 Q94 16 94 40" fill="rgba(240,250,255,.5)" stroke="#e8f6ff" stroke-width={2} class="lens-glass" />}
+      {thirsty && <><rect x={6} y={8} width={88} height={82} rx={12} fill="none" stroke="#b4492f" stroke-width={4} stroke-dasharray="7 5" /><g transform="translate(80 76)"><circle r={9} fill="#b4492f" stroke="#fff8e6" stroke-width={2} /><text y={4.5} text-anchor="middle" class="lens-alert">!</text></g></>}
       <g transform={`translate(50 50) scale(${m})`}>
         <rect x={-24} y={-15} width={48} height={28} rx={14} fill="rgba(255,250,240,0.92)" stroke={P.ink} stroke-width={1.6} />
         {lens === 'water' && <path d="M-15 -8 C-12 -4 -10 -1 -10 1 a5 5 0 0 1 -10 0 C-20 -1 -18 -4 -15 -8z" transform="translate(4 2)" fill={P.water} stroke={P.ink} stroke-width={1} />}
@@ -791,7 +813,7 @@ export function Scene({
                   <rect x={0} y={0} width={100} height={100} fill="transparent" />
                 ) : t.terrain === 'forest' ? (
                   <g>
-                    <Forest x={x} y={y} />
+                    <Forest x={x} y={y} winter={winter} />
                     {clearable && !winter && <g transform="translate(66 64) scale(0.6)" class="axe-hint">{icons.axe()}</g>}
                   </g>
                 ) : t.canal ? (
@@ -800,14 +822,14 @@ export function Scene({
                   <Bed moisture={winter ? 2 : t.moisture} soil={t.soil >= 4 ? 3 : t.soil >= 2 ? 2 : 1} sand={t.terrain === 'sand'} mulch={t.mulch > 0} />
                 ) : t.terrain === 'sand' ? (
                   <g>
-                    <SandDunes x={x} y={y} />
+                    <SandDunes x={x} y={y} winter={winter} />
                     {buyable && <Meadow x={x} y={y} buyable price={price} signOnly />}
                   </g>
                 ) : (
                   <Meadow x={x} y={y} buyable={buyable} price={price} season={s.season as Season} prop={k === propKey} />
                 )}
                 {t.terrain === 'rock' && <Rocks x={x} y={y} owned={t.owned} />}
-                {t.terrain === 'swamp' && <Swamp x={x} y={y} owned={t.owned} />}
+                {t.terrain === 'swamp' && <Swamp x={x} y={y} owned={t.owned} winter={winter} />}
                 {!hidePlants && t.owned && t.weeds && <Weeds x={x} y={y} />}
                 {t.owned && t.drip && <DripHose wet={t.moisture > 0} l={x > 0 && tile(s, x - 1, y).drip} r={x < GRID - 1 && tile(s, x + 1, y).drip} />}
                 {t.structure === 'hive' && <Hive />}

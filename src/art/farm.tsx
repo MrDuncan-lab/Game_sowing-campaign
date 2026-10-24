@@ -96,7 +96,7 @@ function Cellar() {
   return (
     <g class="cellar">
       <path d="M-6 146 Q-4 108 18 106 Q40 108 42 146z" fill="#8a6a43" stroke={P.ink} stroke-width={SW} />
-      <path d="M-4 128 Q-2 108 18 106 Q38 108 40 128 Q30 118 18 118 Q4 118 -4 128z" fill={P.grassDark} stroke={P.ink} stroke-width={1.4} />
+      <path class="cellar-turf" d="M-4 128 Q-2 108 18 106 Q38 108 40 128 Q30 118 18 118 Q4 118 -4 128z" fill={P.grassDark} stroke={P.ink} stroke-width={1.4} />
       <path d="M7 146 V128 Q18 116 29 128 V146z" fill={P.woodDark} stroke={P.ink} stroke-width={SW} />
       <path d="M18 122 V146 M7 136 h22" stroke="rgba(0,0,0,0.25)" stroke-width={1.3} />
     </g>
@@ -125,7 +125,7 @@ function Workshop() {
 
 function Flowers({ xs, y }: { xs: number[]; y: number }) {
   return (
-    <g>
+    <g class="house-flowers">
       {xs.map((x, i) => (
         <g transform={`translate(${x} ${y})`}>
           <path d="M0 4 v6" stroke={P.stem} stroke-width={1.6} />

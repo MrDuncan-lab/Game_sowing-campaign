@@ -8,16 +8,25 @@ const INK = '#3f2a1d';
 
 export interface EstateOwns { hive?: boolean; greenhouse?: boolean; scarecrow?: boolean; irrigation?: boolean; meteo?: boolean; compost?: boolean }
 
-function Birch({ x, y, k = 1 }: { x: number; y: number; k?: number }) {
+// PSV-014 · the birch follows the season: green, then gold in autumn, bare twigs under snow in winter
+function Birch({ x, y, k = 1, season = 1 }: { x: number; y: number; k?: number; season?: number }) {
+  const leaves = season === 2 ? ['#e2b23c', '#ecc24a', '#f2cf5e'] : ['#8cc95a', '#9dd468', '#a8db73'];
   return (
     <g transform={`translate(${x} ${y}) scale(${k})`} stroke={INK} stroke-linejoin="round">
       <path d="M-3 0 L-2 -58 L2 -58 L3 0 Z" fill="#f4f1ea" stroke-width={1.6} />
       <path d="M-2 -12 h3 M-1 -26 h3 M-2 -40 h2.6 M0 -50 h2" stroke={INK} stroke-width={1.6} />
-      <g class="estate-leaves">
-        <ellipse cx={-10} cy={-62} rx={14} ry={11} fill="#8cc95a" stroke-width={1.6} />
-        <ellipse cx={8} cy={-70} rx={15} ry={12} fill="#9dd468" stroke-width={1.6} />
-        <ellipse cx={0} cy={-80} rx={12} ry={9} fill="#a8db73" stroke-width={1.6} />
-      </g>
+      {season === 3 ? (
+        <g class="estate-twigs" fill="none" stroke-linecap="round">
+          <path d="M0 -56 L-14 -74 M-8 -66 L-18 -66 M0 -56 L12 -78 M7 -68 L18 -70 M0 -58 L1 -88 M1 -76 L-7 -84" stroke="#6b5a4a" stroke-width={1.6} />
+          <path d="M-16 -75 q2 -2 4 0 M10 -79 q2 -2 4 0 M-2 -89 q2 -2 4 0 M15 -71 q2 -2 4 0" stroke="#fbfdff" stroke-width={2.4} />
+        </g>
+      ) : (
+        <g class="estate-leaves">
+          <ellipse cx={-10} cy={-62} rx={14} ry={11} fill={leaves[0]} stroke-width={1.6} />
+          <ellipse cx={8} cy={-70} rx={15} ry={12} fill={leaves[1]} stroke-width={1.6} />
+          <ellipse cx={0} cy={-80} rx={12} ry={9} fill={leaves[2]} stroke-width={1.6} />
+        </g>
+      )}
     </g>
   );
 }
@@ -70,7 +79,7 @@ export function Estate({ level, building, season, owns }: { level: number; build
   const ground = winter ? '#eef4f8' : autumn ? '#b9c66a' : '#93c65a';
   const groundFar = winter ? '#dfe9f0' : autumn ? '#c9c77a' : '#a9d474';
   return (
-    <svg viewBox="0 8 360 210" class="estate-scene" aria-hidden="true">
+    <svg viewBox="0 8 360 210" class={`estate-scene${winter ? ' winter' : autumn ? ' autumn' : ''}`} aria-hidden="true">
       <defs>
         <linearGradient id="est-sky" x1="0" x2="0" y1="0" y2="1">
           <stop offset="0" stop-color={winter ? '#cfdfe9' : '#bfe4f6'} /><stop offset="1" stop-color={winter ? '#eef4f8' : '#eef7e0'} />
@@ -85,7 +94,7 @@ export function Estate({ level, building, season, owns }: { level: number; build
       <path d="M0 150 Q90 136 180 146 Q270 136 360 148 V220 H0 Z" fill={ground} />
       {/* the path to the door */}
       <path d="M186 214 Q182 192 198 176 L214 176 Q204 192 214 214 Z" fill={winter ? '#e2d8c8' : '#d8b98a'} opacity={.85} />
-      <Birch x={34} y={170} k={1.05} />
+      <Birch x={34} y={170} k={1.05} season={season} />
       {!winter && <Birch x={62} y={178} k={.75} />}
       {/* the house at its level — its own drawing, enlarged */}
       <svg x={76} y={22} width={238} height={172} viewBox="-12 -8 224 162" overflow="visible"><House level={level} building={building} /></svg>

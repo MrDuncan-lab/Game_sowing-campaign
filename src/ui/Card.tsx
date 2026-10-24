@@ -154,6 +154,10 @@ export function TraitBadges({ traits, size = 14 }: { traits?: TraitId[]; size?: 
 function nameFit(name: string): number {
   return Math.max(0.8, Math.min(1.36, 7.7 / (name.length * 0.63)));
 }
+// PSV-012 · a long name takes two lines at a steady size instead of shrinking to micro-text;
+// a single long word breaks at the soft hyphens of SHY
+const TWO_LINE = 13;
+const nameLines = (name: string) => (name.length >= TWO_LINE ? 2 : 1);
 const SHORT_SUB: Record<string, string> = {
   water: 'влаги', fertilizer: 'урожай', mulch: 'бережёт влагу', care: 'в ряду', weeding: 'прополка', early: 'сбор сейчас', helpers: 'рабочий день',
   sidejob: 'раз в неделю', shelter: 'от града · тепло', compost: 'плодородие', bio: 'почва 2×2', snow: 'вода к весне', forage: 'из тайги',
@@ -199,7 +203,9 @@ export function CardView({
       title={`${d.name}. ${cardDescription(s,card.def)}${blocked ? ` — ${blocked}` : ''}`}
     >
       <span class="pc-face">
-        <span class="pc-band"><span class="pc-name" style={{ fontSize: `${nameFit(d.name)}em` }}>{d.name}</span></span>
+        <span class="pc-band">{nameLines(d.name) === 2
+          ? <span class="pc-name two">{SHY[card.def] ?? d.name}</span>
+          : <span class="pc-name" style={{ fontSize: `${nameFit(d.name)}em` }}>{d.name}</span>}</span>
         <span class="pc-art">
           {d.kind === 'seed' ? (
             <span key={rot} class={selected && rotHint ? 'shape-turn' : 'shape-still'}>
