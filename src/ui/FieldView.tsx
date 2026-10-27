@@ -6,7 +6,7 @@ import {readWeekResume,saveWeekResume,clearWeekResume,type WeekResume} from './w
 import { PrecisionLoupe } from './PrecisionLoupe';
 import { greenhouseYieldReady, hiveYieldReady, neighbors8, inGrid, wlvl } from '../engine/game';
 
-import { exchangeProblem, compostProblem, compostWeeks, growthMoisture, frostKills, wetCanals, idx, thievesBlocked, handMax as maxHand, exchangesUsed, exchangesPerWeek, nextDraw, keepSlots, keptCount } from '../engine/game';
+import { exchangeProblem, compostProblem, compostWeeks, growthMoisture, frostKills, wetCanals, idx, thievesBlocked, handMax as maxHand, exchangesUsed, exchangesPerWeek, nextDraw, keepSlots, keptCount, yardUsed, storageUsed, storageCap, deliverProblem } from '../engine/game';
 import type { JSX } from 'preact';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { CARDS, CROPS, GRID, ORGS, SEASON_NAMES, TRACKS, TRAITS } from '../engine/data';
@@ -23,7 +23,7 @@ import type { Episode } from '../engine/calendar';
 import { Icon } from '../art/icons';
 import { CropIcon } from '../art/crops';
 import type { FarmerAction } from '../art/farm';
-import { CardArt, CardView, PinIcon, cardPrice, seedWeeks } from './Card';
+import { CardArt, CardView, FanCard, PinIcon, cardPrice, cardStat, seedWeeks } from './Card';
 import { CardReadout } from './CardReadout';
 import { CELL, FarmerPos, FarmerState, Flock, Floater, FxKind, Highlight, Lens, PAD, QueueMark, Scene, TileFx, FIELD_YARD, camera, farmerXY, BuildView, FX_LIFE, FX_CONTACT, type SkyView } from './Scene';
 import { skyTokens, raidSigns, fogText, type SkyToken, type SkyKind } from './skyForecast';
@@ -392,16 +392,43 @@ const BUILD_NAMES: Record<BuildItem, { name: string; icon: string; track: string
   canal: { name: 'Канал', icon: 'canal', track: 'canal', place: 'у реки или канала' },
 };
 
+// ---------- the dock's own glyphs ----------
+/** The deck under the field: three card backs (the farm's wheat on dark wood) and the count on a coin. */
+function DeckPile({ n }: { n: number }) {
+  const back = (x: number, y: number, r: number, top = false) => (
+    <g transform={`translate(${x} ${y}) rotate(${r} 17 24)`}>
+      <rect x={0} y={0} width={34} height={48} rx={5} fill="#6b4a33" stroke="#3f2a1d" stroke-width={1.6} />
+      <rect x={3.5} y={3.5} width={27} height={41} rx={3} fill="none" stroke="#e8c46b" stroke-width={1.2} opacity={top ? 0.95 : 0.6} />
+      {top && <g stroke="#e8c46b" stroke-width={1.6} stroke-linecap="round" fill="#e8c46b">
+        <path d="M17 38 V14" fill="none" />
+        {[16, 21, 26, 31].map((y) => <><ellipse cx={13.6} cy={y} rx={2.6} ry={1.5} transform={`rotate(-35 13.6 ${y})`} stroke="none" /><ellipse cx={20.4} cy={y} rx={2.6} ry={1.5} transform={`rotate(35 20.4 ${y})`} stroke="none" /></>)}
+        <ellipse cx={17} cy={12} rx={1.6} ry={2.6} stroke="none" />
+      </g>}
+    </g>
+  );
+  return (
+    <svg class="deck-svg" viewBox="-4 -6 50 62" aria-hidden="true">
+      {back(5, 4, -7)}{back(2.5, 2, 4)}{back(0, 0, 0, true)}
+      <g transform="translate(34 2)"><circle r={10.5} fill="#f2c13f" stroke="#3f2a1d" stroke-width={1.8} />
+        <text y={4.2} text-anchor="middle" font-size={n > 99 ? 9 : 12} font-weight={700} fill="#3f2a1d">{n}</text></g>
+    </svg>
+  );
+}
+function ToolboxGlyph() {
+  return <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M17 15 v-4 q0-3 3-3 h8 q3 0 3 3 v4" fill="none" stroke="#3f2a1d" stroke-width="2.8" stroke-linecap="round" />
+    <rect x="6" y="15" width="36" height="24" rx="4" fill="#c98b4a" stroke="#3f2a1d" stroke-width="2.8" /><path d="M6 24 H42" stroke="#3f2a1d" stroke-width="2.4" />
+    <rect x="20" y="21" width="8" height="7" rx="1.5" fill="#e8c46b" stroke="#3f2a1d" stroke-width="2.2" /></svg>;
+}
+
 // ---------- the fan of cards ----------
 export const FAN_PIVOT = 2.2;
-// the browsed card lifts clearly but stays below the dock, where its full name and facts are read
-const PEEK_SCALE = 1.04;
+// the card under a browsing finger grows out of the fan and shows its own facts (there is no readout line)
+const PEEK_SCALE = 1.45;
 // `grow` — extra card width the screen can afford (see the room planner in FieldView)
 function fanLayout(width: number, n: number, selected: number, peek = -1, short = false, grow = 0) {
-  // seven cards: a phone fan stays compact and leaves the height to the field
-  const base = (short ? 78 : width < 340 ? 80 : width < 420 ? 90 : width < 700 ? 104 : 116) + grow;
-  const fit = n > 1 ? Math.floor((width - 8) / (1 + (n - 1) * 0.86)) : base;
-  const cw = Math.max(base - 8, Math.min(base, fit));
+  // big cards that overlap: each one shows its left strip (the crop, the day coin, the harvest), the top one all
+  // of it. `width` is the fan's own width — the end-of-week button keeps the corner to the right of it.
+  const cw = (short ? 76 : width < 280 ? 74 : width < 320 ? 86 : width < 380 ? 90 : width < 640 ? 100 : 112) + grow;
   const h = cw * 1.4;
   const pivot = FAN_PIVOT * h;
   const natural = cw + 8;
@@ -418,7 +445,7 @@ function fanLayout(width: number, n: number, selected: number, peek = -1, short 
     const isPeek = i === peek, out = isPeek || i === selected;
     const grow = isPeek ? (cw * (PEEK_SCALE - 1)) / 2 : 0;
     const straight = Math.max(grow, Math.min(width - cw - grow, cx - cw / 2));
-    return { cx, left, rot: out ? 0 : fanRot, tx: out ? straight - left : 0, dy: isPeek ? -8 : i === selected ? -14 : 0, sc: isPeek ? PEEK_SCALE : 1, z: isPeek ? 70 : i === selected ? 60 : 10 + i };
+    return { cx, left, rot: out ? 0 : fanRot, tx: out ? straight - left : 0, dy: isPeek ? -10 : i === selected ? -16 : 0, sc: isPeek ? PEEK_SCALE : 1, z: isPeek ? 70 : i === selected ? 60 : 10 + i };
   });
   const sink = n > 1 ? Math.ceil(pivot * (1 - Math.cos((mid * per * Math.PI) / 180)) + (cw / 2) * Math.sin((mid * per * Math.PI) / 180)) : 0;
   return { cw, slots, sink, tight: step < cw * 0.7 };
@@ -489,6 +516,8 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
   const [details, setDetails] = useState<[number,number] | null>(null);
   const [watering, setWatering] = useState<[number,number][] | null>(null);
   const [lensMenu, setLensMenu] = useState(false);
+  // the toolbox in the dock's right corner: closed, or unfolded into the journal, the lenses and the buildings
+  const [tools, setTools] = useState(false);
   const [layers, setLayers] = useState<[number,number] | null>(null);
   function closeContext() { setInfo(null); setWatering(null); setLayers(null); }
   function openSheet(next: 'forecast' | 'journal') { closeContext(); setLensMenu(false); setSheet(next); }
@@ -706,7 +735,11 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
     const prev = sRef.current;
     const out = (a.t==='exchangeCard' || a.t==='compostCard') ? prev.hand.find(c=>c.uid===a.uid) : undefined;
     const outSlot = out ? fanRef.current?.querySelector<HTMLElement>(`.fan-slot[data-uid="${out.uid}"]`) : null;
-    const outStyle = outSlot?.style.cssText;
+    // the card given away flies back into the deck: where the deck is, seen from its slot
+    const deckBox = fieldRef.current?.closest('.field-view')?.querySelector('.dock-top .deck-svg')?.getBoundingClientRect();
+    const slotBox = outSlot?.getBoundingClientRect();
+    const toDeck = deckBox && slotBox ? `;--to-x:${Math.round(deckBox.left + deckBox.width / 2 - (slotBox.left + slotBox.width / 2))}px;--to-y:${Math.round(deckBox.top + deckBox.height / 2 - (slotBox.top + slotBox.height / 2))}px` : '';
+    const outStyle = outSlot ? outSlot.style.cssText + toDeck : undefined;
     const next = dispatch(a);
     if(next && teaching && a.t==='build'){setBuild(null);setMoveFrom(null);}
     if (!next) return null;
@@ -1016,21 +1049,30 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
       if (hover?.startsWith('corner:')) h.block = hover.slice(7).split(',').map(Number) as [number, number];
       return h;
     }
-    if (build || lens || !card || !def || cardBlockReason(s, card)) return h;
+    if (build || lens || !card || !def) return h;
+    // the card cannot be played at all now: the field says why, over its top edge
+    const whole = cardBlockReason(s, card);
+    if (whole) { h.note = { text: whole, bad: true }; return h; }
     if (def.kind === 'seed') {
       h.options = true;
       h.minT = cropMinT(def.crop!, card.traits);
       for (let y = 0; y < GRID; y++) for (let x = 0; x < GRID; x++) if (tile(s, x, y).owned && !plantBlock(s, card, shapeTiles(card, x, y, rot))) h.tiles.add(key(x, y));
-      if (hover && !hover.startsWith('corner')) {
-        const [x, y] = hover.split(',').map(Number);
+      // the footprint stands under the finger; just picked, it waits on the first bed where it fits, with its harvest
+      const at = hover && !hover.startsWith('corner') ? hover : h.tiles.size ? [...h.tiles][0] : null;
+      if (at) {
+        const [x, y] = at.split(',').map(Number);
         const cells = shapeTiles(card, x, y, rot);
         const why = cellReasons(s, card, cells);
         h.preview = { cells, why, crop: def.crop };
-        h.anchor = hover;
+        h.anchor = at;
         h.soil = sowingSoil(s, card, cells);
-        if (CROPS[def.crop!].legume && why.every((w) => !w)) h.gain = beanGain(s, cells);
+        const ok = why.every((w) => !w);
+        if (CROPS[def.crop!].legume && ok) h.gain = beanGain(s, cells);
+        const weeks = ok ? seedWeeks(s, def.crop!, card.traits, cells) : null;
+        h.note = ok ? { text: `+${placementYield(s, card, cells)} ед.${weeks ? ` · ${weeks} нед.` : ''}`, bad: false, cells }
+          : { text: why.find(Boolean)!, bad: true, cells };
         for (const c of cells) h.tiles.delete(key(c[0], c[1]));
-      }
+      } else h.note = { text: 'Сейчас некуда: нет свободных грядок под эту фигуру', bad: true };
       return h;
     }
     if (def.target === 'line') {
@@ -1049,7 +1091,14 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
     if (hover && h.tiles.has(hover)) {
       h.anchor = hover;
       const [x, y] = hover.split(',').map(Number);
-      for (const [a,b] of workEffectCells(s,card.def,x,y)) h.area.add(key(a,b));
+      const cells = workEffectCells(s,card.def,x,y);
+      for (const [a,b] of cells) h.area.add(key(a,b));
+      const st = cardStat(s, card);
+      h.note = { text: `${st.main} ${st.sub}`.trim(), bad: false, cells };
+    } else if (hover && !hover.startsWith('corner') && def.target !== 'row' && def.target !== 'none') {
+      const [x, y] = hover.split(',').map(Number);
+      const why = workCardPreview(s, card, x, y).reason;
+      if (why) h.note = { text: why, bad: true, cells: [[x, y]] };
     }
     return h;
   }, [s, card, def, hover, rot, buildItem, moveFrom, lens, info, watering]);
@@ -1350,7 +1399,7 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
       const strip = hasVillage(sRef.current) && !teaching ? Math.min(40, Math.max(0, all - 12)) : 0;  // (only when stacked: see above)
       const free = all - strip;
       // a third line (status) from 34 px of room; the card's rule in words from 76 px
-      const read = free >= 76 ? 56 : free >= 34 ? 22 : 0;
+      const read = 0; // no readout line: the card shows its facts itself
       const cap = fw >= 400 ? 22 : 16;
       let grow = Math.max(0, Math.min(cap, Math.floor(((free - read - 10) * 0.7) / 1.4)));
       while (grow > 0 && read + fanH(grow) - fanH(0) > free - 4) grow -= 2;
@@ -1400,6 +1449,19 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
     const add = [...now].filter((u) => !before.has(u));
     if (add.length) setDealt((f) => [...f.filter((u) => now.has(u)), ...add]);
   }, [handKey]);
+  // a dealt card starts on the deck and flies to its place in the fan
+  useLayoutEffect(() => {
+    if (!dealt.length) return;
+    const deck = viewRef.current?.querySelector('.dock-top .deck-svg')?.getBoundingClientRect();
+    if (!deck) return;
+    for (const uid of dealt) {
+      const el = fanRef.current?.querySelector<HTMLElement>(`.fan-slot[data-uid="${uid}"]`);
+      if (!el) continue;
+      const r = el.getBoundingClientRect();
+      el.style.setProperty('--from-x', `${Math.round(deck.left + deck.width / 2 - (r.left + r.width / 2))}px`);
+      el.style.setProperty('--from-y', `${Math.round(deck.top + deck.height / 2 - (r.top + r.height / 2))}px`);
+    }
+  }, [dealt.join(',')]);
   useEffect(() => {
     if (night !== 'off' || !dealt.length) return;
     const t = clock.schedule(() => setDealt([]), 1500 + dealt.length * 110);
@@ -1455,7 +1517,7 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
     onToken: (t: SkyToken) => { const was = lastToken.current; lastToken.current = { abs: t.abs, at: performance.now() }; if (was && was.abs === t.abs && performance.now() - was.at < 2600) { lastToken.current = null; openSheet('forecast'); } else say(t.text); },
     onFog: () => say(fogText(fieldState)),
     onSign: (sg) => say(sg.text),
-    clear: rails > 0,
+    clear: true,
   };
   const dragCard = drag ? s.hand.find((c) => c.uid === drag.uid) : null;
 
@@ -1511,6 +1573,10 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
     return parts.slice(0, 2).join(' · ');
   })();
   const endBad = !!outlook && (outlook.frost > 0 || outlook.dying > 0 || (outlook.payment?.short ?? 0) > 0);
+  // the journal has something bad to say: its dot shows on the closed toolbox too
+  const urgent = chips.some((c) => c.tone === 'bad') || crowsNow || thievesNow || endBad;
+  // the village sign carries a dot when a section waits for the player (a full barn, a ready order)
+  const sectionNews = yardUsed(s) > 0 || storageUsed(s) >= storageCap(s) || locOf(s).orgs.some((o) => s.orgs[o]?.active && !deliverProblem(s, o));
 
   // ---- the village above the field
   const villageOn = hasVillage(s) && !teaching && !sideBySide;
@@ -1603,22 +1669,10 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
           </div>
         </div>
         </div>
-        {/* the field's tools float over the sky and over the field's side strips */}
-        <div class="sky-box" style={{ width: `${cam.W * px}px`, height: `${skyPx}px` }}>
-              <div class="field-tools sky-tools sky-left">
-                <button type="button" class={`tool-btn journal-button${chips.some(c=>c.tone==='bad')||crowsNow||thievesNow||endBad?' urgent':''}`} onClick={()=>openSheet('journal')} title="Журнал фермы" aria-label="События недели и действия"><Icon name="journal" size={29}/><i aria-hidden="true"/></button>
-              </div>
-              <div class="field-tools sky-tools sky-right" role="toolbar" aria-label="Приборы поля">
-                <button type="button" class={`tool-btn${lens ? ' on' : ''}`} disabled={weekPlaying} aria-pressed={!!lens} onClick={() => { setBuild(null); setMoveFrom(null); setSelected(null); closeContext(); if(lens){setLens(null);setLensMenu(false);}else setLensMenu(!lensMenu); }} aria-label={`Линзы${lens ? `: ${lens === 'water' ? 'влага' : lens === 'soil' ? 'плодородие' : 'температура'}` : ''}`} title="Линзы">
-                  <Icon name={lens === 'water' ? 'drop' : lens === 'soil' ? 'compost' : lens === 'temp' ? 'thermo' : 'lens'} size={22} />
-                </button>
-                <button type="button" class={`tool-btn${build ? ' on' : ''}`} disabled={weekPlaying} aria-pressed={!!build} onClick={() => { setLens(null); setLensMenu(false); setMoveFrom(null); setSelected(null); closeContext(); setBuild(build ? null : 'menu'); }} aria-label={build ? "Завершить перемещение построек" : "Постройки"} title="Постройки">
-                  <Icon name="build" size={22} />
-                </button>
-                {lensMenu && <div class="lens-picker" role="group" aria-label="Выберите линзу">{(['water','soil','temp'] as const).map(l=><button type="button" class="tool-btn" aria-label={l==='water'?'Влага':l==='soil'?'Плодородие':'Температура почвы'} onClick={()=>{setLens(l);setLensMenu(false);}}><Icon name={l==='water'?'drop':l==='soil'?'compost':'thermo'} size={23}/></button>)}</div>}
-              </div>
-        </div>
-        {villageOn && vmode === 'field' && vpeek >= 26 && <button type="button" class="v-hint" style={{ top: `${skyPx + Math.max(4, vpeek / 2 - 13)}px` }} onClick={() => village.toggle()}><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 8 L6 4 L10 8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>Деревня</button>}
+        {/* the way to the sections: the village on the horizon (pulling the sky down works too) */}
+        {villageOn && vmode === 'field' && <button type="button" class={`v-sign${sectionNews ? ' news' : ''}`} style={{ top: "4px" }} onClick={() => village.toggle()} aria-label="Деревня: разделы фермы">
+          <span>Деревня<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 8 L6 4 L10 8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg></span>
+        </button>}
 
         {compostOpen && <div class="compost-popover" role="group" aria-label="Компостная куча" style={compostAt?{top:`${compostAt.top}px`,right:`${compostAt.right}px`,maxWidth:`min(250px, calc(100% - ${compostAt.right+8}px))`,['--tip' as string]:`${compostAt.tip}px`}:{visibility:'hidden'}}>
           <button type="button" class="compost-close" aria-label="Закрыть" onClick={()=>setCompostOpen(false)}>×</button>
@@ -1652,49 +1706,65 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
       </div>
 
       <footer ref={dockRef} class={`dock${card ? ' picking' : ''}${shown ? ' reading' : ''}${room.read ? ' roomy' : ''}${room.read > 40 ? ' roomy-2' : ''}${build || lens ? ' viewing' : ''}`}>
-        <div class="dock-top" style={room.read ? { height: `${room.top + room.read}px` } : undefined}>
-          <div class="days" aria-label={`Рабочих дней: ${fieldState.days}`}>
-            <b>{fieldState.days}</b>
-            <Icon name="day" size={18} />
-            {Math.max(weekDays(s), fieldState.days) <= 5 && <span class="day-pips" aria-hidden="true">{Array.from({ length: Math.max(weekDays(s), fieldState.days) }, (_, i) => <i class={i < fieldState.days ? 'on' : ''} />)}</span>}
-            <small>{plural(fieldState.days, 'день', 'дня', 'дней')}</small>
-          </div>
+        <div class="dock-top">
           <button type="button" class={`deck-pile dock exchange-deck${exchanging?' choosing':''}`} disabled={weekPlaying} aria-pressed={exchanging==='card'} onClick={()=>{
             const why=exchangeProblem(s,card?.uid); if(why)return say(why);
             if(card) {if(act({t:'exchangeCard',uid:card.uid}))setSelected(null);}
-            else {closeContext();setBuild(null);setLens(null);setExchanging(exchanging==='card'?false:'card');}
-          }} title="Заменить одну карту за 1 день · раз в неделю" aria-label="Обменять карту за 1 день">
-            <span class="deck-back" aria-hidden="true"><i/><i/><i/><svg class="exchange-ring" viewBox="0 0 32 32" fill="none"><path d="M25 11a10 10 0 1 0 1 8M25 4v8h-8" stroke="currentColor" stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-            <small>{exchangesUsed(s)>=exchangesPerWeek(s)?'обменён':exchangesPerWeek(s)-exchangesUsed(s)>1?`×${exchangesPerWeek(s)-exchangesUsed(s)} · 1 д.`:'1 д.'}</small>
-            {nextDraw(s) && <span class="deck-next" title="Следующая карта колоды"><CardArt def={nextDraw(s)!.def} size={18} /></span>}
+            else {closeContext();setBuild(null);setLens(null);setTools(false);setExchanging(exchanging==='card'?false:'card');}
+          }} title="Колода. Обменять одну карту за 1 день · раз в неделю" aria-label={`Колода: ${deckCount(s)} карт. Обменять карту за 1 день`}>
+            <DeckPile n={deckCount(s)} />
+            <small>{exchangesUsed(s)>=exchangesPerWeek(s)?'обменено':<>обмен<br/>1 д.</>}</small>
           </button>
-          {shown ? (
-            <CardReadout s={s} card={shown} browsing={shown !== card} desc={room.read > 40} status={shown === card ? cardLine() : { text: 'Отпустите — выбрать · вверх — на поле', tone: 'instr' }} />
-          ) : (
-            <div class="info hand-summary">
-              {weekPlaying ? <FieldVoice s={s} active={lifeActive&&pageVisible} cue={weekCue} quiet={true} testReplay={testing} onOpen={()=>openSheet('journal')} fallback={<span class="hand-count">События недели</span>}/> : exchanging ? <><strong>{exchanging==='compost'?'Выберите карту, которую заменит компост':'Выберите карту для обмена'}</strong><small>{exchanging==='compost'?'карта уйдёт в сброс':'1 день · обмены этой недели'}</small><button class="exchange-cancel" onClick={()=>setExchanging(false)}>Отмена</button></> : watering ? <><strong>Полив {watering.length}/{handWaterMax(s)}</strong><small>Отметьте соседние грядки · подтвердите лейкой</small></> : build ? <><strong>{buildItem ? BUILD_NAMES[buildItem].name : 'Перемещение'}</strong><small>{buildItem === 'scarecrow' ? 'Коснитесь угла грядки' : moveFrom || buildItem ? 'Коснитесь подсветки' : 'Коснитесь постройки'}</small></> : lens ? <><strong>{lens === 'water' ? 'Влага 0–3' : lens === 'soil' ? 'Плодородие 1–5' : 'Температура почвы'}</strong><small>{lens === 'water' ? 'Без воды рост останавливается' : lens === 'soil' ? 'Урожай ×0,6…×1,6' : 'Минимум роста — на карте'}</small></> : <><FieldVoice onOrder={onOrder ?? (()=>onGo('orders'))} testReplay={testing} s={s} active={sceneActive} cue={sceneCue} quiet={teaching} onOpen={() => openSheet('journal')} fallback={<span class="hand-count">Рука {hand.length}/{handMax(s)}<small>колода {deckCount(s)} · отложено {keptCount(s)}/{keepSlots(s)}</small></span>}/></>}
-
+          {/* the toolbox: one round button; the journal, the lenses and the buildings unfold from it */}
+          <div class={`toolbox${tools ? ' open' : ''}${lensMenu ? ' lenses' : ''}`} role="toolbar" aria-label="Инструменты поля">
+            <div class="tool-arc">
+              {(lensMenu
+                ? (['water', 'soil', 'temp'] as const).map((l) => ({ k: l, icon: l === 'water' ? 'drop' : l === 'soil' ? 'compost' : 'thermo', name: l === 'water' ? 'Влага' : l === 'soil' ? 'Плодородие' : 'Тепло', label: l === 'water' ? 'Влага' : l === 'soil' ? 'Плодородие' : 'Температура почвы', urgent: false, run: () => { setLens(l); setLensMenu(false); setTools(false); } }))
+                : [
+                  { k: 'journal', icon: 'journal', name: 'Журнал', label: 'Журнал фермы', urgent: urgent, run: () => { setTools(false); openSheet('journal'); } },
+                  { k: 'lens', icon: 'lens', name: 'Линзы', label: 'Линзы', urgent: false, run: () => { setBuild(null); setMoveFrom(null); setSelected(null); closeContext(); setLensMenu(true); } },
+                  { k: 'build', icon: 'build', name: 'Постройки', label: 'Постройки', urgent: false, run: () => { setLens(null); setLensMenu(false); setMoveFrom(null); setSelected(null); closeContext(); setTools(false); setBuild('menu'); } },
+                ]).map((t, i) => (
+                <button type="button" key={t.k} class={`tool-btn arc-btn${t.urgent ? ' urgent' : ''}`} style={{ ['--i' as string]: String(i) }} aria-label={t.label} tabIndex={tools ? 0 : -1} aria-hidden={!tools} disabled={weekPlaying && t.k !== 'journal'} onClick={t.run}>
+                  <Icon name={t.icon} size={23} /><small>{t.name}</small>{t.urgent && <i aria-hidden="true" />}
+                </button>
+              ))}
             </div>
-          )}
-          {card && def && (
-            <div class="card-tools">
-
-              {def.target === 'none' && !blockReason && <button type="button" class="btn primary tool" onClick={() => { if (act({ t: 'play', uid: card.uid })) setSelected(null); }}>Сыграть</button>}
-
-              {!card.temp && s.phase === 'week' && <button type="button" class={`icon-btn keep-btn${card.keep ? ' on' : ''}`} aria-pressed={!!card.keep}
-                title={card.keep ? 'Отложена на следующую неделю' : `Отложить на следующую неделю: ${keptCount(s)} из ${keepSlots(s)}`}
-                aria-label={card.keep ? 'Не откладывать карту' : 'Отложить карту на следующую неделю'}
-                onClick={() => { if (!card.keep && keptCount(s) >= keepSlots(s)) return say(keepSlots(s) === 1 ? 'Отложить можно одну карту: снимите булавку с другой' : `Отложить можно не больше ${keepSlots(s)} карт`); act({ t: 'keepCard', uid: card.uid }); }}><PinIcon /></button>}
-              <button type="button" class="icon-btn tool-x" onClick={() => setSelected(null)} aria-label="Отменить выбор">✕</button>
-            </div>
-          )}
-          {!shown && !weekPlaying && s.phase === 'shortfall' && onPayment && <button type="button" class="btn end-week pay-due" onClick={onPayment}>
-            <span>Решить платёж</span><small class="bad">к оплате {money(s.due?.amount ?? 0)}</small>
-          </button>}
-          {(!shown || weekPlaying) && !(s.phase === 'shortfall' && onPayment && !weekPlaying) && <button type="button" class={`btn end-week${ready ? ' ready' : ''}${weekPlaying?' skip-morning':''}`} disabled={night!=='off'&&night!=='fade'||!weekPlaying&&(s.phase !== 'week'||endWaiting)} onClick={weekPlaying?cancelMorning:endWeek}>
-            <span>{weekPlaying?'Пропустить анимацию':endWaiting?'Завершаем работы…':'Завершить неделю'}</span>
-            {!weekPlaying && endText && <small class={endBad ? 'bad' : ''}>{endText}</small>}
-          </button>}
+            <button type="button" class={`tool-btn toolbox-btn${lens || build ? ' on' : ''}${urgent && !tools ? ' urgent' : ''}`} aria-expanded={tools}
+              aria-label={lens ? 'Выключить линзу' : build ? 'Завершить постройки' : tools ? 'Свернуть инструменты' : 'Инструменты: журнал, линзы, постройки'}
+              onClick={() => {
+                if (lens) { setLens(null); setLensMenu(false); return; }
+                if (build) { setBuild(null); setMoveFrom(null); return; }
+                if (tools) { setTools(false); setLensMenu(false); return; }
+                setExchanging(false); setTools(true);
+              }}>
+              {lens ? <Icon name={lens === 'water' ? 'drop' : lens === 'soil' ? 'compost' : 'thermo'} size={24} />
+                : build ? <Icon name="build" size={24} />
+                : tools ? <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6 L18 18 M18 6 L6 18" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" /></svg>
+                : <ToolboxGlyph />}
+              {urgent && !tools && <i aria-hidden="true" />}
+            </button>
+          </div>
+          <div class="dock-say" role="status">
+            {weekPlaying ? <FieldVoice s={s} active={lifeActive&&pageVisible} cue={weekCue} quiet={true} testReplay={testing} onOpen={()=>openSheet('journal')} fallback={<span />}/>
+              : exchanging ? <><span class="say-two"><strong>{exchanging==='compost'?'Что заменит компост?':'Какую обменять?'}</strong><small>{exchanging==='compost'?'карта уйдёт в сброс':'коснитесь карты · 1 день'}</small></span><button class="exchange-cancel" onClick={()=>setExchanging(false)}>Отмена</button></>
+              : watering ? <><strong>Полив {watering.length}/{handWaterMax(s)}</strong><small>отметьте соседние грядки</small></>
+              : build ? <><span class="say-two"><strong>{buildItem ? BUILD_NAMES[buildItem].name : 'Постройки'}</strong><small>{buildItem === 'scarecrow' ? 'коснитесь угла грядки' : moveFrom || buildItem ? 'коснитесь подсветки' : 'коснитесь постройки'}</small></span>
+                  <button type="button" class="say-done" onClick={() => { setBuild(null); setMoveFrom(null); }}>Готово</button></>
+              : lens ? <>
+                  <span class="lens-switch" role="group" aria-label="Линзы">{(['water', 'soil', 'temp'] as const).map((l) => <button type="button" class={lens === l ? 'on' : ''} aria-pressed={lens === l} aria-label={l === 'water' ? 'Влага' : l === 'soil' ? 'Плодородие' : 'Температура почвы'} onClick={() => setLens(l)}><Icon name={l === 'water' ? 'drop' : l === 'soil' ? 'compost' : 'thermo'} size={18} /></button>)}</span>
+                  <span class="say-two lens-name"><strong>{lens === 'water' ? 'Влага' : lens === 'soil' ? 'Плодородие' : 'Тепло'}</strong><small>{lens === 'water' ? '0–3' : lens === 'soil' ? '1–5 · ×0,6…×1,6' : 'почвы'}</small></span>
+                  <button type="button" class="say-done" onClick={() => { setLens(null); setLensMenu(false); }}>Готово</button></>
+              : card && def ? (def.target === 'none' && !blockReason ? <button type="button" class="btn primary tool say-play" onClick={() => { if (act({ t: 'play', uid: card.uid })) setSelected(null); }}>Сыграть</button> : <span />)
+              : <FieldVoice onOrder={onOrder ?? (()=>onGo('orders'))} testReplay={testing} s={s} active={sceneActive} cue={sceneCue} quiet={true} onOpen={() => openSheet('journal')} fallback={<span />}/>}
+          </div>
+          {card && def && !weekPlaying && !exchanging && !watering && !build && !lens && <div class="card-tools dock-card-tools">
+            {!card.temp && s.phase === 'week' && <button type="button" class={`icon-btn keep-btn${card.keep ? ' on' : ''}`} aria-pressed={!!card.keep}
+              title={card.keep ? 'Отложена на следующую неделю' : `Отложить на следующую неделю: ${keptCount(s)} из ${keepSlots(s)}`}
+              aria-label={card.keep ? 'Не откладывать карту' : 'Отложить карту на следующую неделю'}
+              onClick={() => { if (!card.keep && keptCount(s) >= keepSlots(s)) return say(keepSlots(s) === 1 ? 'Отложить можно одну карту: снимите булавку с другой' : `Отложить можно не больше ${keepSlots(s)} карт`); act({ t: 'keepCard', uid: card.uid }); }}><PinIcon /></button>}
+            <button type="button" class="icon-btn tool-x" onClick={() => setSelected(null)} aria-label="Отменить выбор">✕</button>
+          </div>}
         </div>
         <div class={`hand-row${weekPlaying ? ' upcoming' : ''}`} style={{ ['--cw' as string]: `${fan.cw}px` }}>
           {weekPlaying && <small class="hand-next">Карты новой недели</small>}
@@ -1714,19 +1784,28 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
                   class={`fan-slot${drag?.uid === c.uid && drag.active ? ' slot-empty' : ''}${night === 'off' && dealt.includes(c.uid) ? ' dealt' : ''}${peek === c.uid ? ' peek' : ''}${compostArrival===c.uid?' compost-arriving':''}`}
                   style={{ left: `${slot.left}px`, zIndex: slot.z, ['--rot' as string]: `${slot.rot}deg`, ['--tx' as string]: `${slot.tx}px`, ['--dy' as string]: `${slot.dy}px`, ['--sc' as string]: String(slot.sc), ['--deal' as string]: `${Math.max(0, dealt.indexOf(c.uid)) * 110}ms` }}
                 >
-                  <CardView s={s} card={c} rot={selected === c.uid ? rot : 0} rotHint selected={selected === c.uid} blocked={cardBlockReason(s, c)} onClick={() => { if (justDragged.current) { justDragged.current = false; return; } pickCard(c.uid); }} onPointerDown={(e) => onCardPointerDown(e, c.uid)} />
+                  <FanCard s={s} card={c} rot={selected === c.uid ? rot : 0} selected={selected === c.uid} blocked={cardBlockReason(s, c)} onClick={() => { if (justDragged.current) { justDragged.current = false; return; } pickCard(c.uid); }} onPointerDown={(e) => onCardPointerDown(e, c.uid)} />
                 </div>
               );
             })}
-            {leaving.map(l=><div key={`leaving-${l.card.uid}`} class="fan-slot leaving" style={l.style} aria-hidden="true" inert><CardView s={s} card={l.card} rot={l.rot}/></div>)}
+            {leaving.map(l=><div key={`leaving-${l.card.uid}`} class="fan-slot leaving" style={l.style} aria-hidden="true" inert><FanCard s={s} card={l.card} rot={l.rot}/></div>)}
             {!hand.length && <span class="muted hand-empty">Рука пуста: новые карты придут на следующей неделе.</span>}
           </div>
         </div>
+        {endBad && !weekPlaying && endText && <span class="end-warn" role="note">{endText}</span>}
+        {!weekPlaying && s.phase === 'shortfall' && onPayment
+          ? <button type="button" class="btn end-week endw pay-due" onClick={onPayment}><Icon name="bank" size={26} /><small>Платёж<br/>{money(s.due?.amount ?? 0)}</small></button>
+          : <button type="button" class={`btn end-week endw${ready ? ' ready' : ''}${weekPlaying?' skip-morning':''}`} disabled={night!=='off'&&night!=='fade'||!weekPlaying&&(s.phase !== 'week'||endWaiting)} onClick={weekPlaying?cancelMorning:endWeek}
+              aria-label={weekPlaying ? 'Пропустить анимацию' : 'Завершить неделю'}>
+              {weekPlaying ? <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6 L12 12 L5 18 M12 6 L19 12 L12 18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                : <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="12" height="15" rx="2" fill="#fbf3df" stroke="currentColor" stroke-width="2"/><path d="M3.5 9.5h12M7 3v4M12 3v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M14 15h7m-3-3 3 3-3 3" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>}
+              <small>{weekPlaying ? 'Дальше' : endWaiting ? 'Ждём…' : <>Конец<br/>недели</>}</small>
+            </button>}
       </footer>
 
       {villageOn && <button type="button" class="v-back" tabIndex={vmode === 'village' ? 0 : -1} onClick={() => village.toField()}><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 4 L6 8 L10 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>К полю</button>}
       {villageOn && vsay && <div class="v-say" role="status"><span>{vsay}</span></div>}
-      {compostFlight&&<div class={`compost-flight${compostFlight.claim?' claiming':''}`} style={{left:compostFlight.x,top:compostFlight.y,'--fly-x':`${compostFlight.dx}px`,'--fly-y':`${compostFlight.dy}px`}} aria-hidden="true"><CardView s={s} card={compostFlight.card}/></div>}
+      {compostFlight&&<div class={`compost-flight${compostFlight.claim?' claiming':''}`} style={{left:compostFlight.x,top:compostFlight.y,'--fly-x':`${compostFlight.dx}px`,'--fly-y':`${compostFlight.dy}px`}} aria-hidden="true"><FanCard s={s} card={compostFlight.card}/></div>}
       {drag?.active && drag.touch && hover && CELL*px<44 && <PrecisionLoupe s={s} hover={hover} highlight={highlight} x={drag.x} y={drag.y-TOUCH_AIM_OFFSET}/> }
       {drag?.active && dragCard && (
         <div class={`drag-ghost${hover ? ' over' : ''}${drag.touch ? ' touch' : ''}`} style={{ transform: drag.touch ? `translate(${drag.x}px, ${drag.y - TOUCH_AIM_OFFSET}px)` : `translate(${drag.x + 40}px, ${drag.y + 40}px)` }} aria-hidden="true">

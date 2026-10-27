@@ -5,7 +5,7 @@ import type { ComponentChildren, JSX } from 'preact';
 import { LOCATIONS, SEASON_NAMES } from '../engine/data';
 import {
   GameState, deliverProblem, labBusy, labSlots, lvl, money, nextPayment, plural, seasonLen, storageCap, storageUsed, workshopBusy, workshopSlots,
-  yardUsed, creditLimit, locOf, loanRate, outstanding, fmt, round2,
+  yardUsed, creditLimit, locOf, loanRate, outstanding, fmt, round2, weekDays,
 } from '../engine/game';
 import type { OrgId } from '../engine/data';
 import type { BuildItem } from '../engine/game';
@@ -175,7 +175,9 @@ export function FarmScreen({ s, dispatch, profile, fast, onFast, onMap, onRestar
   }, []);
   // PSV-006 · only the shown section is in the Tab order and the accessibility tree. Swiping still works:
   // the pager scrolls, and the section that settles in view becomes the live one.
-  const paneProps = (id: TabId) => ({ id: `pane-${id}`, role: 'tabpanel' as const, 'aria-labelledby': `tab-${id}`, inert: tab !== id, 'data-inert-base': String(tab !== id) });
+  // the tab row is kept for the teaching farm only (its lessons point at the sections there)
+  const tabs = !!tutorial;
+  const paneProps = (id: TabId) => ({ id: `pane-${id}`, role: tabs ? 'tabpanel' as const : 'region' as const, ...(tabs ? { 'aria-labelledby': `tab-${id}` } : { 'aria-label': TABS[idx(id)].name }), inert: tab !== id, 'data-inert-base': String(tab !== id) });
   // a tablist with one Tab stop: arrows, Home and End move between sections
   function onTabKey(e: JSX.TargetedKeyboardEvent<HTMLElement>) {
     const at = idx(tabRef.current);
@@ -196,24 +198,44 @@ export function FarmScreen({ s, dispatch, profile, fast, onFast, onMap, onRestar
     barn: yardUsed(s) > 0 || storageUsed(s) >= storageCap(s) ? { n: '!', tone: 'hot' } : null,
     orders: ready ? { n: ready, tone: 'good' } : null,
   };
+  // Without the tab row the sections are reached through the village (its buildings) and from the menu;
+  // on a section the bar's first button leads back to the field.
+  const openSection = (t: TabId) => {
+    setMenu(false);
+    const v = villageApi.current, place = TAB_PLACE[t];
+    if (tab === 'field' && v?.available && v.mode() !== 'field' && place) { void v.flyTo(place(s)).then(() => go(t)); return; }
+    go(t);
+  };
+  const days = hud.days, daysOf = Math.max(weekDays(hud), days);
   return (
-    <div class={`farm loc-${s.loc} season-${s.season}`}>
-      <header class="topbar">
-        <button type="button" class="icon-btn menu-btn" onClick={() => testing?onTestTools?.():setMenu(true)} aria-label={testing?"Инструменты проверки":"Меню"}>
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14M5 12h14M5 17h14" stroke="#3f2a1d" stroke-width="2.6" stroke-linecap="round" /></svg>
+    <div class={`farm loc-${s.loc} season-${s.season} on-${tab}${tabs ? ' with-tabs' : ''}`}>
+      {/* one thin bar over every section: money and the payment on the left, the week and its working days on the right */}
+      <header class="topbar main-bar">
+        {tab === 'field' || tabs
+          ? <button type="button" class="icon-btn menu-btn" onClick={() => testing?onTestTools?.():setMenu(true)} aria-label={testing?"Инструменты проверки":"Меню и разделы"}>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14M5 12h14M5 17h14" stroke="#3f2a1d" stroke-width="2.6" stroke-linecap="round" /></svg>
+              {!tabs && (badges.barn || badges.orders) && <i class="menu-dot" aria-hidden="true" />}
+            </button>
+          : <button type="button" class="icon-btn back-btn" onClick={() => go('field')} aria-label="Назад к полю">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5 L8 12 L15 19" fill="none" stroke="#3f2a1d" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+            </button>}
+        <div class="tb-money"><Money v={hud.money} size={20} /></div>
+        <button type="button" class={`tb-pay${hud.money >= np.amount ? ' ok' : ''}${s.phase === 'shortfall' ? ' due' : ''}`} onClick={() => s.phase === 'shortfall' ? setPaymentOpen(true) : openBarn('bank')} aria-label={s.due ? `Решить платёж ${money(s.due.amount)}` : `Платёж «${np.name}» ${money(np.amount)} через ${np.weeksLeft} нед.`}>
+          <b>{compactMoney(s.due?.amount ?? np.amount)}</b>
+          <small>{s.phase === 'shortfall' ? 'к оплате' : np.weeksLeft <= 1 ? 'в конце недели' : `через ${np.weeksLeft} нед.`}</small>
+          <span class="pay-bar"><span style={{ width: `${Math.min(100, (hud.money / Math.max(1, np.amount)) * 100)}%` }} /></span>
         </button>
         <div class="tb-date">
           <b>{SEASON_NAMES[hud.season]} · {hud.weekInSeason}/{seasonLen(hud)}</b>
-          <small>{present && hud === present ? 'события прошлой недели' : tutorial?'Учебная ферма':`${testing?'Проверка · ':''}${s.year}-й год`}</small>
+          <small>{present && hud === present ? 'прошлая неделя' : tutorial?'Учебная ферма':`${testing?'Проверка · ':''}${s.year}-й год`}</small>
         </div>
-        <div class="tb-money"><Money v={hud.money} size={20} /></div>
-        <button type="button" class={`tb-pay${hud.money >= np.amount ? ' ok' : ''}${s.phase === 'shortfall' ? ' due' : ''}`} onClick={() => s.phase === 'shortfall' ? setPaymentOpen(true) : openBarn('bank')} aria-label={s.due ? `Решить платёж ${money(s.due.amount)}` : `Платёж «${np.name}» ${money(np.amount)} через ${np.weeksLeft} нед.`}>
-          <small>{s.phase === 'shortfall' ? 'к оплате' : np.weeksLeft <= 1 ? 'в конце недели' : `через ${np.weeksLeft} нед.`}</small>
-          <b>{compactMoney(s.due?.amount ?? np.amount)}</b>
-          <span class="pay-bar"><span style={{ width: `${Math.min(100, (hud.money / Math.max(1, np.amount)) * 100)}%` }} /></span>
-        </button>
+        <div class="tb-days" aria-label={`Рабочих дней осталось: ${days}`}>
+          <b>{days}</b>
+          <span><small>{plural(days, 'день', 'дня', 'дней')}</small>
+            {daysOf <= 6 && <span class="day-pips" aria-hidden="true">{Array.from({ length: daysOf }, (_, i) => <i class={i < days ? 'on' : ''} />)}</span>}</span>
+        </div>
       </header>
-      <nav class="tabs" role="tablist" aria-label="Разделы фермы" onKeyDown={onTabKey}>
+      {tabs && <nav class="tabs" role="tablist" aria-label="Разделы фермы" onKeyDown={onTabKey}>
         {TABS.map((t) => {
           const b = badges[t.id];
           return (
@@ -231,7 +253,7 @@ export function FarmScreen({ s, dispatch, profile, fast, onFast, onMap, onRestar
             </button>
           );
         })}
-      </nav>
+      </nav>}
       {s.phase === 'shortfall' && !paymentOpen && (tab !== 'field' || fieldMode !== 'field') && <div class="payment-reminder" role="status"><div class="pr-chip"><span>Платёж ожидает решения</span><button type="button" onClick={()=>setPaymentOpen(true)}>Решить платёж</button></div></div>}
       <QuickProjects.Provider value={!!tutorial}><div class="pager" ref={pager}>
         <section class="pane" {...paneProps('lab')}><LabView s={s} act={dispatch} active={tab === 'lab' && !menu && !paymentOpen && !suspended} teaching={tutorial?.session.step === 'lab'} /></section>
@@ -247,6 +269,13 @@ export function FarmScreen({ s, dispatch, profile, fast, onFast, onMap, onRestar
       {menu && (
         <Sheet title={`${loc.name} · ${loc.place}`} icon="map" onClose={() => setMenu(false)}>
           <div class="stack">
+            {!tabs && <div class="menu-sections" role="group" aria-label="Разделы фермы">
+              {TABS.filter((t) => t.id !== 'field').map((t) => {
+                const b = badges[t.id];
+                return <button type="button" class="menu-section" onClick={() => openSection(t.id)}><Icon name={t.icon} size={26} /><span>{t.name}</span>{b && <i class={`tab-badge ${b.tone ?? ''}`}>{b.n}</i>}</button>;
+              })}
+            </div>}
+            {!tabs && villageApi.current?.available && <p class="small muted">Те же разделы стоят в деревне: потяните небо вниз или нажмите «Деревня».</p>}
             <Btn tone="primary" onClick={() => { setMenu(false); onMap(); }}><Icon name="map" size={20} /> Карта ферм</Btn>
             <Btn onClick={onFast}>{fast ? '⏩ Быстрая анимация' : '▶ Обычная анимация'}</Btn>
             {onTest&&<Btn onClick={()=>{setMenu(false);onTest();}}>Режим проверки</Btn>}

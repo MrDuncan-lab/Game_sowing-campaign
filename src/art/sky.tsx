@@ -7,6 +7,7 @@ import { CrowFlying } from './crows';
 import { Hopper } from './locusts';
 import { icons } from './icons';
 import type { RaidSign, SkyKind, SkyToken } from '../ui/skyForecast';
+import { ROAD_CREST } from './meadow';
 
 const INK = P.ink;
 export const SKY_H = 96;
@@ -82,6 +83,17 @@ export function skySlots(W: number, n: number, clear = false): { x: number; y: n
   return out;
 }
 
+// this week's weather tints the sky (the season's colours stay on the hills)
+const WEATHER_SKY: Partial<Record<SkyKind, [string, string]>> = {
+  rain: ['#93a6b3', '#cdd6d6'],
+  hail: ['#7f8d99', '#bcc4c6'],
+  flood: ['#8597a4', '#c3ccce'],
+  cloud: ['#b6cbd6', '#e3ebe3'],
+  cold: ['#bccdd8', '#e6eef0'],
+  frost: ['#c3d3e0', '#eef3f6'],
+  hot: ['#cfe4ee', '#f6efcf'],
+  dry: ['#d6e3e6', '#f4e9c6'],
+};
 const SEASON_SKY = [
   ['#c4e6f6', '#eef7e0', '#c4e39a', '#a9d27f'],
   ['#bfe4f6', '#eef7e0', '#b9dd8a', '#a9d27f'],
@@ -149,9 +161,32 @@ export interface SkyBandProps {
   clear?: boolean; // the tools stand beside the field, not in the band
   ext?: number; // the sky goes on this far beyond the field at both sides (the band spans the whole screen)
 }
+/** The village road in the sky's land: it leaves the field's crest (ROAD_CREST of the width), narrows as it
+ *  climbs and ends at a few roofs and a church dome on the far hill — where the «Деревня» sign stands. */
+function VillageRoad({ W, H, winter }: { W: number; H: number; winter: boolean }) {
+  const x0 = W * ROAD_CREST, x1 = W * 0.72, y1 = H - 34;
+  const road = winter ? '#e6eef3' : '#d2b884';
+  return (
+    <g class="sky-road" pointer-events="none">
+      <path d={`M${x0 - 7} ${H + 2} C${x0 - 6} ${H - 14} ${x1 - 22} ${H - 20} ${x1 - 1.5} ${y1} H${x1 + 1.5} C${x1 - 18} ${H - 18} ${x0 + 4} ${H - 12} ${x0 + 7} ${H + 2} Z`} fill={road} opacity={0.9} />
+      <g transform={`translate(${x1 + 8} ${y1 + 1})`} stroke="#3f2a1d" stroke-width={0.9} stroke-linejoin="round">
+        <path d="M-14 0 V-6 L-10 -10 L-6 -6 V0 Z" fill={winter ? '#eef3f7' : '#e7c88c'} />
+        <path d="M-15 -5.5 L-10 -10.5 L-5 -5.5" fill="none" stroke="#a5482f" stroke-width={1.6} />
+        <path d="M-3 0 V-11 L1 -15 L5 -11 V0 Z" fill={winter ? '#eef3f7' : '#f2d79e'} />
+        <path d="M1 -15 V-20" /><circle cx={1} cy={-20.5} r={1.5} fill="#d9b25e" />
+        <path d="M7 0 V-5 L11 -9 L15 -5 V0 Z" fill={winter ? '#eef3f7' : '#e0b882'} />
+        <path d="M6 -4.5 L11 -9.5 L16 -4.5" fill="none" stroke="#6a3a22" stroke-width={1.6} />
+        <path d="M-18 0.5 H19" stroke={winter ? '#c3d3dd' : '#6f9a4a'} stroke-width={1.4} />
+      </g>
+    </g>
+  );
+}
+
 export function SkyBand({ W, season, tokens, signs, meteoMax, px, onToken, onFog, onSign, clear = false, ext = 0 }: SkyBandProps) {
   const H = SKY_H;
-  const [top, bottom, hill, front] = SEASON_SKY[season] ?? SEASON_SKY[1];
+  const [top0, bottom0, hill, front] = SEASON_SKY[season] ?? SEASON_SKY[1];
+  // the sky over the field is this week's weather: grey in the rain, darker still under hail and flood
+  const [top, bottom] = WEATHER_SKY[tokens[0]?.kind ?? ''] ?? [top0, bottom0];
   const slots = skySlots(W, tokens.length, clear);
   const last = slots[slots.length - 1];
   const fogX = last ? last.x + 36 * last.sc : W * 0.4;
@@ -208,6 +243,9 @@ export function SkyBand({ W, season, tokens, signs, meteoMax, px, onToken, onFog
             {!meteoMax && <g transform={`translate(${Math.min(W - 70, fogX + (W - fogX) * 0.38)} 46) scale(.55)`} opacity={0.5}>{icons.sensor()}</g>}
           </g>
         )}
+        {/* the road from the field's gate up through the hills to the village on the horizon: over the fog,
+            which hides the weather to come, not the land */}
+        <VillageRoad W={W} H={H} winter={season === 3} />
         {kidsFar && (
           <g transform={`translate(${Math.min(W - 170, Math.max(W * 0.46, fogX + 10))} ${H - 37})`} class="sky-sign" role="button" tabindex={0} aria-label={kidsFar.text} onClick={(e) => { e.stopPropagation(); onSign?.(kidsFar); }} onKeyDown={(e) => key(e, () => onSign?.(kidsFar))}>
             <rect x={-hit / 2} y={-hit / 2} width={hit} height={hit} fill="transparent" />

@@ -49,6 +49,9 @@ export type Highlight = {
   block?: [number, number];
   corners?: [number, number][];
   minT?: number; // a seed card is picked: the temperature lens compares with it
+  // what the field says about the picked card: the harvest over its footprint, or why it will not go there
+  // (no cells: over the field's top edge — the card cannot be played at all now)
+  note?: { text: string; bad: boolean; cells?: [number, number][] };
 };
 export type Flock = 'on' | 'leave' | 'off';
 export interface QueueMark { n: number; state: 'queued' | 'working' | 'done' }
@@ -92,12 +95,15 @@ export interface Camera { vx: number; vy: number; span: number; W: number; H: nu
 // how much of the meadow round the owned land the frame shows, in cells: whole plots only — a plot cut by
 // the frame edge reads as broken
 export const RING = 1;
+// the main screen may show less meadow round the land (bigger beds on a phone)
+let ringNow = RING;
+export function setFieldRing(r: number) { ringNow = r; }
 export function camera(s: GameState, yard = YARD): Camera {
   let x0 = GRID, y0 = GRID, x1 = -1, y1 = -1;
   for (let y = 0; y < GRID; y++) for (let x = 0; x < GRID; x++) if (tile(s, x, y).owned) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
   if (x1 < 0) { x0 = y0 = 0; x1 = y1 = GRID - 1; }
   // the frame's edges in cells (right and bottom exclusive); rivers and other terrain always come in whole
-  let l = Math.max(0, x0 - RING), t = Math.max(0, y0 - RING), r = Math.min(GRID, x1 + 1 + RING), b = Math.min(GRID, y1 + 1 + RING);
+  let l = Math.max(0, x0 - ringNow), t = Math.max(0, y0 - ringNow), r = Math.min(GRID, x1 + 1 + ringNow), b = Math.min(GRID, y1 + 1 + ringNow);
   for (let y = 0; y < GRID; y++) for (let x = 0; x < GRID; x++) if (tile(s, x, y).terrain !== 'plain' && tile(s, x, y).terrain !== 'forest') { l = Math.min(l, x); t = Math.min(t, y); r = Math.max(r, x + 1); b = Math.max(b, y + 1); }
   const span = Math.min(GRID, Math.max(r - l, b - t));
   const cx = (l + r) / 2, cy = (t + b) / 2;
@@ -971,6 +977,23 @@ export function Scene({
                   <EdgeArrow dir={a.dir} n={a.n} m={mk(24, 16)} />
                 </g>
               ))}
+            </g>
+          );
+        })()}
+        {highlight.note && (() => {
+          const n = highlight.note!;
+          const seen = (n.cells ?? []).filter(([x, y]) => x >= 0 && y >= 0 && x < GRID && y < GRID && vis(x, y));
+          const m = mk(13, 13);
+          const w = Math.max(40, n.text.length * 7.1 + 18);
+          // in the camera's own frame (this layer is shifted by the camera like the beds)
+          const left = cam.vx * CELL, right = left + cam.W, top0 = cam.vy * CELL;
+          const cx = seen.length ? PAD + ((Math.min(...seen.map((c) => c[0])) + Math.max(...seen.map((c) => c[0])) + 1) / 2) * CELL : left + cam.W / 2;
+          const top = seen.length ? PAD + Math.min(...seen.map((c) => c[1])) * CELL + 2 : top0 + PAD + 22 * m;
+          const x = Math.max(left + 4 + (w / 2) * m, Math.min(right - 4 - (w / 2) * m, cx));
+          return (
+            <g class={`field-note${n.bad ? ' bad' : ''}`} transform={`translate(${x} ${Math.max(top0 + 22 * m, top)}) scale(${m})`} pointer-events="none">
+              <rect x={-w / 2} y={-20} width={w} height={21} rx={10.5} />
+              <text x={0} y={-5.5} text-anchor="middle">{n.text}</text>
             </g>
           );
         })()}
