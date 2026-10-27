@@ -2,9 +2,10 @@
 export const P = {
   ink: '#3f2a1d',
   inkSoft: '#6b4a33',
-  grass: '#7dbb4f',
-  grassDark: '#5f9a3a',
-  grassLight: '#9fd166',
+  // the field is the nearest hill of the village (tools/village: hy.py g4): a deep, slightly muted green
+  grass: '#88a456',
+  grassDark: '#678440',
+  grassLight: '#a7bd77',
   soilDry: '#c39463',
   soil: '#9a6941',
   soilWet: '#6c472d',

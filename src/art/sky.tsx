@@ -94,10 +94,11 @@ const WEATHER_SKY: Partial<Record<SkyKind, [string, string]>> = {
   hot: ['#cfe4ee', '#f6efcf'],
   dry: ['#d6e3e6', '#f4e9c6'],
 };
+// the sky's strip of hills over the field: the village's far greens, hazy (tools/village: far1, far2, g1)
 const SEASON_SKY = [
-  ['#c4e6f6', '#eef7e0', '#c4e39a', '#a9d27f'],
-  ['#bfe4f6', '#eef7e0', '#b9dd8a', '#a9d27f'],
-  ['#cfe3ec', '#f3ead6', '#cdd08a', '#b9c97a'],
+  ['#c4e6f6', '#eef7e0', '#c3cfa4', '#b3c38c'],
+  ['#bfe4f6', '#eef7e0', '#bccb9a', '#acbf86'],
+  ['#cfe3ec', '#f3ead6', '#cdcb92', '#bfbd80'],
   ['#dfe9f1', '#f4f7fa', '#eef3f7', '#f4f8fb'],
 ];
 
@@ -169,7 +170,7 @@ export interface SkyBandProps {
  *  climbs and ends at a few roofs and a church dome on the far hill — where the «Деревня» sign stands. */
 function VillageRoad({ W, H, winter }: { W: number; H: number; winter: boolean }) {
   const x0 = W * ROAD_CREST, x1 = W * 0.72, y1 = H - 34;
-  const road = winter ? '#e6eef3' : '#d2b884';
+  const road = winter ? '#e6eef3' : '#dfc794';
   return (
     <g class="sky-road" pointer-events="none">
       <path d={`M${x0 - 7} ${H + 2} C${x0 - 6} ${H - 14} ${x1 - 22} ${H - 20} ${x1 - 1.5} ${y1} H${x1 + 1.5} C${x1 - 18} ${H - 18} ${x0 + 4} ${H - 12} ${x0 + 7} ${H + 2} Z`} fill={road} opacity={0.9} />
@@ -207,7 +208,7 @@ export function SkyBand({ W, season, tokens, signs, meteoMax, px, onToken, onFog
     <>
       <path class="sky-land" d={`M${-ext} ${H - 26} L0 ${H - 26} Q${W * 0.16} ${H - 40} ${W * 0.33} ${H - 30} Q${W * 0.5} ${H - 44} ${W * 0.66} ${H - 32} Q${W * 0.82} ${H - 42} ${W} ${H - 30} L${W + ext} ${H - 30} V${H + 2} H${-ext} Z`} fill={hill} />
       {/* a dark strip of forest on the far right hill, where flocks gather */}
-      <path class="sky-land" d={`M${W * 0.7} ${H - 34} q6 -12 12 0 q6 -14 12 0 q6 -10 12 0 q6 -13 12 0 q6 -11 12 0 V${H - 26} H${W * 0.7} Z`} fill={season === 3 ? '#c9d6de' : '#6f9a4a'} opacity={0.55} />
+      <path class="sky-land" d={`M${W * 0.7} ${H - 34} q6 -12 12 0 q6 -14 12 0 q6 -10 12 0 q6 -13 12 0 q6 -11 12 0 V${H - 26} H${W * 0.7} Z`} fill={season === 3 ? '#c9d6de' : '#5a7a62'} opacity={0.55} />
       <path class="sky-land" d={`M${-ext} ${H - 12} L0 ${H - 12} Q${W * 0.25} ${H - 22} ${W * 0.5} ${H - 14} Q${W * 0.75} ${H - 6} ${W} ${H - 16} L${W + ext} ${H - 16} V${H + 2} H${-ext} Z`} fill={front} opacity={0.9} />
     </>
   );
