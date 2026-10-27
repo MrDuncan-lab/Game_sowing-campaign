@@ -28,7 +28,7 @@ import { CardReadout } from './CardReadout';
 import { CELL, FarmerPos, FarmerState, Flock, Floater, FxKind, Highlight, Lens, PAD, QueueMark, Scene, TileFx, FIELD_YARD, camera, farmerXY, BuildView, FX_LIFE, FX_CONTACT, type SkyView } from './Scene';
 import { skyTokens, raidSigns, fogText, type SkyToken, type SkyKind } from './skyForecast';
 import { SkyPicture, SKY_H, SkyBand } from '../art/sky';
-import { Village, useVillagePager, hasVillage, cartRun, type VillageApi, type VillageMode } from './Village';
+import { Village, useVillagePager, hasVillage, villageDrawing, cartRun, type VillageApi, type VillageMode } from './Village';
 import { Btn, Dispatch, Sheet, weeksShort } from './common';
 import { SeasonFx } from './SeasonFx';
 import { FieldVoice } from './FieldVoice';
@@ -1591,6 +1591,7 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
     onMode: (m) => { setVmode(m); onVillageMode?.(m); },
     cart: { run: cartRun(s), key: `${s.seed}:${s.loc}` },
     reduce: reducedMotion(),
+    drawing: villageDrawing(s),
   });
   if (villageApi) villageApi.current = village;
   const villageSay = (text: string) => {
