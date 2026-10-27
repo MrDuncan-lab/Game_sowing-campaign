@@ -160,6 +160,10 @@ export interface SkyBandProps {
   onToken?: (t: SkyToken) => void; onFog?: () => void; onSign?: (s: RaidSign) => void;
   clear?: boolean; // the tools stand beside the field, not in the band
   ext?: number; // the sky goes on this far beyond the field at both sides (the band spans the whole screen)
+  /** Over the village the sky is drawn as four stacked pictures, so its fade is the compositor's work and never a
+   *  repaint: 'solid' (the sky itself, with the defs), 'land' (its strip of hills), 'veil' (what is left over the
+   *  village), 'front' (the forecast, the fog, the road, the signs). 'all' draws them in one. */
+  part?: 'all' | 'solid' | 'land' | 'veil' | 'front';
 }
 /** The village road in the sky's land: it leaves the field's crest (ROAD_CREST of the width), narrows as it
  *  climbs and ends at a few roofs and a church dome on the far hill — where the «Деревня» sign stands. */
@@ -182,7 +186,7 @@ function VillageRoad({ W, H, winter }: { W: number; H: number; winter: boolean }
   );
 }
 
-export function SkyBand({ W, season, tokens, signs, meteoMax, px, onToken, onFog, onSign, clear = false, ext = 0 }: SkyBandProps) {
+export function SkyBand({ W, season, tokens, signs, meteoMax, px, onToken, onFog, onSign, clear = false, ext = 0, part = 'all' }: SkyBandProps) {
   const H = SKY_H;
   const [top0, bottom0, hill, front] = SEASON_SKY[season] ?? SEASON_SKY[1];
   // the sky over the field is this week's weather: grey in the rain, darker still under hail and flood
@@ -198,25 +202,31 @@ export function SkyBand({ W, season, tokens, signs, meteoMax, px, onToken, onFog
   const key = (e: JSX.TargetedKeyboardEvent<SVGGElement>, fn: () => void) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fn(); } };
   // touch targets never smaller than about 40 screen pixels
   const hit = Math.max(30, 40 / Math.max(0.05, px));
+  const has = (q: SkyBandProps['part']) => part === 'all' || part === q;
+  const land = (
+    <>
+      <path class="sky-land" d={`M${-ext} ${H - 26} L0 ${H - 26} Q${W * 0.16} ${H - 40} ${W * 0.33} ${H - 30} Q${W * 0.5} ${H - 44} ${W * 0.66} ${H - 32} Q${W * 0.82} ${H - 42} ${W} ${H - 30} L${W + ext} ${H - 30} V${H + 2} H${-ext} Z`} fill={hill} />
+      {/* a dark strip of forest on the far right hill, where flocks gather */}
+      <path class="sky-land" d={`M${W * 0.7} ${H - 34} q6 -12 12 0 q6 -14 12 0 q6 -10 12 0 q6 -13 12 0 q6 -11 12 0 V${H - 26} H${W * 0.7} Z`} fill={season === 3 ? '#c9d6de' : '#6f9a4a'} opacity={0.55} />
+      <path class="sky-land" d={`M${-ext} ${H - 12} L0 ${H - 12} Q${W * 0.25} ${H - 22} ${W * 0.5} ${H - 14} Q${W * 0.75} ${H - 6} ${W} ${H - 16} L${W + ext} ${H - 16} V${H + 2} H${-ext} Z`} fill={front} opacity={0.9} />
+    </>
+  );
+  if (part === 'land') return <g class="sky-band" clip-path="url(#sky-clip)">{land}</g>;
+  if (part === 'veil') return <g class="sky-band" clip-path="url(#sky-clip)"><rect class="sky-veil" x={-ext} width={W + 2 * ext} height={H + 2} fill="url(#sky-veil)" /></g>;
   return (
     <g class="sky-band">
-      <defs>
+      {has('solid') && <defs>
         <linearGradient id="sky-grad" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color={top} /><stop offset="1" stop-color={bottom} /></linearGradient>
         {/* over the village the sky keeps only a light veil at the top: the trees and roofs below show through it */}
         <linearGradient id="sky-veil" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color={top} stop-opacity=".9" /><stop offset=".35" stop-color={top} stop-opacity=".5" /><stop offset=".75" stop-color={bottom} stop-opacity="0" /></linearGradient>
         <linearGradient id="sky-fog" x1="0" x2="1" y1="0" y2="0"><stop offset="0" stop-color="#f7f2e6" stop-opacity="0" /><stop offset=".35" stop-color="#f7f2e6" stop-opacity=".88" /><stop offset="1" stop-color="#f4efe2" stop-opacity=".96" /></linearGradient>
         <clipPath id="sky-clip"><path d={ext ? `M${-ext} 0 H${W + ext} V${H + 2} H${-ext} Z` : `M0 18 Q0 0 18 0 H${W - 18} Q${W} 0 ${W} 18 V${H + 2} H0 Z`} /></clipPath>
-      </defs>
+      </defs>}
       <g clip-path="url(#sky-clip)">
-        {/* the sky and its own strip of land: solid over the field, gone as the village comes up (--sky-solid) */}
-        <g class="sky-solid">
-        <rect x={-ext} width={W + 2 * ext} height={H + 2} fill="url(#sky-grad)" />
-        <path class="sky-land" d={`M${-ext} ${H - 26} L0 ${H - 26} Q${W * 0.16} ${H - 40} ${W * 0.33} ${H - 30} Q${W * 0.5} ${H - 44} ${W * 0.66} ${H - 32} Q${W * 0.82} ${H - 42} ${W} ${H - 30} L${W + ext} ${H - 30} V${H + 2} H${-ext} Z`} fill={hill} />
-        {/* a dark strip of forest on the far right hill, where flocks gather */}
-        <path class="sky-land" d={`M${W * 0.7} ${H - 34} q6 -12 12 0 q6 -14 12 0 q6 -10 12 0 q6 -13 12 0 q6 -11 12 0 V${H - 26} H${W * 0.7} Z`} fill={season === 3 ? '#c9d6de' : '#6f9a4a'} opacity={0.55} />
-        <path class="sky-land" d={`M${-ext} ${H - 12} L0 ${H - 12} Q${W * 0.25} ${H - 22} ${W * 0.5} ${H - 14} Q${W * 0.75} ${H - 6} ${W} ${H - 16} L${W + ext} ${H - 16} V${H + 2} H${-ext} Z`} fill={front} opacity={0.9} />
-        </g>
-        <rect class="sky-veil" x={-ext} width={W + 2 * ext} height={H + 2} fill="url(#sky-veil)" />
+        {/* the sky and its own strip of land: solid over the field, gone as the village comes up */}
+        {has('solid') && <rect class="sky-solid" x={-ext} width={W + 2 * ext} height={H + 2} fill="url(#sky-grad)" />}
+        {part === 'all' && land}
+        {has('front') && <>
         {/* the conveyor of weeks: keyed by the absolute week so a new week slides each picture one place closer */}
         {tokens.map((t, i) => {
           const s = slots[i];
@@ -252,16 +262,17 @@ export function SkyBand({ W, season, tokens, signs, meteoMax, px, onToken, onFog
             <FarKids />
           </g>
         )}
+        </>}
       </g>
       {/* raids fly over the sky's edge */}
-      {flock && (
+      {has('front') && flock && (
         <g transform={`translate(${signX + (flock.ahead >= 2 ? 30 : 0)} ${flock.ahead >= 2 ? 30 : 34}) scale(${flock.ahead >= 2 ? 0.8 : 1.15})`} class="sky-sign" role="button" tabindex={0} aria-label={flock.text}
           onClick={(e) => { e.stopPropagation(); onSign?.(flock); }} onKeyDown={(e) => key(e, () => onSign?.(flock))}>
           <rect x={-hit / 2} y={-hit / 2} width={hit} height={hit} fill="transparent" />
           <Flock far={flock.ahead >= 2} />
         </g>
       )}
-      {swarm && (
+      {has('front') && swarm && (
         <g transform={`translate(${signX + (flock ? 52 : 10)} ${swarm.ahead >= 2 ? 60 : 56}) scale(${swarm.ahead >= 2 ? 0.62 : 0.9})`} class="sky-sign" role="button" tabindex={0} aria-label={swarm.text}
           onClick={(e) => { e.stopPropagation(); onSign?.(swarm); }} onKeyDown={(e) => key(e, () => onSign?.(swarm))}>
           <rect x={-hit / 2} y={-hit / 2} width={hit} height={hit} fill="transparent" />

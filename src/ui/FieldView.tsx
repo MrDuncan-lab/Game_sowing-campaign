@@ -1628,10 +1628,14 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
       {villageOn && <Village s={s} rootRef={villageRoot} onPlace={onVillagePlace} />}
       <div class={`field-wrap${!active||!pageVisible||!!sheet||meetingOpen?' scene-paused':''}${room.fanMin ? ' balanced' : ''}${rails ? ' rails' : ''}`} style={{ ['--sky-h' as string]: `${skyPx}px`, ['--vpeek' as string]: `${vpeek}px`, ...(rails ? { ['--rail' as string]: `${rails}px`, ['--rail2' as string]: `${rails * 2}px` } : {}) }} ref={fieldRef}>
         {/* the sky with the forecast stays on top; the field slides down under it when the village opens */}
+        {/* the sky in four stacked pictures: its fade over the village is the compositor's (see Village's pager) */}
         <div class="sky-strip" style={{ height: `${skyPx}px` }}>
-          <svg class="sky-svg" viewBox={`${-skyExt} 0 ${cam.W + 2 * skyExt} ${SKY_H}`} style={{ width: `${(cam.W + 2 * skyExt) * px}px`, height: `${skyPx}px` }} aria-label="Небо: погода на эту и следующие недели">
-            <SkyBand W={cam.W} season={fieldState.season} tokens={skyView.tokens} signs={skyView.signs} meteoMax={skyView.meteoMax} px={px} onToken={skyView.onToken} onFog={skyView.onFog} onSign={skyView.onSign} clear={skyView.clear} ext={skyExt} />
-          </svg>
+          {(['solid', 'land', 'veil', 'front'] as const).map((part) => (
+            <svg key={part} class={`sky-svg sb-${part}`} viewBox={`${-skyExt} 0 ${cam.W + 2 * skyExt} ${SKY_H}`} style={{ width: `${(cam.W + 2 * skyExt) * px}px`, height: `${skyPx}px` }}
+              aria-hidden={part === 'front' ? undefined : 'true'} aria-label={part === 'front' ? 'Небо: погода на эту и следующие недели' : undefined}>
+              <SkyBand part={part} W={cam.W} season={fieldState.season} tokens={skyView.tokens} signs={skyView.signs} meteoMax={skyView.meteoMax} px={px} onToken={skyView.onToken} onFog={skyView.onFog} onSign={skyView.onSign} clear={skyView.clear} ext={skyExt} />
+            </svg>
+          ))}
         </div>
         <div class="field-move" ref={moveRef}>
         <div class="field-row" style={{ ['--arn' as string]: String(cam.W / cam.H) }}>

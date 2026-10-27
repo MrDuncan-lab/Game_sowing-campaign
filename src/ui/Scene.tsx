@@ -681,6 +681,15 @@ function crestPts(W: number, top: number): string {
   return d;
 }
 export const crestLine = (W: number, top: number) => crestPts(W, top);
+/** The soft shade the field throws on the land just behind its crest, as each hill of the village does on the one
+ *  behind it: a band from `h` over the crest down to it. */
+function crestShade(W: number, top: number, h: number): string {
+  const y = (f: number) => top - 4 - 6 * Math.sin(f * Math.PI * 2 + .6) * .5 - 3 * Math.sin(f * Math.PI * 5) * .4;
+  let d = `M0 ${(y(0) - h).toFixed(1)}`;
+  for (let k = 1; k <= 24; k++) d += ` L${(W * k / 24).toFixed(1)} ${(y(k / 24) - h).toFixed(1)}`;
+  for (let k = 24; k >= 0; k--) d += ` L${(W * k / 24).toFixed(1)} ${(y(k / 24) + 1).toFixed(1)}`;
+  return d + ' Z';
+}
 export const fieldCrest = (W: number, H: number, top: number) => `${crestPts(W, top)} L${W} ${H - 18} Q${W} ${H} ${W - 18} ${H} H18 Q0 ${H} 0 ${H - 18} Z`;
 const openRule = (W: number, H: number, i: number, r: number, top: number) => `M${i} ${top} V${H - i - r} Q${i} ${H - i} ${i + r} ${H - i} H${W - i - r} Q${W - i} ${H - i} ${W - i} ${H - i - r} V${top}`;
 
@@ -790,8 +799,10 @@ export function Scene({
     <svg viewBox={`0 0 ${cam.W} ${cam.H}`} class={`scene-svg wind-${wind}${winter ? ' winter' : ''}${lens ? ` lens-on` : ''}${build ? ' build-on' : ''}${highlight.preview || highlight.area.size || highlight.block || highlight.tiles.size ? ' previewing' : ''}`} role="group" aria-label="Поле">
       <defs>
         <GrassPattern winter={winter} />
+        {skyOutside && <linearGradient id="field-shade" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color={winter ? '#3d4f8f' : '#2c4a2a'} stop-opacity="0" /><stop offset="1" stop-color={winter ? '#3d4f8f' : '#2c4a2a'} stop-opacity=".24" /></linearGradient>}
         <clipPath id="field-land"><path d={`M0 ${yard} H${cam.W} V${cam.H - 18} Q${cam.W} ${cam.H} ${cam.W - 18} ${cam.H} H18 Q0 ${cam.H} 0 ${cam.H - 18} Z`} /></clipPath>
       </defs>
+      {skyOutside && <path d={crestShade(cam.W, SKY_H, 14)} fill="url(#field-shade)" pointer-events="none" />}
       {skyOutside
         ? <path d={fieldCrest(cam.W, cam.H, SKY_H)} fill="url(#grass-tex)" />
         : <rect x={0} y={0} width={cam.W} height={cam.H} rx={18} fill="url(#grass-tex)" />}
@@ -800,7 +811,9 @@ export function Scene({
       {skyOutside
         ? <path d={`${crestLine(cam.W, SKY_H)} L${cam.W} ${yard} H0 Z`} fill={winter ? '#f4f8fb' : '#a9d27f'} opacity={0.45} />
         : <rect x={0} y={yardTop} width={cam.W} height={yard - yardTop} rx={sky ? 0 : 18} fill={winter ? '#f4f8fb' : '#a9d27f'} opacity={sky ? 0.45 : 0.6} />}
-      {skyOutside && <path d={crestLine(cam.W, SKY_H)} fill="none" stroke={winter ? '#9fb6c4' : '#6fae45'} stroke-width={2.4} opacity={0.75} />}
+      {/* the field is the nearest hill: its crest is inked, with the low sun catching its edge, like the village's */}
+      {skyOutside && <path d={crestLine(cam.W, SKY_H)} fill="none" stroke={winter ? '#ffe3d2' : '#f4f7c8'} stroke-width={1.8} stroke-opacity={0.7} transform="translate(0 1.6)" />}
+      {skyOutside && <path d={crestLine(cam.W, SKY_H)} fill="none" stroke={winter ? '#33283a' : '#3a2a1f'} stroke-width={1.2} stroke-opacity={0.82} stroke-linejoin="round" />}
       <YardDecor W={cam.W} yard={yard} season={s.season as Season} />
       <EdgeDecor W={cam.W} H={cam.H} yard={yard} season={s.season as Season} />
       {yardCrates > 0 && (

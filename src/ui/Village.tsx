@@ -3,10 +3,14 @@
 // anchors (order bubbles, the kids at the gate, a flock on its way, the payment cart).
 //
 // One gesture moves between three stops: the field, the village, the top of the village. Pulling the field down,
-// it slides away and the village comes up from behind it hill by hill: each hill waits sunk behind the one in front,
-// then rises with a little sway, the nearer ones first; past that the whole village scrolls as one map. A house
-// stands up (scaleY) once it is out from behind the hill in front of it and under the sky; a tree springs up once
-// its foot is clear. The sky over the field thins to a veil as the field goes, so nothing tall is cut by it.
+// it slides away and the village comes up from behind it hill by hill, like flats on a paper stage: each hill waits
+// sunk behind the one in front and rises in its turn, the nearer ones first, and settles without a bounce; the
+// houses and trees ride on their hills. Past that the whole village scrolls as one map. The sky over the field thins
+// to a veil as the field goes, so nothing tall is cut by it.
+//
+// Every frame of the way only moves composited layers (the hills, the field, the dock) and fades the sky strip:
+// nothing inside the drawing is transformed, so the browser never repaints the village while it moves. The
+// village's own little lives (smoke, sails, hens) wait while it moves and play once it stands.
 import type { ComponentChildren, RefObject } from 'preact';
 import { useEffect, useRef } from 'preact/hooks';
 import { V_ANCHORS, V_BOTTOM, V_CART, V_SEASON_CSS, V_SUMMER, V_VH, V_W, V_WINTER } from '../art/village/chernozem';
@@ -58,12 +62,13 @@ const CRESTS: [string, number][] = [['F', 872], ['E', 714], ['D', 556], ['C', 40
 const layerOf = (y: number) => CRESTS.find(([, c]) => y >= c - 2)?.[0] ?? 'A';
 const CREST: Record<string, number> = { ...Object.fromEntries(CRESTS), A: 130 };
 
-// coming up from behind the field: how far each hill waits sunk (a share of its height over the nearest hill, so
-// every one starts hidden behind the one in front) and when along the way it rises (nearer hills first)
-const SINK = 0.8, RISE_STEP = 0.13, RISE_LEN = 0.5;
-function riseOf(k: string, depth: number) {
+// coming up from behind the field, like flats on a paper stage: each hill waits a little sunk and rises into its
+// place in its turn, the nearer ones first. Depth sets both: a farther hill sinks less and moves later, so nothing far
+// overtakes anything near (it is the field and the near hills that travel; the far land barely stirs)
+const SINK_NEAR = 34, SINK_STEP = 4, RISE_STEP = 0.07, RISE_LEN = 0.5;
+function riseOf(_k: string, depth: number) {
   const start = depth * RISE_STEP;
-  return { sink: SINK * Math.max(0, CREST.F - (CREST[k] ?? CREST.A)), start, len: Math.min(RISE_LEN, 1 - start) };
+  return { sink: Math.max(10, SINK_NEAR - depth * SINK_STEP), start, len: Math.min(RISE_LEN, 1 - start) };
 }
 
 /** How far down the road the payment cart is: it leaves the council after a payment and reaches the gate in the
@@ -153,13 +158,19 @@ export function Village({ s, rootRef, onPlace }: { s: GameState; rootRef: RefObj
 }
 
 // ---------------------------------------------------------------- the pager: field, village, its top
-interface Pop { el: SVGGElement; g: SVGGElement; l: string; b: number; h: number; f: [string, number][]; last: number; up: boolean | null }
-interface Lay { el: HTMLElement; k: string; r: number; sink: number; start: number; len: number; last: string }
-interface Tree { el: SVGGElement; l: string; y: number; front: string[]; up: boolean | null }
+interface Pop { g: SVGGElement; l: string; b: number; h: number; f: [string, number][]; up: boolean | null }
+interface Lay { el: HTMLElement; k: string; r: number; sink: number; start: number; len: number }
+interface Run { t0: number; T: number; from: number; to: number; m0: number; anims: Animation[]; done?: () => void }
+interface Sky { strip: HTMLElement; solid: SVGSVGElement | null; land: SVGSVGElement | null; veil: SVGSVGElement | null }
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
-const back = (t: number, c1 = 1.2) => { const c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); };
+/** a hill settling into its place: quick to start, no overshoot */
+const settle = (t: number) => 1 - Math.pow(1 - t, 3);
 const smooth = (t: number) => t * t * (3 - 2 * t);
 const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+/** A glide's way over its time: a cubic from the start slope m0 (the speed it sets off with, in the way's length per
+ *  glide time) to rest, never past its end for m0 <= 3; slope 3 is the ease-out cubic. */
+const curve = (u: number, m0: number) => m0 * (u * u * u - 2 * u * u + u) + (3 * u * u - 2 * u * u * u);
+const slope = (u: number, m0: number) => m0 * (3 * u * u - 4 * u + 1) + (6 * u - 6 * u * u);
 const cartMemo = new Map<string, number>();
 
 export function useVillagePager(o: {
@@ -174,79 +185,117 @@ export function useVillagePager(o: {
   /** the drawing on show ('summer' or 'winter'): when it changes the houses and trees are new elements */
   drawing: string;
 }): VillageApi {
-  const st = useRef({ s: 0, u: 1, HS: 600, S1: 400, S2: 600, T: 1000, band: 60, fc: 100, anim: 0, mode: 'field' as VillageMode, ready: false,
-    pops: [] as Pop[], lays: [] as Lay[], trees: [] as Tree[], solid: -1, carts: [] as SVGGElement[], bubbles: [] as SVGGElement[],
+  const st = useRef({ s: 0, u: 1, HS: 600, S1: 400, S2: 600, T: 1000, band: 60, fc: 100, mode: 'field' as VillageMode, ready: false,
+    pops: [] as Pop[], lays: [] as Lay[], carts: [] as SVGGElement[], cartTf: [] as string[], bubbles: [] as SVGGElement[],
+    sky: null as Sky | null, dockH: 0, still: null as boolean | null, moving: false, run: null as Run | null,
     cartRun: -1, cartAnim: 0, cartDir: 1, wheelLock: 0, wheelAcc: 0, wheelT: 0, noClick: 0, queued: false,
-    drag: null as null | { id: number; x: number; y: number; s0: number; from: number; dir: number; lastY: number; lastT: number; v: number } });
+    drag: null as null | { id: number; x: number; y: number; s0: number; from: number; dir: number; lastY: number; lastT: number; v: number; resume?: number } });
   const opts = useRef(o);
   opts.current = o;
+  // what was last written to an element's style, so a frame writes only what changed
+  const written = useRef(new WeakMap<Element, Record<string, string>>());
+  const set = (el: HTMLElement | SVGElement | null | undefined, prop: 'transform' | 'opacity' | 'visibility', v: string) => {
+    if (!el) return;
+    const w = written.current.get(el) ?? {};
+    if (w[prop] === v) return;
+    w[prop] = v; written.current.set(el, w);
+    el.style[prop] = v;
+  };
 
   const stops = () => [0, st.current.S2, st.current.T];
   const nearest = (s: number) => stops().reduce((a, v) => (Math.abs(v - s) < Math.abs(a - s) ? v : a));
   const stopFrom = (s: number, dir: number) => (dir > 0 ? stops().find((v) => v > s + 2) : [...stops()].reverse().find((v) => v < s - 2));
-  // the way between the field and the village is taken slowly: the hills come up one after another
-  const glideMs = (to: number) => { const S = st.current; return Math.max(S.s, to) > S.S2 + 2 ? 1700 : Math.abs(to - S.s) > S.S2 ? 1100 : 850; };
+  /** where the way stands right now, a glide included */
+  const here = () => { const S = st.current, r = S.run; return r ? r.from + (r.to - r.from) * curve(clamp((performance.now() - r.t0) / r.T, 0, 1), r.m0) : S.s; };
+  // the way between the field and the village is one act of the motion language (720 ms and a breath); along the
+  // village map the glide is shorter, by the distance
+  const glideMs = (to: number) => { const S = st.current, s = here(); return Math.max(s, to) > S.S2 + 2 ? 760 : clamp(300 + Math.abs(to - s) * 0.5, 420, 640); };
 
-  function frame() {
+  // ---- where everything stands at a place s along the way: pure, for a frame under the finger and for the keyframes
+  // of a glide alike
+  const phiOf = (s: number) => { const S = st.current; return clamp((s - S.S2) / S.S1, 0, 1); };
+  function layerY(l: Lay, s: number) {
+    const S = st.current;
+    let y = s <= S.S2 ? -s : -S.S2 - l.r * (s - S.S2);
+    // still behind the field: the hill waits sunk and rises in its turn into its place
+    const p = 1 - phiOf(s);
+    if (l.sink > 0 && p < 1) {
+      const t = clamp((p - l.start) / l.len, 0, 1);
+      y += l.sink * (1 - (opts.current.reduce ? smooth(t) : settle(t)));
+    }
+    return y * S.u;
+  }
+  const fieldY = (s: number) => (st.current.T - s) * st.current.u;
+  // the hand of cards goes down with the field's first steps
+  const dockY = (s: number) => smooth(clamp((1 - phiOf(s)) / 0.35, 0, 1)) * (st.current.dockH + 16);
+  // the sky over the field thins out all along the first two thirds of the way, down to a veil behind the forecast;
+  // its own strip of land goes first, so no band of it is left hanging over the village
+  const skyAt = (s: number) => { const solid = smooth(clamp((phiOf(s) - 0.35) / 0.65, 0, 1)); return { solid, land: smooth(clamp((solid - 0.6) / 0.4, 0, 1)) }; };
+  const tf = (y: number) => (Math.abs(y) > 0.05 ? `translate3d(0,${y.toFixed(2)}px,0)` : 'none');
+  // the sky's strip of hills is the field's own horizon: it goes down with the field as it fades (the sky pictures are
+  // centred by a translateX that every frame has to keep)
+  const tfLand = (y: number) => `translateX(-50%) translate3d(0,${y.toFixed(2)}px,0)`;
+
+  /** One place, written straight to the styles (under the finger, and where a glide ends). */
+  function put(s: number) {
     const S = st.current, O = opts.current;
+    for (const l of S.lays) set(l.el, 'transform', tf(layerY(l, s)));
+    set(O.moveRef.current, 'transform', tf(fieldY(s)));
+    set(O.dockRef.current, 'transform', tf(dockY(s)));
+    const k = skyAt(s);
+    if (S.sky) {
+      set(S.sky.solid, 'opacity', k.solid.toFixed(3));
+      set(S.sky.land, 'opacity', k.land.toFixed(3));
+      set(S.sky.land, 'transform', tfLand(fieldY(s)));
+      set(S.sky.veil, 'opacity', (1 - k.solid).toFixed(3));
+      // the fog past the forecast thins to a haze once the field starts to go
+      S.sky.strip.classList.toggle('v-open', phiOf(s) < 0.96);
+    }
+  }
+  function frame() {
+    const S = st.current;
     S.queued = false;
-    if (!O.enabled || !S.ready) return;
-    const u = S.u, s = clamp(S.s, 0, S.T);
-    const phi = clamp((s - S.S2) / S.S1, 0, 1), p = 1 - phi;
-    const shift: Record<string, number> = {};
-    for (const l of S.lays) {
-      shift[l.k] = s <= S.S2 ? -s : -S.S2 - l.r * (s - S.S2);
-      // still behind the field: the hill waits sunk and rises in its turn, swaying a little past its place
-      if (l.sink > 0 && p < 1) {
-        const t = clamp((p - l.start) / l.len, 0, 1);
-        shift[l.k] += l.sink * (1 - (O.reduce ? smooth(t) : back(t, 1.4)));
-      }
-      const tf = `translate3d(0,${(shift[l.k] * u).toFixed(2)}px,0)`;
-      if (tf !== l.last) { l.el.style.transform = tf; l.last = tf; }
-    }
-    const dy = (S.T - s) * u;
-    const move = O.moveRef.current, dock = O.dockRef.current;
-    if (move) { move.style.transform = dy > 0.5 ? `translate3d(0,${dy.toFixed(2)}px,0)` : ''; move.style.visibility = dy > S.HS * u + 40 ? 'hidden' : ''; }
-    if (dock) { const k = clamp((0.78 - phi) / 0.22, 0, 1); dock.style.transform = k > 0 ? `translate3d(0,${(k * (dock.offsetHeight + 16)).toFixed(1)}px,0)` : ''; }
-    // the field is the nearest hill of all; on the field the houses just over the yard stay folded
-    const lift = clamp((phi - 0.8) / 0.2, 0, 1) * 90;
-    const field = S.fc + (S.T - s) - lift;
-    const upNow = new Set<string>();
-    for (const p of S.pops) {
-      const base = p.b + (shift[p.l] ?? 0), top = base - p.h;
-      let crest = field;
-      for (const [k, y] of p.f) crest = Math.min(crest, y + (shift[k] ?? 0));
-      const f = clamp((crest - Math.max(top, S.band)) / p.h, 0, 1);
-      const t = clamp(f / 0.7, 0, 1);
-      const v = t <= 0 ? 0 : O.reduce ? (t > 0.5 ? 1 : 0) : back(t);
-      if (Math.abs(v - p.last) > 0.002) { p.el.style.transform = `scaleY(${v.toFixed(3)})`; p.last = v; }
-      const up = t >= 1;
-      if (up) upNow.add(p.g.dataset.k ?? '');
-      if (up !== p.up) { p.up = up; p.g.classList.toggle('up', up); p.g.setAttribute('tabindex', up ? '0' : '-1'); }
-    }
-    for (const b of S.bubbles) b.classList.toggle('shown', upNow.has(b.dataset.for ?? ''));
-    // a tree springs up once its foot is out from behind every hill in front of it
-    for (const tr of S.trees) {
-      let crest = field;
-      for (const k of tr.front) crest = Math.min(crest, CREST[k] + (shift[k] ?? 0));
-      const up = tr.y + (shift[tr.l] ?? 0) < crest + 1;
-      if (up !== tr.up) { tr.up = up; tr.el.classList.toggle('up', up); }
-    }
-    // the sky over the field thins out as soon as the field starts to go, down to a veil behind the forecast;
-    // its own strip of land goes first, so no band of it is left hanging over the village
-    const solid = Number(smooth(clamp((phi - 0.72) / 0.28, 0, 1)).toFixed(3));
-    if (solid !== S.solid) {
-      S.solid = solid;
-      const view = O.viewRef.current;
-      view?.style.setProperty('--sky-solid', String(solid));
-      view?.style.setProperty('--sky-land', String(Number(smooth(clamp((solid - 0.45) / 0.55, 0, 1)).toFixed(3))));
-    }
-    const mode: VillageMode = phi > 0.96 ? 'field' : phi < 0.12 ? 'village' : 'between';
-    O.rootRef.current?.classList.toggle('v-asleep', mode === 'field' && !S.anim);
-    if (mode !== S.mode) { S.mode = mode; O.onMode(mode); if (mode === 'village') rollCart(); }
-    placeCart(phi);
+    if (!opts.current.enabled || !S.ready) return;
+    put(clamp(S.s, 0, S.T));
   }
   const queue = () => { const S = st.current; if (!S.queued) { S.queued = true; requestAnimationFrame(frame); } };
+
+  /** The way starts: the village becomes a picture (its little lives wait), the sign up to it goes. */
+  function beginMove(to: number) {
+    const S = st.current, O = opts.current;
+    if (!S.moving) { S.moving = true; O.viewRef.current?.classList.add('v-moving'); }
+    if (S.still !== true) { S.still = true; O.rootRef.current?.classList.add('v-asleep'); }
+    // the cart stands on its hill before the hill comes up
+    if (to < S.T - 2) placeCart(0);
+  }
+  /** The way has ended: what can be tapped, the mode, the cart, the village's life. */
+  function endMove() {
+    const S = st.current, O = opts.current;
+    if (S.moving) { S.moving = false; O.viewRef.current?.classList.remove('v-moving'); }
+    const s = clamp(S.s, 0, S.T), phi = phiOf(s);
+    // a house can be tapped once most of it is out from behind the hills in front (the field is the nearest hill of
+    // all) and under the sky strip; on the field the houses just over the yard stay out of reach
+    const field = S.fc + (S.T - s) - clamp((phi - 0.8) / 0.2, 0, 1) * 90;
+    const shift: Record<string, number> = {};
+    for (const l of S.lays) shift[l.k] = layerY(l, s) / S.u;
+    for (const q of S.pops) {
+      const top = q.b + (shift[q.l] ?? 0) - q.h;
+      let crest = field;
+      for (const [k, y] of q.f) crest = Math.min(crest, y + (shift[k] ?? 0));
+      const up = crest - Math.max(top, S.band) >= q.h * 0.7;
+      if (up !== q.up) { q.up = up; q.g.classList.toggle('up', up); q.g.setAttribute('tabindex', up ? '0' : '-1'); }
+    }
+    const upNow = new Set(S.pops.filter((q) => q.up).map((q) => q.g.dataset.k ?? ''));
+    for (const b of S.bubbles) b.classList.toggle('shown', upNow.has(b.dataset.for ?? ''));
+    set(O.moveRef.current, 'visibility', fieldY(s) > S.HS * S.u + 40 ? 'hidden' : '');
+    const mode: VillageMode = phi > 0.96 ? 'field' : phi < 0.12 ? 'village' : 'between';
+    // the village's little lives play only while it stands open and still
+    const still = mode !== 'village';
+    if (still !== S.still) { S.still = still; O.rootRef.current?.classList.toggle('v-asleep', still); }
+    O.moveRef.current?.classList.toggle('v-away', mode === 'village');
+    placeCart(phi);
+    if (mode !== S.mode) { S.mode = mode; O.onMode(mode); if (mode === 'village') rollCart(); }
+  }
 
   // ---- the cart: rests where the week puts it; when the village opens it drives there from where it was seen last
   function placeCart(phi: number) {
@@ -258,11 +307,15 @@ export function useVillagePager(o: {
     // it faces the way it last went: down the road to the gate, or back up to the council
     const dx = S.cartDir > 0 ? ahead.x - behind.x : behind.x - ahead.x;
     const flip = dx < 0 ? -1 : 1;
-    for (const c of S.carts) {
+    S.carts.forEach((c, i) => {
       const on = c.dataset.l === k && phi < 0.5;
+      // write only what changed: an SVG attribute set again still repaints the hill
+      const t = on ? `translate(${p.x.toFixed(1)} ${p.y.toFixed(1)}) scale(${flip * 0.9} .9)` : '';
+      if (t === S.cartTf[i]) return;
+      S.cartTf[i] = t;
       c.style.display = on ? '' : 'none';
-      if (on) c.setAttribute('transform', `translate(${p.x.toFixed(1)} ${p.y.toFixed(1)}) scale(${flip * 0.9} .9)`);
-    }
+      if (on) c.setAttribute('transform', t);
+    });
   }
   function rollCart() {
     const S = st.current, O = opts.current;
@@ -276,34 +329,79 @@ export function useVillagePager(o: {
     const step = (now: number) => {
       const t = clamp((now - t0) / ms, 0, 1);
       S.cartRun = from + (to - from) * ease(t);
-      placeCart(clamp((S.s - S.S2) / S.S1, 0, 1));
+      placeCart(phiOf(S.s));
       if (t < 1) S.cartAnim = requestAnimationFrame(step);
       else { S.cartAnim = 0; cartMemo.set(O.cart.key, to); O.rootRef.current?.classList.remove('cart-rolling'); }
     };
     S.cartAnim = requestAnimationFrame(step);
   }
 
-  function glide(to: number, ms: number, done?: () => void) {
-    const S = st.current;
-    cancelAnimationFrame(S.anim);
-    const from = S.s;
-    if (opts.current.reduce || Math.abs(to - from) < 1) { S.s = to; S.anim = 0; queue(); if (done) setTimeout(done, 40); return; }
-    const t0 = performance.now();
-    const step = (now: number) => {
-      const t = clamp((now - t0) / ms, 0, 1);
-      S.s = from + (to - from) * ease(t);
-      frame();
-      if (t < 1) S.anim = requestAnimationFrame(step); else { S.anim = 0; frame(); if (done) done(); }
-    };
-    S.anim = requestAnimationFrame(step);
+  /** Stop a glide where it is now; returns its speed (units per ms), so the next one goes on from it. */
+  function halt(): number {
+    const S = st.current, r = S.run;
+    if (!r) return 0;
+    const u = clamp((performance.now() - r.t0) / r.T, 0, 1);
+    S.s = r.from + (r.to - r.from) * curve(u, r.m0);
+    put(S.s);
+    for (const a of r.anims) a.cancel();
+    S.run = null;
+    return ((r.to - r.from) * slope(u, r.m0)) / r.T;
   }
-  const stopGlide = () => { const S = st.current; if (S.anim) { cancelAnimationFrame(S.anim); S.anim = 0; } };
-  const goTo = (to: number) => glide(to, glideMs(to));
+  function finish() {
+    const S = st.current, r = S.run;
+    if (!r) return;
+    S.s = r.to;
+    put(r.to);
+    for (const a of r.anims) a.cancel();
+    S.run = null;
+    endMove();
+    r.done?.();
+  }
+  /** A glide to `to`: it goes on at the speed the finger let go (v0, units per ms) or the glide it interrupts had, or
+   *  from rest sets off briskly, and settles without overshoot (V-01). A fast fling ends sooner; a slow one never
+   *  stalls and then speeds up. The way is laid out at once as keyframes for every moving layer and played by the
+   *  compositor, so it stays smooth whatever the page is busy with. */
+  function glide(to: number, ms: number, done?: () => void, v0?: number) {
+    const S = st.current, O = opts.current;
+    const vNow = halt();
+    const from = S.s, dist = to - from, D = Math.abs(dist);
+    S.dockH = O.dockRef.current?.offsetHeight ?? S.dockH;
+    if (O.reduce || D < 1 || typeof Element.prototype.animate !== 'function') {
+      S.s = to; put(to); endMove();
+      if (done) setTimeout(done, 40);
+      return;
+    }
+    beginMove(to);
+    const v = v0 ?? vNow, vt = v * Math.sign(dist);
+    const T = vt > 0 ? clamp((3 * D) / vt, 360, ms) : ms;
+    const m0 = vt > 0 ? clamp((vt * T) / D, 1.6, 3) : 3;
+    const n = Math.max(12, Math.ceil(T / 16));
+    const ss = Array.from({ length: n + 1 }, (_, i) => from + dist * curve(i / n, m0));
+    const opt: KeyframeAnimationOptions = { duration: T, easing: 'linear', fill: 'forwards' };
+    const anims: Animation[] = [];
+    const go = (el: Element | null | undefined, frames: Keyframe[]) => { if (el) anims.push(el.animate(frames, opt)); };
+    for (const l of S.lays) go(l.el, ss.map((s) => ({ transform: tf(layerY(l, s)) })));
+    go(O.moveRef.current, ss.map((s) => ({ transform: tf(fieldY(s)) })));
+    go(O.dockRef.current, ss.map((s) => ({ transform: tf(dockY(s)) })));
+    if (S.sky) {
+      const k = ss.map(skyAt);
+      go(S.sky.solid, k.map((x) => ({ opacity: x.solid })));
+      go(S.sky.land, k.map((x, i) => ({ opacity: x.land, transform: tfLand(fieldY(ss[i])) })));
+      go(S.sky.veil, k.map((x) => ({ opacity: 1 - x.solid })));
+      S.sky.strip.classList.toggle('v-open', phiOf(to) < 0.96);
+    }
+    const run: Run = { t0: performance.now(), T, from, to, m0, anims, done };
+    S.run = run;
+    if (anims[0]) anims[0].onfinish = () => { if (st.current.run === run) finish(); };
+    else finish();
+  }
+  const goTo = (to: number, v0?: number) => glide(to, glideMs(to), undefined, v0);
 
   // ---- geometry: from the view's size and the sky's and the field's places
   function measure() {
     const S = st.current, O = opts.current, view = O.viewRef.current, root = O.rootRef.current;
     if (!O.enabled || !view || !root) { S.ready = false; return; }
+    halt();
     const wasField = S.ready ? S.s >= S.T - 2 : true, wasTop = S.ready && S.s <= 2, wasBottom = S.ready && Math.abs(S.s - S.S2) < 2;
     S.u = view.clientWidth / V_W;
     S.HS = view.clientHeight / S.u;
@@ -316,43 +414,39 @@ export function useVillagePager(o: {
     S.lays = [...root.querySelectorAll<HTMLElement>('.v-lay')].map((el) => {
       const k = el.dataset.k ?? '', depth = hills.length - 2 - hills.indexOf(k);
       const rise = k === 'sky' || depth < 0 ? { sink: 0, start: 0, len: 1 } : riseOf(k, depth);
-      return { el, k, r: Number(el.dataset.r) || 0, ...rise, last: '' };
+      return { el, k, r: Number(el.dataset.r) || 0, ...rise };
     });
-    S.trees = [];
-    for (const lay of S.lays) {
-      if (lay.k === 'sky') continue;
-      const front = hills.slice(hills.indexOf(lay.k) + 1);
-      for (const el of lay.el.querySelectorAll<SVGGElement>('.tree')) {
-        const m = /translate\(\s*([-\d.]+)[\s,]+([-\d.]+)/.exec((el.parentNode as SVGGElement).getAttribute('transform') ?? '');
-        if (!m) continue;
-        const x = Number(m[1]), y = Number(m[2]);
-        // they spring up one after another along the hill, not in one go
-        el.style.setProperty('--td', `${((x / V_W) * 0.22 + ((x * 7 + y * 3) % 11) / 110).toFixed(2)}s`);
-        S.trees.push({ el, l: lay.k, y, front, up: null });
-      }
-    }
-    S.solid = -1;
+    const strip = view.querySelector<HTMLElement>('.sky-strip');
+    S.sky = strip ? { strip, solid: strip.querySelector('.sb-solid'), land: strip.querySelector('.sb-land'), veil: strip.querySelector('.sb-veil') } : null;
+    S.dockH = O.dockRef.current?.offsetHeight ?? 0;
+    S.still = null;
     S.pops = [...root.querySelectorAll<SVGGElement>('.pop')].map((el) => ({
-      el, g: el.parentNode as SVGGElement, l: el.dataset.l ?? '', b: Number(el.dataset.b), h: Number(el.dataset.h), last: -1, up: null,
+      g: el.parentNode as SVGGElement, l: el.dataset.l ?? '', b: Number(el.dataset.b), h: Number(el.dataset.h), up: null,
       f: (el.dataset.f ?? '').split(';').filter(Boolean).map((q) => { const [k, y] = q.split(':'); return [k, Number(y)] as [string, number]; }),
     }));
     S.carts = [...root.querySelectorAll<SVGGElement>('.v-cart')];
+    S.cartTf = S.carts.map(() => '\u0000');
     S.bubbles = [...root.querySelectorAll<SVGGElement>('.v-bubble')];
     S.s = wasField ? S.T : wasTop ? 0 : wasBottom ? S.S2 : clamp(S.s, 0, S.T);
     S.ready = true;
-    frame();
+    put(S.s);
+    endMove();
   }
 
   useEffect(() => {
     if (!o.enabled) {
       const S = st.current;
+      halt();
       S.ready = false;
       const move = o.moveRef.current, dock = o.dockRef.current;
       if (move) { move.style.transform = ''; move.style.visibility = ''; }
       if (dock) dock.style.transform = '';
-      o.viewRef.current?.style.removeProperty('--sky-solid');
-      o.viewRef.current?.style.removeProperty('--sky-land');
-      S.solid = -1;
+      for (const el of o.viewRef.current?.querySelectorAll<SVGSVGElement>('.sky-strip .sky-svg') ?? []) { el.style.opacity = ''; el.style.transform = ''; }
+      o.viewRef.current?.querySelector('.sky-strip')?.classList.remove('v-open');
+      o.viewRef.current?.classList.remove('v-moving');
+      o.moveRef.current?.classList.remove('v-away');
+      written.current = new WeakMap();
+      S.moving = false;
       if (S.mode !== 'field') { S.mode = 'field'; o.onMode('field'); }
       return;
     }
@@ -366,8 +460,10 @@ export function useVillagePager(o: {
       if (e.button > 0 || opts.current.blocked()) return;
       const t = e.target as Element;
       if (t.closest('.dock, .sheet, .bed-popover, .compost-popover, .lens-picker, .tool-btn, .v-back, .flash')) return;
-      stopGlide();
-      S.drag = { id: e.pointerId, x: e.clientX, y: e.clientY, s0: S.s, from: nearest(S.s), dir: 0, lastY: e.clientY, lastT: performance.now(), v: 0 };
+      // a finger catches a glide where it is; a tap that does not drag lets it go on to where it was going
+      const resume = S.run?.to;
+      halt();
+      S.drag = { id: e.pointerId, x: e.clientX, y: e.clientY, s0: S.s, from: resume ?? nearest(S.s), dir: 0, lastY: e.clientY, lastT: performance.now(), v: 0, resume };
     };
     const moveH = (e: PointerEvent) => {
       const d = S.drag;
@@ -378,6 +474,7 @@ export function useVillagePager(o: {
           // on the field only a pull downwards opens the village; up there both ways move
           if (S.s >= S.T - 2 && dy < 0) { S.drag = null; return; }
           d.dir = 1;
+          beginMove(0);
           try { view.setPointerCapture(e.pointerId); } catch { /* not every pointer can be captured */ }
         } else if (Math.abs(dx) > 12) { S.drag = null; return; }
         else return;
@@ -394,12 +491,13 @@ export function useVillagePager(o: {
       const d = S.drag;
       if (!d || e.pointerId !== d.id) return;
       S.drag = null;
-      if (!d.dir) return;
+      if (!d.dir) { if (d.resume !== undefined) goTo(d.resume); return; }
       S.noClick = performance.now() + 350;
       const ds = S.s - d.from, fling = performance.now() - d.lastT < 90 ? d.v : 0;
       let to = d.from;
       if (e.type !== 'pointercancel' && (Math.abs(ds) > 28 || Math.abs(fling) > 0.3)) to = stopFrom(d.from, Math.abs(ds) > 28 ? Math.sign(ds) : Math.sign(fling)) ?? d.from;
-      goTo(to);
+      // the glide carries on at the speed the finger let go (V-01)
+      goTo(to, fling);
     };
     const click = (e: MouseEvent) => { if (performance.now() < S.noClick) { e.stopPropagation(); e.preventDefault(); } };
     const wheel = (e: WheelEvent) => {
@@ -408,17 +506,18 @@ export function useVillagePager(o: {
       const dy = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1);
       if (!dy) return;
       const dir = Math.sign(dy);
-      if (!S.anim && (dir > 0 ? S.s >= S.T - 2 : S.s <= 2)) return;
+      if (!S.run && (dir > 0 ? S.s >= S.T - 2 : S.s <= 2)) return;
       e.preventDefault();
       const now = performance.now();
       if (now < S.wheelLock) { S.wheelLock = Math.max(S.wheelLock, now + 120); return; }
       if (now - S.wheelT > 220) S.wheelAcc = 0;
       S.wheelT = now; S.wheelAcc += dy;
       if (Math.abs(S.wheelAcc) < 24) return;
-      const next = stopFrom(S.s, dir);
+      // one turn of the wheel (or one trackpad swipe with its tail) is one stop; a new one may turn the glide (V-02)
+      const next = stopFrom(S.run ? S.run.to : S.s, dir);
       if (next === undefined) return;
       S.wheelAcc = 0;
-      S.wheelLock = now + glideMs(next);
+      S.wheelLock = now + 260;
       goTo(next);
     };
     view.addEventListener('pointerdown', down);
@@ -435,7 +534,7 @@ export function useVillagePager(o: {
       view.removeEventListener('pointercancel', up);
       view.removeEventListener('click', click, true);
       view.removeEventListener('wheel', wheel);
-      stopGlide();
+      halt();
       cancelAnimationFrame(S.cartAnim);
     };
   }, [o.enabled]);
@@ -447,7 +546,7 @@ export function useVillagePager(o: {
   return {
     available: o.enabled,
     mode: () => st.current.mode,
-    toggle: () => { const S = st.current; if (!S.ready) return; goTo(S.s > S.S2 + S.S1 / 2 ? S.S2 : S.T); },
+    toggle: () => { const S = st.current; if (!S.ready) return; goTo(here() > S.S2 + S.S1 / 2 ? S.S2 : S.T); },
     toField: () => { const S = st.current; if (S.ready) goTo(S.T); },
     flyTo: (k: string) => new Promise<boolean>((res) => {
       const S = st.current, root = opts.current.rootRef.current;
@@ -456,7 +555,7 @@ export function useVillagePager(o: {
       const p = g?.querySelector<SVGGElement>('.pop');
       if (!g || !p) { res(false); return; }
       const target = clamp(Number(p.dataset.b) - S.HS * 0.62, 0, S.S2);
-      glide(target, Math.abs(target - S.s) < 4 ? 1 : 700, () => {
+      glide(target, Math.abs(target - here()) < 4 ? 1 : 560, () => {
         g.classList.remove('ping'); void g.getBBox(); g.classList.add('ping');
         setTimeout(() => res(true), 420);
       });

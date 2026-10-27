@@ -9,8 +9,9 @@ OUT = sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, '..', '..', 'src'
 
 
 def tidy(svg):
-    # inline styles of animation delays stay; drop whitespace between tags
-    return re.sub(r'>\s+<', '><', svg)
+    # inline styles of animation delays stay; drop whitespace between tags; no per-element opacity where a fill or
+    # line opacity does
+    return G.flat_opacity(re.sub(r'>\s+<', '><', svg))
 
 
 def js(v):
