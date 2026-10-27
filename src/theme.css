@@ -33,8 +33,8 @@
 .pose-walk .goose-leg { animation: goose-step .46s ease-in-out infinite alternate; }
 .pose-walk .goose-leg.leg-back { animation-delay: -.46s; }
 .pose-walk .goose-body, .pose-walk .goose-neck { animation: goose-waddle .46s ease-in-out infinite alternate; }
-.pose-act .goose-neck { animation: goose-pluck 2.6s cubic-bezier(.45,.05,.4,1) var(--d, 0s) infinite; }
-.pose-act .goose-head { animation: goose-head-pluck 2.6s cubic-bezier(.45,.05,.4,1) var(--d, 0s) infinite; }
+.pose-act .goose-neck { animation: goose-pluck 2.6s var(--e-breath) var(--d, 0s) infinite; }
+.pose-act .goose-head { animation: goose-head-pluck 2.6s var(--e-breath) var(--d, 0s) infinite; }
 .pose-look .goose-neck { animation: goose-look 2.2s ease-in-out var(--d, 0s) both; }
 @keyframes goose-idle { 0%, 70%, 100% { transform: rotate(0) } 80%, 90% { transform: rotate(-9deg) } }
 @keyframes goose-step { from { transform: rotate(-17deg) } to { transform: rotate(17deg) } }
@@ -113,7 +113,7 @@
 .field-compost.accepting .compost-leaves, .field-compost.drag-over .compost-leaves { transform-box: fill-box; transform-origin: 50% 100%; animation: compost-rustle 1.1s ease-in-out infinite; }
 .field-compost.drag-over .compost-mass { animation: compost-breathe .7s ease-in-out infinite; }
 .field-compost.accepting .compost-steam { animation: compost-steam 2.4s ease-in-out infinite; }
-.compost-settle .compost-mass { transform-box: fill-box; transform-origin: 50% 100%; animation: compost-settle .62s cubic-bezier(.3,.6,.4,1) both; }
+.compost-settle .compost-mass { transform-box: fill-box; transform-origin: 50% 100%; animation: compost-settle .62s var(--e-arrive) both; }
 .compost-settle .compost-straw { animation: compost-straw .62s ease-out both; }
 .field-compost.ready .compost-ready-card { animation: compost-ready 2.8s ease-in-out infinite; }
 .field-compost:focus-visible .compost-hit { stroke: #9c702b; stroke-width: 3; rx: 10; }
@@ -146,24 +146,7 @@
 
 /* ===================== the morning after: night events replay over the beds they touched ===================== */
 .morning .m-cell { --d: calc(var(--mi, 0) * 140ms); }
-.m-crows .mc-in, .m-crows .mc-stand, .m-crows .mc-out { opacity: 0; }
-.m-crows .mc-in { animation: mc-in var(--m-dur) linear var(--d) both; }
-.m-crows .mc-stand { animation: mc-stand var(--m-dur) linear var(--d) both; }
-.m-crows .mc-out { animation: mc-out var(--m-dur) linear var(--d) both; }
-@keyframes mc-in { 0% { opacity: 0; transform: translate(-44px, -60px) } 3% { opacity: 1 } 12% { opacity: 1; transform: none } 12.1%, 100% { opacity: 0; transform: none } }
-@keyframes mc-stand { 0%, 11.9% { opacity: 0 } 12%, 62% { opacity: 1 } 62.1%, 100% { opacity: 0 } }
-@keyframes mc-out { 0%, 61.9% { opacity: 0; transform: none } 62% { opacity: 1; transform: none; animation-timing-function: cubic-bezier(.4, 0, .8, .6) } 100% { opacity: 0; transform: translate(110px, -170px) } }
-.m-crows .c-wing { transform-box: fill-box; transform-origin: 30% 100%; animation: crow-flap .12s linear infinite alternate; }
-.m-crows .crow-bird .c-head { animation: mc-peck .44s ease-in-out infinite; }
-.m-cell:nth-child(2n) .crow-bird .c-head { animation-delay: -.2s; }
-.m-crows .crow-bird .c-leg { animation: none; }
-@keyframes mc-peck { 0%, 100% { transform: rotate(0) } 40% { transform: rotate(44deg) } 55% { transform: rotate(32deg) } 70% { transform: rotate(40deg) } }
-.mc-feather { opacity: 0; transform-box: fill-box; transform-origin: center; animation: mc-feather var(--m-dur) ease-out var(--d) both; }
-.mc-feather.f1 { animation-delay: calc(var(--d) + 360ms); } .mc-feather.f2 { animation-delay: calc(var(--d) + 700ms); }
-@keyframes mc-feather { 0%, 20% { opacity: 0; transform: none } 26% { opacity: .9 } 56% { opacity: 0; transform: translate(7px, 20px) rotate(80deg) } 100% { opacity: 0 } }
 .scene-svg .m-plant { transform-box: fill-box; transform-origin: 50% 100%; }
-.scene-svg .m-plant-crows { animation: mp-peck .44s ease-in-out infinite; }
-@keyframes mp-peck { 0%, 100% { transform: none } 45% { transform: rotate(-4deg) scale(.96, .94) } }
 
 .m-frost .m-rime, .m-frost .m-hoar, .m-frost .m-rimeedge { opacity: 0; animation: m-rime var(--m-dur) ease-out var(--d) both; }
 .m-frost .m-hoar { animation-delay: calc(var(--d) + 200ms); }
@@ -269,7 +252,7 @@
 .rotor-blade.b1 { animation-delay: -.05s; }
 .drone-light { animation: drone-blink 1s step-end infinite; }
 .drone-light.green { animation-delay: -.5s; }
-.bug-flee { animation: bug-flee .9s cubic-bezier(.2, .6, .4, 1) both; }
+.bug-flee { animation: bug-flee .9s var(--e-arrive) both; }
 .beetle { animation: bug-crawl .45s ease-in-out infinite alternate; }
 @keyframes drone-route {
   0% { transform: translate(30px, 0px); }
@@ -997,8 +980,8 @@ details.sale-more > summary { min-height: 30px; font-size: .8rem; font-weight: 5
 /* sowing and feeding: a hand into the pouch, a sweeping cast, seed falling in an arc */
 .farmer-rig.fa-plant .f-arm.back, .farmer-rig.fa-fertilizer .f-arm.back { transform: rotate(-28deg); }
 .farmer-rig.fa-plant .f-arm.back .f-fore, .farmer-rig.fa-fertilizer .f-arm.back .f-fore { transform: rotate(-62deg); }
-.farmer-rig.fa-plant .f-arm.front, .farmer-rig.fa-fertilizer .f-arm.front { animation: f-cast 1.2s cubic-bezier(.45, .05, .35, 1) infinite; }
-.farmer-rig.fa-plant .f-arm.front .f-fore, .farmer-rig.fa-fertilizer .f-arm.front .f-fore { animation: f-cast-fore 1.2s cubic-bezier(.45, .05, .35, 1) infinite; }
+.farmer-rig.fa-plant .f-arm.front, .farmer-rig.fa-fertilizer .f-arm.front { animation: f-cast 1.2s var(--e-travel) infinite; }
+.farmer-rig.fa-plant .f-arm.front .f-fore, .farmer-rig.fa-fertilizer .f-arm.front .f-fore { animation: f-cast-fore 1.2s var(--e-travel) infinite; }
 .farmer-rig.fa-plant .f-upper, .farmer-rig.fa-fertilizer .f-upper { animation: f-cast-body 1.2s ease-in-out infinite; }
 .farmer-rig.fa-plant .f-head, .farmer-rig.fa-fertilizer .f-head { transform: rotate(8deg); }
 @keyframes f-cast { 0%, 100% { transform: rotate(-40deg) } 30% { transform: rotate(-30deg) } 58% { transform: rotate(-96deg) } 72% { transform: rotate(-88deg) } }
@@ -1024,11 +1007,11 @@ details.sale-more > summary { min-height: 30px; font-size: .8rem; font-weight: 5
 @keyframes f-forkload { 0%, 30% { opacity: 1 } 62%, 100% { opacity: 0 } }
 
 /* hoeing: lift, chop, a little soil kicked up */
-.farmer-rig.fa-care .f-arm.front { animation: f-hoe 1s cubic-bezier(.5, 0, .3, 1) infinite; }
-.farmer-rig.fa-care .f-arm.front .f-fore { animation: f-hoe-fore 1s cubic-bezier(.5, 0, .3, 1) infinite; }
-.farmer-rig.fa-care .f-arm.back { animation: f-hoe-back 1s cubic-bezier(.5, 0, .3, 1) infinite; }
+.farmer-rig.fa-care .f-arm.front { animation: f-hoe 1s var(--e-travel) infinite; }
+.farmer-rig.fa-care .f-arm.front .f-fore { animation: f-hoe-fore 1s var(--e-travel) infinite; }
+.farmer-rig.fa-care .f-arm.back { animation: f-hoe-back 1s var(--e-travel) infinite; }
 .farmer-rig.fa-care .f-arm.back .f-fore { transform: rotate(-40deg); }
-.farmer-rig.fa-care .f-upper { animation: f-hoe-body 1s cubic-bezier(.5, 0, .3, 1) infinite; }
+.farmer-rig.fa-care .f-upper { animation: f-hoe-body 1s var(--e-travel) infinite; }
 .farmer-rig.fa-care .f-clod { animation: f-clod 1s linear infinite; }
 @keyframes f-hoe { 0%, 100% { transform: rotate(-70deg) } 40% { transform: rotate(-78deg) } 62% { transform: rotate(-6deg) } 74% { transform: rotate(-10deg) } }
 @keyframes f-hoe-fore { 0%, 100% { transform: rotate(-40deg) } 62% { transform: rotate(-10deg) } }
@@ -1059,8 +1042,8 @@ details.sale-more > summary { min-height: 30px; font-size: .8rem; font-weight: 5
 .farmer-rig.fa-build .f-leg.back .f-shin { transform: rotate(30deg); }
 .farmer-rig.fa-build .f-arm.back { transform: rotate(-30deg); }
 .farmer-rig.fa-build .f-arm.back .f-fore { transform: rotate(-30deg); }
-.farmer-rig.fa-build .f-arm.front { animation: f-hammer .8s cubic-bezier(.55, 0, .25, 1) infinite; }
-.farmer-rig.fa-build .f-arm.front .f-fore { animation: f-hammer-fore .8s cubic-bezier(.55, 0, .25, 1) infinite; }
+.farmer-rig.fa-build .f-arm.front { animation: f-hammer .8s var(--e-travel) infinite; }
+.farmer-rig.fa-build .f-arm.front .f-fore { animation: f-hammer-fore .8s var(--e-travel) infinite; }
 .farmer-rig.fa-build .f-chip { animation: f-chip .8s linear infinite; }
 .farmer-rig.fa-build .f-post { opacity: 1; }
 @keyframes f-hammer { 0%, 100% { transform: rotate(-96deg) } 45% { transform: rotate(-102deg) } 64% { transform: rotate(6deg) } 76% { transform: rotate(0deg) } }
@@ -1081,7 +1064,7 @@ details.sale-more > summary { min-height: 30px; font-size: .8rem; font-weight: 5
 .farmer-rig.fa-coin .f-arm.front { animation: f-flick 1.2s ease-in-out infinite; }
 .farmer-rig.fa-coin .f-arm.front .f-fore { transform: rotate(-70deg); }
 .farmer-rig.fa-coin .f-head { transform: rotate(-4deg); }
-.farmer-rig.fa-coin .f-coin { animation: f-coin 1.2s cubic-bezier(.3, .6, .6, 1) infinite; }
+.farmer-rig.fa-coin .f-coin { animation: f-coin 1.2s var(--e-arrive) infinite; }
 @keyframes f-flick { 0%, 100% { transform: rotate(-24deg) } 22% { transform: rotate(-40deg) } 34% { transform: rotate(-30deg) } 80% { transform: rotate(-26deg) } }
 
 /* the things a job throws: seed, straw, soil, chips, a coin, the picked crop */
@@ -1141,9 +1124,9 @@ details.sale-more > summary { min-height: 30px; font-size: .8rem; font-weight: 5
 @media (prefers-reduced-motion: reduce) { .farmer-rig, .farmer-rig * { animation: none !important; } }
 
 /* ===================== bed effects: small, quick and settling ===================== */
-.tile-fx .fx-fall { animation: tfx-fall .5s cubic-bezier(.5, 0, 1, 1) var(--d, 0s) both; }
+.tile-fx .fx-fall { animation: tfx-fall .5s var(--e-fall) var(--d, 0s) both; }
 .tile-fx .fx-fall.short { animation-name: tfx-fall-short; animation-duration: .42s; }
-.tile-fx .fx-fall.straw { animation: tfx-straw .7s cubic-bezier(.3, .1, .5, 1) var(--d, 0s) both; }
+.tile-fx .fx-fall.straw { animation: tfx-straw .7s var(--e-travel) var(--d, 0s) both; }
 .tile-fx .fx-fall.dry { animation: tfx-dry 1s ease-in var(--d, 0s) both; }
 @keyframes tfx-fall { 0% { opacity: 0; transform: translateY(-34px) } 18% { opacity: 1 } 100% { opacity: 1; transform: none } }
 @keyframes tfx-fall-short { 0% { opacity: 0; transform: translate(-6px, -22px) } 20% { opacity: 1 } 80% { opacity: 1; transform: none } 100% { opacity: 0; transform: none } }
@@ -1155,7 +1138,7 @@ details.sale-more > summary { min-height: 30px; font-size: .8rem; font-weight: 5
 @keyframes tfx-glow { 0% { opacity: 0; transform: scale(.7) } 35% { opacity: 1 } 100% { opacity: 0; transform: scale(1.08) } }
 .tile-fx .fx-hop { animation: tfx-hop .5s ease-out var(--d, 0s) both; }
 @keyframes tfx-hop { 0% { opacity: 1; transform: none } 45% { transform: translate(calc(var(--dx) * .5), -6px) } 100% { opacity: 1; transform: translate(var(--dx), 0) } }
-.tile-fx .fx-pull { animation: tfx-pull .75s cubic-bezier(.3, .2, .6, 1) var(--d, 0s) both; }
+.tile-fx .fx-pull { animation: tfx-pull .75s var(--e-travel) var(--d, 0s) both; }
 @keyframes tfx-pull { 0% { opacity: 1; transform: none } 25% { transform: translateY(-4px) } 100% { opacity: 0; transform: translate(var(--dx), -30px) rotate(var(--rot)) } }
 .tile-fx .fx-leaf { animation: tfx-leaf .9s ease-out var(--d, 0s) both; }
 @keyframes tfx-leaf { 0% { opacity: 0; transform: none } 15% { opacity: 1 } 100% { opacity: 0; transform: translate(var(--dx), -18px) rotate(120deg) } }
@@ -1424,18 +1407,9 @@ details.sale-more > summary { min-height: 30px; font-size: .8rem; font-weight: 5
 @keyframes cf-flap { 0%, 100% { transform: none; animation-timing-function: cubic-bezier(.5, 0, .9, .6) } 44% { transform: scaleY(-.74) skewX(-12deg); animation-timing-function: cubic-bezier(.2, .4, .5, 1) } }
 @keyframes cf-bob { 0%, 100% { transform: translateY(.7px) } 44% { transform: translateY(-.9px) } }
 /* shooed off the field: a short crouch, then up and away one after another */
-.flock.leave .crow-walk { animation: cr-leave .95s cubic-bezier(.45, .05, .7, .55) both; }
+.flock.leave .crow-walk { animation: cr-leave .95s var(--e-fall) both; }
 .flock.leave .crow-walk.w1 { animation-delay: .07s; } .flock.leave .crow-walk.w2 { animation-delay: .15s; }
 @keyframes cr-leave { 0% { transform: none; opacity: 1 } 12% { transform: translate(0, 1.6px) } 30% { transform: translate(8px, -12px) rotate(-8deg) } 80% { opacity: 1 } 100% { transform: translate(78px, -128px) rotate(-14deg); opacity: 0 } }
-/* the morning replay: the crow on the bed pecks steadily, the plant flinches on each hit */
-.m-crows .crow-bird .cr-body { animation: mcr-body 1.15s ease-in-out infinite; }
-.m-crows .crow-bird .cr-head { animation: mcr-head 1.15s ease-in-out infinite; }
-.m-crows .crow-bird .cr-leg { animation: none; }
-.m-cell:nth-child(2n) .crow-bird .cr-body, .m-cell:nth-child(2n) .crow-bird .cr-head { animation-delay: -.4s; }
-@keyframes mcr-body { 0%, 100% { transform: rotate(0) } 18% { transform: rotate(15deg) } 30% { transform: rotate(4deg) } 46% { transform: rotate(16deg) } 60% { transform: rotate(0) } 78% { transform: rotate(-3deg) } }
-@keyframes mcr-head { 0%, 100% { transform: rotate(0) } 18% { transform: rotate(28deg) } 30% { transform: rotate(6deg) } 46% { transform: rotate(30deg) } 60% { transform: rotate(-4deg) } 78% { transform: rotate(-14deg) } }
-.scene-svg .m-plant-crows { animation: mp-peck 1.15s ease-in-out infinite; }
-@keyframes mp-peck { 0%, 12%, 26%, 40%, 54%, 100% { transform: none } 19% { transform: rotate(-4deg) scale(.97, .94) } 47% { transform: rotate(3deg) scale(.97, .93) } }
 @media (prefers-reduced-motion: reduce) { .crow-bird *, .crow-flying *, .flock .crow-walk { animation: none !important; } }
 
 /* ===================== locusts: sit, twitch, hop with the wings flashing open, turn, hop back ===================== */

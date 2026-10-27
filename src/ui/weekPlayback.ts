@@ -20,6 +20,30 @@ export interface WeekEvent {
   pests?: PestHit[];
 }
 
+/** The warnings a week event answers on the field (W-05): the kids at the yard and their footprints end when the
+ *  children (or the dog, or the watchman) come; the flock on the fence when the crows go for the beds; the beetles
+ *  and locusts on the plants when they eat (or the drone chases them); frost, drought, hail and flood with their
+ *  own mornings. Until then the field keeps showing what was announced. */
+export function eventKinds(e: WeekEvent): string[] {
+  const out: string[] = [];
+  const m = e.morning;
+  if (m) {
+    if (m.kind === 'crows' || m.kind === 'crowmiss') out.push('crows');
+    else if (m.kind === 'bugmiss') m.cells.forEach(c => out.push(c.pest ?? 'beetle'));
+    else out.push(m.kind);
+  }
+  e.pests?.forEach(h => out.push(h.kind));
+  const c = e.cue;
+  if (c) {
+    if (c.kind === 'thieves' || c.kind === 'dogThieves' || c.kind === 'watchman') out.push('thieves');
+    if (c.visit?.crows?.length) out.push('crows');
+    if (c.kind === 'drone') out.push('beetle', 'locust');
+  }
+  return out;
+}
+/** The troubles still to come: everything in `rest` (FieldView also drops the kinds that have already begun). */
+export const pendingKinds = (rest: WeekEvent[]) => new Set(rest.flatMap(eventKinds));
+
 // A week's visual consequences have one owner. The state has already committed;
 // the field keeps its old pictures until each corresponding action has happened.
 export function buildWeekPlayback(prev: GameState, next: GameState, rate = 1.6, carried: SceneCue[] = []): WeekEvent[] {

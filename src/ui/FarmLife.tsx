@@ -28,6 +28,25 @@ function useGreeting(paused:boolean,duration:number){
  return {react,greet};
 }
 
+// A change of pose has weight (motion.css «the animals»): a push-off into a walk, a settle when the walk stops,
+// a slow sink into a nap, a hop when greeted or startled. One short WAAPI squash on the wrapper round the sprite.
+const ARRIVE='cubic-bezier(.22,1,.36,1)';
+function poseShift(el:SVGGElement|null,from:string,to:string){
+ if(!el||typeof el.animate!=='function'||from===to)return;
+ const k=(...f:[string,number?][])=>f.map(([transform,offset])=>offset===undefined?{transform}:{transform,offset});
+ if(to==='walk')el.animate(k(['none'],['scale(1.05,.92)',.35],['scale(.98,1.03)',.7],['none']),{duration:260,easing:ARRIVE});
+ else if(to==='nap')el.animate(k(['none'],['scale(1.03,.94)',.6],['none']),{duration:600,easing:'cubic-bezier(.37,0,.63,1)'});
+ else if(to==='play'||to==='look')el.animate(k(['none'],['scale(1.06,.9)',.15],['translateY(-7px) scale(.96,1.06)',.4],['scale(1.05,.93)',.7],['none']),{duration:480,easing:ARRIVE});
+ else if(from==='walk')el.animate(k(['translateY(-3px) scale(.97,1.04)'],['scale(1.04,.95)',.55],['none']),{duration:320,easing:ARRIVE});
+}
+function usePoseShift(pose:string,reducedMotion:boolean){
+ const ref=useRef<SVGGElement>(null),last=useRef(pose);
+ useLayoutEffect(()=>{const was=last.current;last.current=pose;if(!reducedMotion)poseShift(ref.current,was,pose);},[pose]);
+ return ref;
+}
+/** where the dog is and whether it is on the move: the geese and the hedgehog notice it running past */
+type Spots=Map<string,{x:number;y:number;moving:boolean}>;
+
 // the drone sweeps the owned beds row by row: down the first row, back along the middle, out along the last
 function droneRoute(s:GameState,cam:Camera){
  let x0=GRID,x1=0,y0=GRID,y1=0;
@@ -48,12 +67,13 @@ function droneRoute(s:GameState,cam:Camera){
  return {X0,X1,Y0,Y1,YM,bugs:bugs.slice(0,7)};
 }
 
-function RoamingCompanion({id,cam,px,interactive,paused,area,hidden,reducedMotion}:{id:'cat'|'dog';cam:Camera;px:number;interactive:boolean;paused:boolean;area:PetArea;hidden:boolean;reducedMotion:boolean}){
+function RoamingCompanion({id,cam,px,interactive,paused,area,hidden,reducedMotion,spots}:{id:'cat'|'dog';cam:Camera;px:number;interactive:boolean;paused:boolean;area:PetArea;hidden:boolean;reducedMotion:boolean;spots:Spots}){
  const root=useRef<SVGGElement>(null),clock=useRef(0),last=useRef(0);
  // PSV-017 · where the pet really stands, and a glide from there when its route is rebuilt (a canal, a new field)
  const at=useRef<[number,number]|null>(null),glide=useRef<Glide|null>(null);
  const {react,greet}=useGreeting(paused,id==='cat'?1900:2600);
  const [pose,setPose]=useState<PetPose>('sit'),[facing,setFacing]=useState(1);
+ const shift=usePoseShift(pose,reducedMotion);
  const size=Math.max(64,cam.W*.115),hit=Math.max(size,45/Math.max(.1,px));
  const doors=(area.reach??[]).join(',');
  useLayoutEffect(()=>{
@@ -65,7 +85,7 @@ function RoamingCompanion({id,cam,px,interactive,paused,area,hidden,reducedMotio
    last.current=now;const m=petMoment(cam,id,clock.current,area);
    let x=m.x,y=m.y,walking=false;const g=glide.current;
    if(g){const o=glideAt(g,clock.current);x+=o.dx;y+=o.dy;walking=!o.done;if(o.done)glide.current=null;}
-   at.current=[x,y];
+   at.current=[x,y];spots.set(id,{x,y,moving:(walking||m.pose==='walk')&&!paused});
    const transform=`translate(${Math.max(0,Math.min(cam.W-size,x-size/2)).toFixed(2)}px, ${Math.max(0,y-size*.9).toFixed(2)}px)`;
    if(transform!==moved){if(root.current)root.current.style.transform=transform;moved=transform;}
    setPose(react?'play':walking?'walk':m.pose);setFacing(walking&&g&&Math.abs(g.dx)>1?(g.dx>0?-1:1):m.facing);
@@ -74,7 +94,7 @@ function RoamingCompanion({id,cam,px,interactive,paused,area,hidden,reducedMotio
  return <g ref={root} class={`roaming-companion ${paused?'paused':''}`} data-pet={id} data-pose={pose} style={{visibility:hidden?'hidden':undefined}}>
   <g class={`pet-friend${react?' greeted':''}`} role={interactive?'button':undefined} tabindex={interactive?0:undefined} aria-label={`Погладить: ${PETS[id].name}`} pointer-events={interactive?'auto':'none'} onPointerDown={e=>{e.stopPropagation();greet();}} onClick={e=>{e.stopPropagation();greet();}} onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();greet();}}}>
    <rect class="pet-hit" x={(size-hit)/2} y={(size-hit)/2} width={hit} height={hit} fill="transparent"/>
-   <g transform={facing<0?`translate(${size} 0) scale(-1 1)`:undefined}><Companion id={id} size={size} pose={pose}/></g>
+   <g transform={facing<0?`translate(${size} 0) scale(-1 1)`:undefined}><g class="pose-shift" ref={shift}><Companion id={id} size={size} pose={pose}/></g></g>
    {react&&<path class="pet-heart" d={`M${size/2} 4 c-12 -10 -16 3 0 12 c16 -9 12 -22 0 -12`} fill="#d76158" stroke={ink} stroke-width="1.4"/>}
   </g>
  </g>;
@@ -82,26 +102,36 @@ function RoamingCompanion({id,cam,px,interactive,paused,area,hidden,reducedMotio
 
 // geese, the hedgehog and the goat: the same clock-driven walker as the cat and the dog,
 // but each animal only travels during a walk and works or rests in place otherwise
-function RoamingAnimal({id,cam,px,interactive,paused,hidden,reducedMotion}:{id:'geese'|'hedgehog'|'goat';cam:Camera;px:number;interactive:boolean;paused:boolean;hidden:boolean;reducedMotion:boolean}){
+function RoamingAnimal({id,cam,px,interactive,paused,hidden,reducedMotion,spots}:{id:'geese'|'hedgehog'|'goat';cam:Camera;px:number;interactive:boolean;paused:boolean;hidden:boolean;reducedMotion:boolean;spots:Spots}){
  const root=useRef<SVGGElement>(null),clock=useRef(0),last=useRef(0);
  const {react,greet}=useGreeting(paused,id==='geese'?2200:id==='goat'?2400:2000);
+ // the dog running past: the geese jump and honk, the hedgehog snorts (not the goat — it has seen dogs)
+ const {react:startled,greet:startle}=useGreeting(paused,1300),lastStartle=useRef(-1e9),dogWas=useRef<[number,number]|null>(null);
  const [pose,setPose]=useState<LifePose>('stand'),[facing,setFacing]=useState(1);
+ const shift=usePoseShift(pose,reducedMotion);
  const size=lifeSize(cam,id),hit=Math.max(size*.8,45/Math.max(.1,px));
  useLayoutEffect(()=>{
   last.current=0;let moved='',duration=0;
   const tick=(now:number)=>{
-   if(last.current&&!paused&&!react&&!document.hidden&&!reducedMotion)clock.current+=Math.min(80,now-last.current)/1000;
+   if(last.current&&!paused&&!react&&!startled&&!document.hidden&&!reducedMotion)clock.current+=Math.min(80,now-last.current)/1000;
    last.current=now;const m=lifeMoment(cam,id,clock.current);
+   // the dog trotting towards them from across the yard: the geese honk, the hedgehog snorts (once in a while)
+   const dog=id==='goat'?null:spots.get('dog'),was=dogWas.current;dogWas.current=dog?.moving?[dog.x,dog.y]:null;
+   if(dog?.moving&&was&&!paused&&!react&&!startled&&now-lastStartle.current>20000){
+    const vx=dog.x-was[0],vy=dog.y-was[1],dx=m.x-dog.x,dy=m.y-dog.y;
+    if(Math.hypot(vx,vy)>.05&&vx*dx+vy*dy>0&&Math.hypot(dx,dy)<size*5){lastStartle.current=now;startle();}
+   }
    if(m.duration!==duration){root.current?.style.setProperty('--pose-duration',`${m.duration}s`);duration=m.duration;}
    const transform=`translate(${Math.max(-size*.15,Math.min(cam.W-size*.85,m.x-size/2)).toFixed(2)}px, ${(m.y-size*.9).toFixed(2)}px)`;
    if(transform!==moved){if(root.current)root.current.style.transform=transform;moved=transform;}
-   setPose(react?'look':m.pose);setFacing(m.facing);
-  };tick(performance.now());if(reducedMotion||paused||react)return;return motionFrame(tick);
- },[cam.W,cam.H,cam.yard,id,paused,react,reducedMotion]);
+   setPose(react||startled?'look':m.pose);setFacing(m.facing);
+  };tick(performance.now());if(reducedMotion||paused||react||startled)return;return motionFrame(tick);
+ },[cam.W,cam.H,cam.yard,id,paused,react,startled,reducedMotion]);
  return <g ref={root} class={`roaming-animal${paused?' paused':''}`} data-pet={id} data-pose={pose} style={{visibility:hidden?'hidden':undefined}}>
   <g class={`pet-friend${react?' greeted':''}`} role={interactive?'button':undefined} tabindex={interactive?0:undefined} aria-label={`Погладить: ${PETS[id].name}`} pointer-events={interactive?'auto':'none'} onPointerDown={e=>{e.stopPropagation();greet();}} onClick={e=>{e.stopPropagation();greet();}} onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();greet();}}}>
    <rect class="pet-hit" x={(size-hit)/2} y={size*.9-hit} width={hit} height={hit} fill="transparent"/>
-   <g transform={facing<0?`translate(${size} 0) scale(-1 1)`:undefined}><Animal id={id} size={size} pose={pose}/></g>
+   <g transform={facing<0?`translate(${size} 0) scale(-1 1)`:undefined}><g class="pose-shift" ref={shift}><Animal id={id} size={size} pose={pose}/></g></g>
+   {startled&&!react&&<Say cls="pet-say" x={size*.55} y={size*.08} text={id==='geese'?'Га-га!':'Фыр!'}/>}
    {react&&<path class="pet-heart" d={`M${size/2} 4 c-12 -10 -16 3 0 12 c16 -9 12 -22 0 -12`} fill="#d76158" stroke={ink} stroke-width="1.4"/>}
   </g>
  </g>;
@@ -159,8 +189,9 @@ export function FarmLife({s,cam,px,active,interactive,cue}: {s:GameState;cam:Cam
   });startedRoot.current=eventRoot.current;},[cue?.id,active]);
   const width=cam.W, middle=cam.yard+(cam.H-cam.yard)*.48;
   const area=useMemo(()=>petArea(s),[s.tiles]);
+  const spots=useRef<Spots>(new Map()).current;
   return <g class={`farm-life${!active?' paused':''}`} pointer-events="none">
-    {s.pets.map((p)=>p==='cat'||p==='dog'?<RoamingCompanion key={p} id={p} area={area} cam={cam} px={px} interactive={interactive&&active&&!cue} paused={!active||!!cue} hidden={cue?.kind==='dogThieves'&&p==='dog'} reducedMotion={reducedMotion}/>:<RoamingAnimal key={p} id={p} cam={cam} px={px} interactive={interactive&&active&&!cue} paused={!active||!!cue} hidden={cue?.kind==='geese'&&p==='geese'} reducedMotion={reducedMotion}/>)}
+    {s.pets.map((p)=>p==='cat'||p==='dog'?<RoamingCompanion key={p} id={p} spots={spots} area={area} cam={cam} px={px} interactive={interactive&&active&&!cue} paused={!active||!!cue} hidden={cue?.kind==='dogThieves'&&p==='dog'} reducedMotion={reducedMotion}/>:<RoamingAnimal key={p} id={p} spots={spots} cam={cam} px={px} interactive={interactive&&active&&!cue} paused={!active||!!cue} hidden={cue?.kind==='geese'&&p==='geese'} reducedMotion={reducedMotion}/>)}
     {lvl(s,'drone')>0 && cue?.kind!=='drone' && <g class="resident-drone" style={{'--flight-x':`${Math.max(30,width-150)}px`,'--flight-y':`${cam.yard+40}px`,'--home-y':`${Math.max(22,cam.yard-42)}px`}} transform="translate(70 34)"><g class="drone-bob"><Icon name="drone" size={34}/></g></g>}
     {cue&&<g ref={eventRoot} key={cue.id} class={`event-scene event-${cue.kind}${cue.visit?.outcome==='empty'?' visit-empty':''}${cue.visit?.crows.length?' visit-shoo':''}`} data-outcome={cue.visit?.outcome} aria-label={cue.kind==='dogThieves'?'Собака прогоняет воров':cue.kind==='thieves'?(cue.visit?.outcome==='empty'?'Дети разводят руками и уходят':cue.visit?.crows.length?'Дети прогоняют ворон и забирают урожай':'Дети забирают урожай'):cue.kind==='watchman'?'Сторож прогоняет воров':cue.kind==='geese'?'Гуси щиплют сорняки':'Дрон защищает поле'} style={{'--scene-width':`${width}px`,'--scene-mid':`${middle}px`,'--scene-ms':`${sceneDuration(cue)}ms`}}>
       {cue.kind==='thieves'&&<>

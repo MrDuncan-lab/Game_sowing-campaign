@@ -6,7 +6,7 @@ import { frostVictims, growthMoisture, tile, crowsOpen } from '../engine/game';
 import { GRID } from '../engine/data';
 import { Crow, CrowFlying } from '../art/crows';
 import type { MissCause } from './collisions';
-import { CrowMiss, BugMiss, CrowSnack } from '../art/collisions';
+import { CrowMiss, BugMiss, CrowSnack, CrowDust } from '../art/collisions';
 
 export type MorningKind = 'frost' | 'dry' | 'hail' | 'flood' | 'crows' | 'thieves' | 'crowmiss' | 'bugmiss';
 export interface MorningCell { x: number; y: number; note?: string; killed?: boolean; before?: Plant; after?: Plant | null;
@@ -16,9 +16,11 @@ export interface MorningStep { id: number; kind: MorningKind; cells: MorningCell
 export const MORNING_STAGGER_MS = 140;
 export const morningCellDelay = (index:number) => (index % 4) * MORNING_STAGGER_MS;
 
+// [whole layer, the moment the bed shows the result], ms. The crows play in three acts (motion.css): arrive 620,
+// the first strike at 1120 (the loss shows then), gone by 2430. A miss is one beat and leaves early.
 const TIMING: Record<MorningKind, [number, number]> = {
-  frost: [2700, 1500], dry: [2500, 1500], hail: [2700, 1600], flood: [2700, 1600], crows: [3700, 2250], thieves: [2100, 1150],
-  crowmiss: [3600, 3400], bugmiss: [3000, 2800],
+  frost: [2700, 1500], dry: [2500, 1500], hail: [2700, 1600], flood: [2700, 1600], crows: [2450, 1120], thieves: [2100, 1150],
+  crowmiss: [2400, 1100], bugmiss: [2000, 1800],
 };
 let stepId = 0;
 export function morningStep(kind: MorningKind, cells: MorningCell[]): MorningStep {
@@ -66,13 +68,19 @@ export function MorningLayer({ step }: { step: MorningStep | null }) {
       {step.cells.map((c, i) => (
         <g transform={`translate(${PAD + c.x * CELL} ${PAD + c.y * CELL})`} style={{ ['--mi' as string]: String(i % 4), ['--d' as string]: `${morningCellDelay(i)}ms` }} class="m-cell">
           {step.kind === 'crows' && <>
-            <g class="mc-feathers" fill="#3a3a42">{[[34, 40], [62, 36], [48, 30]].map(([x, y], j) => <path class={`mc-feather f${j}`} d={`M${x} ${y} q4 -6 9 -3 q-3 5 -9 3z`} />)}</g>
             <g transform="translate(46 50)">
+              <CrowDust />
               <g class="mc-in"><g transform="translate(1 -16) scale(1.3)"><CrowFlying /></g></g>
               <g class="mc-stand"><g transform="scale(1.3)"><Crow /></g></g>
               {c.bugs && <CrowSnack />}
               <g class="mc-out"><g transform="translate(1 -16) scale(1.3)"><CrowFlying /></g></g>
             </g>
+            {/* what flies off the beak on each strike, and a feather shaken loose on landing */}
+            <g stroke="#3f2a1d" stroke-width={.7}>
+              <ellipse class="mc-bit b0" cx={80} cy={44} rx={4.2} ry={2.2} fill="#93d25a" />
+              <ellipse class="mc-bit b1" cx={80} cy={44} rx={3.4} ry={1.8} fill="#5dad3c" />
+            </g>
+            <path class="mc-feather" d="M40 30 q4 -6 9 -3 q-3 5 -9 3z" fill="#3a3a42" />
           </>}
           {step.kind === 'frost' && <g class="m-frost-art">
             <rect class="m-rime" x={6} y={8} width={88} height={82} rx={12} fill="rgba(222,238,248,.42)" stroke="rgba(240,248,255,.9)" stroke-width={1.6} />
