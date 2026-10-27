@@ -65,7 +65,7 @@
 .farm .field-view .dock-top > .exchange-deck.choosing .deck-svg { filter: drop-shadow(0 0 4px #f2c13f) drop-shadow(0 0 2px #f2c13f); transform: translateY(-3px); }
 .farm .field-view .dock-top > .exchange-deck.choosing small { color: #8a5a00; }
 .farm .field-view .dock-top > .exchange-deck:disabled { opacity: .55; }
-.farm .field-view .dock-say { flex: 1; min-width: 0; height: 100%; display: flex; flex-wrap: nowrap; align-items: center; justify-content: center; gap: 6px; overflow: hidden; font: 500 12.5px/1.2 var(--ui); color: var(--c-ink); text-align: center; }
+.farm .field-view .dock-say { flex: 1; margin-right: 64px; min-width: 0; height: 100%; display: flex; flex-wrap: nowrap; align-items: center; justify-content: center; gap: 6px; overflow: hidden; font: 500 12.5px/1.2 var(--ui); color: var(--c-ink); text-align: center; }
 .farm .field-view .dock-say > strong { font: 700 14px/1.1 var(--display); }
 .farm .field-view .dock-say > small { color: var(--c-soft); }
 .farm .field-view .dock-say .exchange-cancel { padding: 4px 10px; border: 1px solid var(--c-line); border-radius: 999px; background: #fffaf0; font: 700 12px/1 var(--ui); }
@@ -110,9 +110,9 @@
 .farm .field-view .dock .hand-row { padding-right: 70px; }
 @media (min-width: 640px) { .farm .field-view .dock .hand-row { padding-right: 70px; } }
 
-/* ---------- «Конец недели»: the most pressed button, under the right thumb (raised off the bottom edge) ---------- */
-.farm .field-view .dock .end-week.endw { position: absolute; right: 8px; bottom: calc(38px + env(safe-area-inset-bottom, 0px)); z-index: 80;
-  width: 60px; height: 70px; min-height: 0; margin: 0; padding: 4px 2px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+/* ---------- «Конец недели»: the most pressed button, at the top of the dock's right edge, right under the field ---------- */
+.farm .field-view .dock .end-week.endw { position: absolute; right: 8px; top: 6px; bottom: auto; z-index: 80;
+  width: 60px; min-width: 0; max-width: none; height: 70px; min-height: 0; margin: 0; padding: 4px 2px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
   border-radius: 20px; border: 2.5px solid var(--c-ink); background: #f2c13f; color: var(--c-ink);
   box-shadow: 0 3px 0 var(--c-ink), 0 8px 16px rgba(40, 28, 10, .25); touch-action: manipulation; }
 .farm .field-view .dock .end-week.endw svg { width: 28px; height: 28px; flex: none; }
@@ -123,7 +123,7 @@
 .farm .field-view .dock .end-week.endw.pay-due { background: #fbe3dc; border-color: #8e2a1e; color: #8e2a1e; box-shadow: 0 3px 0 #8e2a1e; }
 @keyframes endw-ready { 0%, 100% { box-shadow: 0 3px 0 var(--c-ink), 0 0 0 0 rgba(242, 193, 63, .0); } 50% { box-shadow: 0 3px 0 var(--c-ink), 0 0 0 7px rgba(242, 193, 63, .45); } }
 @media (prefers-reduced-motion: reduce) { .farm .field-view .dock .end-week.endw.ready { animation: none; box-shadow: 0 3px 0 var(--c-ink), 0 0 0 4px rgba(242, 193, 63, .5); } }
-.farm .field-view .dock .end-warn { position: absolute; right: 6px; bottom: calc(116px + env(safe-area-inset-bottom, 0px)); z-index: 80; max-width: 150px; padding: 3px 7px;
+.farm .field-view .dock .end-warn { position: absolute; right: 6px; top: 84px; bottom: auto; z-index: 80; max-width: 150px; padding: 3px 7px;
   border-radius: 9px; border: 1.5px solid #8e2a1e; background: #fbe3dc; color: #8e2a1e; font: 700 11px/1.15 var(--ui); text-align: right; pointer-events: none; }
 
 /* ---------- the hand: the card under the finger grows from its bottom edge ---------- */
@@ -232,8 +232,8 @@
 .scene-paused .scene-svg .yard-hen .hen-body, .scene-paused .scene-svg .yard-sunflower, .scene-paused .scene-svg .well-sweep { animation-play-state: paused; }
 @media (prefers-reduced-motion: reduce) { .scene-svg .yard-hen .hen-body, .scene-svg .yard-sunflower, .scene-svg .well-sweep { animation: none; } }
 
-/* the picked card's pin and ✕ at the row's right end, above «Конец недели», where no card lies */
-.farm .field-view .dock-top .dock-card-tools { flex: none; display: flex; gap: 6px; margin-left: auto; }
+/* the picked card's pin and ✕ at the row's right end, beside «Конец недели» */
+.farm .field-view .dock-top .dock-card-tools { flex: none; display: flex; gap: 6px; margin-left: auto; margin-right: 64px; }
 .farm .field-view .dock-top .dock-card-tools .icon-btn { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; padding: 0;
   border: 1.5px solid var(--c-line2); background: #fffaf0; box-shadow: 0 2px 0 rgba(63, 42, 29, .2); }
 .farm .field-view .dock-top .dock-card-tools .keep-btn.on { background: #fde2d8; border-color: #b3362d; }
@@ -244,3 +244,4 @@
 .farm .field-view .dock .hand-row:has(.fan-slot.peek), .farm .field-view .dock .hand-row:has(.card.selected) { z-index: 55; }
 
 @media (max-width: 379px) { .farm .field-view .dock-say .lens-name { display: none; } .farm .field-view .dock-say .say-two small { display: none; } }
+.farm .field-view .dock-say:has(+ .dock-card-tools) { margin-right: 0; }
