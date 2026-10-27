@@ -57,6 +57,7 @@ export function CrowMiss({ cause }: { cause: MissCause }) {
     <g class={`crow-miss cm-${cause}`}>
       {cause === 'locust' && <g class="cm-hopper" transform="translate(66 64) scale(1.3)"><Hopper /></g>}
       <g transform="translate(40 66)">
+        <CrowDust />
         <g class="mc-in"><g transform="translate(1 -16) scale(1.3)"><CrowFlying /></g></g>
         <g class="mc-stand"><g class="cm-skid"><g transform="scale(1.3)"><Crow /></g></g></g>
         <g class="mc-out"><g transform="translate(1 -16) scale(1.3)"><CrowFlying /></g></g>
@@ -64,6 +65,15 @@ export function CrowMiss({ cause }: { cause: MissCause }) {
       {cause === 'frost' && <g class="cm-scratch" stroke="#ffffff" stroke-width={1.6} stroke-linecap="round" fill="none"><path d="M30 70 l16 1 M32 74 l14 0" /></g>}
       {cause === 'dry' && <g class="cm-dust" fill="#d9c08c" stroke="none" opacity={.85}><circle cx={74} cy={62} r={4} /><circle cx={80} cy={58} r={3} /><circle cx={70} cy={57} r={2.6} /></g>}
       <Say cls="cm-say" x={62} y={22} text={cause === 'locust' ? 'Ням!' : cause === 'frost' ? 'Кар?!' : cause === 'dry' ? 'Кхар!' : 'Кар?'} />
+    </g>
+  );
+}
+
+/** The puff where a landing crow's feet touch the bed, at the feet (0, 0). */
+export function CrowDust() {
+  return (
+    <g class="crow-dust" fill="#c9b48a">
+      {[-14, -6, 8, 16].map((dx) => <ellipse cx={dx * .4} cy={1} rx={3.2} ry={2.2} style={{ ['--dx' as string]: `${dx}px` }} />)}
     </g>
   );
 }

@@ -20,6 +20,8 @@ import './sky-field.css';
 import './calm.css';
 import './village.css';
 import './contrast.css';
+// the field's motion language goes last: it owns growth, wind, the troubles in three acts and the animals' breath
+import './motion.css';
 
 // favicon is set from code so the single-file build keeps it inlined
 if (!document.querySelector('link[rel="icon"]')) {

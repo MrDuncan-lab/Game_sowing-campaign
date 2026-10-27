@@ -1,0 +1,314 @@
+/* ============================================================================================================
+   The field's motion language: one wind, one breath, one weight.
+   Six curves and five measures of time. Every living thing on the field moves with these; a new animation picks
+   its curve by character, not by taste. Inside @keyframes the curves are written out (the same numbers), because
+   a per-keyframe timing function cannot read a custom property everywhere the game runs.
+     arrive  — appearing, landing, sprouting, a label popping up: fast start, long settle
+     spring  — a push past the mark and back: growth overshoot, a hop that lands
+     windup  — before an action: a squat, a beak drawn back, a crouch before take-off
+     travel  — moving between two points, a flight along an arc
+     fall    — gravity and acceleration: a seed, a flicked bit, a bird pushing off
+     breath  — cycles only: wind, breathing, legs while walking
+   Multi-step paths that the prototype eased as a whole (WAAPI easing) are sampled into linear keyframes:
+   the arrival, the departure and the harvest hop. Everything else eases per segment.
+   ============================================================================================================ */
+:root {
+  --e-arrive: cubic-bezier(.22, 1, .36, 1);
+  --e-spring: cubic-bezier(.34, 1.56, .64, 1);
+  --e-windup: cubic-bezier(.6, -.28, .74, .05);
+  --e-travel: cubic-bezier(.65, 0, .35, 1);
+  --e-fall: cubic-bezier(.55, 0, 1, .45);
+  --e-breath: cubic-bezier(.37, 0, .63, 1);
+  /* beat: a flinch, a blink, the wave step between beds · hit: a squat, a peck · phrase: a step, a hop, a label ·
+     act: an arrival or a departure, one bed growing · breath: the cycles, never multiples of each other */
+  --t-beat: 90ms; --t-hit: 180ms; --t-phrase: 360ms; --t-act: 720ms;
+}
+
+/* ---------------------------------------------------------------- growth: a wave across the field ----------
+   After the week the beds that grew a stage do it in front of the player, left to right and top to bottom
+   (90 ms a column, 45 ms a row): the old plant squats, the new one rises from the root past its size and
+   settles; soil jumps at the root, leaves fly off the top, a ripe plant flashes. */
+.scene-svg .grow-old, .scene-svg .grow-new { transform-box: view-box; transform-origin: 50px 81px; }
+.scene-svg .grow-old { animation: grow-squat 260ms linear var(--gw, 0ms) both; }
+.scene-svg .grow-new { animation: grow-rise 580ms linear calc(var(--gw, 0ms) + 150ms) both; }
+@keyframes grow-squat {
+  0% { transform: none; opacity: 1; animation-timing-function: cubic-bezier(.22, 1, .36, 1); }
+  45% { transform: scale(1.05, .92); opacity: 1; animation-timing-function: cubic-bezier(.55, 0, 1, .45); }
+  100% { transform: scale(.96, 1.02); opacity: 0; }
+}
+@keyframes grow-rise {
+  0% { transform: scale(.9, .5); opacity: 0; animation-timing-function: cubic-bezier(.22, 1, .36, 1); }
+  50% { transform: scale(1.05, 1.09); opacity: 1; animation-timing-function: cubic-bezier(.37, 0, .63, 1); }
+  78% { transform: scale(.985, .975); animation-timing-function: cubic-bezier(.37, 0, .63, 1); }
+  100% { transform: none; opacity: 1; }
+}
+.grow-fx .gf-crumb { opacity: 0; transform-box: fill-box; transform-origin: center; animation: gf-crumb 420ms var(--e-arrive) calc(var(--gw, 0ms) + 150ms) forwards; }
+@keyframes gf-crumb { 0% { transform: translate(0, 0) scale(.4); opacity: .9; } 100% { transform: translate(var(--dx), var(--dy)) scale(1.5); opacity: 0; } }
+.grow-fx .gf-leaf { opacity: 0; transform-box: fill-box; transform-origin: center; animation: gf-leaf 720ms linear calc(var(--gw, 0ms) + 260ms) both; }
+@keyframes gf-leaf {
+  0% { transform: none; opacity: 0; animation-timing-function: cubic-bezier(.22, 1, .36, 1); }
+  35% { transform: translate(var(--x1), var(--y1)) rotate(var(--r1)); opacity: 1; animation-timing-function: cubic-bezier(.55, 0, 1, .45); }
+  100% { transform: translate(var(--x2), var(--y2)) rotate(var(--r2)); opacity: 0; }
+}
+.grow-fx .gf-glint { opacity: 0; transform-box: fill-box; transform-origin: center; animation: gf-glint 620ms linear calc(var(--gw, 0ms) + 410ms) both; }
+@keyframes gf-glint {
+  0% { opacity: 0; transform: scale(0) rotate(0deg); animation-timing-function: cubic-bezier(.22, 1, .36, 1); }
+  40% { opacity: 1; transform: scale(1.2) rotate(30deg); animation-timing-function: cubic-bezier(.37, 0, .63, 1); }
+  100% { opacity: 0; transform: scale(.3) rotate(60deg); }
+}
+
+/* planting: the sprout pops out of the soil past its size and settles (the seed has already fallen, tile-fx);
+   the rule sits on .plant in legacy.css, so the morning's own plant reactions still override it */
+@keyframes plant-sprout {
+  0% { transform: scale(.2); opacity: 0; animation-timing-function: cubic-bezier(.22, 1, .36, 1); }
+  55% { transform: scale(1.14); opacity: 1; animation-timing-function: cubic-bezier(.37, 0, .63, 1); }
+  100% { transform: none; opacity: 1; }
+}
+
+/* harvest: the ripe plant squats, pops out of the soil and drops into its own «+N» chip above the bed.
+   Origin: the plant's root, in the chip's coordinates (the chip stands at the bed's (52, 6)). */
+.harvest-fly { transform-box: view-box; transform-origin: -2px 74px; animation: harvest-hop 700ms linear both; }
+
+/* ---------------------------------------------------------------- wind: one wind over the whole field -------
+   Every plant sways round its root; the phase runs 0.28 s a column and 0.12 s a row, so the wind is seen crossing
+   the field. The week's weather sets its strength: clear weeks barely move, cloudy ones stir, rain and hail bend
+   the field and send a gust across it every four seconds. Tall crops (wheat, sunflower, corn…) sway more. */
+.scene-svg .sway, .scene-svg .gust { transform-box: view-box; transform-origin: 50px 82px; }
+.wind-calm .sway { animation: sway-calm 5.2s var(--e-breath) var(--sw, 0s) infinite alternate; }
+.wind-breeze .sway { animation: sway-breeze 3.4s var(--e-breath) var(--sw, 0s) infinite alternate; }
+.wind-storm .sway { animation: sway-storm 1.5s var(--e-breath) var(--sw, 0s) infinite alternate; }
+.wind-calm .sway.tall { animation-name: sway-calm-t; }
+.wind-breeze .sway.tall { animation-name: sway-breeze-t; }
+.wind-storm .sway.tall { animation-name: sway-storm-t; }
+.wind-storm .gust { animation: gust 4s linear var(--gc, 0ms) infinite; }
+.wind-storm .sway.tall > .gust { animation-name: gust-tall; }
+@keyframes sway-calm { from { transform: rotate(-.5deg); } to { transform: rotate(.6deg); } }
+@keyframes sway-calm-t { from { transform: rotate(-.9deg); } to { transform: rotate(1.1deg); } }
+@keyframes sway-breeze { from { transform: rotate(-1.3deg); } to { transform: rotate(1.6deg); } }
+@keyframes sway-breeze-t { from { transform: rotate(-2.2deg); } to { transform: rotate(2.8deg); } }
+@keyframes sway-storm { from { transform: rotate(-1deg); } to { transform: rotate(4deg); } }
+@keyframes sway-storm-t { from { transform: rotate(-1.5deg); } to { transform: rotate(7deg); } }
+@keyframes gust {
+  0% { transform: none; animation-timing-function: cubic-bezier(.22, 1, .36, 1); }
+  8% { transform: rotate(5deg); animation-timing-function: cubic-bezier(.37, 0, .63, 1); }
+  16% { transform: rotate(-1.2deg); animation-timing-function: cubic-bezier(.37, 0, .63, 1); }
+  22%, 100% { transform: none; }
+}
+@keyframes gust-tall {
+  0% { transform: none; animation-timing-function: cubic-bezier(.22, 1, .36, 1); }
+  8% { transform: rotate(9deg); animation-timing-function: cubic-bezier(.37, 0, .63, 1); }
+  16% { transform: rotate(-1.2deg); animation-timing-function: cubic-bezier(.37, 0, .63, 1); }
+  22%, 100% { transform: none; }
+}
+
+/* ---------------------------------------------------------------- a trouble in three acts: the crows ------
+   Arrive (620 ms): an arc from beyond the field, braking near the ground, the nose lifting to flare; a squat on
+   landing and a puff of dust. Act: a hit is two pecks (wind back, strike, press, come up), the second weaker —
+   a bit of leaf flies off, the plant flinches, the loss pops up on the first strike. A miss is one beat: one
+   peck into nothing, a look round, a word. Leave: a squat, a push off, accelerating up and out.
+   Times from the bed's own start (--d, the stagger between beds):
+     hit:  land 620 · pecks 900 / 1420 (strikes 1120 / 1640) · squat 1720 · flight 1870–2430
+     miss: land 620 · peck 880 (strike 1100) · look 1250 · word 1100 · squat 1640 · flight 1790–2350 */
+.m-crows .m-cell { --crow-leave: 1720ms; }
+.m-crowmiss .m-cell { --crow-leave: 1640ms; }
+.m-crows .mc-in, .m-crowmiss .mc-in,
+.m-crows .mc-stand, .m-crowmiss .mc-stand,
+.m-crows .mc-out, .m-crowmiss .mc-out { transform-box: view-box; transform-origin: 0 0; }
+.m-crows .mc-in, .m-crowmiss .mc-in { animation: crow-arrive 620ms linear var(--d) both; }
+.m-crows .mc-stand, .m-crowmiss .mc-stand { opacity: 0;
+  animation: crow-land 300ms linear calc(var(--d) + 620ms) forwards, crow-squat 160ms linear calc(var(--d) + var(--crow-leave)) forwards; }
+.m-crows .mc-out, .m-crowmiss .mc-out { opacity: 0; animation: crow-leave 560ms linear calc(var(--d) + var(--crow-leave) + 150ms) forwards; }
+@keyframes crow-land {
+  0% { opacity: 1; transform: scale(1.16, .8); animation-timing-function: cubic-bezier(.22, 1, .36, 1); }
+  55% { opacity: 1; transform: scale(.94, 1.06); animation-timing-function: cubic-bezier(.37, 0, .63, 1); }
+  100% { opacity: 1; transform: none; }
+}
+@keyframes crow-squat {
+  0% { opacity: 1; transform: none; animation-timing-function: cubic-bezier(.22, 1, .36, 1); }
+  80% { opacity: 1; transform: scale(1.1, .86); animation-timing-function: cubic-bezier(.55, 0, 1, .45); }
+  100% { opacity: 0; transform: scale(.95, 1.05); }
+}
+/* the flying bird beats its wings faster while it brakes and while it climbs away */
+.m-crows .mc-in .cf-wing, .m-crowmiss .mc-in .cf-wing, .m-crows .mc-out .cf-wing, .m-crowmiss .mc-out .cf-wing { animation-duration: .26s; }
+.m-crows .mc-in .cf-bob, .m-crowmiss .mc-in .cf-bob, .m-crows .mc-out .cf-bob, .m-crowmiss .mc-out .cf-bob { animation-duration: .26s; }
+
+/* dust where the feet touch down; on a frozen bed it is a spray of rime */
+.crow-dust ellipse { opacity: 0; transform-box: fill-box; transform-origin: center; animation: crow-dust 420ms var(--e-arrive) calc(var(--d) + 620ms) forwards; }
+.crow-dust ellipse + ellipse { animation-delay: calc(var(--d) + 650ms); }
+@keyframes crow-dust { 0% { opacity: .9; transform: translate(0, 0) scale(.4); } 100% { opacity: 0; transform: translate(var(--dx), -5px) scale(1.5); } }
+.cm-frost .crow-dust ellipse { fill: #eef6fb; }
+
+/* the pecks: the body tips over the feet (rig origin at the belly) */
+.morning.m-crows .m-cell .crow-bird .cr-body { animation: crow-peck 460ms linear calc(var(--d) + 900ms), crow-peck-soft 460ms linear calc(var(--d) + 1420ms); }
+.morning.m-crows .m-cell .crow-bird .cr-head,
+.morning.m-crows .m-cell .crow-bird .cr-leg,
+.morning.m-crowmiss .m-cell .crow-bird .cr-leg { animation: none; }
+.morning.m-crowmiss .m-cell .crow-bird .cr-body { animation: crow-peck-soft 460ms linear calc(var(--d) + 880ms); }
+.morning.m-crowmiss .m-cell .cm-frost .crow-bird .cr-body { animation: none; }
+.morning.m-crowmiss .m-cell .crow-bird .cr-head { animation: crow-look 640ms linear calc(var(--d) + 1250ms) both; }
+@keyframes crow-peck {
+  0% { transform: none; animation-timing-function: cubic-bezier(.37, 0, .63, 1); }
+  28% { transform: rotate(-10deg); animation-timing-function: cubic-bezier(.55, 0, 1, .45); }
+  44% { transform: rotate(28deg); animation-timing-function: cubic-bezier(.37, 0, .63, 1); }
+  60% { transform: rotate(25deg); animation-timing-function: cubic-bezier(.22, 1, .36, 1); }
+  100% { transform: none; }
+}
+@keyframes crow-peck-soft {
+  0% { transform: none; animation-timing-function: cubic-bezier(.37, 0, .63, 1); }
+  28% { transform: rotate(-7deg); animation-timing-function: cubic-bezier(.55, 0, 1, .45); }
+  44% { transform: rotate(20deg); animation-timing-function: cubic-bezier(.37, 0, .63, 1); }
+  60% { transform: rotate(18deg); animation-timing-function: cubic-bezier(.22, 1, .36, 1); }
+  100% { transform: none; }
+}
+@keyframes crow-look {
+  0% { transform: none; animation-timing-function: cubic-bezier(.22, 1, .36, 1); }
+  20%, 38% { transform: rotate(-20deg); animation-timing-function: cubic-bezier(.37, 0, .63, 1); }
+  58%, 76% { transform: rotate(16deg); animation-timing-function: cubic-bezier(.37, 0, .63, 1); }
+  100% { transform: none; }
+}
+
+/* a strike: a bit of the plant flies off the beak, the plant flinches */
+.mc-bit { opacity: 0; transform-box: fill-box; transform-origin: center; }
+.m-crows .mc-bit.b0 { animation: mc-bit 600ms linear calc(var(--d) + 1120ms) forwards; }
+.m-crows .mc-bit.b1 { animation: mc-bit-soft 600ms linear calc(var(--d) + 1640ms) forwards; }
+@keyframes mc-bit {
+  0% { opacity: 1; transform: none; animation-timing-function: cubic-bezier(.22, 1, .36, 1); }
+  40% { opacity: 1; transform: translate(-14px, -26px) rotate(-120deg); animation-timing-function: cubic-bezier(.55, 0, 1, .45); }
+  100% { opacity: 0; transform: translate(-26px, 10px) rotate(-260deg); }
+}
+@keyframes mc-bit-soft {
+  0% { opacity: 1; transform: none; animation-timing-function: cubic-bezier(.22, 1, .36, 1); }
+  40% { opacity: 1; transform: translate(-10px, -18px) rotate(-90deg); animation-timing-function: cubic-bezier(.55, 0, 1, .45); }
+  100% { opacity: 0; transform: translate(-18px, 8px) rotate(-200deg); }
+}
+.m-crows .mc-feather { opacity: 0; transform-box: fill-box; transform-origin: center; animation: mc-feather-drift 1300ms var(--e-breath) calc(var(--d) + 640ms) both; }
+@keyframes mc-feather-drift { 0% { opacity: 0; transform: none; } 12% { opacity: .9; } 100% { opacity: 0; transform: translate(8px, 22px) rotate(80deg); } }
+.scene-svg .m-plant-crows { animation: plant-flinch 260ms linear calc(var(--weather-delay, 0ms) + 1120ms), plant-flinch-soft 260ms linear calc(var(--weather-delay, 0ms) + 1640ms); }
+@keyframes plant-flinch {
+  0% { transform: none; animation-timing-function: cubic-bezier(.22, 1, .36, 1); }
+  30% { transform: rotate(-3deg) scale(1.03, .93); animation-timing-function: cubic-bezier(.37, 0, .63, 1); }
+  100% { transform: none; }
+}
+@keyframes plant-flinch-soft {
+  0% { transform: none; animation-timing-function: cubic-bezier(.22, 1, .36, 1); }
+  30% { transform: rotate(2deg) scale(1.02, .95); animation-timing-function: cubic-bezier(.37, 0, .63, 1); }
+  100% { transform: none; }
+}
+
+/* a beetle on the chewed plant goes with the first strike */
+.crow-snack .cs-bug { transform-box: view-box; transform-origin: 0 0; animation: snack-bug 200ms linear calc(var(--d) + 1080ms) both; }
+@keyframes snack-bug { 0% { opacity: 1; transform: none; } 40% { opacity: 1; transform: translate(-2px, -4px) scale(.7); } 100% { opacity: 0; transform: scale(0); } }
+.crow-snack .cs-say { opacity: 0; animation: say-pop 900ms linear calc(var(--d) + 1180ms) both; }
+
+/* a miss: what had already taken the plant decides the beat */
+.m-crowmiss .cm-say { opacity: 0; animation: say-pop 760ms linear calc(var(--d) + 1100ms) both; }
+.cm-frost .cm-skid { transform-box: view-box; transform-origin: 0 0; animation: cm-skid 860ms linear calc(var(--d) + 620ms) both; }
+@keyframes cm-skid {
+  0% { transform: none; animation-timing-function: cubic-bezier(.22, 1, .36, 1); }
+  10% { transform: translateX(5px) rotate(-9deg); animation-timing-function: cubic-bezier(.37, 0, .63, 1); }
+  20% { transform: translateX(9px) rotate(6deg); animation-timing-function: cubic-bezier(.37, 0, .63, 1); }
+  30% { transform: translateX(10px) rotate(-3deg); animation-timing-function: cubic-bezier(.22, 1, .36, 1); }
+  40%, 85% { transform: translateX(10px); animation-timing-function: cubic-bezier(.65, 0, .35, 1); }
+  100% { transform: none; }
+}
+.m-crowmiss .cm-scratch { opacity: 0; animation: cm-scratch 1200ms linear calc(var(--d) + 640ms) both; }
+@keyframes cm-scratch { 0% { opacity: 0; } 6% { opacity: 1; } 70% { opacity: .8; } 100% { opacity: 0; } }
+.m-crowmiss .cm-dust circle { opacity: 0; transform-box: fill-box; transform-origin: center; animation: cm-dust 600ms linear calc(var(--d) + 1100ms) both; }
+.m-crowmiss .cm-dust circle + circle { animation-delay: calc(var(--d) + 1260ms); }
+@keyframes cm-dust {
+  0% { opacity: 0; transform: scale(.4); animation-timing-function: cubic-bezier(.22, 1, .36, 1); }
+  8% { opacity: .85; animation-timing-function: cubic-bezier(.22, 1, .36, 1); }
+  55% { opacity: .5; transform: scale(1.5) translateY(-4px); animation-timing-function: cubic-bezier(.37, 0, .63, 1); }
+  100% { opacity: 0; transform: scale(1.8) translateY(-8px); }
+}
+.m-crowmiss .cm-hopper { animation: cm-hop 300ms linear calc(var(--d) + 960ms) both; }
+@keyframes cm-hop {
+  0% { opacity: 1; transform: translate(66px, 64px) scale(1.3); animation-timing-function: cubic-bezier(.22, 1, .36, 1); }
+  30% { transform: translate(60px, 56px) scale(1.3); animation-timing-function: cubic-bezier(.55, 0, 1, .45); }
+  60% { opacity: 1; transform: translate(56px, 62px) scale(1.3); }
+  70%, 100% { opacity: 0; transform: translate(56px, 62px) scale(.2); }
+}
+
+/* a word said in passing: pops, holds, lifts away */
+@keyframes say-pop {
+  0% { opacity: 0; transform: translateY(4px) scale(.6); animation-timing-function: cubic-bezier(.22, 1, .36, 1); }
+  14% { opacity: 1; transform: translateY(-2px) scale(1.08); animation-timing-function: cubic-bezier(.37, 0, .63, 1); }
+  24%, 78% { opacity: 1; transform: none; animation-timing-function: cubic-bezier(.6, -.28, .74, .05); }
+  100% { opacity: 0; transform: translateY(-6px) scale(.92); }
+}
+
+/* sampled from the prototype: the arrival eased as a whole by «arrive», the departure by «fall», the harvest hop by «travel» */
+@keyframes crow-arrive {
+  0% { transform: translate(-150px, -120px) rotate(12deg); opacity: 0; }
+  7.14% { transform: translate(-96.78px, -87.42px) rotate(3.31deg); opacity: 1; }
+  14.29% { transform: translate(-54.81px, -61.72px) rotate(-3.54deg); }
+  21.43% { transform: translate(-27.94px, -38.72px) rotate(-9.55deg); }
+  28.57% { transform: translate(-10.24px, -23.06px) rotate(-13.64deg); }
+  35.71% { transform: translate(0px, -13.15px) rotate(-16.24deg); }
+  42.86% { transform: translate(0px, -7.83px) rotate(-17.76deg); }
+  50% { transform: translate(0px, -4.51px) rotate(-18.71deg); }
+  57.14% { transform: translate(0px, -2.47px) rotate(-19.29deg); }
+  64.29% { transform: translate(0px, -1.26px) rotate(-19.64deg); }
+  71.43% { transform: translate(0px, -0.57px) rotate(-19.84deg); }
+  78.57% { transform: translate(0px, -0.22px) rotate(-19.94deg); }
+  85.71% { transform: translate(0px, -0.06px) rotate(-19.98deg); }
+  92.86% { transform: translate(0px, -0.01px) rotate(-20deg); }
+  99.9% { transform: translate(0px, 0px) rotate(-20deg); opacity: 1; }
+  100% { opacity: 0;  transform: translate(0px, 0px) rotate(-20deg); }
+}
+@keyframes crow-leave {
+  0% { transform: translate(0px, 0px) rotate(-28deg); opacity: 1; }
+  10% { transform: translate(0.6px, -0.58px) rotate(-27.89deg); opacity: 1; }
+  20% { transform: translate(2.43px, -2.34px) rotate(-27.55deg); opacity: 1; }
+  30% { transform: translate(5.55px, -5.34px) rotate(-26.97deg); opacity: 1; }
+  40% { transform: translate(10.08px, -9.7px) rotate(-26.13deg); opacity: 1; }
+  50% { transform: translate(16.18px, -15.59px) rotate(-25deg); opacity: 1; }
+  60% { transform: translate(24.16px, -23.27px) rotate(-23.53deg); opacity: 1; }
+  70% { transform: translate(34.51px, -33.23px) rotate(-21.61deg); opacity: 1; }
+  80% { transform: translate(48.21px, -46.43px) rotate(-19.07deg); opacity: 1; }
+  90% { transform: translate(82.35px, -81.01px) rotate(-16.02deg); opacity: 1; }
+  100% { transform: translate(190px, -190px) rotate(-10deg); opacity: 0; }
+}
+@keyframes harvest-hop {
+  0% { transform: translate(0px, 0px) scale(1, 1); opacity: 1; }
+  7.14% { transform: translate(0px, 0px) scale(1, 1); opacity: 1; }
+  14.29% { transform: translate(0px, 0px) scale(1.01, 0.99); opacity: 1; }
+  21.43% { transform: translate(0px, 0px) scale(1.02, 0.96); opacity: 1; }
+  28.57% { transform: translate(0px, 0px) scale(1.05, 0.93); opacity: 1; }
+  35.71% { transform: translate(0px, -2.25px) scale(1.07, 0.9); opacity: 1; }
+  42.86% { transform: translate(0px, -16.43px) scale(1, 0.99); opacity: 1; }
+  50% { transform: translate(-3.33px, -40.44px) scale(0.83, 0.9); opacity: 1; }
+  57.14% { transform: translate(-9.61px, -67.65px) scale(0.59, 0.61); opacity: 1; }
+  64.29% { transform: translate(-13.69px, -74.62px) scale(0.45, 0.45); opacity: 1; }
+  71.43% { transform: translate(-16.01px, -69.97px) scale(0.38, 0.38); opacity: 0.99; }
+  78.57% { transform: translate(-16.51px, -68.47px) scale(0.35, 0.35); opacity: 0.49; }
+  85.71% { transform: translate(-16.81px, -67.58px) scale(0.34, 0.34); opacity: 0.19; }
+  92.86% { transform: translate(-16.96px, -67.13px) scale(0.33, 0.33); opacity: 0.04; }
+  100% { transform: translate(-17px, -67px) scale(0.33, 0.33); opacity: 0; }
+}
+
+/* ---------------------------------------------------------------- the animals: one breath -----------------
+   Everyone alive breathes, slower the bigger they are and slower still asleep, and no two cycles share a
+   length, so the yard never pulses in step: hedgehog 2.3 s, goose 2.6 s, dog 3.2 s, cat 3.4 s, goat 4.4 s,
+   a sleeping pet 4.7 s. A change of pose has weight: a push-off into a walk, a settle when it stops, a hop when
+   greeted or startled (FarmLife, WAAPI on .pose-shift). */
+@keyframes life-breathe { 0%, 100% { transform: none; } 50% { transform: scale(1.006, 1.022); } }
+@keyframes life-breathe-deep { 0%, 100% { transform: none; } 45% { transform: scale(1.02, 1.05); } }
+.companion.pose-sit .c-body { animation: life-breathe 3.4s var(--e-breath) infinite; }
+.pet-dog.pose-sit .c-body { animation-duration: 3.2s; }
+.companion.pose-nap .c-body { animation: life-breathe-deep 4.7s var(--e-breath) infinite; }
+.pose-stand .goose-body, .pose-act .goose-body { animation: life-breathe 2.6s var(--e-breath) var(--d, 0s) infinite; }
+.pose-stand .goat-body, .pose-act .goat-body { animation: life-breathe 4.4s var(--e-breath) infinite; }
+.pose-stand .hh-body { animation: life-breathe 2.3s var(--e-breath) infinite; }
+.pose-shift { transform-box: fill-box; transform-origin: 50% 92%; }
+.pet-say { opacity: 0; animation: say-pop 1100ms linear both; }
+.pet-say .say-word { font-size: 14px; }
+
+/* ---------------------------------------------------------------- less motion --------------------------------
+   Cycles stand still, growth and harvest are plain swaps; the troubles themselves are skipped by the playback. */
+@media (prefers-reduced-motion: reduce) {
+  .scene-svg .sway, .scene-svg .gust, .scene-svg .grow-new, .scene-svg .plant, .grow-fx *,
+  .companion .c-body, .goose-body, .goat-body, .hh-body, .pet-say { animation: none !important; }
+  .scene-svg .grow-old, .grow-fx, .harvest-fly { display: none; }
+  .pet-say { opacity: 1; }
+}

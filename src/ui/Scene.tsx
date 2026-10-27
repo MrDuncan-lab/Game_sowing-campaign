@@ -5,6 +5,7 @@ import {THEFT_ARRIVAL_MS, THEFT_IMPACT_MS, theftStagger, theftDelay} from './wee
 import { FarmLife } from './FarmLife';
 import { MorningLayer, MorningStep, morningPlantClass, morningCellDelay } from './Morning';
 import { BedLeftovers } from '../art/collisions';
+import { PlantBody, windFor } from './PlantMotion';
 import { kidDelay, type MissCause } from './collisions';
 import { wetCanals, idx } from '../engine/game';
 // The field: beds, terrain, plants, marks, lenses and the farmer. Pure drawing — every decision comes in as props.
@@ -54,7 +55,8 @@ export interface QueueMark { n: number; state: 'queued' | 'working' | 'done' }
 // side: which edge of the bed the farmer stands at — the left one facing right (1), or the right one facing left (-1)
 export type FarmerPos = { kind: 'home' } | { kind: 'barn' } | { kind: 'tile'; x: number; y: number; side?: 1 | -1 };
 export interface FarmerState { pos: FarmerPos; walking: boolean; action: FarmerAction; facing: 1 | -1; ms: number; bubble: string | null; cycle?: number }
-export interface Floater { key: number; x: number; y: number; text: string; crop?: CropId; delay?: number; tone?: 'bad' }
+/** fly: a harvest — the ripe plant hops out of its bed into the chip, starting this many ms in (the chip follows) */
+export interface Floater { key: number; x: number; y: number; text: string; crop?: CropId; delay?: number; tone?: 'bad'; fly?: number }
 export type FxKind = 'seed' | 'water' | 'fert' | 'mulch' | 'care' | 'harvest' | 'build' | 'weed' | 'coin' | 'wither' | 'shield';
 export interface TileFx { key: number; x: number; y: number; kind: FxKind; delay?: number; /** PSV-015 · the action's pace: 1 normal, >1 the fast mode */ rate?: number }
 /**
@@ -75,6 +77,9 @@ function FxHost({ f, children }: { f: TileFx; children: ComponentChildren }) {
   }, []);
   return <g ref={ref} transform={`translate(${PAD + f.x * CELL} ${PAD + f.y * CELL})`} class={`tile-fx fx-${f.kind}`} style={{ ['--d' as string]: `${f.delay ?? 0}ms` }} pointer-events="none">{children}</g>;
 }
+
+/** Warnings about this week's troubles that end when their own event plays (weekPlayback.eventKinds). */
+const PLAYED_WARNINGS = new Set(['thieves', 'crows', 'beetle', 'locust', 'frost', 'dry', 'hail', 'flood']);
 
 export const CELL = 100;
 export const PAD = 22;
@@ -705,8 +710,11 @@ function Walker({ x, y, ms, paused, cycle, children }: { x: number; y: number; m
 
 export function Scene({
   scenePaused = false, menuTile = null,
-  s, highlight, onTile, onCorner, hoverTile, onHover, farmer, floaters, hidden, effects = [], yard = YARD, px = 1, queue, flock = 'off', lens = null, build = null, pets = [], lifeActive = true, showWarnings = true, sceneCue = null, pestHits = [], pestPaused=false, morning = null, compost, scouts = false, onScouts, aftermath, spentDry, sky = null, skyOutside = false,
+  s, highlight, onTile, onCorner, hoverTile, onHover, farmer, floaters, hidden, effects = [], yard = YARD, px = 1, queue, flock = 'off', lens = null, build = null, pets = [], lifeActive = true, showWarnings = true, pending = null, sceneCue = null, pestHits = [], pestPaused=false, morning = null, compost, scouts = false, onScouts, aftermath, spentDry, sky = null, skyOutside = false,
 }: {
+  /** W-05 · while the week plays: the troubles whose events are still to come. Their warnings (kids at the yard,
+   *  footprints, beetles on the plants, frost, hail) stay on the field until their own event starts. */
+  pending?: Set<string> | null;
   /** the world is paused (a dialog, another section, a hidden page): the farmer's walk stops with it */
   scenePaused?: boolean;
   /** the bed whose action menu is open ("x,y") */
@@ -768,9 +776,12 @@ export function Scene({
   const thieves = new Set(s.thieves && s.thieves.week === s.absWeek && !s.thieves.talked && !thievesBlocked(s) ? s.thieves.targets.filter((g) => tile(s, g.x, g.y).structure !== 'greenhouse' && tile(s, g.x, g.y).crop?.pid === g.pid && !isGuarded(s, g.x, g.y)).map((g) => `${g.x},${g.y}`) : []);
   const yardCrates = s.yard.reduce((a, l) => a + l.qty, 0);
   const mPlant = morningPlantClass(morning);
+  // a warning about this week's trouble: shown until the trouble itself plays (future signs are always shown)
+  const live = (kind: string) => showWarnings && (!pending || !PLAYED_WARNINGS.has(kind) || pending.has(kind));
+  const wind = windFor(sky?.tokens[0]?.kind, winter);
   const propKey = propPlot(rows.flatMap((y) => Array.from({ length: GRID }, (_, x) => [x, y] as [number, number])).filter(([x, y]) => { if (!vis(x, y)) return false; const t = tile(s, x, y); return !t.owned && !t.canal && t.terrain === 'plain'; }));
   return (<>
-    <svg viewBox={`0 0 ${cam.W} ${cam.H}`} class={`scene-svg${winter ? ' winter' : ''}${lens ? ` lens-on` : ''}${build ? ' build-on' : ''}${highlight.preview || highlight.area.size || highlight.block || highlight.tiles.size ? ' previewing' : ''}`} role="group" aria-label="Поле">
+    <svg viewBox={`0 0 ${cam.W} ${cam.H}`} class={`scene-svg wind-${wind}${winter ? ' winter' : ''}${lens ? ` lens-on` : ''}${build ? ' build-on' : ''}${highlight.preview || highlight.area.size || highlight.block || highlight.tiles.size ? ' previewing' : ''}`} role="group" aria-label="Поле">
       <defs>
         <GrassPattern winter={winter} />
         <clipPath id="field-land"><path d={`M0 ${yard} H${cam.W} V${cam.H - 18} Q${cam.W} ${cam.H} ${cam.W - 18} ${cam.H} H18 Q0 ${cam.H} 0 ${cam.H - 18} Z`} /></clipPath>
@@ -805,7 +816,7 @@ export function Scene({
           <g transform="scale(1.15)"><ScoutingKids /></g>
         </g>
       )}
-      {!hidePlants && showWarnings && thieves.size > 0 && (
+      {!hidePlants && live('thieves') && thieves.size > 0 && (
         <g transform={`translate(${cam.W / 2 - 26} ${yard - 33})`} class="kids-peek" pointer-events="none">
           <KidsPeek />
         </g>
@@ -880,7 +891,7 @@ export function Scene({
                 {t.structure === 'hive' && <Hive />}
                 {!hidePlants && crop && !hit && (
                   <g class={`plant${!winter && t.moisture === 0 && !crop.rest ? ((crop.dry ?? 0) >= 1 ? ' wilt-2' : ' wilt-1') : ''}${crop.rest ? ' resting' : ''}${mPlant.has(k) ? ` ${mPlant.get(k)}` : ''}`} style={plantTiming} key={`${crop.id}-${crop.planted}-${crop.pid}`}>
-                    {crop.chewed?<NibbledPlant plant={crop} stage={stage}/>:<CropSprite id={crop.id} stage={stage} />}
+                    <PlantBody plant={crop} stage={stage} col={x - cam.vx} row={y - cam.vy} />
                   </g>
                 )}
                 {!hidePlants && hit && <g class={pestPaused?'pest-paused':''}><NibbledPlant plant={hit.plant} stage={cropStage(hit.plant.grown,targetGrow(s,hit.plant))} hit={hit}/></g>}
@@ -893,11 +904,11 @@ export function Scene({
                 {!hidePlants && crop && note === 'dry' && <DryBadge m={mDry} />}
                 {!hidePlants && crop && !hit && (note === 'cold' || note === 'hot' || note === 'flood') && <NoteBadge kind={note} m={mDry} />}
                 {!hidePlants && badge !== undefined && <WeeksBadge weeks={badge} m={mWeeks} />}
-                {showWarnings && !hidePlants && crop && locustBeds.has(k) && <Locusts phase={(x + y * 2) * 0.37} />}
-                {showWarnings && !hidePlants && crop && beetleBeds.has(k) && <Beetles phase={(x * 2 + y) * 0.31} />}
-                {showWarnings && !hidePlants && thieves.has(k) && <Footprints />}
-                {showWarnings && frost.has(k) && !hidePlants && <FrostMark m={mNum} />}
-                {showWarnings && danger.has(k) && !hidePlants && !beetleBeds.has(k) && (isGuarded(s, x, y) ? (
+                {live('locust') && !hidePlants && crop && locustBeds.has(k) && <Locusts phase={(x + y * 2) * 0.37} />}
+                {live('beetle') && !hidePlants && crop && beetleBeds.has(k) && <Beetles phase={(x * 2 + y) * 0.31} />}
+                {live('thieves') && !hidePlants && thieves.has(k) && <Footprints />}
+                {live('frost') && frost.has(k) && !hidePlants && <FrostMark m={mNum} />}
+                {danger.has(k) && live(danger.get(k)!.kind) && !hidePlants && !beetleBeds.has(k) && (isGuarded(s, x, y) ? (
                   <g pointer-events="none" class="guarded">
                     <rect x={4} y={6} width={92} height={88} rx={12} class="guard-ring" />
                     <g transform={`translate(20 80) scale(${mNum})`}>
@@ -1070,6 +1081,7 @@ export function Scene({
         const [x, y] = farmerXY(cam, { kind: 'tile', x: f.x, y: f.y });
         return (
           <g key={f.key} transform={`translate(${x + 30} ${y - 64})`} pointer-events="none">
+            {f.fly !== undefined && f.crop && <g class="harvest-fly" style={{ animationDelay: `${f.fly}ms` }}><g transform="translate(-52 -6)"><CropSprite id={f.crop} stage={2} /></g></g>}
             <g class={`floater${f.tone === 'bad' ? ' floater-bad' : ''}`} style={{ animationDelay: `${f.delay ?? 0}ms` }}>
               <rect x={-34} y={-17} width={68} height={28} rx={14} fill="#fffaf0" stroke={P.ink} stroke-width={2} />
               {f.crop && <svg x={-32} y={-16} width={26} height={26} viewBox="10 6 80 82"><CropSprite id={f.crop} stage={2} /></svg>}

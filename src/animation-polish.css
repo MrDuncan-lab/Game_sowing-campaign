@@ -20,7 +20,6 @@
 /* The queue already adds the last bed's stagger. Each bed keeps the same
    action duration, so its impact meets the same gesture, even on the last bed. */
 .morning .m-cell { --m-span: calc(var(--m-dur) - 60ms); }
-.morning .mc-in, .morning .mc-stand, .morning .mc-out,
 .morning .m-rime, .morning .m-rimeedge, .morning .m-heat,
 .morning .m-hailstreaks, .morning .m-water, .morning .m-step { animation-duration: var(--m-span); }
 .morning .m-hoar { animation-duration: calc(var(--m-span) - 200ms); }

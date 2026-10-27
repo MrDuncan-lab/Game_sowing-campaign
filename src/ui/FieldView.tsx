@@ -1,7 +1,7 @@
 import { AnimationClock } from './animationClock';
 import type {PestHit} from '../engine/game';
 import { useSceneQueue, chooseScene, finishScenes, completed, type SceneCue } from './useSceneQueue';
-import { buildWeekPlayback, CALENDAR_MS, theftStagger, type WeekEvent } from './weekPlayback';
+import { buildWeekPlayback, CALENDAR_MS, theftStagger, eventKinds, pendingKinds, type WeekEvent } from './weekPlayback';
 import {readWeekResume,saveWeekResume,clearWeekResume,type WeekResume} from './weekResume';
 import { PrecisionLoupe } from './PrecisionLoupe';
 import { greenhouseYieldReady, hiveYieldReady, neighbors8, inGrid, wlvl } from '../engine/game';
@@ -475,6 +475,10 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
   const [weekPlaying,setWeekPlaying]=useState(!!resume);
   const [weekCue,setWeekCue]=useState<SceneCue|null>(null);
   const [morning,setMorning]=useState<MorningStep|null>(null);
+  // W-05 · while the week plays: the troubles still to come, so their warnings stay on the field until then
+  const [pending,setPending]=useState<Set<string>|null>(null);
+  // the kinds whose first event has begun: a flock that flew down does not come back for the second crows event
+  const startedKinds=useRef<Set<string>>(new Set());
   const pendingEvents=useRef<WeekEvent[]>([]);
   const pendingHarvest=useRef<{prev:GameState;next:GameState;rm:boolean}|null>(null);
   const morningTimers=useRef<number[]>([]);
@@ -762,7 +766,7 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
     running.current = false;
     setLeaving([]);setCompostFlight(null);setCompostArrival(null);setPestHits([]);
     setFloaters([]);
-    morningTimers.current.forEach(t=>clock.cancel(t));morningTimers.current=[];pendingEvents.current=[];morningHeld.current=new Set();setMorning(null);setWeekCue(null);setWeekPlaying(false);
+    morningTimers.current.forEach(t=>clock.cancel(t));morningTimers.current=[];pendingEvents.current=[];morningHeld.current=new Set();setMorning(null);setWeekCue(null);setWeekPlaying(false);setPending(null);
     setHidden(new Map());
     setTileFx([]);
     setMarks(new Map());
@@ -792,7 +796,7 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
     clearWeekResume(sRef.current);playbackRecord.current=null;playbackTimer.current=null;
     reveal([...morningHeld.current]);morningHeld.current.clear();
     const h=pendingHarvest.current;pendingHarvest.current=null;
-    setWeekPlaying(false);setWeekCue(null);ending.current=false;
+    setWeekPlaying(false);setWeekCue(null);setPending(null);ending.current=false;
     if(h)showHarvest(h.prev,h.next,h.rm);
   }
   function finishTurn() {
@@ -821,6 +825,8 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
     setMorning(null);setPestHits([]);setWeekCue(null);
     if(!events.length){finishHarvest();return;}
     const [event,...rest]=events;
+    eventKinds(event).forEach(k=>startedKinds.current.add(k));
+    setPending(new Set([...pendingKinds(rest)].filter(k=>!startedKinds.current.has(k))));
     const h=pendingHarvest.current;
     if(h){playbackRecord.current={version:1,prev:h.prev,next:h.next,events,elapsed,hidden:[...hiddenRef.current]};playbackTimer.current=null;}
     setWeekCue(event.cue?{...event.cue,elapsed:(event.cue.elapsed??0)+elapsed*(event.cue.rate??1)}:null);
@@ -888,6 +894,7 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
       sRef.current = next;
       const events=rm?[]:buildWeekPlayback(prev,next,fast?2.25:1.6,carried);
       pendingEvents.current=events;
+      startedKinds.current=new Set();setPending(pendingKinds(events));
       // The timeline owns these cues from now on, including after reload or skip.
       finishScenes(next,(next.scenes??[]).filter(e=>!(prev.scenes??[]).some(p=>p.id===e.id)));
       const held=new Set(prev.tiles.map((_,i)=>key(i%GRID,Math.floor(i/GRID))));
@@ -909,7 +916,8 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
   function showHarvest(prev: GameState, next: GameState, rm: boolean, held: Set<string> = new Set()) {
     const hs = next.lastReport?.harvests ?? [];
     if (hs.length && !rm) {
-      setFloaters(hs.map((h, i) => ({ key: floaterKey++, x: h.x, y: h.y, text: `+${h.qty}`, crop: h.crop, delay: 120 + i * 70 })));
+      // the ripe plant hops out of its bed into the chip (motion.css harvest-hop); the chip pops as it lands
+      setFloaters(hs.map((h, i) => ({ key: floaterKey++, x: h.x, y: h.y, text: `+${h.qty}`, crop: h.crop, fly: i * 70, delay: 300 + i * 70 })));
       later(2000 + hs.length * 70, () => setFloaters([]));
     }
     if (rm) return;
@@ -1438,7 +1446,8 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
   const scouting = kidsScouting(s);
   // the sky: this week's picture and the coming weeks; raids seen coming. The week being played shows its own sky.
   const tokens = useMemo(() => skyTokens(fieldState), [fieldState]);
-  const signs = useMemo(() => (weekPlaying || night !== 'off' ? [] : raidSigns(fieldState)), [fieldState, weekPlaying, night]);
+  // W-05 · the sky keeps the signs of the week on the field (last week's while it plays)
+  const signs = useMemo(() => raidSigns(fieldState), [fieldState]);
   const lastToken = useRef<{ abs: number; at: number } | null>(null);
   const skyView: SkyView = {
     tokens, signs, meteoMax: lvl(fieldState, 'meteo') >= 3,
@@ -1577,12 +1586,12 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
               yard={yard}
               px={px}
               queue={marks}
-              flock={weekPlaying||night!=='off'?'off':flock}
+              flock={weekPlaying?(crowsOpen(fieldState)?(pending&&!pending.has('crows')?'leave':'on'):'off'):night!=='off'?'off':flock}
               lens={lens}
               build={buildView}
               pets={s.pets}
               lifeActive={lifeActive&&pageVisible}
-              showWarnings={!weekPlaying&&night==='off'}
+              showWarnings={weekPlaying||night==='off'} pending={weekPlaying?pending:null}
               sceneCue={sceneCue}
               pestHits={pestHits} morning={morning}
               scouts={scouting && kidsAhead(s) <= 1}

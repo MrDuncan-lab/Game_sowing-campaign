@@ -219,7 +219,8 @@ h1, h2, h3 { font-family: var(--display); margin: 0; text-wrap: balance; letter-
 .area-overlay.k-fert { fill: rgba(104, 196, 56, 0.55); stroke: #2d6a17; stroke-width: 3; }
 .row-target { fill: rgba(255, 246, 168, 0.08); stroke: #fff4a3; stroke-width: 3; stroke-dasharray: 12 8; pointer-events: none; }
 .row-target.on { fill: rgba(255, 246, 168, 0.3); }
-.plant { animation: grow-in 0.45s cubic-bezier(0.3, 1.6, 0.5, 1); transform-origin: 50px 80px; }
+/* planting: the sprout pops out of the soil past its size and settles (keyframes and curve: motion.css) */
+.plant { animation: plant-sprout .44s linear; transform-origin: 50px 80px; }
 .sign-text { font-family: var(--display); font-weight: 800; font-size: 13px; fill: var(--ink); }
 .badge-text { font-family: var(--body); font-weight: 800; font-size: 13px; fill: #fff; }
 .badge-text.dark { fill: var(--ink); }
@@ -253,7 +254,6 @@ h1, h2, h3 { font-family: var(--display); margin: 0; text-wrap: balance; letter-
 .farmer-bubble { transform-box: fill-box; transform-origin: 50% 100%; animation: pop 0.25s ease-out; }
 
 @keyframes pulse { 50% { stroke-opacity: 0.35; } }
-@keyframes grow-in { from { transform: scale(0.4); opacity: 0.3; } to { transform: scale(1); opacity: 1; } }
 @keyframes buzz { 50% { transform: translate(3px, -5px); } }
 @keyframes hop { 50% { transform: translateY(-5px); } }
 @keyframes throb { 50% { transform: scale(1.15); } }
@@ -714,7 +714,7 @@ h1, h2, h3 { font-family: var(--display); margin: 0; text-wrap: balance; letter-
 @keyframes fx-ring { from { transform: scale(0.3); opacity: 0.9; } to { transform: scale(1.3); opacity: 0; } }
 .fx-seed { animation: fx-seed 0.45s ease-in both; }
 @keyframes fx-seed { from { transform: translateY(-10px); opacity: 0; } 30% { opacity: 1; } to { transform: translateY(46px); opacity: 0; } }
-.fx-sprout { transform-box: fill-box; transform-origin: 50% 100%; animation: fx-sprout 0.6s cubic-bezier(0.2, 1.6, 0.5, 1) 0.25s both; }
+.fx-sprout { transform-box: fill-box; transform-origin: 50% 100%; animation: fx-sprout 0.6s var(--e-spring) 0.25s both; }
 @keyframes fx-sprout { from { transform: scale(0); } 70% { transform: scale(1.15); opacity: 1; } to { transform: scale(1); opacity: 0; } }
 .fx-spark { transform-box: fill-box; transform-origin: center; animation: fx-spark 0.7s ease-out both; }
 @keyframes fx-spark { from { transform: scale(0) rotate(0); opacity: 0; } 40% { transform: scale(1.2) rotate(45deg); opacity: 1; } to { transform: scale(0.6) rotate(90deg) translateY(-12px); opacity: 0; } }
