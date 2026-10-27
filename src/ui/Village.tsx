@@ -9,7 +9,7 @@
 // its foot is clear. The sky over the field thins to a veil as the field goes, so nothing tall is cut by it.
 import type { ComponentChildren, RefObject } from 'preact';
 import { useEffect, useRef } from 'preact/hooks';
-import { V_ANCHORS, V_BOTTOM, V_CART, V_LAYERS, V_ROADS, V_VH, V_W } from '../art/village/chernozem';
+import { V_ANCHORS, V_BOTTOM, V_CART, V_SEASON_CSS, V_SUMMER, V_VH, V_W, V_WINTER } from '../art/village/chernozem';
 import { ORGS, type OrgId } from '../engine/data';
 import { GameState, deliverProblem, friends, locOf, lvl, nextPayment, paymentSchedule, thievesBlocked, yearLen } from '../engine/game';
 import { CropSprite } from '../art/crops';
@@ -20,6 +20,8 @@ import { compactMoney } from './common';
 
 const INK = '#3f2a1d';
 export const hasVillage = (s: GameState) => s.loc === 'chernozem';
+/** which drawing of the village stands: the winter one in winter, the summer one (recoloured by season) the rest */
+export const villageDrawing = (s: GameState) => (s.season === 3 ? 'winter' : 'summer');
 export type VillageMode = 'field' | 'between' | 'village';
 export interface VillageApi {
   available: boolean;
@@ -132,11 +134,13 @@ export function Village({ s, rootRef, onPlace }: { s: GameState; rootRef: RefObj
     const g = (e.target as Element | null)?.closest?.('.spot-g.up');
     if (g) { e.preventDefault(); onPlace((g as SVGGElement).dataset.k ?? ''); }
   };
+  const dr = villageDrawing(s) === 'winter' ? V_WINTER : V_SUMMER;
   return (
     <div class={`village season-${s.season} ${villageClasses(s)}`} ref={rootRef} onClick={click} onKeyDown={key} aria-label="Деревня">
-      <svg class="v-defs" width="0" height="0" aria-hidden="true"><defs><g id="v-roads" dangerouslySetInnerHTML={{ __html: V_ROADS }} /></defs></svg>
-      {V_LAYERS.map((l) => (
-        <div class="v-lay" data-k={l.k} data-r={l.rate} key={l.k}>
+      <style>{V_SEASON_CSS}</style>
+      <svg class="v-defs" width="0" height="0" aria-hidden="true"><defs dangerouslySetInnerHTML={{ __html: `${dr.defs}<g id="v-roads">${dr.roads}</g>` }} /></svg>
+      {dr.layers.map((l) => (
+        <div class="v-lay" data-k={l.k} data-r={l.rate} key={`${villageDrawing(s)}-${l.k}`}>
           <svg class="v-lay-svg" viewBox={`0 0 ${V_W} ${V_BOTTOM}`} aria-hidden={l.k === 'sky' ? 'true' : undefined}>
             <g class="v-art" dangerouslySetInnerHTML={{ __html: l.svg }} />
             <g class="v-ov">{ov[l.k]}</g>
@@ -167,6 +171,8 @@ export function useVillagePager(o: {
   onMode: (m: VillageMode) => void;
   cart: { run: number; key: string };
   reduce: boolean;
+  /** the drawing on show ('summer' or 'winter'): when it changes the houses and trees are new elements */
+  drawing: string;
 }): VillageApi {
   const st = useRef({ s: 0, u: 1, HS: 600, S1: 400, S2: 600, T: 1000, band: 60, fc: 100, anim: 0, mode: 'field' as VillageMode, ready: false,
     pops: [] as Pop[], lays: [] as Lay[], trees: [] as Tree[], solid: -1, carts: [] as SVGGElement[], bubbles: [] as SVGGElement[],
@@ -434,7 +440,7 @@ export function useVillagePager(o: {
     };
   }, [o.enabled]);
   // the sky and the field's crest move with the layout: keep the stop, recompute the rest
-  useEffect(() => { if (o.enabled) measure(); }, [o.skyH, o.crest]);
+  useEffect(() => { if (o.enabled) measure(); }, [o.skyH, o.crest, o.drawing]);
   // a new week moves the cart's goal: seen from the village it rolls there at once
   useEffect(() => { if (o.enabled && st.current.mode === 'village') rollCart(); else if (o.enabled) queue(); }, [o.cart.run, o.cart.key]);
 

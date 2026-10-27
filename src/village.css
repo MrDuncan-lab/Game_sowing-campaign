@@ -5,8 +5,14 @@
 .field-view > .field-wrap, .field-view > .dock { position: relative; z-index: 1; }
 .field-view > .dock { will-change: transform; }
 
-.village { position: absolute; inset: 0; z-index: 0; overflow: hidden; background: #cdeaf3; contain: strict; }
+.village { position: absolute; inset: 0; z-index: 0; overflow: hidden; background: #cfd9cf; contain: strict; }
 .village .v-defs { position: absolute; width: 0; height: 0; }
+/* the drawing's ink (tools/village/hy.py): a line, an outline round a fill, a line in its own colour */
+.village { --vk: #3a2a1f; }
+.village.season-3 { --vk: #33283a; }
+.village .k { fill: none; stroke: var(--vk); stroke-linecap: round; stroke-linejoin: round; }
+.village .kn { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.village .kf { stroke: var(--vk); stroke-linejoin: round; }
 .village .v-lay { position: absolute; left: 0; top: 0; width: 100%; will-change: transform; pointer-events: none; }
 .village .v-lay-svg { display: block; width: 100%; height: auto; overflow: visible; }
 .village .hill { pointer-events: visiblePainted; }
@@ -35,7 +41,8 @@
 .village .vb-box { fill: #fffaf0; stroke: #3f2a1d; stroke-width: 1.4; stroke-linejoin: round; }
 .village .v-bubble.offer .vb-box { fill: #fff3c4; stroke: #a77b14; }
 .village .v-bubble.ready .vb-box { fill: #e4f2d3; stroke: #4f7d3a; }
-.village .v-bubble.hot .vb-box { stroke: #c23a2c; }
+.village .v-bubble.order .vb-box { stroke: #c8402f; stroke-width: 1.6; }
+.village .v-bubble.hot .vb-box { stroke: #c23a2c; stroke-width: 2.2; }
 .village .vb-text { font: 800 10.5px var(--ui); fill: #3f2a1d; }
 .village .v-bubble.offer .vb-text { font-size: 15px; fill: #a77b14; }
 .village .v-bubble.hot .vb-text { fill: #c23a2c; }
@@ -49,7 +56,7 @@
 .village .v-kids { pointer-events: none; }
 
 /* ---------- life in the village: everything that moves comes back the way it went, nothing jumps ---------- */
-.village .smoke .pf { fill: #f1ece2; stroke: #b9a98a; stroke-width: 1; opacity: 0; animation: v-pf 3.6s ease-out infinite; }
+.village .smoke .pf { fill: #f4efe6; stroke: #a79a86; stroke-width: .6; opacity: 0; animation: v-pf 3.6s ease-out infinite; }
 .village .smoke .pf1 { animation-delay: 1.2s; } .village .smoke .pf2 { animation-delay: 2.4s; }
 @keyframes v-pf { 0% { opacity: 0; transform: translate(0, 0) scale(.5); } 15% { opacity: .95; } 100% { opacity: 0; transform: translate(7px, -26px) scale(1.25); } }
 .village .flagw { transform-box: fill-box; transform-origin: 0 50%; animation: v-flag 1.6s ease-in-out infinite; }
@@ -92,14 +99,8 @@
 /* on the field the village is behind it: its life waits */
 .village.v-asleep * { animation-play-state: paused !important; }
 
-/* seasons on the hills */
-.village.season-1 .hg0 { stop-color: #b5d886; } .village.season-1 .hg1 { stop-color: #97c766; }
-.village.season-2 .hg0 { stop-color: #d8d58e; } .village.season-2 .hg1 { stop-color: #c2c477; }
-.village.season-2 .v-lay[data-k="E"] .hg0, .village.season-2 .v-lay[data-k="F"] .hg0 { stop-color: #c9cf7c; }
-.village.season-2 .v-lay[data-k="E"] .hg1, .village.season-2 .v-lay[data-k="F"] .hg1 { stop-color: #b3bc69; }
-.village.season-3 .hg0 { stop-color: #f3f7fa; } .village.season-3 .hg1 { stop-color: #dce6ee; }
-.village.season-3 .v-lay[data-k="F"] .hg1, .village.season-3 .v-lay[data-k="E"] .hg1 { stop-color: #d2dee8; }
-.village.season-3 { background: #e4edf3; }
+/* seasons: winter has its own drawing; spring and autumn recolour the summer one (V_SEASON_CSS, generated) */
+.village.season-3 { background: #e0e5f2; }
 
 /* ---------- the field view around it ---------- */
 .field-view .field-move { position: relative; z-index: 2; width: 100%; flex: none; margin-top: var(--vpeek, 0px); will-change: transform; }
