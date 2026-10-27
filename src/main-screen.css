@@ -1,0 +1,171 @@
+/* ============================================================================================================
+   The main screen (27.10, concept A2 «Рука снизу»).
+   One thin bar on top: money and the payment, the week and its working days. The sky carries the forecast and,
+   on the horizon, the village — the way to the sections. The field takes the width; nothing lies over it.
+   Under the field: the deck on the left, the toolbox on the right (it unfolds into the journal, the lenses and
+   the buildings), the fan of big cards, and «Конец недели» in the bottom right corner, under the thumb.
+   ============================================================================================================ */
+
+/* ---------- the top bar ---------- */
+.farm > .topbar.main-bar { display: grid; grid-template-columns: auto auto auto minmax(0, 1fr) auto; align-items: center; gap: 6px;
+  min-height: 46px; padding: calc(3px + env(safe-area-inset-top, 0px)) 8px 3px 4px; }
+.farm > .topbar.main-bar .menu-btn, .farm > .topbar.main-bar .back-btn { position: relative; width: 34px; height: 34px; display: grid; place-items: center;
+  border: 0; border-radius: 9px; background: none; box-shadow: none; padding: 0; }
+.farm > .topbar.main-bar .back-btn svg, .farm > .topbar.main-bar .menu-btn svg { width: 22px; height: 22px; }
+.farm > .topbar.main-bar .menu-dot { position: absolute; top: 4px; right: 3px; width: 9px; height: 9px; border-radius: 50%; background: #d0503c; border: 1.5px solid var(--c-bar); }
+.farm > .topbar.main-bar .tb-money { padding: 0; font-variant-numeric: lining-nums; white-space: nowrap; }
+.farm > .topbar.main-bar .tb-pay { min-width: 0; align-items: flex-start; padding: 2px 8px 6px; line-height: 1.05; }
+.farm > .topbar.main-bar .tb-pay b { font: 700 15px/1.05 var(--display); white-space: nowrap; }
+.farm > .topbar.main-bar .tb-pay small { font-size: 11px; white-space: nowrap; }
+.farm > .topbar.main-bar .tb-date { justify-self: end; text-align: right; min-width: 0; overflow: hidden; }
+.farm > .topbar.main-bar .tb-date b { display: block; font-size: 15px; white-space: nowrap; }
+.farm > .topbar.main-bar .tb-date small { display: block; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.farm > .topbar.main-bar .tb-days { display: flex; align-items: center; gap: 4px; padding-left: 2px; color: var(--c-ink); }
+.farm > .topbar.main-bar .tb-days > b { font: 700 23px/1 var(--display); font-variant-numeric: lining-nums; }
+.farm > .topbar.main-bar .tb-days > span { display: flex; flex-direction: column; gap: 3px; line-height: 1; }
+.farm > .topbar.main-bar .tb-days small { font: 500 11px/1 var(--ui); color: var(--c-soft); }
+.farm > .topbar.main-bar .day-pips { display: flex; gap: 3px; }
+.farm > .topbar.main-bar .day-pips i { width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid #c9b48a; background: transparent; }
+.farm > .topbar.main-bar .day-pips i.on { background: var(--c-goldfill); border-color: #8a5a22; }
+@media (max-width: 359px) {
+  .farm > .topbar.main-bar { gap: 4px; padding-right: 6px; }
+  .farm > .topbar.main-bar .tb-pay { padding: 2px 6px 6px; }
+  .farm > .topbar.main-bar .tb-pay small { font-size: 10px; }
+  .farm > .topbar.main-bar .tb-date b { font-size: 13.5px; }
+  .farm > .topbar.main-bar .tb-date small { font-size: 10px; }
+  .farm > .topbar.main-bar .day-pips i { width: 7px; height: 7px; }
+}
+/* the sections in the menu sheet (and in the village) */
+.menu-sections { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.menu-section { position: relative; display: flex; align-items: center; gap: 8px; min-height: 52px; padding: 6px 10px; border: 1px solid var(--c-line);
+  border-radius: 12px; background: #fffaf0; color: var(--c-ink); font: 700 15px/1.1 var(--display); text-align: left; cursor: pointer; }
+.menu-section:active { transform: translateY(1px); }
+.menu-section .tab-badge { position: absolute; top: -6px; right: -4px; }
+
+/* ---------- the sky: the village on the horizon ---------- */
+.field-view .v-sign { position: absolute; right: 8px; z-index: 3; display: flex; align-items: center; gap: 2px; height: 30px; padding: 0 9px 0 3px;
+  border: 1.5px solid var(--c-brown); border-radius: 15px; background: #fbf3df; box-shadow: 0 1px 0 rgba(63, 42, 29, .3); cursor: pointer; color: var(--c-ink); }
+.field-view .v-sign > svg { width: 26px; height: 26px; }
+.field-view .v-sign > span { display: flex; align-items: center; gap: 3px; font: 700 12px/1 var(--ui); white-space: nowrap; }
+.field-view .v-sign > span svg { width: 10px; height: 10px; }
+.field-view .v-sign.news > span::after { content: ''; width: 7px; height: 7px; margin-left: 2px; border-radius: 50%; background: #d0503c; }
+.field-view .v-sign:active { transform: translateY(1px); }
+.field-view:not(.v-field) .v-sign { display: none; }
+
+/* ---------- the dock: deck · what the moment needs · toolbox ---------- */
+.farm .field-view .dock { position: relative; padding: 0 6px calc(4px + env(safe-area-inset-bottom, 0px)); }
+.farm .field-view .dock .dock-top { position: relative; z-index: 75; display: flex; align-items: center; gap: 8px; height: 50px; min-height: 0; padding: 4px 2px 0; }
+.farm .field-view .dock-top > .exchange-deck.deck-pile { flex: none; display: flex; flex-direction: row; align-items: center; gap: 6px; width: auto; height: 44px;
+  margin: 0; padding: 0 4px 0 2px; border: 0; background: none; box-shadow: none; }
+.farm .field-view .dock-top > .exchange-deck .deck-back { width: 30px; height: 42px; aspect-ratio: auto; transform: none; }
+.farm .field-view .dock-top > .exchange-deck .deck-back i { display: block; border-radius: 6px; border-width: 1.5px;
+  background: repeating-linear-gradient(45deg, #8a5a33 0 4px, #7a4c28 4px 8px); }
+.farm .field-view .dock-top > .exchange-deck .deck-back i:nth-child(1) { transform: rotate(-8deg) translate(-2px, 1px); }
+.farm .field-view .dock-top > .exchange-deck .deck-back i:nth-child(2) { transform: rotate(5deg) translate(2px, 0); }
+.farm .field-view .dock-top > .exchange-deck .deck-back b.deck-count { position: absolute; inset: auto; left: 3px; top: 9px; width: 24px; height: 24px; margin: 0; padding: 0;
+  display: grid; place-items: center; border-radius: 50%; background: #fbf3df; border: 1.5px solid var(--c-ink); color: var(--c-ink); text-shadow: none;
+  font: 700 12px/1 var(--display); transform: none; }
+.farm .field-view .dock-top > .exchange-deck small { font: 700 11px/1.05 var(--ui); color: var(--c-brown); text-align: left; white-space: nowrap; }
+.farm .field-view .dock-top > .exchange-deck.choosing .deck-back { outline: 3px solid #f2c13f; outline-offset: 2px; border-radius: 6px; }
+.farm .field-view .dock-top > .exchange-deck:disabled { opacity: .55; }
+.farm .field-view .dock-say { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; gap: 8px; font: 500 12.5px/1.2 var(--ui); color: var(--c-ink); text-align: center; }
+.farm .field-view .dock-say > strong { font: 700 14px/1.1 var(--display); }
+.farm .field-view .dock-say > small { color: var(--c-soft); }
+.farm .field-view .dock-say .exchange-cancel { padding: 4px 10px; border: 1px solid var(--c-line); border-radius: 999px; background: #fffaf0; font: 700 12px/1 var(--ui); }
+.farm .field-view .dock-say .card-tools { display: flex; align-items: center; gap: 8px; }
+.farm .field-view .dock-say .field-voice, .farm .field-view .dock-say > span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+
+/* the toolbox: one round button; three round tools unfold from it along an arc, up and to the left */
+.farm .field-view .toolbox { position: relative; flex: none; width: 46px; height: 46px; }
+.farm .field-view .toolbox .tool-btn { width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; padding: 0;
+  background: #fbf3df; border: 2px solid var(--c-brown); box-shadow: 0 2px 0 rgba(63, 42, 29, .35); color: var(--c-ink); }
+.farm .field-view .toolbox .toolbox-btn { position: relative; z-index: 2; touch-action: manipulation; }
+.farm .field-view .toolbox .toolbox-btn > svg { width: 30px; height: 30px; }
+.farm .field-view .toolbox.open .toolbox-btn { background: #f2c13f; border-color: var(--c-ink); }
+.farm .field-view .toolbox .toolbox-btn.on { background: #fff1b8; border-color: #a77b14; box-shadow: 0 0 0 3px rgba(242, 193, 63, .45); }
+.farm .field-view .toolbox .tool-btn > i { position: absolute; top: -2px; right: -2px; width: 11px; height: 11px; border-radius: 50%; background: #d0503c; border: 2px solid #fbf3df; }
+.farm .field-view .toolbox:active .toolbox-btn { transform: translateY(1px); }
+.farm .field-view .tool-arc { position: absolute; right: 0; bottom: 0; width: 46px; height: 46px; z-index: 1; pointer-events: none; }
+.farm .field-view .tool-arc .arc-btn { position: absolute; left: 0; top: 0; --a: calc(180deg - var(--i) * 45deg); --r: 80px;
+  transform: translate(0, 0) scale(.35); opacity: 0; pointer-events: none;
+  transition: transform 140ms cubic-bezier(.55, 0, 1, .45), opacity 120ms linear; }
+.farm .field-view .tool-arc .arc-btn small { position: absolute; left: 50%; top: calc(100% + 2px); transform: translateX(-50%); padding: 1px 5px; border-radius: 6px;
+  background: rgba(251, 243, 223, .95); font: 700 10.5px/1.1 var(--ui); white-space: nowrap; color: var(--c-ink); }
+.farm .field-view .toolbox.open .arc-btn { opacity: 1; pointer-events: auto;
+  transform: translate(calc(cos(var(--a)) * var(--r)), calc(sin(var(--a)) * var(--r) * -1)) scale(1);
+  transition: transform 260ms cubic-bezier(.34, 1.56, .64, 1) calc(var(--i) * 40ms), opacity 140ms linear calc(var(--i) * 40ms); }
+.farm .field-view .toolbox .arc-btn:disabled { opacity: .5; }
+.farm .field-view .toolbox.open .arc-btn:disabled { opacity: .55; }
+@media (prefers-reduced-motion: reduce) {
+  .farm .field-view .tool-arc .arc-btn, .farm .field-view .toolbox.open .arc-btn { transition: opacity 120ms linear; }
+}
+
+/* the hand leaves the bottom right corner to «Конец недели» */
+.farm .field-view .dock .hand-row { padding-right: 70px; }
+@media (min-width: 640px) { .farm .field-view .dock .hand-row { padding-right: 70px; } }
+
+/* ---------- «Конец недели»: the most pressed button, under the right thumb ---------- */
+.farm .field-view .dock .end-week.endw { position: absolute; right: 8px; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); z-index: 80;
+  width: 60px; height: 70px; min-height: 0; margin: 0; padding: 4px 2px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  border-radius: 20px; border: 2.5px solid var(--c-ink); background: #f2c13f; color: var(--c-ink);
+  box-shadow: 0 3px 0 var(--c-ink), 0 8px 16px rgba(40, 28, 10, .25); touch-action: manipulation; }
+.farm .field-view .dock .end-week.endw svg { width: 28px; height: 28px; flex: none; }
+.farm .field-view .dock .end-week.endw small { font: 700 12px/1.02 var(--ui); text-align: center; color: inherit; }
+.farm .field-view .dock .end-week.endw:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 1px 0 var(--c-ink), 0 4px 10px rgba(40, 28, 10, .2); }
+.farm .field-view .dock .end-week.endw:disabled { opacity: .6; }
+.farm .field-view .dock .end-week.endw.ready { animation: endw-ready 1.6s var(--e-breath, ease-in-out) infinite; }
+.farm .field-view .dock .end-week.endw.pay-due { background: #fbe3dc; border-color: #8e2a1e; color: #8e2a1e; box-shadow: 0 3px 0 #8e2a1e; }
+@keyframes endw-ready { 0%, 100% { box-shadow: 0 3px 0 var(--c-ink), 0 0 0 0 rgba(242, 193, 63, .0); } 50% { box-shadow: 0 3px 0 var(--c-ink), 0 0 0 7px rgba(242, 193, 63, .45); } }
+@media (prefers-reduced-motion: reduce) { .farm .field-view .dock .end-week.endw.ready { animation: none; box-shadow: 0 3px 0 var(--c-ink), 0 0 0 4px rgba(242, 193, 63, .5); } }
+.farm .field-view .dock .end-warn { position: absolute; right: 6px; bottom: calc(88px + env(safe-area-inset-bottom, 0px)); z-index: 80; max-width: 150px; padding: 3px 7px;
+  border-radius: 9px; border: 1.5px solid #8e2a1e; background: #fbe3dc; color: #8e2a1e; font: 700 11px/1.15 var(--ui); text-align: right; pointer-events: none; }
+
+/* ---------- the hand: the card under the finger grows from its bottom edge ---------- */
+.farm .field-view .fan-slot.peek { transform-origin: 50% 100%; }
+.farm .field-view .fan-slot.peek .card { box-shadow: 0 0 0 3px #f2c13f, 0 14px 26px rgba(40, 28, 10, .38); }
+
+/* ---------- the card in the hand (FanCard) ---------- */
+.card.p2 { position: relative; display: block; width: var(--cw, 90px); height: calc(var(--cw, 90px) * 1.4); padding: 0; overflow: hidden; text-align: left;
+  font-size: calc(var(--cw, 90px) / 7.4); color: var(--c-ink, #3f2a1d); border-radius: .85em; border: 2px solid #5e3b22; background: #fbf3df;
+  box-shadow: 0 2px 0 rgba(63, 42, 29, .35), 0 6px 14px rgba(40, 28, 10, .16); cursor: pointer; font-variant-numeric: lining-nums; }
+.card.p2 .p2-win { position: absolute; left: 4.5%; right: 4.5%; top: 3.5%; height: 50%; border-radius: .6em; background: var(--tint);
+  border: 1.5px solid rgba(63, 42, 29, .22); display: grid; place-items: center; overflow: hidden; }
+.card.p2 .p2-win { place-items: center start; }
+.card.p2 .p2-win.fig > span { width: 100%; height: 100%; display: flex; align-items: center; justify-content: flex-start; padding-left: 2%; }
+.card.p2 .p2-win .shape-art { width: auto; height: 94%; max-width: 100%; }
+.card.p2 .p2-win .sa-soil { fill: #8a5a33; stroke: #4a2d18; stroke-width: 1.4; }
+.card.p2 .p2-icon { position: absolute; left: 0; top: 4%; width: 74%; height: 92%; display: grid; place-items: center; }
+.card.p2 .p2-icon svg { width: 100%; height: 100%; }
+.card.p2 .p2-glyph { position: absolute; right: 5%; top: 6%; }
+.card.p2 .p2-glyph .shape-glyph rect { fill: var(--ink2); opacity: .85; }
+.card.p2 .p2-day { position: absolute; left: 1px; top: 1px; z-index: 2; width: 1.75em; height: 1.75em; border-radius: 50%; background: #f2c13f; border: 2px solid #3f2a1d;
+  display: grid; place-items: center; font: 700 1.05em/1 var(--display); color: #3f2a1d; }
+.card.p2 .p2-name { position: absolute; left: .55em; right: .4em; top: 56%; font: 700 1.12em/1.05 var(--display); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card.p2 .p2-main { position: absolute; left: .5em; top: 68.5%; display: flex; align-items: baseline; gap: .15em; color: var(--ink2); white-space: nowrap; }
+.card.p2 .p2-main b { font: 800 1.75em/1 var(--display); }
+.card.p2 .p2-main small { font: 700 .95em/1 var(--ui); }
+.card.p2 .p2-sub { position: absolute; left: .6em; right: 2.6em; bottom: .55em; font: 500 .88em/1.05 var(--ui); color: #6e5038; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card.p2 .p2-temp { position: absolute; right: 6.5%; top: calc(3.5% + 50% - 1.55em); z-index: 2; padding: .12em .4em; border-radius: .7em; background: rgba(255, 250, 240, .92);
+  border: 1px solid rgba(63, 42, 29, .3); font: 700 .78em/1.1 var(--ui); color: #6e5038; white-space: nowrap; }
+.card.p2 .p2-temp.warm { color: #b8561a; }
+.card.p2 .p2-temp.cold { color: #3d6b8c; }
+.card.p2 .p2-price { position: absolute; right: .55em; bottom: .55em; font: 700 .88em/1 var(--ui); color: #6e5038; white-space: nowrap; }
+.card.p2 .p2-price.debt { color: #b3362d; }
+.card.p2 .p2-turn { position: absolute; right: 2px; top: 2px; z-index: 3; width: 1.9em; height: 1.9em; border-radius: 50%; display: grid; place-items: center;
+  background: #fffaf0; border: 2px solid #3f2a1d; color: #3f2a1d; box-shadow: 0 1px 0 #3f2a1d; animation: pill-in .25s ease-out; }
+.card.p2 .p2-turn svg { width: 1.2em; height: 1.2em; }
+.card.p2 .pc-keep { position: absolute; right: 3px; top: 50%; z-index: 3; }
+.card.p2 .temp-card-tag { position: absolute; left: 50%; bottom: 2px; transform: translateX(-50%); }
+.card.p2.selected { box-shadow: 0 0 0 3px #f2c13f, 0 12px 16px rgba(63, 42, 29, .35); }
+.card.p2.blocked { filter: saturate(.55) brightness(.94); }
+.card.p2.blocked .p2-win { opacity: .8; }
+.fan-slot .card.p2 { width: var(--cw); height: calc(var(--cw) * 1.4); }
+
+/* ---------- the field answers for the picked card: harvest over the footprint, or why not ---------- */
+.scene-svg .field-note rect { fill: #eef7dc; stroke: #2f5f20; stroke-width: 1.6; }
+.scene-svg .field-note text { font: 700 12px/1 var(--ui, sans-serif); fill: #2f5f20; }
+.scene-svg .field-note.bad rect { fill: #fbe3dc; stroke: #8e2a1e; }
+.scene-svg .field-note.bad text { fill: #8e2a1e; }
+.scene-svg .field-note { animation: note-in 180ms cubic-bezier(.22, 1, .36, 1); }
+@keyframes note-in { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .scene-svg .field-note { animation: none; } }

@@ -82,6 +82,17 @@ export function skySlots(W: number, n: number, clear = false): { x: number; y: n
   return out;
 }
 
+// this week's weather tints the sky (the season's colours stay on the hills)
+const WEATHER_SKY: Partial<Record<SkyKind, [string, string]>> = {
+  rain: ['#93a6b3', '#cdd6d6'],
+  hail: ['#7f8d99', '#bcc4c6'],
+  flood: ['#8597a4', '#c3ccce'],
+  cloud: ['#b6cbd6', '#e3ebe3'],
+  cold: ['#bccdd8', '#e6eef0'],
+  frost: ['#c3d3e0', '#eef3f6'],
+  hot: ['#cfe4ee', '#f6efcf'],
+  dry: ['#d6e3e6', '#f4e9c6'],
+};
 const SEASON_SKY = [
   ['#c4e6f6', '#eef7e0', '#c4e39a', '#a9d27f'],
   ['#bfe4f6', '#eef7e0', '#b9dd8a', '#a9d27f'],
@@ -151,7 +162,9 @@ export interface SkyBandProps {
 }
 export function SkyBand({ W, season, tokens, signs, meteoMax, px, onToken, onFog, onSign, clear = false, ext = 0 }: SkyBandProps) {
   const H = SKY_H;
-  const [top, bottom, hill, front] = SEASON_SKY[season] ?? SEASON_SKY[1];
+  const [top0, bottom0, hill, front] = SEASON_SKY[season] ?? SEASON_SKY[1];
+  // the sky over the field is this week's weather: grey in the rain, darker still under hail and flood
+  const [top, bottom] = WEATHER_SKY[tokens[0]?.kind ?? ''] ?? [top0, bottom0];
   const slots = skySlots(W, tokens.length, clear);
   const last = slots[slots.length - 1];
   const fogX = last ? last.x + 36 * last.sc : W * 0.4;

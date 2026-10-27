@@ -199,6 +199,79 @@ export function cardDaysText(s: GameState, card: CardLike): string {
   return def === 'fertilizer' ? `от ${d} дн. — по размеру посадки` : `${d} дн.`;
 }
 
+// The colour of a card's window: the crop is known by it before its picture is read. [window, ink of the numbers]
+const TINT: Record<string, [string, string]> = {
+  radish: ['#f7d9d4', '#b3362d'], bean: ['#d9ecc4', '#3e7a2a'], potato: ['#efdfb8', '#8a5a22'], buckwheat: ['#ecdcd6', '#8a4a3a'],
+  pumpkin: ['#f8dcb8', '#b8621a'], wheat: ['#f3e3a8', '#8a6a12'], sunflower: ['#f8e7a0', '#9a6a00'], corn: ['#ecefb0', '#6f7a12'],
+  tomato: ['#f6d0c8', '#b02a1e'], carrot: ['#f8d8b8', '#b8561a'], onion: ['#f6e4ae', '#9a6a12'], cabbage: ['#dcefd0', '#3f7a3a'],
+  garlic: ['#ece2ee', '#6e4a7a'], rye: ['#efe2b8', '#7a6418'], strawberry: ['#f8d4da', '#b02a44'], watermelon: ['#d6ecc8', '#2f7a3a'],
+  rice: ['#e4efd6', '#4e7a2a'], seabuckthorn: ['#f8dcb0', '#b0601a'], cranberry: ['#f2d0d6', '#9a1e36'], honey: ['#f6e2a8', '#94600e'],
+  mushrooms: ['#eadcc8', '#6e4a2a'],
+};
+const WORK_TINT: Record<string, [string, string]> = {
+  water: ['#d3e9f6', '#2f6f9a'], shelter: ['#dbe7ef', '#3d6b8c'], snow: ['#e2eef6', '#3d6b8c'], mulch: ['#efe2b8', '#7a6418'],
+  fertilizer: ['#e2ecc8', '#4e6a1a'], care: ['#dcefd0', '#3f7a3a'], weeding: ['#dcefd0', '#3f7a3a'], compost: ['#e6d8c4', '#6e4a2a'],
+  bio: ['#d4ece6', '#2a6e5e'], early: ['#f8dcb8', '#a8561a'], helpers: ['#e6def0', '#5e4a8a'], sidejob: ['#f6e4ae', '#8a6a12'], forage: ['#e0e6c8', '#5a6a2a'],
+};
+export function cardTint(def: string): [string, string] {
+  const d = CARDS[def];
+  return (d?.kind === 'seed' ? TINT[d.crop!] : WORK_TINT[def]) ?? ['#efe6d0', '#5e3b22'];
+}
+
+/** The card as it lies in the hand on the field: a coloured window with the crop's planting figure (it turns
+ *  with the card), the day coin, the name, the harvest in big figures, the weeks and the seed price. In a tight
+ *  fan the left strip — window, coin, the first figure — stays readable; the card under the finger grows and
+ *  shows all of it. */
+export function FanCard({ s, card, selected, blocked, onClick, rot = 0, onPointerDown }: {
+  s: GameState;
+  card: { def: string; extra?: [number, number][]; traits?: TraitId[]; temp?: boolean; keep?: boolean };
+  selected?: boolean; blocked?: string | null; onClick?: () => void; rot?: number;
+  onPointerDown?: (e: JSX.TargetedPointerEvent<HTMLButtonElement>) => void;
+}) {
+  const d = CARDS[card.def];
+  const days = cardDaysShown(s, card);
+  const price = cardPrice(s, card);
+  const st = cardStat(s, card);
+  const rotatable = d.target === 'line' || (d.kind === 'seed' && shapeRotations(card).length > 1);
+  const minT = d.crop ? cropMinT(d.crop, card.traits) : null;
+  const sub = d.kind === 'seed' ? st.sub.replace('рост ', '') : SHORT_SUB[card.def] ?? st.sub;
+  const m = /^([+−-]?[\d,.×%]+(?:\s?₽)?)\s*(.*)$/.exec(st.main);
+  const [tint, ink] = cardTint(card.def);
+  return (
+    <button
+      type="button"
+      data-card-uid={'uid' in card?String(card.uid):undefined}
+      class={`card p2 kind-${d.kind}${card.temp ? ' temp' : ' perm'}${card.keep ? ' kept' : ''}${selected ? ' selected' : ''}${blocked ? ' blocked' : ''}`}
+      style={{ ['--tint' as string]: tint, ['--ink2' as string]: ink }}
+      onClick={onClick}
+      onPointerDown={onPointerDown}
+      aria-pressed={selected}
+      aria-label={`${d.name}. ${st.main} ${sub}. ${card.def==='fertilizer'?'От ':''}${days} ${plural(days, 'день', 'дня', 'дней')}${price > 0 ? `, ${rub(price)} ₽` : ''}${blocked ? `. ${blocked}` : ''}`}
+      title={`${d.name}. ${cardDescription(s,card.def)}${blocked ? ` — ${blocked}` : ''}`}
+    >
+      <span class={`p2-win${d.kind === 'seed' ? ' fig' : ''}`}>
+        {d.kind === 'seed'
+          ? <span key={rot} class={selected ? 'shape-turn' : 'shape-still'}><ShapeArt card={card} rot={rot} /></span>
+          : <>
+              <span class="p2-icon"><CardArt def={card.def} size={64} /></span>
+              <span key={rot} class={`p2-glyph ${selected ? 'shape-turn' : 'shape-still'}`}><ShapeGlyph def={card.def} rot={rot} cell={6} irrigated={wlvl(s,'irrigator')>0} /></span>
+            </>}
+      </span>
+      <span class="p2-day" aria-hidden="true">{card.def === 'fertilizer' ? `${days}+` : days}</span>
+      <span class="p2-name">{d.name}</span>
+      <span class="p2-main">{m ? <><b>{m[1]}</b>{m[2] && <small>{m[2]}</small>}</> : <b>{st.main}</b>}</span>
+      <span class="p2-sub">{sub}</span>
+      {minT !== null && <span class={`p2-temp${minT >= 12 ? ' warm' : minT <= 3 ? ' cold' : ''}`} title={`Растёт, когда почва не холоднее ${minT}°`}>от {minT > 0 ? '+' : ''}{minT}°</span>}
+      {price > 0 && <span class={`p2-price${d.kind === 'seed' && s.money < price ? ' debt' : ''}`}>{rub(price)} ₽</span>}
+      {selected && rotatable && <span class="p2-turn" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M18.5 9.5 A7 7 0 1 0 19 14" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/><path d="M19.5 4.5 V10 H14" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>}
+      {card.keep && <span class="pc-keep" title="Отложена на следующую неделю" aria-hidden="true"><PinIcon /></span>}
+      <TraitBadges traits={card.traits} />
+      {!!card.extra?.length && <span class="up-tag" title={`Селекция: +${card.extra.length} кл. (до ${maxExtra(s)})`}>+{card.extra.length}</span>}
+      {card.temp && <span class="temp-card-tag">разовая</span>}
+    </button>
+  );
+}
+
 export function CardView({
   s, card, selected, blocked, onClick, compact, rot = 0, onPointerDown, rotHint, mini, noPrice,
 }: {
