@@ -4,7 +4,42 @@ import type { CropId } from '../engine/data';
 import { CropIcon } from './crops';
 const INK = '#3f2a1d';
 
-export function BarnInside({ lots, used, cap, yard }: { lots: [CropId, number][]; used: number; cap: number; yard: number }) {
+/** `tall` — the barn's screen: the same shelves with the roof beams and a lamp above, the floor with sacks below
+ *  (viewBox 0 0 340 178). */
+export function BarnInside({ lots, used, cap, yard, tall = false }: { lots: [CropId, number][]; used: number; cap: number; yard: number; tall?: boolean }) {
+  const inner = <BarnShelves lots={lots} used={used} cap={cap} yard={yard} />;
+  if (!tall) return <svg viewBox="0 0 340 116" class="barn-inside" aria-hidden="true">{inner}</svg>;
+  return (
+    <svg viewBox="0 0 340 178" class="barn-inside tall" aria-hidden="true">
+      {/* the gable: boards, the tie beam, two rafters and a lamp on its cord */}
+      {Array.from({ length: 12 }, (_, i) => <rect x={i * 30} y={0} width={30} height={40} fill={i % 2 ? '#a95b37' : '#b2633d'} />)}
+      <path d="M0 40 L170 -6 L340 40" fill="none" stroke="#5a301b" stroke-width={9} stroke-linejoin="round" />
+      <path d="M60 34 L84 10 M280 34 L256 10 M170 -2 V34" stroke="#5a301b" stroke-width={5} />
+      <rect x={0} y={30} width={340} height={9} fill="#6a3a22" stroke="#3f2a1d" stroke-width={1.4} />
+      <path d="M118 6 V22" stroke="#3f2a1d" stroke-width={1.4} />
+      <g transform="translate(118 24)">
+        <circle r={13} fill="#ffd77a" opacity={0.28} class="barn-glow" />
+        <path d="M-6 -2 H6 L4 6 H-4 Z" fill="#3f2a1d" />
+        <circle cy={7} r={3.4} fill="#ffe7a3" stroke="#3f2a1d" stroke-width={1} />
+      </g>
+      <path d="M232 10 q6 8 0 16 q-6 8 0 16" fill="none" stroke="#c9a15c" stroke-width={2.2} stroke-linecap="round" opacity={0.85} />
+      <g transform="translate(0 38)">{inner}</g>
+      {/* the floor: boards, two sacks, a barrel and a pitchfork against the wall */}
+      <path d="M0 154 H340 V178 H0 Z" fill="#8a5a34" />
+      {[0, 1, 2].map((i) => <path d={`M0 ${159 + i * 7} H340`} stroke="#6f4425" stroke-width={1.2} />)}
+      <g stroke="#3f2a1d" stroke-width={1.6} stroke-linejoin="round">
+        <path d="M14 172 q-4 -18 6 -26 l-3 -5 h14 l-3 5 q10 8 6 26 Z" fill="#d9bf8a" />
+        <path d="M38 172 q-3 -14 5 -20 l-2 -4 h11 l-2 4 q8 6 5 20 Z" fill="#cfb27a" />
+        <rect x={292} y={146} width={26} height={27} rx={6} fill="#a8723f" />
+        <path d="M292 153 H318 M292 166 H318" stroke="#5a301b" stroke-width={2.2} />
+        <path d="M268 174 L284 120" stroke="#8a5a33" stroke-width={2.6} />
+        <path d="M280 122 l4 -10 M284 120 l2 -11 M288 122 l0 -10" stroke="#9aa3a8" stroke-width={1.8} stroke-linecap="round" />
+      </g>
+    </svg>
+  );
+}
+
+function BarnShelves({ lots, used, cap, yard }: { lots: [CropId, number][]; used: number; cap: number; yard: number }) {
   const SLOTS = 20, per = 10;
   const full = Math.min(SLOTS, cap > 0 ? Math.round((used / cap) * SLOTS) : 0);
   const crates: CropId[] = [];
@@ -13,7 +48,7 @@ export function BarnInside({ lots, used, cap, yard }: { lots: [CropId, number][]
   const shown = crates.slice(0, full);
   const slot = (i: number) => [16 + (i % per) * 31.2, i < per ? 14 : 56] as const;
   return (
-    <svg viewBox="0 0 340 116" class="barn-inside" aria-hidden="true">
+    <>
       <defs>
         <linearGradient id="barn-light" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity="0" /><stop offset="1" stop-color="#2a170c" stop-opacity=".22" /></linearGradient>
       </defs>
@@ -55,6 +90,6 @@ export function BarnInside({ lots, used, cap, yard }: { lots: [CropId, number][]
           <text x={15} y={14} text-anchor="middle" class="barn-sign small">+{yard}</text>
         </g>
       )}
-    </svg>
+    </>
   );
 }

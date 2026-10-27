@@ -155,21 +155,23 @@ export function BarnView({ s, act, target, onPayment }: { s: GameState; act: Dis
   const short = Math.max(0, np.amount - s.money);
   return (
     <div class="pane-inner barn-pane">
-      <div class="barn-head">
-        <BarnInside lots={[...lots.entries()]} used={used} cap={cap} yard={yard} />
-        <div class="barn-cap">
-          <b>Амбар</b><span class={used >= cap ? 'bad' : ''}>{used} / {cap}</span>
-          <Bar value={used} max={cap} tone={used >= cap ? 'bad' : used > cap * 0.8 ? 'warn' : 'good'} label="Заполнение амбара" />
+      {/* the barn from inside, big, like the house and the lab: its shelves fill as the harvest comes in */}
+      <div class="hero estate-hero barn-hero2">
+        <div class="barn-art">
+          <BarnInside lots={[...lots.entries()]} used={used} cap={cap} yard={yard} tall />
+          <div class="estate-plaque barn-plaque">
+            <h2>Амбар</h2><span class={used >= cap ? 'bad' : ''}>{used} / {cap}</span>
+            <Bar value={used} max={cap} tone={used >= cap ? 'bad' : used > cap * 0.8 ? 'warn' : 'good'} label="Заполнение амбара" />
+          </div>
         </div>
+        <nav class="estate-links barn-links" role="tablist" aria-label="Разделы амбара">
+          <button type="button" role="tab" aria-selected={tab==='market'} class={tab === 'market' ? 'on' : ''} onClick={() => setTab('market')}><Icon name="sack" size={18} /><span>Урожай</span></button>
+          <button type="button" role="tab" aria-selected={tab==='shop'} class={tab === 'shop' ? 'on' : ''} onClick={() => setTab('shop')}><Icon name="seeds" size={18} /><span>Лавка</span></button>
+          <button type="button" role="tab" aria-selected={tab==='bank'} class={tab === 'bank' ? 'on' : ''} onClick={() => setTab('bank')}><Icon name="bank" size={18} /><span>Касса</span></button>
+        </nav>
       </div>
       {yard > 0 && <p class="barn-warn"><Icon name="sack" size={20}/><span><b>Во дворе {yard} ед.</b> Продайте до конца недели — иначе заберут за 60%, до {money(yardLoss)}.</span></p>}
       {mice && <p class="barn-hint">Мыши каждую неделю грызут запасы от 10 ед.: {nibbled.map(c => CROPS[c].name.toLowerCase()).join(', ')}. Спасут кот или сусеки (амбар 2-го уровня).</p>}
-      <div class="seg barn-seg" role="tablist">
-        <button type="button" role="tab" aria-selected={tab==='market'} class={tab === 'market' ? 'on' : ''} onClick={() => setTab('market')}>Урожай</button>
-        <button type="button" role="tab" aria-selected={tab==='shop'} class={tab === 'shop' ? 'on' : ''} onClick={() => setTab('shop')}>Лавка</button>
-        <button type="button" role="tab" aria-selected={tab==='bank'} class={tab === 'bank' ? 'on' : ''} onClick={() => setTab('bank')}>Касса</button>
-      </div>
-
       {tab === 'market' && (
         <section class="panel barn-panel">
           <p class="market-key">График — {horizonOf(s)} нед.: пунктир — ориентир, полоса — разброс, цена может выйти за неё. Строка у графика — про отмеченную неделю; коснитесь графика, чтобы выбрать другую.</p>

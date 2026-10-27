@@ -62,7 +62,7 @@ function hint(t:TutorialSession,tab:TabId,visitLate=false):Hint{
   }
   const need:TabId=step==='sale'?'barn':['accept','deliver'].includes(step)?'orders':step==='lab'?'lab':['hire','upgrade'].includes(step)?'house':'field';
   if(step!=='practice'&&step!=='place'&&tab!==need)return goto(need,step==='visit'?'К ферме идут гости.':step==='sale'?'Остаток редиса — в амбаре.':step==='hire'?'Глава II. Хозяйство растёт — пора звать помощника.':step==='upgrade'?'Селекция готова: улучшенный редис вернулся в колоду.':undefined);
-  if(step==='sale'&&q('.barn-seg [role="tab"]:first-child[aria-selected="false"]'))return{text:'В амбаре откройте «Урожай».',target:q('.barn-seg [role="tab"]:first-child'),gesture:'tap'};
+  if(step==='sale'&&q('.barn-links [role="tab"]:first-child[aria-selected="false"]'))return{text:'В амбаре откройте «Урожай».',target:q('.barn-links [role="tab"]:first-child'),gesture:'tap'};
   if(step==='lab'&&q('.lab-pane .seg button:first-child:not(.on)'))return{text:'Откройте раздел «Селекция».',target:q('.lab-pane .seg button:first-child'),gesture:'tap'};
   if(['accept','deliver'].includes(step)&&q('.orders-pane .hall'))return{text:'Вернитесь из зала славы к заказам.',target:q('.orders-pane .back-link'),gesture:'tap'};
   const building=q('.field-view')?.getAttribute('data-build-item');
@@ -115,7 +115,11 @@ function hint(t:TutorialSession,tab:TabId,visitLate=false):Hint{
       if(q('.fan-slot .card.selected'))return cancelCard();
       return{text:button('Прополоть')?'Прополите грядку.':'Выросли сорняки — на заросшей грядке нельзя сеять.',target:button('Прополоть')??bed(wx,wy),gesture:'tap',more:button('Прополоть')?undefined:'Нажмите на грядку с сорняками — в её меню есть прополка.',hello:'Новая неделя. Посмотрите — на грядке гости.'};
     }
-    case 'lens':return{text:button('Плодородие')?'Выберите линзу «Плодородие».':'Земля везде разная. Откройте линзы — лупа справа.',target:button('Плодородие')??button('Линзы'),gesture:'tap',more:'Бедная почва даёт меньше урожая: ×0,6 при 1/5, ×1,2 при 3/5.'};
+    case 'lens':{
+      // the lenses live in the toolbox under the field: open it, take «Линзы», then «Плодородие»
+      const open=q('.toolbox.open'),soil=open&&q('.toolbox.lenses')?button('Плодородие'):null,lens=open&&!q('.toolbox.lenses')?button('Линзы'):null;
+      return{text:soil?'Выберите линзу «Плодородие».':lens?'Нажмите «Линзы».':'Земля везде разная. Откройте инструменты — чемоданчик под полем.',target:soil??lens??q('.toolbox-btn'),gesture:'tap',more:'Бедная почва даёт меньше урожая: ×0,6 при 1/5, ×1,2 при 3/5. Посмотрели — нажмите «Готово».'};
+    }
     case 'compost':{const e=hand(t.heldUid);return{text:selected(e)?'Высыпьте компост на бедную грядку.':'Помните компост? Улучшим бедную землю.',target:selected(e)?bed(1,2):e,gesture:'tap',more:'Компост: +1 плодородия здесь и у соседей.'};}
     case 'hire':return{text:'Наймите помощника.',target:button('Нанять ·')??q('.candidate'),gesture:'tap',more:'Бригадир даст лишний рабочий день в неделю. Зарплата — каждую неделю.'};
     case 'lab':return{text:q('.breed-col:first-child .project-preview')?'Сравните расход и урожай — и начните проект.':q('.shape-editor')?'Добавьте к фигуре одну клетку.':'Выберите семена для селекции.',target:q('.breed-col:first-child .project-preview')?q('.breed-col:first-child button'):q('.shape-editor .spot')??q(`.lab-pane [data-card-uid="${t.labUid}"]`)??q('.lab-pane .card'),gesture:'tap',more:'Проект займёт неделю: карта уйдёт на стол лаборатории и вернётся улучшенной.'};

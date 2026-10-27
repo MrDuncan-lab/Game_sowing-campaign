@@ -222,11 +222,13 @@ export function cardTint(def: string): [string, string] {
  *  with the card), the day coin, the name, the harvest in big figures, the weeks and the seed price. In a tight
  *  fan the left strip — window, coin, the first figure — stays readable; the card under the finger grows and
  *  shows all of it. */
-export function FanCard({ s, card, selected, blocked, onClick, rot = 0, onPointerDown }: {
+export function FanCard({ s, card, selected, blocked, onClick, rot = 0, onPointerDown, mini = false, noPrice = false, turnHint = true }: {
   s: GameState;
   card: { def: string; extra?: [number, number][]; traits?: TraitId[]; temp?: boolean; keep?: boolean };
   selected?: boolean; blocked?: string | null; onClick?: () => void; rot?: number;
   onPointerDown?: (e: JSX.TargetedPointerEvent<HTMLButtonElement>) => void;
+  /** in the barn's shop, the deck in the house and the lab: a smaller card in a grid, nothing to turn */
+  mini?: boolean; noPrice?: boolean; turnHint?: boolean;
 }) {
   const d = CARDS[card.def];
   const days = cardDaysShown(s, card);
@@ -241,7 +243,7 @@ export function FanCard({ s, card, selected, blocked, onClick, rot = 0, onPointe
     <button
       type="button"
       data-card-uid={'uid' in card?String(card.uid):undefined}
-      class={`card p2 kind-${d.kind}${card.temp ? ' temp' : ' perm'}${card.keep ? ' kept' : ''}${selected ? ' selected' : ''}${blocked ? ' blocked' : ''}`}
+      class={`card p2 kind-${d.kind}${card.temp ? ' temp' : ' perm'}${card.keep ? ' kept' : ''}${selected ? ' selected' : ''}${blocked ? ' blocked' : ''}${mini ? ' mini' : ''}`}
       style={{ ['--tint' as string]: tint, ['--ink2' as string]: ink }}
       onClick={onClick}
       onPointerDown={onPointerDown}
@@ -251,7 +253,7 @@ export function FanCard({ s, card, selected, blocked, onClick, rot = 0, onPointe
     >
       <span class={`p2-win${d.kind === 'seed' ? ' fig' : ''}`}>
         {d.kind === 'seed'
-          ? <span key={rot} class={selected ? 'shape-turn' : 'shape-still'}><ShapeArt card={card} rot={rot} /></span>
+          ? <span key={rot} class={selected && turnHint ? 'shape-turn' : 'shape-still'}><ShapeArt card={card} rot={rot} /></span>
           : <>
               <span class="p2-icon"><CardArt def={card.def} size={64} /></span>
               <span key={rot} class={`p2-glyph ${selected ? 'shape-turn' : 'shape-still'}`}><ShapeGlyph def={card.def} rot={rot} cell={6} irrigated={wlvl(s,'irrigator')>0} /></span>
@@ -262,8 +264,8 @@ export function FanCard({ s, card, selected, blocked, onClick, rot = 0, onPointe
       <span class="p2-main">{m ? <><b>{m[1]}</b>{m[2] && <small>{m[2]}</small>}</> : <b>{st.main}</b>}</span>
       <span class="p2-sub">{sub}</span>
       {minT !== null && <span class={`p2-temp${minT >= 12 ? ' warm' : minT <= 3 ? ' cold' : ''}`} title={`Растёт, когда почва не холоднее ${minT}°`}>от {minT > 0 ? '+' : ''}{minT}°</span>}
-      {price > 0 && <span class={`p2-price${d.kind === 'seed' && s.money < price ? ' debt' : ''}`}>{rub(price)} ₽</span>}
-      {selected && rotatable && <span class="p2-turn" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M18.5 9.5 A7 7 0 1 0 19 14" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/><path d="M19.5 4.5 V10 H14" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>}
+      {price > 0 && !noPrice && <span class={`p2-price${d.kind === 'seed' && s.money < price ? ' debt' : ''}`}>{rub(price)} ₽</span>}
+      {selected && rotatable && turnHint && <span class="p2-turn" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M18.5 9.5 A7 7 0 1 0 19 14" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/><path d="M19.5 4.5 V10 H14" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>}
       {card.keep && <span class="pc-keep" title="Отложена на следующую неделю" aria-hidden="true"><PinIcon /></span>}
       <TraitBadges traits={card.traits} />
       {!!card.extra?.length && <span class="up-tag" title={`Селекция: +${card.extra.length} кл. (до ${maxExtra(s)})`}>+{card.extra.length}</span>}
@@ -287,6 +289,8 @@ export function CardView({
   rotHint?: boolean;
   onPointerDown?: (e: JSX.TargetedPointerEvent<HTMLButtonElement>) => void;
 }) {
+  // every grid of cards (shop, deck, lab) shows the same face as the hand
+  if (mini) return <FanCard s={s} card={card} selected={selected} blocked={blocked} onClick={onClick} rot={rot} onPointerDown={onPointerDown} mini noPrice={noPrice} turnHint={false} />;
   const d = CARDS[card.def];
   const days = cardDaysShown(s, card);
   const price = cardPrice(s, card);

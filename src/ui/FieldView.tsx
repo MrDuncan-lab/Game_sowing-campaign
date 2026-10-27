@@ -393,17 +393,31 @@ const BUILD_NAMES: Record<BuildItem, { name: string; icon: string; track: string
 };
 
 // ---------- the dock's own glyphs ----------
+/** The deck under the field: three card backs (the farm's wheat on dark wood) and the count on a coin. */
+function DeckPile({ n }: { n: number }) {
+  const back = (x: number, y: number, r: number, top = false) => (
+    <g transform={`translate(${x} ${y}) rotate(${r} 17 24)`}>
+      <rect x={0} y={0} width={34} height={48} rx={5} fill="#6b4a33" stroke="#3f2a1d" stroke-width={1.6} />
+      <rect x={3.5} y={3.5} width={27} height={41} rx={3} fill="none" stroke="#e8c46b" stroke-width={1.2} opacity={top ? 0.95 : 0.6} />
+      {top && <g stroke="#e8c46b" stroke-width={1.6} stroke-linecap="round" fill="#e8c46b">
+        <path d="M17 38 V14" fill="none" />
+        {[16, 21, 26, 31].map((y) => <><ellipse cx={13.6} cy={y} rx={2.6} ry={1.5} transform={`rotate(-35 13.6 ${y})`} stroke="none" /><ellipse cx={20.4} cy={y} rx={2.6} ry={1.5} transform={`rotate(35 20.4 ${y})`} stroke="none" /></>)}
+        <ellipse cx={17} cy={12} rx={1.6} ry={2.6} stroke="none" />
+      </g>}
+    </g>
+  );
+  return (
+    <svg class="deck-svg" viewBox="-4 -6 50 62" aria-hidden="true">
+      {back(5, 4, -7)}{back(2.5, 2, 4)}{back(0, 0, 0, true)}
+      <g transform="translate(34 2)"><circle r={10.5} fill="#f2c13f" stroke="#3f2a1d" stroke-width={1.8} />
+        <text y={4.2} text-anchor="middle" font-size={n > 99 ? 9 : 12} font-weight={700} fill="#3f2a1d">{n}</text></g>
+    </svg>
+  );
+}
 function ToolboxGlyph() {
   return <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M17 15 v-4 q0-3 3-3 h8 q3 0 3 3 v4" fill="none" stroke="#3f2a1d" stroke-width="2.8" stroke-linecap="round" />
     <rect x="6" y="15" width="36" height="24" rx="4" fill="#c98b4a" stroke="#3f2a1d" stroke-width="2.8" /><path d="M6 24 H42" stroke="#3f2a1d" stroke-width="2.4" />
     <rect x="20" y="21" width="8" height="7" rx="1.5" fill="#e8c46b" stroke="#3f2a1d" stroke-width="2.2" /></svg>;
-}
-function VillageGlyph() {
-  return <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M4 40 H44" stroke="#3f2a1d" stroke-width="2.6" stroke-linecap="round" />
-    <path d="M8 40 V26 L17 18 L26 26 V40Z" fill="#f2d79e" stroke="#3f2a1d" stroke-width="2.4" stroke-linejoin="round" /><path d="M6 27 L17 17 L28 27" fill="none" stroke="#a5482f" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" />
-    <rect x="14" y="30" width="6" height="10" fill="#8a5a33" stroke="#3f2a1d" stroke-width="1.8" />
-    <path d="M28 40 V22 L35 15 L42 22 V40Z" fill="#e7c88c" stroke="#3f2a1d" stroke-width="2.4" stroke-linejoin="round" /><path d="M35 15 V6" stroke="#3f2a1d" stroke-width="2" /><circle cx="35" cy="7" r="3" fill="#d9b25e" stroke="#3f2a1d" stroke-width="1.6" />
-    <rect x="32" y="26" width="6" height="6" rx="1" fill="#bfe0f0" stroke="#3f2a1d" stroke-width="1.6" /></svg>;
 }
 
 // ---------- the fan of cards ----------
@@ -721,7 +735,11 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
     const prev = sRef.current;
     const out = (a.t==='exchangeCard' || a.t==='compostCard') ? prev.hand.find(c=>c.uid===a.uid) : undefined;
     const outSlot = out ? fanRef.current?.querySelector<HTMLElement>(`.fan-slot[data-uid="${out.uid}"]`) : null;
-    const outStyle = outSlot?.style.cssText;
+    // the card given away flies back into the deck: where the deck is, seen from its slot
+    const deckBox = fieldRef.current?.closest('.field-view')?.querySelector('.dock-top .deck-svg')?.getBoundingClientRect();
+    const slotBox = outSlot?.getBoundingClientRect();
+    const toDeck = deckBox && slotBox ? `;--to-x:${Math.round(deckBox.left + deckBox.width / 2 - (slotBox.left + slotBox.width / 2))}px;--to-y:${Math.round(deckBox.top + deckBox.height / 2 - (slotBox.top + slotBox.height / 2))}px` : '';
+    const outStyle = outSlot ? outSlot.style.cssText + toDeck : undefined;
     const next = dispatch(a);
     if(next && teaching && a.t==='build'){setBuild(null);setMoveFrom(null);}
     if (!next) return null;
@@ -1431,6 +1449,19 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
     const add = [...now].filter((u) => !before.has(u));
     if (add.length) setDealt((f) => [...f.filter((u) => now.has(u)), ...add]);
   }, [handKey]);
+  // a dealt card starts on the deck and flies to its place in the fan
+  useLayoutEffect(() => {
+    if (!dealt.length) return;
+    const deck = viewRef.current?.querySelector('.dock-top .deck-svg')?.getBoundingClientRect();
+    if (!deck) return;
+    for (const uid of dealt) {
+      const el = fanRef.current?.querySelector<HTMLElement>(`.fan-slot[data-uid="${uid}"]`);
+      if (!el) continue;
+      const r = el.getBoundingClientRect();
+      el.style.setProperty('--from-x', `${Math.round(deck.left + deck.width / 2 - (r.left + r.width / 2))}px`);
+      el.style.setProperty('--from-y', `${Math.round(deck.top + deck.height / 2 - (r.top + r.height / 2))}px`);
+    }
+  }, [dealt.join(',')]);
   useEffect(() => {
     if (night !== 'off' || !dealt.length) return;
     const t = clock.schedule(() => setDealt([]), 1500 + dealt.length * 110);
@@ -1639,8 +1670,8 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
         </div>
         </div>
         {/* the way to the sections: the village on the horizon (pulling the sky down works too) */}
-        {villageOn && vmode === 'field' && <button type="button" class={`v-sign${sectionNews ? ' news' : ''}`} style={{ top: `${Math.max(2, skyPx - 36)}px` }} onClick={() => village.toggle()} aria-label="Деревня: разделы фермы">
-          <VillageGlyph /><span>Деревня<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 8 L6 4 L10 8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg></span>
+        {villageOn && vmode === 'field' && <button type="button" class={`v-sign${sectionNews ? ' news' : ''}`} style={{ top: "4px" }} onClick={() => village.toggle()} aria-label="Деревня: разделы фермы">
+          <span>Деревня<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 8 L6 4 L10 8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg></span>
         </button>}
 
         {compostOpen && <div class="compost-popover" role="group" aria-label="Компостная куча" style={compostAt?{top:`${compostAt.top}px`,right:`${compostAt.right}px`,maxWidth:`min(250px, calc(100% - ${compostAt.right+8}px))`,['--tip' as string]:`${compostAt.tip}px`}:{visibility:'hidden'}}>
@@ -1681,36 +1712,20 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
             if(card) {if(act({t:'exchangeCard',uid:card.uid}))setSelected(null);}
             else {closeContext();setBuild(null);setLens(null);setTools(false);setExchanging(exchanging==='card'?false:'card');}
           }} title="Колода. Обменять одну карту за 1 день · раз в неделю" aria-label={`Колода: ${deckCount(s)} карт. Обменять карту за 1 день`}>
-            <span class="deck-back" aria-hidden="true"><i/><i/><i/><b class="deck-count">{deckCount(s)}</b></span>
+            <DeckPile n={deckCount(s)} />
             <small>{exchangesUsed(s)>=exchangesPerWeek(s)?'обменено':<>обмен<br/>1 д.</>}</small>
           </button>
-          <div class="dock-say" role="status">
-            {weekPlaying ? <FieldVoice s={s} active={lifeActive&&pageVisible} cue={weekCue} quiet={true} testReplay={testing} onOpen={()=>openSheet('journal')} fallback={<span />}/>
-              : exchanging ? <><strong>{exchanging==='compost'?'Какую карту заменит компост?':'Какую карту обменять?'}</strong><button class="exchange-cancel" onClick={()=>setExchanging(false)}>Отмена</button></>
-              : watering ? <><strong>Полив {watering.length}/{handWaterMax(s)}</strong><small>отметьте соседние грядки</small></>
-              : build ? <><strong>{buildItem ? BUILD_NAMES[buildItem].name : 'Постройки'}</strong><small>{buildItem === 'scarecrow' ? 'коснитесь угла грядки' : moveFrom || buildItem ? 'коснитесь подсветки' : 'коснитесь постройки'}</small></>
-              : lens ? <><strong>{lens === 'water' ? 'Влага 0–3' : lens === 'soil' ? 'Плодородие 1–5' : 'Температура почвы'}</strong></>
-              : card && def ? <div class="card-tools">
-                  {def.target === 'none' && !blockReason && <button type="button" class="btn primary tool" onClick={() => { if (act({ t: 'play', uid: card.uid })) setSelected(null); }}>Сыграть</button>}
-                  {!card.temp && s.phase === 'week' && <button type="button" class={`icon-btn keep-btn${card.keep ? ' on' : ''}`} aria-pressed={!!card.keep}
-                    title={card.keep ? 'Отложена на следующую неделю' : `Отложить на следующую неделю: ${keptCount(s)} из ${keepSlots(s)}`}
-                    aria-label={card.keep ? 'Не откладывать карту' : 'Отложить карту на следующую неделю'}
-                    onClick={() => { if (!card.keep && keptCount(s) >= keepSlots(s)) return say(keepSlots(s) === 1 ? 'Отложить можно одну карту: снимите булавку с другой' : `Отложить можно не больше ${keepSlots(s)} карт`); act({ t: 'keepCard', uid: card.uid }); }}><PinIcon /></button>}
-                  <button type="button" class="icon-btn tool-x" onClick={() => setSelected(null)} aria-label="Отменить выбор">✕</button>
-                </div>
-              : <FieldVoice onOrder={onOrder ?? (()=>onGo('orders'))} testReplay={testing} s={s} active={sceneActive} cue={sceneCue} quiet={true} onOpen={() => openSheet('journal')} fallback={<span />}/>}
-          </div>
           {/* the toolbox: one round button; the journal, the lenses and the buildings unfold from it */}
           <div class={`toolbox${tools ? ' open' : ''}${lensMenu ? ' lenses' : ''}`} role="toolbar" aria-label="Инструменты поля">
             <div class="tool-arc">
               {(lensMenu
-                ? (['water', 'soil', 'temp'] as const).map((l) => ({ k: l, icon: l === 'water' ? 'drop' : l === 'soil' ? 'compost' : 'thermo', name: l === 'water' ? 'Влага' : l === 'soil' ? 'Плодородие' : 'Тепло', urgent: false, run: () => { setLens(l); setLensMenu(false); setTools(false); } }))
+                ? (['water', 'soil', 'temp'] as const).map((l) => ({ k: l, icon: l === 'water' ? 'drop' : l === 'soil' ? 'compost' : 'thermo', name: l === 'water' ? 'Влага' : l === 'soil' ? 'Плодородие' : 'Тепло', label: l === 'water' ? 'Влага' : l === 'soil' ? 'Плодородие' : 'Температура почвы', urgent: false, run: () => { setLens(l); setLensMenu(false); setTools(false); } }))
                 : [
-                  { k: 'journal', icon: 'journal', name: 'Журнал', urgent: urgent, run: () => { setTools(false); openSheet('journal'); } },
-                  { k: 'lens', icon: 'lens', name: 'Линзы', urgent: false, run: () => { setBuild(null); setMoveFrom(null); setSelected(null); closeContext(); setLensMenu(true); } },
-                  { k: 'build', icon: 'build', name: 'Постройки', urgent: false, run: () => { setLens(null); setLensMenu(false); setMoveFrom(null); setSelected(null); closeContext(); setTools(false); setBuild('menu'); } },
+                  { k: 'journal', icon: 'journal', name: 'Журнал', label: 'Журнал фермы', urgent: urgent, run: () => { setTools(false); openSheet('journal'); } },
+                  { k: 'lens', icon: 'lens', name: 'Линзы', label: 'Линзы', urgent: false, run: () => { setBuild(null); setMoveFrom(null); setSelected(null); closeContext(); setLensMenu(true); } },
+                  { k: 'build', icon: 'build', name: 'Постройки', label: 'Постройки', urgent: false, run: () => { setLens(null); setLensMenu(false); setMoveFrom(null); setSelected(null); closeContext(); setTools(false); setBuild('menu'); } },
                 ]).map((t, i) => (
-                <button type="button" key={t.k} class={`tool-btn arc-btn${t.urgent ? ' urgent' : ''}`} style={{ ['--i' as string]: String(i) }} tabIndex={tools ? 0 : -1} aria-hidden={!tools} disabled={weekPlaying && t.k !== 'journal'} onClick={t.run}>
+                <button type="button" key={t.k} class={`tool-btn arc-btn${t.urgent ? ' urgent' : ''}`} style={{ ['--i' as string]: String(i) }} aria-label={t.label} tabIndex={tools ? 0 : -1} aria-hidden={!tools} disabled={weekPlaying && t.k !== 'journal'} onClick={t.run}>
                   <Icon name={t.icon} size={23} /><small>{t.name}</small>{t.urgent && <i aria-hidden="true" />}
                 </button>
               ))}
@@ -1730,6 +1745,26 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
               {urgent && !tools && <i aria-hidden="true" />}
             </button>
           </div>
+          <div class="dock-say" role="status">
+            {weekPlaying ? <FieldVoice s={s} active={lifeActive&&pageVisible} cue={weekCue} quiet={true} testReplay={testing} onOpen={()=>openSheet('journal')} fallback={<span />}/>
+              : exchanging ? <><span class="say-two"><strong>{exchanging==='compost'?'Что заменит компост?':'Какую обменять?'}</strong><small>{exchanging==='compost'?'карта уйдёт в сброс':'коснитесь карты · 1 день'}</small></span><button class="exchange-cancel" onClick={()=>setExchanging(false)}>Отмена</button></>
+              : watering ? <><strong>Полив {watering.length}/{handWaterMax(s)}</strong><small>отметьте соседние грядки</small></>
+              : build ? <><span class="say-two"><strong>{buildItem ? BUILD_NAMES[buildItem].name : 'Постройки'}</strong><small>{buildItem === 'scarecrow' ? 'коснитесь угла грядки' : moveFrom || buildItem ? 'коснитесь подсветки' : 'коснитесь постройки'}</small></span>
+                  <button type="button" class="say-done" onClick={() => { setBuild(null); setMoveFrom(null); }}>Готово</button></>
+              : lens ? <>
+                  <span class="lens-switch" role="group" aria-label="Линзы">{(['water', 'soil', 'temp'] as const).map((l) => <button type="button" class={lens === l ? 'on' : ''} aria-pressed={lens === l} aria-label={l === 'water' ? 'Влага' : l === 'soil' ? 'Плодородие' : 'Температура почвы'} onClick={() => setLens(l)}><Icon name={l === 'water' ? 'drop' : l === 'soil' ? 'compost' : 'thermo'} size={18} /></button>)}</span>
+                  <span class="say-two lens-name"><strong>{lens === 'water' ? 'Влага' : lens === 'soil' ? 'Плодородие' : 'Тепло'}</strong><small>{lens === 'water' ? '0–3' : lens === 'soil' ? '1–5 · ×0,6…×1,6' : 'почвы'}</small></span>
+                  <button type="button" class="say-done" onClick={() => { setLens(null); setLensMenu(false); }}>Готово</button></>
+              : card && def ? (def.target === 'none' && !blockReason ? <button type="button" class="btn primary tool say-play" onClick={() => { if (act({ t: 'play', uid: card.uid })) setSelected(null); }}>Сыграть</button> : <span />)
+              : <FieldVoice onOrder={onOrder ?? (()=>onGo('orders'))} testReplay={testing} s={s} active={sceneActive} cue={sceneCue} quiet={true} onOpen={() => openSheet('journal')} fallback={<span />}/>}
+          </div>
+          {card && def && !weekPlaying && !exchanging && !watering && !build && !lens && <div class="card-tools dock-card-tools">
+            {!card.temp && s.phase === 'week' && <button type="button" class={`icon-btn keep-btn${card.keep ? ' on' : ''}`} aria-pressed={!!card.keep}
+              title={card.keep ? 'Отложена на следующую неделю' : `Отложить на следующую неделю: ${keptCount(s)} из ${keepSlots(s)}`}
+              aria-label={card.keep ? 'Не откладывать карту' : 'Отложить карту на следующую неделю'}
+              onClick={() => { if (!card.keep && keptCount(s) >= keepSlots(s)) return say(keepSlots(s) === 1 ? 'Отложить можно одну карту: снимите булавку с другой' : `Отложить можно не больше ${keepSlots(s)} карт`); act({ t: 'keepCard', uid: card.uid }); }}><PinIcon /></button>}
+            <button type="button" class="icon-btn tool-x" onClick={() => setSelected(null)} aria-label="Отменить выбор">✕</button>
+          </div>}
         </div>
         <div class={`hand-row${weekPlaying ? ' upcoming' : ''}`} style={{ ['--cw' as string]: `${fan.cw}px` }}>
           {weekPlaying && <small class="hand-next">Карты новой недели</small>}

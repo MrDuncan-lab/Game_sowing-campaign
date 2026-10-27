@@ -43,7 +43,7 @@
 .menu-section .tab-badge { position: absolute; top: -6px; right: -4px; }
 
 /* ---------- the sky: the village on the horizon ---------- */
-.field-view .v-sign { position: absolute; right: 8px; z-index: 3; display: flex; align-items: center; gap: 2px; height: 30px; padding: 0 9px 0 3px;
+.field-view .v-sign { position: absolute; right: 8px; z-index: 3; display: flex; align-items: center; gap: 2px; height: 28px; padding: 0 10px 0 10px;
   border: 1.5px solid var(--c-brown); border-radius: 15px; background: #fbf3df; box-shadow: 0 1px 0 rgba(63, 42, 29, .3); cursor: pointer; color: var(--c-ink); }
 .field-view .v-sign > svg { width: 26px; height: 26px; }
 .field-view .v-sign > span { display: flex; align-items: center; gap: 3px; font: 700 12px/1 var(--ui); white-space: nowrap; }
@@ -54,28 +54,34 @@
 
 /* ---------- the dock: deck · what the moment needs · toolbox ---------- */
 .farm .field-view .dock { position: relative; padding: 0 6px calc(4px + env(safe-area-inset-bottom, 0px)); }
-.farm .field-view .dock .dock-top { position: relative; z-index: 75; display: flex; align-items: center; gap: 8px; height: 50px; min-height: 0; padding: 4px 2px 0; }
+.farm .field-view .dock .dock-top { position: relative; z-index: 50; display: flex; align-items: center; gap: 8px; height: 50px; min-height: 0; padding: 4px 2px 0; }
 .farm .field-view .dock-top > .exchange-deck.deck-pile { flex: none; display: flex; flex-direction: row; align-items: center; gap: 6px; width: auto; height: 44px;
   margin: 0; padding: 0 4px 0 2px; border: 0; background: none; box-shadow: none; }
-.farm .field-view .dock-top > .exchange-deck .deck-back { width: 30px; height: 42px; aspect-ratio: auto; transform: none; }
-.farm .field-view .dock-top > .exchange-deck .deck-back i { display: block; border-radius: 6px; border-width: 1.5px;
-  background: repeating-linear-gradient(45deg, #8a5a33 0 4px, #7a4c28 4px 8px); }
-.farm .field-view .dock-top > .exchange-deck .deck-back i:nth-child(1) { transform: rotate(-8deg) translate(-2px, 1px); }
-.farm .field-view .dock-top > .exchange-deck .deck-back i:nth-child(2) { transform: rotate(5deg) translate(2px, 0); }
-.farm .field-view .dock-top > .exchange-deck .deck-back b.deck-count { position: absolute; inset: auto; left: 3px; top: 9px; width: 24px; height: 24px; margin: 0; padding: 0;
-  display: grid; place-items: center; border-radius: 50%; background: #fbf3df; border: 1.5px solid var(--c-ink); color: var(--c-ink); text-shadow: none;
-  font: 700 12px/1 var(--display); transform: none; }
+.farm .field-view .dock-top > .exchange-deck .deck-svg { display: block; width: 40px; height: 50px; overflow: visible; transition: transform 160ms cubic-bezier(.22, 1, .36, 1); }
+.farm .field-view .dock-top > .exchange-deck .deck-svg text { font-family: var(--display); }
+.farm .field-view .dock-top > .exchange-deck:active:not(:disabled) .deck-svg { transform: translateY(1px) scale(.97); }
+@media (hover: hover) and (pointer: fine) { .farm .field-view .dock-top > .exchange-deck:hover:not(:disabled) .deck-svg { transform: translateY(-2px); } }
 .farm .field-view .dock-top > .exchange-deck small { font: 700 11px/1.05 var(--ui); color: var(--c-brown); text-align: left; white-space: nowrap; }
-.farm .field-view .dock-top > .exchange-deck.choosing .deck-back { outline: 3px solid #f2c13f; outline-offset: 2px; border-radius: 6px; }
+.farm .field-view .dock-top > .exchange-deck.choosing .deck-svg { filter: drop-shadow(0 0 4px #f2c13f) drop-shadow(0 0 2px #f2c13f); transform: translateY(-3px); }
+.farm .field-view .dock-top > .exchange-deck.choosing small { color: #8a5a00; }
 .farm .field-view .dock-top > .exchange-deck:disabled { opacity: .55; }
-.farm .field-view .dock-say { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; gap: 8px; font: 500 12.5px/1.2 var(--ui); color: var(--c-ink); text-align: center; }
+.farm .field-view .dock-say { flex: 1; min-width: 0; height: 100%; display: flex; flex-wrap: nowrap; align-items: center; justify-content: center; gap: 6px; overflow: hidden; font: 500 12.5px/1.2 var(--ui); color: var(--c-ink); text-align: center; }
 .farm .field-view .dock-say > strong { font: 700 14px/1.1 var(--display); }
 .farm .field-view .dock-say > small { color: var(--c-soft); }
 .farm .field-view .dock-say .exchange-cancel { padding: 4px 10px; border: 1px solid var(--c-line); border-radius: 999px; background: #fffaf0; font: 700 12px/1 var(--ui); }
 .farm .field-view .dock-say .card-tools { display: flex; align-items: center; gap: 8px; }
+.farm .field-view .dock-say .say-two { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; text-align: left; line-height: 1.1; }
+.farm .field-view .dock-say .say-two strong { font: 700 13.5px/1.1 var(--display); white-space: nowrap; }
+.farm .field-view .dock-say .say-two small { font: 500 11px/1.15 var(--ui); color: var(--c-soft); white-space: nowrap; }
+.farm .field-view .dock-say .say-done { flex: none; height: 32px; padding: 0 12px; border-radius: 16px; border: 2px solid var(--c-ink); background: #f2c13f;
+  box-shadow: 0 2px 0 var(--c-ink); font: 700 13px/1 var(--ui); color: var(--c-ink); }
+.farm .field-view .dock-say .say-done:active { transform: translateY(1px); box-shadow: 0 1px 0 var(--c-ink); }
+.farm .field-view .dock-say .lens-switch { display: flex; gap: 3px; flex: none; }
+.farm .field-view .dock-say .lens-switch button { width: 30px; height: 30px; padding: 0; display: grid; place-items: center; border-radius: 50%; border: 1.5px solid var(--c-line2); background: #fffaf0; }
+.farm .field-view .dock-say .lens-switch button.on { border-color: #a77b14; background: #fff1b8; box-shadow: 0 0 0 2px rgba(242, 193, 63, .45); }
 .farm .field-view .dock-say .field-voice, .farm .field-view .dock-say > span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
 
-/* the toolbox: one round button; three round tools unfold from it along an arc, up and to the left */
+/* the toolbox: one round button beside the deck; three round tools unfold from it along an arc, up and to the right */
 .farm .field-view .toolbox { position: relative; flex: none; width: 46px; height: 46px; }
 .farm .field-view .toolbox .tool-btn { width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; padding: 0;
   background: #fbf3df; border: 2px solid var(--c-brown); box-shadow: 0 2px 0 rgba(63, 42, 29, .35); color: var(--c-ink); }
@@ -85,27 +91,27 @@
 .farm .field-view .toolbox .toolbox-btn.on { background: #fff1b8; border-color: #a77b14; box-shadow: 0 0 0 3px rgba(242, 193, 63, .45); }
 .farm .field-view .toolbox .tool-btn > i { position: absolute; top: -2px; right: -2px; width: 11px; height: 11px; border-radius: 50%; background: #d0503c; border: 2px solid #fbf3df; }
 .farm .field-view .toolbox:active .toolbox-btn { transform: translateY(1px); }
-.farm .field-view .tool-arc { position: absolute; right: 0; bottom: 0; width: 46px; height: 46px; z-index: 1; pointer-events: none; }
-.farm .field-view .tool-arc .arc-btn { position: absolute; left: 0; top: 0; --a: calc(180deg - var(--i) * 45deg); --r: 80px;
-  transform: translate(0, 0) scale(.35); opacity: 0; pointer-events: none;
-  transition: transform 140ms cubic-bezier(.55, 0, 1, .45), opacity 120ms linear; }
+.farm .field-view .tool-arc { position: absolute; left: 0; bottom: 0; width: 46px; height: 46px; z-index: 1; pointer-events: none; }
+.farm .field-view .tool-arc .arc-btn { position: absolute; left: 0; top: 0; --a: calc(90deg - var(--i) * 45deg); --r: 80px;
+  transform: translate(0, 0) scale(.35); opacity: 0; visibility: hidden; pointer-events: none;
+  transition: transform 140ms cubic-bezier(.55, 0, 1, .45), opacity 120ms linear, visibility 0s linear 140ms; }
 .farm .field-view .tool-arc .arc-btn small { position: absolute; left: 50%; top: calc(100% + 2px); transform: translateX(-50%); padding: 1px 5px; border-radius: 6px;
   background: rgba(251, 243, 223, .95); font: 700 10.5px/1.1 var(--ui); white-space: nowrap; color: var(--c-ink); }
-.farm .field-view .toolbox.open .arc-btn { opacity: 1; pointer-events: auto;
+.farm .field-view .toolbox.open .arc-btn { opacity: 1; visibility: visible; pointer-events: auto;
   transform: translate(calc(cos(var(--a)) * var(--r)), calc(sin(var(--a)) * var(--r) * -1)) scale(1);
-  transition: transform 260ms cubic-bezier(.34, 1.56, .64, 1) calc(var(--i) * 40ms), opacity 140ms linear calc(var(--i) * 40ms); }
+  transition: transform 260ms cubic-bezier(.34, 1.56, .64, 1) calc(var(--i) * 40ms), opacity 140ms linear calc(var(--i) * 40ms), visibility 0s; }
 .farm .field-view .toolbox .arc-btn:disabled { opacity: .5; }
 .farm .field-view .toolbox.open .arc-btn:disabled { opacity: .55; }
 @media (prefers-reduced-motion: reduce) {
   .farm .field-view .tool-arc .arc-btn, .farm .field-view .toolbox.open .arc-btn { transition: opacity 120ms linear; }
 }
 
-/* the hand leaves the bottom right corner to «Конец недели» */
+/* the hand leaves the right edge to «Конец недели» */
 .farm .field-view .dock .hand-row { padding-right: 70px; }
 @media (min-width: 640px) { .farm .field-view .dock .hand-row { padding-right: 70px; } }
 
-/* ---------- «Конец недели»: the most pressed button, under the right thumb ---------- */
-.farm .field-view .dock .end-week.endw { position: absolute; right: 8px; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); z-index: 80;
+/* ---------- «Конец недели»: the most pressed button, under the right thumb (raised off the bottom edge) ---------- */
+.farm .field-view .dock .end-week.endw { position: absolute; right: 8px; bottom: calc(38px + env(safe-area-inset-bottom, 0px)); z-index: 80;
   width: 60px; height: 70px; min-height: 0; margin: 0; padding: 4px 2px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
   border-radius: 20px; border: 2.5px solid var(--c-ink); background: #f2c13f; color: var(--c-ink);
   box-shadow: 0 3px 0 var(--c-ink), 0 8px 16px rgba(40, 28, 10, .25); touch-action: manipulation; }
@@ -117,7 +123,7 @@
 .farm .field-view .dock .end-week.endw.pay-due { background: #fbe3dc; border-color: #8e2a1e; color: #8e2a1e; box-shadow: 0 3px 0 #8e2a1e; }
 @keyframes endw-ready { 0%, 100% { box-shadow: 0 3px 0 var(--c-ink), 0 0 0 0 rgba(242, 193, 63, .0); } 50% { box-shadow: 0 3px 0 var(--c-ink), 0 0 0 7px rgba(242, 193, 63, .45); } }
 @media (prefers-reduced-motion: reduce) { .farm .field-view .dock .end-week.endw.ready { animation: none; box-shadow: 0 3px 0 var(--c-ink), 0 0 0 4px rgba(242, 193, 63, .5); } }
-.farm .field-view .dock .end-warn { position: absolute; right: 6px; bottom: calc(88px + env(safe-area-inset-bottom, 0px)); z-index: 80; max-width: 150px; padding: 3px 7px;
+.farm .field-view .dock .end-warn { position: absolute; right: 6px; bottom: calc(116px + env(safe-area-inset-bottom, 0px)); z-index: 80; max-width: 150px; padding: 3px 7px;
   border-radius: 9px; border: 1.5px solid #8e2a1e; background: #fbe3dc; color: #8e2a1e; font: 700 11px/1.15 var(--ui); text-align: right; pointer-events: none; }
 
 /* ---------- the hand: the card under the finger grows from its bottom edge ---------- */
@@ -169,3 +175,72 @@
 .scene-svg .field-note { animation: note-in 180ms cubic-bezier(.22, 1, .36, 1); }
 @keyframes note-in { from { opacity: 0; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .scene-svg .field-note { animation: none; } }
+
+/* ---------- the same card in every grid: the barn's shop, the deck in the house, the lab ---------- */
+.card.p2.mini { --cw: 92px; touch-action: auto; }
+.card-grid .card.p2.mini { --cw: 100px; }
+.card-grid.shop-grid .card.p2.mini { --cw: 106px; }
+.seed-passport .card.p2.mini { --cw: 96px; }
+@media (max-width: 359px) { .card-grid .card.p2.mini { --cw: 92px; } .card-grid.shop-grid .card.p2.mini { --cw: 98px; } }
+.grid-card .card.p2.mini.selected, .grid-card.picked .card.p2.mini { box-shadow: 0 0 0 3px #f2c13f, 0 8px 14px rgba(63, 42, 29, .3); }
+
+/* ---------- cards travel to and from the deck: a new card leaves the deck for its place in the fan,
+   a card given away flies back into the deck (the slot keeps the fan's turn, so the path is drawn in it) ---------- */
+.farm .field-view .fan-slot.dealt .card { animation: card-from-deck 460ms cubic-bezier(.22, 1, .36, 1) var(--deal, 0ms) both; }
+@keyframes card-from-deck {
+  0% { transform: translate(var(--from-x, -120px), var(--from-y, 40px)) rotate(-10deg) scale(.36); opacity: 0; }
+  12% { opacity: 1; }
+  100% { transform: none; opacity: 1; }
+}
+.farm .field-view .fan-slot.leaving .card { animation: card-to-deck 420ms cubic-bezier(.55, 0, 1, .45) forwards; }
+@keyframes card-to-deck {
+  0% { transform: translateY(-14px); opacity: 1; }
+  100% { transform: translate(var(--to-x, -120px), var(--to-y, 40px)) rotate(-10deg) scale(.36); opacity: .15; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .farm .field-view .fan-slot.dealt .card { animation: none; }
+}
+
+/* ---------- the barn: its inside, big, like the house's estate; the three parts as the house's chips ---------- */
+.barn-pane .hero.barn-hero2 { display: flex; flex-direction: column; align-items: stretch; gap: 0; padding: 0 0 10px; overflow: hidden; background: var(--c-paper, #fbf3df); }
+.barn-pane .barn-hero2 .barn-art { position: relative; background: #b2623c; }
+.barn-pane .barn-hero2 .barn-inside.tall { display: block; width: 100%; height: auto; }
+.barn-pane .barn-hero2 .barn-plaque { display: grid; grid-template-columns: auto auto; align-items: baseline; gap: 2px 10px; min-width: 120px; }
+.barn-pane .barn-hero2 .barn-plaque span { font: 700 .95rem/1 var(--ui); text-align: right; font-variant-numeric: tabular-nums; }
+.barn-pane .barn-hero2 .barn-plaque span.bad { color: var(--bad, #b3362d); }
+.barn-pane .barn-hero2 .barn-plaque .bar { grid-column: 1 / -1; height: 6px; margin-top: 2px; }
+.barn-pane .barn-hero2 .barn-links { padding-top: 10px; }
+.estate-hero .estate-links button.on { background: #f2c13f; border-color: #3f2a1d; box-shadow: 0 2px 0 #3f2a1d; }
+.barn-pane .barn-glow { animation: barn-lamp 3.6s var(--e-breath, ease-in-out) infinite; }
+@keyframes barn-lamp { 50% { opacity: .5; } }
+@media (prefers-reduced-motion: reduce) { .barn-pane .barn-glow { animation: none; } }
+
+/* ---------- one look for the segmented tabs (lab, house, orders): the house's cream chips, the chosen one gold ---------- */
+.farm .seg:not(.barn-seg) { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 6px; padding: 0; border: 0; background: none; box-shadow: none; }
+.farm .seg:not(.barn-seg) > button { min-height: 36px; padding: 4px 8px; border-radius: 999px; border: 1.5px solid rgba(63, 42, 29, .55); background: rgba(255, 250, 236, .94);
+  color: #3a2616; font: 700 13px/1 var(--ui); box-shadow: 0 2px 0 rgba(63, 42, 29, .18); }
+.farm .seg:not(.barn-seg) > button.on, .farm .seg:not(.barn-seg) > button[aria-selected="true"] { background: #f2c13f; border-color: #3f2a1d; box-shadow: 0 2px 0 #3f2a1d; }
+
+/* ---------- the yard's life: hens peck, sunflowers sway, the well's sweep dips now and then ---------- */
+.scene-svg .yard-hen .hen-body { transform-box: fill-box; transform-origin: 40% 95%; animation: hen-peck 4.2s var(--e-breath, ease-in-out) infinite; }
+.scene-svg .yard-hen.h1 .hen-body { animation-delay: -1.9s; animation-duration: 5.1s; }
+@keyframes hen-peck { 0%, 58%, 100% { transform: none; } 64% { transform: rotate(24deg) translateY(1px); } 70% { transform: none; } 76% { transform: rotate(24deg) translateY(1px); } 82% { transform: none; } }
+.scene-svg .yard-sunflower { transform-box: fill-box; transform-origin: 50% 100%; animation: sunflower-sway 6s var(--e-breath, ease-in-out) var(--sd, 0s) infinite alternate; }
+@keyframes sunflower-sway { from { transform: rotate(-2.5deg); } to { transform: rotate(2.5deg); } }
+.scene-svg .well-sweep { transform-box: view-box; transform-origin: 26px -48px; animation: well-dip 11s var(--e-breath, ease-in-out) infinite; }
+@keyframes well-dip { 0%, 70%, 100% { transform: none; } 80%, 88% { transform: rotate(-11deg); } }
+.scene-paused .scene-svg .yard-hen .hen-body, .scene-paused .scene-svg .yard-sunflower, .scene-paused .scene-svg .well-sweep { animation-play-state: paused; }
+@media (prefers-reduced-motion: reduce) { .scene-svg .yard-hen .hen-body, .scene-svg .yard-sunflower, .scene-svg .well-sweep { animation: none; } }
+
+/* the picked card's pin and ✕ at the row's right end, above «Конец недели», where no card lies */
+.farm .field-view .dock-top .dock-card-tools { flex: none; display: flex; gap: 6px; margin-left: auto; }
+.farm .field-view .dock-top .dock-card-tools .icon-btn { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; padding: 0;
+  border: 1.5px solid var(--c-line2); background: #fffaf0; box-shadow: 0 2px 0 rgba(63, 42, 29, .2); }
+.farm .field-view .dock-top .dock-card-tools .keep-btn.on { background: #fde2d8; border-color: #b3362d; }
+.farm .field-view .dock-say .say-play { height: 34px; padding: 0 14px; }
+
+/* the browsed or picked card rises over the deck and the toolbox */
+.farm .field-view .dock .hand-row { position: relative; z-index: 40; }
+.farm .field-view .dock .hand-row:has(.fan-slot.peek), .farm .field-view .dock .hand-row:has(.card.selected) { z-index: 55; }
+
+@media (max-width: 379px) { .farm .field-view .dock-say .lens-name { display: none; } .farm .field-view .dock-say .say-two small { display: none; } }
