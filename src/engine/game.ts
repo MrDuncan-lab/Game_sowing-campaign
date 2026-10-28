@@ -11,6 +11,7 @@ import {
 } from './run';
 import { EPISODES, Episode, EpisodeKind, YearPlan, covers, episodeEnd, marketMult, planYear, seasonOf, baseTemp } from './calendar';
 import { gauss, hashSeed, pickWeighted, rand, randInt, shuffle } from './rng';
+import { COMMONS, COMMONS_NEED, COMMON_GLORY, CommonId, FORGE_MULT, FORGE_WEEKS, GRAIN, SAVVA_APPRENTICE, TOLOKA, YARDS, YARD_CANDIDATE, YARD_GLORY, YARD_IDS, YardId } from './neighbours';
 import { FIRE_HEAT, FIRE_WOOD, TRIALS, TRIAL_FIRST_YEAR, TRIAL_GLORY, TRIAL_POOL, TrialGrade, TrialKind, fireCore, fireRing, firesAllowed, trialDroughtLen, trialFrostTemp, trialGrade, trialPower, trialWaves } from './trials';
 
 // ---------- state ----------
@@ -43,7 +44,10 @@ export type Project =
   | { kind: 'trait'; card: Card; origin?: 'deck' | 'spare'; trait: TraitId; weeks: number; total: number }
   | { kind: 'variety'; crop: CropId; weeks: number; total: number }
   | { kind: 'bio'; weeks: number; total: number }
-  | { kind: 'train'; worker: WorkerId; weeks: number; total: number };
+  | { kind: 'train'; worker: WorkerId; weeks: number; total: number }
+  // v3 §7 · a stage of a neighbour's yard, a shared building of the village: both take a slot of the brigade
+  | { kind: 'yard'; yard: YardId; stage: number; weeks: number; total: number }
+  | { kind: 'common'; id: CommonId; weeks: number; total: number };
 export type StrikeKind = 'hail' | 'flood' | 'beetle' | 'locust' | 'weedsurge' | 'bear' | 'boars' | 'fire';
 export interface Strike { kind: StrikeKind; ep: number; week: number; cells: [number, number, number][]; zone: boolean; wave?: number; /** a wave of the year's ordeal: no drone turns it back */ trial?: boolean }
 // ---------- the ordeal of the year ----------
@@ -190,7 +194,15 @@ export interface GameState {
   arrest?: { debt: number; runs: number };
   // v3 §3.4 · an expedition: the plot's condition, finds, visitors, what goes home
   run?: RunState;
+  // v3 §7 · the neighbours of the home village: each yard's stage and what was asked of it lately; the shared
+  // buildings standing; the level the smith is forging
+  yards?: Partial<Record<YardId, YardState>>;
+  commons?: CommonId[];
+  forge?: { track: TrackId; level: number; week: number };
 }
+/** a neighbour's yard: the stages done (0..3), the season (year·4+season, or the week when weekly) of the last swap,
+ *  the season of the last «Позвать соседа», the year a candidate was last sent */
+export interface YardState { stage: number; swap?: number; help?: number; cand?: number }
 /** what the cart took from the home farm to an expedition (it comes back when the farm there is folded) */
 export interface AwayState { loc: ExpeditionId; seed: string; cards: Card[]; worker?: Worker; cash: number; week: number }
 export interface RunVisit { id: VisitId; week: number; relic?: RelicId; price?: number }
@@ -299,10 +311,21 @@ export const trackDef = (s: Pick<GameState, 'loc' | 'levels'>, t: TrackId): Trac
   (t === 'house' && !isHome(s) && (s.levels.house ?? 1) <= CAMP.levels.length ? CAMP : TRACKS[t]);
 export const trackLevels = (s: Pick<GameState, 'loc' | 'levels'>, t: TrackId): TrackLevel[] => trackDef(s, t).levels;
 export const deckLimit = (s: GameState) => DECK_LIMIT[Math.min(DECK_LIMIT.length - 1, lvl(s, 'house') - 1)];
-export const workerSlots = (s: GameState) => HOUSE_BEDS[Math.max(0, Math.min(HOUSE_BEDS.length - 1, lvl(s, 'house') - 1))];
+export const workerSlots = (s: GameState) => HOUSE_BEDS[Math.max(0, Math.min(HOUSE_BEDS.length - 1, lvl(s, 'house') - 1))] + lodging(s);
+// ---------- v3 §7 · the neighbours ----------
+/** the stage a neighbour's yard stands at (0..3); there are neighbours only at home */
+export const yardStage = (s: GameState, y: YardId) => (isHome(s) ? s.yards?.[y]?.stage ?? 0 : 0);
+export const hasCommon = (s: GameState, c: CommonId) => isHome(s) && !!s.commons?.includes(c);
+/** beds the village lends: one in every yard at its second stage (two at the Карповы's), two in the hostel */
+export const lodging = (s: GameState) =>
+  YARD_IDS.reduce((n, y) => n + (yardStage(s, y) >= 2 ? (y === 'karpov' ? 2 : 1) : 0), 0) + (hasCommon(s, 'hostel') ? 2 : 0);
+/** the season as one number, for once-a-season things */
+export const seasonKey = (s: Pick<GameState, 'year' | 'season'>) => s.year * 4 + s.season;
+export const yardsStanding = (s: GameState) => YARD_IDS.filter((y) => yardStage(s, y) >= 2).length;
+export const commonsOpen = (s: GameState) => isHome(s) && yardsStanding(s) >= COMMONS_NEED;
 /** beds taken: a temporary hand (v3 · a visitor who stays a few weeks) sleeps in the barn */
 export const bedsUsed = (s: GameState) => s.team.filter((w) => w.leaves === undefined).length;
-export const workshopSlots = (s: GameState) => 1 + (lvl(s, 'house') >= 4 ? 1 : 0) + (lvl(s, 'house') >= 7 ? 1 : 0) + (wlvl(s, 'mechanic') >= 3 ? 1 : 0);
+export const workshopSlots = (s: GameState) => 1 + (lvl(s, 'house') >= 4 ? 1 : 0) + (lvl(s, 'house') >= 7 ? 1 : 0) + (wlvl(s, 'mechanic') >= 3 ? 1 : 0) + (yardStage(s, 'efim') >= 3 ? 1 : 0);
 export const labSlots = (s: GameState) => (lvl(s, 'lab') >= 2 ? 2 : 1) + (wlvl(s, 'breeder') >= 2 ? 1 : 0);
 export const maxExtra = (s: GameState) => lvl(s, 'lab');
 export const maxTraits = (s: GameState) => lvl(s, 'lab') + (wlvl(s, 'breeder') >= 3 ? 1 : 0);
@@ -913,6 +936,8 @@ export function sellMult(s: GameState, c: CropId, offset = 0): number {
   let m = 1 + [0, 0.1, 0.15, 0.2][wlvl(s, 'marketer')];
   for (const o of locOf(s).orgs) if (friends(s, o)) m *= PERK_PRICE[o]?.[c] ?? 1;
   for (const e of s.effects) if (e.kind === 'review' && e.weeks > offset) m *= e.mult;
+  // v3 §7 · grain through the mill sells 25% dearer
+  if (yardStage(s, 'miller') >= 2 && GRAIN.includes(c)) m *= 1.25;
   return m;
 }
 export const marketPrice = (s: GameState, c: CropId) => round2(priceOf(s, c) * sellMult(s, c));
@@ -1312,6 +1337,7 @@ function startWeek(s: GameState) {
   for (const w of s.team.filter((x) => x.leaves !== undefined && x.leaves <= s.absWeek)) feed(s, `${WORKERS[w.id].name} доработал своё и ушёл. Спасибо!`, 'info');
   s.team = s.team.filter((x) => x.leaves === undefined || x.leaves > s.absWeek);
   visitMorning(s);
+  forgeWeek(s);
   s.days = weekDays(s);
   // Cards not played stay in the hand across every season and year boundary (dealWeek).
   // price noise
@@ -1338,6 +1364,7 @@ function seasonStart(s: GameState) {
   s.dronesUsed = 0;
   s.candidates = keepCandidates(s);
   openFair(s);
+  yardsSeason(s);
   if (s.season === 1) {
     s.raids = (s.crowWarn ?? []).filter((w) => w >= s.absWeek).length;
     s.autoShoo = false;
@@ -2133,6 +2160,8 @@ function resolveWeek(s: GameState, diagnostic?: Pick<WeekOutlook, 'threats'>) {
       t.moisture = Math.max(0, t.moisture - extra);
     }
     if (wind && !windbreak(s, x, y) && !(t.mulch > 0) && !t.drip) t.moisture = Math.max(0, t.moisture - 1);
+    // v3 §7 · the village pump: in a hot week every bed gets a bucket more
+    if (hotWeek && hasCommon(s, 'pump')) t.moisture = Math.min(3, t.moisture + 1);
     // the road's dust: the plot's bottom row dries faster in summer
     if (hasCond(s, 'road') && s.season === 1 && y === 3 && t.structure !== 'greenhouse' && !(t.mulch > 0)) t.moisture = Math.max(0, t.moisture - 1);
     // the great drought takes one more from every open bed; mulch and drip lines keep it in
@@ -2455,7 +2484,8 @@ export function buildStage(s: GameState, t: TrackId): 0 | 1 | 2 | 3 {
   return done < 1 / 3 ? 1 : done < 2 / 3 ? 2 : 3;
 }
 export const isLabProject = (p: Project) => p.kind === 'cell' || p.kind === 'trait' || p.kind === 'variety' || p.kind === 'bio';
-export const workshopBusy = (s: GameState) => s.projects.filter((p) => p.kind === 'track').length;
+export const isBuildProject = (p: Project) => p.kind === 'track' || p.kind === 'yard' || p.kind === 'common';
+export const workshopBusy = (s: GameState) => s.projects.filter(isBuildProject).length;
 export const labBusy = (s: GameState) => s.projects.filter(isLabProject).length;
 export function trackCost(s: GameState, t: TrackId, level: number): number {
   const L = trackLevels(s, t)[level - 1];
@@ -2464,8 +2494,11 @@ export function trackCost(s: GameState, t: TrackId, level: number): number {
 /** v3 §5.1 · weeks of a building: the mechanic takes 15% off (rounded up, at least a week). Winter halves the pace. */
 export function trackWeeks(s: GameState, t: TrackId, level: number): number {
   const L = trackLevels(s, t)[level - 1];
-  return Math.max(1, Math.ceil(L.weeks * (wlvl(s, 'mechanic') >= 1 ? 0.85 : 1) - 1e-9));
+  return buildWeeks(s, L.weeks);
 }
+/** the weeks of any building site: the mechanic takes 15% off, Ефим's sawmill 20% (rounded up, at least a week) */
+export const buildWeeks = (s: GameState, base: number) =>
+  Math.max(1, Math.ceil(base * (wlvl(s, 'mechanic') >= 1 ? 0.85 : 1) * (yardStage(s, 'efim') >= 2 ? 0.8 : 1) - 1e-9));
 /** the materials a level takes from the shed when it is laid down */
 export const trackMats = (s: GameState, t: TrackId, level: number): Mats => trackLevels(s, t)[level - 1]?.mat ?? {};
 export const matsList = (m: Mats) => MATERIAL_IDS.filter((k) => (m[k] ?? 0) > 0).map((k) => [k, m[k]!] as [MaterialId, number]);
@@ -2537,9 +2570,131 @@ export function trainPrice(s: GameState, id: WorkerId): number {
 export const trainWeeks = (s: GameState, id: WorkerId) => 2 * (s.team.find((x) => x.id === id)?.level ?? 1);
 export const hirePrice = (s: GameState, id: WorkerId) => (s.freeHire.includes(id) ? 0 : Math.round(WORKERS[id].price * infl(s.year)));
 
+// ---------- v3 §7 · the neighbours: stages, swaps, help, the smith's forge ----------
+export const yardCost = (s: GameState, y: YardId, stage: number) => Math.round(YARDS[y].stages[stage - 1].cost * infl(s.year) * (wlvl(s, 'mechanic') >= 2 ? 0.85 : 1));
+export const yardWeeks = (s: GameState, y: YardId, stage: number) => buildWeeks(s, YARDS[y].stages[stage - 1].weeks);
+export const commonCost = (s: GameState, c: CommonId) => Math.round(COMMONS[c].cost * infl(s.year) * (wlvl(s, 'mechanic') >= 2 ? 0.85 : 1));
+/** толока: the whole village comes, the shared buildings go 30% faster */
+export const commonWeeks = (s: GameState, c: CommonId) => Math.max(1, Math.ceil(buildWeeks(s, COMMONS[c].weeks) * TOLOKA - 1e-9));
+/** how much of the crops a need asks for the barn and the yard hold (any of a group counts) */
+export const cropNeedStock = (s: GameState, crops: CropId[]) => crops.reduce((n, c) => n + stockOf(s, c), 0);
+/** take a need of crops: the crop there is most of first */
+function takeCropNeed(s: GameState, crops: CropId[], qty: number) {
+  let left = qty;
+  for (const c of [...crops].sort((a, b) => stockOf(s, b) - stockOf(s, a))) {
+    const n = Math.min(left, stockOf(s, c));
+    if (n > 0) { takeStock(s, c, n); left -= n; }
+    if (left <= 0) break;
+  }
+}
+export function yardProblem(s: GameState, y: YardId): string | null {
+  if (!isHome(s)) return 'Соседи — дома, в Черноземье';
+  if (!YARDS[y]) return 'Нет такого соседа';
+  const next = yardStage(s, y) + 1;
+  const st = YARDS[y].stages[next - 1];
+  if (!st) return 'Двор уже отстроен';
+  if (s.projects.some((p) => p.kind === 'yard' && p.yard === y)) return 'Уже строится';
+  if (workshopBusy(s) >= workshopSlots(s)) return 'Бригада занята';
+  if (s.money < yardCost(s, y, next)) return `Нужно ${money(yardCost(s, y, next))}`;
+  const short = matsShort(s, st.mat);
+  if (short) return `Не хватает: ${short}`;
+  if (st.crop && cropNeedStock(s, st.crop.crops) < st.crop.qty) return `Нужно ${st.crop.qty} ед. ${st.crop.name} (есть ${cropNeedStock(s, st.crop.crops)})`;
+  return null;
+}
+export function commonProblem(s: GameState, c: CommonId): string | null {
+  if (!isHome(s)) return 'Общие постройки — дома, в Черноземье';
+  if (!COMMONS[c]) return 'Нет такой постройки';
+  if (hasCommon(s, c)) return 'Уже стоит';
+  if (!commonsOpen(s)) return `Деревня возьмётся, когда ${COMMONS_NEED} двора будут на второй стадии (сейчас ${yardsStanding(s)})`;
+  if (s.projects.some((p) => p.kind === 'common' && p.id === c)) return 'Уже строится';
+  if (workshopBusy(s) >= workshopSlots(s)) return 'Бригада занята';
+  if (s.money < commonCost(s, c)) return `Нужно ${money(commonCost(s, c))}`;
+  const short = matsShort(s, COMMONS[c].mat);
+  if (short) return `Не хватает: ${short}`;
+  return null;
+}
+/** a swap is once a season; Зина's, from her second stage, once a week */
+const swapWeekly = (s: GameState, y: YardId) => y === 'zina' && yardStage(s, y) >= 2;
+const swapKey = (s: GameState, y: YardId) => (swapWeekly(s, y) ? s.absWeek : seasonKey(s));
+export const ZINA_CARDS = ['compost', 'mulch', 'shelter'] as const;
+export type ZinaCard = (typeof ZINA_CARDS)[number];
+export function swapProblem(s: GameState, y: YardId, crop?: CropId): string | null {
+  if (!isHome(s)) return 'Соседи — дома, в Черноземье';
+  if (!YARDS[y]) return 'Нет такого соседа';
+  if (yardStage(s, y) < 1) return 'Обмен откроется после первой стадии';
+  const st = s.yards?.[y];
+  if (st?.swap === swapKey(s, y)) return swapWeekly(s, y) ? 'На этой неделе уже менялись' : 'В этом сезоне уже менялись';
+  const sw = YARDS[y].swap;
+  if (crop !== undefined && !sw.take.crops.includes(crop)) return 'Это сосед не возьмёт';
+  const have = crop !== undefined ? stockOf(s, crop) : Math.max(0, ...sw.take.crops.map((c) => stockOf(s, c)));
+  if (have < sw.take.qty) return `Нужно ${sw.take.qty} ед. ${sw.take.name} одной культуры`;
+  return null;
+}
+export function yardHelpProblem(s: GameState, y: YardId): string | null {
+  if (!isHome(s)) return 'Соседи — дома, в Черноземье';
+  if (yardStage(s, y) < 2) return 'Сосед подмогнёт, когда двор будет на второй стадии';
+  if (s.yards?.[y]?.help === seasonKey(s)) return 'В этом сезоне сосед уже помогал';
+  return null;
+}
+/** the next level of an equipment line Savva can forge, and its price */
+export function forgeOffer(s: GameState, t: TrackId): { level: number; price: number } | null {
+  if (!EQUIPMENT.includes(t)) return null;
+  const level = equipNext(s, t);
+  if (level === null) return null;
+  return { level, price: Math.round(equipPrice(s, t, level) * FORGE_MULT) };
+}
+export const forgeOfferLines = (s: GameState): TrackId[] => EQUIPMENT.filter((t) => forgeOffer(s, t) !== null);
+export function forgeProblem(s: GameState, t: TrackId): string | null {
+  if (yardStage(s, 'savva') < 2) return 'Савва скуёт, когда кузня будет на второй стадии';
+  if (s.forge) return `Савва уже куёт: ${TRACKS[s.forge.track].levels[s.forge.level - 1].name}`;
+  const o = forgeOffer(s, t);
+  if (!o) return 'Здесь Савве ковать нечего';
+  if (s.money < o.price) return `Нужно ${money(o.price)}`;
+  return null;
+}
+/** a candidate a neighbour sends: one not in the team, not away with the cart, not already waiting */
+function yardCandidate(s: GameState, y: YardId, only?: WorkerId) {
+  const pool = (only ? [only] : WORKER_IDS).filter((id) => !s.team.some((w) => w.id === id) && !s.candidates.includes(id) && s.away?.worker?.id !== id);
+  if (!pool.length) return;
+  const id = pool[randInt(world(s, `yard-${y}`, s.year), pool.length)];
+  s.candidates.push(id);
+  (s.yards![y] ??= { stage: yardStage(s, y) }).cand = s.year;
+  feed(s, `${YARDS[y].name}: ${YARD_CANDIDATE[y]} — ${WORKERS[id].name}, ${WORKERS[id].title.toLowerCase()}. Ждёт у крыльца.`, 'good');
+}
+/** the neighbours' turn at the start of a season: the glass from Зина's greenhouse, the yearly candidates in spring
+ *  (and the smith's apprentice every season until he is taken) */
+function yardsSeason(s: GameState) {
+  if (!isHome(s) || !s.yards) return;
+  if (yardStage(s, 'zina') >= 3) { addMats(s, { glass: 2 }); feed(s, 'Зина: лишнее стекло из теплицы — 2 стекла в сарай.', 'good'); }
+  for (const y of ['zina', 'karpov'] as const) if (yardStage(s, y) >= 3 && s.yards[y]!.cand !== s.year) yardCandidate(s, y);
+  if (yardStage(s, 'savva') >= 3 && !s.team.some((w) => w.id === SAVVA_APPRENTICE)) yardCandidate(s, 'savva', SAVVA_APPRENTICE);
+}
+/** a stage is done: glory, the neighbour's thanks, and what it opens at once */
+function finishYard(s: GameState, y: YardId, stage: number): string {
+  s.yards ??= {};
+  const st = (s.yards[y] ??= { stage: 0 });
+  st.stage = Math.max(st.stage, stage);
+  addGlory(s, YARD_GLORY[stage - 1], `yard-${y}-${stage}`);
+  const D = YARDS[y];
+  if (stage === 3 && (y === 'zina' || y === 'karpov') && st.cand !== s.year) yardCandidate(s, y);
+  if (stage === 3 && y === 'savva') yardCandidate(s, 'savva', SAVVA_APPRENTICE);
+  const opens = stage === 1 ? `открылся обмен: ${D.swap.give}` : stage === 2 ? D.second : D.third;
+  return `${D.name}: готово «${D.stages[stage - 1].name}» — ${opens}`;
+}
+/** the smith's work is ready on its week */
+function forgeWeek(s: GameState) {
+  const f = s.forge;
+  if (!f || f.week > s.absWeek) return;
+  delete s.forge;
+  if (lvl(s, f.track) < f.level) s.levels[f.track] = f.level;
+  const msg = `Савва сковал: ${TRACKS[f.track].levels[f.level - 1].name} — ${TRACKS[f.track].levels[f.level - 1].text}`;
+  s.report.done.push(msg);
+  feed(s, `${msg}.`, 'good');
+}
+
 function tickProjects(s: GameState) {
   // v3 §5.1 · in winter a building site moves at half pace; the lab and training go on indoors
-  for (const p of s.projects) p.weeks = round2(p.weeks - (p.kind === 'track' && s.season === 3 ? 0.5 : 1));
+  for (const p of s.projects) p.weeks = round2(p.weeks - (isBuildProject(p) && s.season === 3 ? 0.5 : 1));
   const done = s.projects.filter((p) => p.weeks <= 0);
   for (const p of done) {
     // Other completed laboratory cards retain their reservations until their own return.
@@ -2570,6 +2725,12 @@ function tickProjects(s: GameState) {
       msg = 'Лаборатория: 2 карты «Биопрепарат» доставлены в руку; при полной руке — в сброс';
     } else if (p.kind === 'train') {
       // training ends with the worker's away counter
+    } else if (p.kind === 'yard') {
+      msg = finishYard(s, p.yard, p.stage);
+    } else if (p.kind === 'common') {
+      (s.commons ??= []).push(p.id);
+      addGlory(s, COMMON_GLORY, `common-${p.id}`);
+      msg = `Деревня построила: ${COMMONS[p.id].name} — ${COMMONS[p.id].text}`;
     }
     if (msg) {
       s.report.done.push(msg);
@@ -2712,6 +2873,8 @@ export function acceptProblem(s: GameState, o: OrgId): string | null {
   if (n >= questSlots(s)) return `В работе уже ${questSlots(s)} ${plural(questSlots(s), 'заказ', 'заказа', 'заказов')}`;
   return null;
 }
+/** v3 §7 · an order of the bakery or the council with grain in it goes as flour once the mill has its granary */
+export const millFlour = (s: GameState, q: Quest) => yardStage(s, 'miller') >= 3 && (q.org === 'bakery' || q.org === 'council') && q.lines.some((l) => GRAIN.includes(l.crop));
 export function deliverProblem(s: GameState, o: OrgId): string | null {
   const q = s.orgs[o]?.active;
   if (!q) return 'Нет заказа в работе';
@@ -3080,7 +3243,12 @@ export type Action =
   | { t: 'answer'; choice: number }
   | { t: 'fold'; picks: LootId[] }
   | { t: 'buyout' }
-  | { t: 'seize' };
+  | { t: 'seize' }
+  | { t: 'yardBuild'; yard: YardId }
+  | { t: 'commonBuild'; id: CommonId }
+  | { t: 'yardSwap'; yard: YardId; crop: CropId; card?: ZinaCard }
+  | { t: 'yardHelp'; yard: YardId }
+  | { t: 'forge'; track: TrackId };
 
 const ANY_PHASE: Action['t'][] = ['guide', 'pay', 'emergency', 'restructure', 'giveUp', 'seize', 'sell', 'borrow', 'repay', 'deliver'];
 const isInt = (v: unknown): v is number => typeof v === 'number' && Number.isInteger(v);
@@ -3435,6 +3603,69 @@ export function apply(state: GameState, a: Action): GameState {
       feed(s, `Началась стройка: ${trackLevels(s, a.track)[level - 1].name}, ${weeks} ${plural(weeks, 'неделя', 'недели', 'недель')}.`, 'info');
       break;
     }
+    case 'yardBuild': {
+      const why = yardProblem(s, a.yard);
+      if (why) fail(why);
+      const stage = yardStage(s, a.yard) + 1;
+      const st = YARDS[a.yard].stages[stage - 1];
+      spend(s, yardCost(s, a.yard, stage), 'build');
+      for (const [k, n] of matsList(st.mat)) s.mats![k] -= n;
+      if (st.crop) takeCropNeed(s, st.crop.crops, st.crop.qty);
+      const weeks = yardWeeks(s, a.yard, stage);
+      s.projects.push({ kind: 'yard', yard: a.yard, stage, weeks, total: weeks });
+      feed(s, `${YARDS[a.yard].name}: начали «${st.name}», ${weeks} ${plural(weeks, 'неделя', 'недели', 'недель')}.`, 'info');
+      break;
+    }
+    case 'commonBuild': {
+      const why = commonProblem(s, a.id);
+      if (why) fail(why);
+      spend(s, commonCost(s, a.id), 'build');
+      for (const [k, n] of matsList(COMMONS[a.id].mat)) s.mats![k] -= n;
+      const weeks = commonWeeks(s, a.id);
+      s.projects.push({ kind: 'common', id: a.id, weeks, total: weeks });
+      feed(s, `Толока: всей деревней строим «${COMMONS[a.id].name}», ${weeks} ${plural(weeks, 'неделя', 'недели', 'недель')}.`, 'info');
+      break;
+    }
+    case 'yardSwap': {
+      if (!YARDS[a.yard]) fail('Нет такого соседа');
+      if (!CROP_IDS.includes(a.crop)) fail('Нет такой культуры');
+      const why = swapProblem(s, a.yard, a.crop);
+      if (why) fail(why);
+      if (a.yard === 'zina' && !ZINA_CARDS.includes(a.card as ZinaCard)) fail('Выберите карту');
+      const key = swapKey(s, a.yard);
+      takeStock(s, a.crop, YARDS[a.yard].swap.take.qty);
+      let got = '';
+      if (a.yard === 'zina') { deliverTemporary(s, a.card!); got = `карта «${CARDS[a.card!].name}» в руку`; }
+      else if (a.yard === 'savva') { addMats(s, { bricks: 5 }); got = '5 кирпичей'; }
+      else if (a.yard === 'efim') { const n = yardStage(s, 'efim') >= 2 ? 6 : 4; addMats(s, { logs: n }); got = `${n} брёвен`; }
+      else if (a.yard === 'miller') {
+        const cash = round2(YARDS.miller.swap.take.qty * priceOf(s, a.crop) * 1.4);
+        s.money = round2(s.money + cash); s.earned = round2(s.earned + cash); s.stats.sales = round2(s.stats.sales + cash);
+        got = `мука, +${money(cash)}`;
+      } else { deliverTemporary(s, 'helpers'); got = 'карта «Помощь соседей» в руку'; }
+      (s.yards![a.yard] ??= { stage: yardStage(s, a.yard) }).swap = key;
+      feed(s, `${YARDS[a.yard].name}: ${YARDS[a.yard].swap.take.qty} ед. «${CROPS[a.crop].name}» — ${got}.`, 'good');
+      break;
+    }
+    case 'yardHelp': {
+      if (!YARDS[a.yard]) fail('Нет такого соседа');
+      const why = yardHelpProblem(s, a.yard);
+      if (why) fail(why);
+      s.yards![a.yard]!.help = seasonKey(s);
+      s.days += 1;
+      feed(s, `${YARDS[a.yard].name} пришли подсобить: +1 рабочий день на этой неделе.`, 'good');
+      break;
+    }
+    case 'forge': {
+      if (!Object.prototype.hasOwnProperty.call(TRACKS, a.track)) fail('Нет такой линии');
+      const why = forgeProblem(s, a.track);
+      if (why) fail(why);
+      const o = forgeOffer(s, a.track)!;
+      spend(s, o.price, 'build');
+      s.forge = { track: a.track, level: o.level, week: s.absWeek + FORGE_WEEKS };
+      feed(s, `Савва взялся ковать: ${TRACKS[a.track].levels[o.level - 1].name}, ${FORGE_WEEKS} недели.`, 'info');
+      break;
+    }
     case 'helpBuild': {
       if (!Object.prototype.hasOwnProperty.call(TRACKS, a.track)) fail('Нет такой постройки');
       const why = helpProblem(s, a.track);
@@ -3538,7 +3769,9 @@ export function apply(state: GameState, a: Action): GameState {
       const st = s.orgs[a.org]!;
       const q = st.active!;
       for (const l of q.lines) takeStock(s, l.crop, l.qty);
-      const pay = round2(q.pay * (wlvl(s, 'marketer') >= 3 ? 1.1 : 1));
+      // v3 §7 · with the mill's granary the bakery and the council get flour for their grain, and pay for it
+      const flour = millFlour(s, q);
+      const pay = round2(q.pay * (wlvl(s, 'marketer') >= 3 ? 1.1 : 1) * (flour ? 1.3 : 1));
       s.money = round2(s.money + pay);
       s.stats.orders = round2(s.stats.orders + pay);
       s.earned = round2(s.earned + pay);
@@ -3554,7 +3787,7 @@ export function apply(state: GameState, a: Action): GameState {
         if (q.reward) bonus = grant(s, q.reward, `${s.seed}|${s.loc}|${a.org}|${q.step}`);
         if (st.step === ORGS[a.org].steps.length) addGlory(s, 25, `chain-${a.org}`);
       }
-      feed(s, `${ORGS[a.org].short}: заказ сдан, +${money(pay)}${bonus ? ` и премия +${money(bonus)}` : ''}.`, 'good');
+      feed(s, `${ORGS[a.org].short}: заказ сдан${flour ? ' мукой с мельницы' : ''}, +${money(pay)}${bonus ? ` и премия +${money(bonus)}` : ''}.`, 'good');
       break;
     }
     case 'borrow': {
@@ -3748,6 +3981,8 @@ function openFair(s: GameState) {
   const spread = () => 0.9 + 0.3 * rand(w);
   const lot = (l: Omit<FairLot, 'id'>) => f.lots.push({ id: f.nextId++, ...l });
   const lines = () => EQUIPMENT.filter((line) => equipNext(s, line) !== null && !f.lots.some((l) => l.track === line));
+  // v3 §7 · Savva's forge: equipment 15% cheaper
+  const smith = yardStage(s, 'savva') >= 2 ? 0.85 : 1;
   const matLot = () => {
     const k = pickWeighted(w, MATERIAL_IDS.map((m) => [m, MAT_WEIGHT[s.loc][m]] as [MaterialId, number]));
     const [lo, hi] = MATERIALS[k].lot;
@@ -3763,7 +3998,7 @@ function openFair(s: GameState) {
     const line = free[0], level = equipNext(s, line)!;
     s.equipSeen[line] = s.year;
     const used = rand(w) < 0.2;
-    lot({ kind: 'equip', track: line, level, price: Math.round(equipPrice(s, line, level) * spread() * (used ? 0.7 : 1)), ...(used ? { used } : {}) });
+    lot({ kind: 'equip', track: line, level, price: Math.round(equipPrice(s, line, level) * spread() * (used ? 0.7 : 1) * smith), ...(used ? { used } : {}) });
   }
   for (let i = 0; i < plan.mat; i++) matLot();
   for (let i = 0; i < plan.worker; i++) {
@@ -3780,12 +4015,21 @@ function openFair(s: GameState) {
     if (jump.length && rand(w) < 0.5) {
       const line = jump[randInt(w, jump.length)], level = equipNext(s, line, 2)!;
       (s.equipSeen ??= {})[line] = s.year;
-      lot({ kind: 'equip', track: line, level, special: true, price: Math.round((equipPrice(s, line, level - 1) + equipPrice(s, line, level)) * 0.9) });
+      lot({ kind: 'equip', track: line, level, special: true, price: Math.round((equipPrice(s, line, level - 1) + equipPrice(s, line, level)) * 0.9 * smith) });
     } else {
       const mats: Mats = { logs: 10, bricks: 6, glass: 3 };
       const base = matsList(mats).reduce((a, [k, n]) => a + n * MATERIALS[k].price * (MAT_PRICE[s.loc]?.[k] ?? 1), 0);
       lot({ kind: 'mat', mats, special: true, price: Math.round(base * 0.85 * infl(s.year)) });
     }
+  }
+  // v3 §7 · the bridge brings sellers from over the river: one more lot, equipment while there is a line to offer
+  if (hasCommon(s, 'bridge')) {
+    const free = lines();
+    if (free.length) {
+      const line = free[randInt(w, free.length)], level = equipNext(s, line)!;
+      (s.equipSeen ??= {})[line] = s.year;
+      lot({ kind: 'equip', track: line, level, price: Math.round(equipPrice(s, line, level) * spread() * smith) });
+    } else matLot();
   }
   s.fair = f;
   eyeLot(s);

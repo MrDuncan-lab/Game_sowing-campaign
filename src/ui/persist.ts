@@ -7,6 +7,7 @@ import type { GameState } from '../engine/game';
 import { newGame } from '../engine/game';
 import { EPISODES } from '../engine/calendar';
 import { TRIALS } from '../engine/trials';
+import { COMMONS, YARDS } from '../engine/neighbours';
 import { canWriteSession, managedSaveSession, saveSession } from './saveSession';
 
 const PROFILE = 'posevnaya.v4.profile';
@@ -223,6 +224,11 @@ export function validFarm(v: unknown): v is GameState {
   if ((v.run !== undefined && !run(v.run)) || (v.away !== undefined && !away(v.away))) return false;
   if (v.arrest !== undefined && !(obj(v.arrest) && num(v.arrest.debt) && v.arrest.debt >= 0 && int(v.arrest.runs))) return false;
   if (v.phase === 'arrest' && v.arrest === undefined) return false;
+  // v3 §7 · the neighbours
+  if (v.yards !== undefined && !(obj(v.yards) && Object.entries(v.yards).every(([k, y]: [string, any]) => member(YARDS, k) && obj(y) && int(y.stage) && y.stage >= 0 && y.stage <= 3
+    && ['swap', 'help', 'cand'].every((f) => y[f] === undefined || int(y[f]))))) return false;
+  if (v.commons !== undefined && !arr(v.commons, (c) => member(COMMONS, c))) return false;
+  if (v.forge !== undefined && !(obj(v.forge) && member(TRACKS, v.forge.track) && int(v.forge.level) && v.forge.level >= 1 && v.forge.level <= TRACKS[v.forge.track as keyof typeof TRACKS].levels.length && int(v.forge.week))) return false;
   if (v.over && v.over.work !== undefined && !(num(v.over.work) && v.over.work > 0)) return false;
   const base = templates.get(v.loc)!;
   if(v.guide!==undefined && !arr(v.guide,x=>typeof x==='string' && ['plant','rotate','water','harvest','sale','payment','order','delivery','soil'].includes(x))) return false;
@@ -242,7 +248,7 @@ export function validFarm(v: unknown): v is GameState {
   if (!arr(v.team, worker) || !['candidates', 'freeHire'].every((k) => arr(v[k], (x) => member(WORKERS, x)))) return false;
   // PSV-022 · a story step is a whole number from 0; relations stay within −100…100
   if (!obj(v.orgs) || !Object.entries(v.orgs).every(([k, x]) => member(ORGS, k) && obj(x) && ['rel', 'step', 'wait', 'idle', 'lastMischief'].every((n) => num(x[n])) && Number.isInteger(x.step) && x.step >= 0 && x.rel >= -100 && x.rel <= 100 && quest(x.offer) && quest(x.active))) return false;
-  if (!arr(v.projects, (x) => obj(x) && num(x.weeks) && num(x.total) && (x.kind === 'track' ? member(TRACKS, x.track) && Number.isInteger(x.level) && x.level >= 1 && x.level <= TRACKS[x.track as keyof typeof TRACKS].levels.length : x.kind === 'cell' ? card(x.card) && points([x.cell]) : x.kind === 'trait' ? card(x.card) && member(TRAITS, x.trait) : x.kind === 'variety' ? member(CROPS, x.crop) : x.kind === 'train' ? member(WORKERS, x.worker) : x.kind === 'bio'))) return false;
+  if (!arr(v.projects, (x) => obj(x) && num(x.weeks) && num(x.total) && (x.kind === 'track' ? member(TRACKS, x.track) && Number.isInteger(x.level) && x.level >= 1 && x.level <= TRACKS[x.track as keyof typeof TRACKS].levels.length : x.kind === 'cell' ? card(x.card) && points([x.cell]) : x.kind === 'trait' ? card(x.card) && member(TRAITS, x.trait) : x.kind === 'variety' ? member(CROPS, x.crop) : x.kind === 'train' ? member(WORKERS, x.worker) : x.kind === 'yard' ? member(YARDS, x.yard) && int(x.stage) && x.stage >= 1 && x.stage <= 3 : x.kind === 'common' ? member(COMMONS, x.id) : x.kind === 'bio'))) return false;
   if (!Number.isInteger(v.rating) || v.rating < 0 || v.rating > 5) return false;
   // every card is one object: a uid seen twice would play or move the wrong card
   const uids = [...['draw', 'hand', 'discard', 'spare'].flatMap((k) => v[k]), ...v.projects.flatMap((x: any) => x.kind === 'cell' || x.kind === 'trait' ? [x.card] : [])].map((c: any) => c.uid);
