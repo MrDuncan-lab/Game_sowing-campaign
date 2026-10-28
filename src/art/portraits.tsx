@@ -10,7 +10,9 @@ export type CustomerPersonId = 'olga' | 'anna' | 'timofey' | 'arseniy' | 'boris'
 export type ChildPersonId = 'katya' | 'misha';
 /** v3 · the rival and the visitors at an expedition's camp (docs/CHARACTERS-v3.md) */
 export type VisitorPersonId = 'pryakhin' | 'dasha' | 'yakov' | 'petro' | 'gordey' | 'afanasich' | 'alla' | 'nikolay' | 'kostya' | 'grisha' | 'nyura';
-export type PersonId = 'vera' | 'marat' | 'palych' | 'zina' | 'buyer' | 'carla' | SpecialistId | CustomerPersonId | ChildPersonId | VisitorPersonId;
+/** v3 · the neighbours of the home village (docs/PROGRESSION-v3.md §7) */
+export type NeighbourPersonId = 'savva' | 'efim' | 'matvey' | 'karpova';
+export type PersonId = 'vera' | 'marat' | 'palych' | 'zina' | 'buyer' | 'carla' | SpecialistId | CustomerPersonId | ChildPersonId | VisitorPersonId | NeighbourPersonId;
 
 type HairStyle = 'short' | 'long' | 'bun' | 'bald' | 'braid' | 'curly' | 'bob';
 interface Look {
@@ -55,6 +57,10 @@ const LOOKS: Record<Exclude<PersonId, 'carla' | ChildPersonId>, Look> = {
   kostya: { skin: '#e9b590', hair: '#6a4a2e', style: 'short', shirt: '#3d5a80', bg: '#d8e8f5', acc: ['stubble'], hat: { kind: 'cap', color: '#2f3a4a' } },
   grisha: { skin: '#e4ae88', hair: '#b8b2a8', style: 'short', shirt: '#8a5a3a', bg: '#f2e2c4', acc: ['mustache'], hat: { kind: 'flatcap', color: '#6a5a48' } },
   nyura: { skin: '#f0c4a0', hair: '#7a4a2a', style: 'bob', shirt: '#2f4f8a', bg: '#dbe4f4' },
+  savva: { skin: '#d9a47e', hair: '#2a211c', style: 'short', shirt: '#6b4a33', bg: '#ecd9c0', acc: ['beard'] },
+  efim: { skin: '#eebd98', hair: '#8a5a2e', style: 'curly', shirt: '#f2ead4', bg: '#e8e0c8' },
+  matvey: { skin: '#e8b48f', hair: '#e6e2da', style: 'short', shirt: '#d8d0bc', bg: '#f0ead8', acc: ['beard'], hat: { kind: 'flatcap', color: '#9a8a6a' } },
+  karpova: { skin: '#f0c4a0', hair: '#a0582c', style: 'braid', shirt: '#6b7a3a', bg: '#e6ecd0', hat: { kind: 'scarf', color: '#3f6fb0' } },
   vera: { skin: '#f3c9a5', hair: '#9a4f27', style: 'braid', shirt: '#4f8ad1', bg: '#cbe9b5', hat: { kind: 'cap', color: '#5dad3c' } },
   marat: { skin: '#d9a77c', hair: '#2b2320', style: 'short', shirt: '#5a6b8c', bg: '#f5ddb0', acc: ['glasses'] },
   palych: { skin: '#e8b48f', hair: '#e9e6df', style: 'bald', shirt: '#6b7a3a', bg: '#bfe1f2', hat: { kind: 'flatcap', color: '#6d6a63' }, acc: ['mustache'] },
