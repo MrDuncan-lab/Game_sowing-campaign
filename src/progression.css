@@ -1,0 +1,56 @@
+/* Progression v3 (docs/PROGRESSION-v3.md): the shed of building materials, materials on building cards, help on a
+   building site, the season's fair with Пряхин, trees on the field. */
+
+/* the shed: what materials the farm has, as small chips; a short one turns red */
+.shed-chips { display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; vertical-align: middle; }
+.shed-chip { display: inline-flex; align-items: center; gap: 3px; padding: 1px 8px 1px 4px; border-radius: 999px; background: var(--paper-2); border: 1px solid var(--hair); font-size: 13px; font-variant-numeric: tabular-nums lining-nums; }
+.shed-chip b { font-weight: 700; }
+.shed-chip.short { background: #f6d9cf; border-color: #d48a76; color: var(--bad); }
+.shed-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 2px 0 6px; font-size: 13.5px; }
+.shed-row > span:first-child { font-weight: 700; color: var(--ink-soft); }
+.shed-row .link { margin-left: auto; }
+button.link { appearance: none; border: 0; background: none; padding: 0; min-height: 0; color: var(--leaf-dark); font: inherit; font-weight: 700; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+button.link:focus-visible { outline: 2px solid var(--leaf-dark); outline-offset: 2px; border-radius: 3px; }
+
+/* building cards: the materials row and the reason sit under the effect, aligned with it */
+.track2-mats { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.track2-mats > small { color: var(--ink-mute); }
+.house-pane .track2 { grid-template-areas: 'head head act' 'eff eff act' 'mats mats act' 'why why why' 'place place place' 'more more more'; }
+.house-pane .track2 > .track2-mats { grid-area: mats; padding-left: 56px; }
+.house-pane .track2 > .why { grid-area: why; padding-left: 56px; }
+.track2-progress { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.track2-progress .btn { white-space: nowrap; }
+@media (max-width: 360px) { .house-pane .track2 > .track2-mats, .house-pane .track2 > .why { padding-left: 0; } }
+
+/* the season's fair */
+.fair-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.fair-head .grow { display: flex; flex-direction: column; min-width: 0; flex: 1 1 140px; }
+.fair-head .grow b { font-family: var(--display, serif); font-size: 1.1rem; }
+.fair-head .grow small { color: var(--ink-soft); }
+.fair-rival { display: flex; gap: 10px; align-items: flex-start; margin: 10px 0 4px; font-size: 13.5px; line-height: 1.35; color: var(--ink-soft); }
+.fair-rival b { color: var(--ink); }
+.fair-lots { display: flex; flex-direction: column; }
+.fair-lot { display: grid; grid-template-columns: 52px minmax(0, 1fr) auto; grid-template-areas: 'art body side' 'why why why'; gap: 4px 10px; align-items: center; padding: 10px 6px; border-top: 1px solid var(--hair); border-radius: 6px; }
+.fair-lot > :first-child { grid-area: art; justify-self: center; }
+.lot-body { grid-area: body; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.lot-name { font-weight: 700; line-height: 1.2; }
+.lot-note { color: var(--ink-soft); font-size: 13px; line-height: 1.3; }
+.lot-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.lot-tags:empty { display: none; }
+.lot-tags .tag { margin-left: 0; display: inline-flex; align-items: center; gap: 3px; font-size: 12px; }
+.tag.warn { background: #fde7b8; border-color: #c8931f; }
+.lot-side { grid-area: side; display: flex; flex-direction: column; align-items: stretch; gap: 4px; min-width: 96px; }
+.lot-price { text-align: right; font-variant-numeric: tabular-nums lining-nums; }
+.fair-lot > .why { grid-area: why; }
+.fair-lot.eyed { background: linear-gradient(90deg, rgba(253, 231, 184, .6), transparent 75%); }
+.fair-lot.held { background: linear-gradient(90deg, rgba(214, 239, 192, .6), transparent 75%); }
+.fair-lot.sold { opacity: .62; }
+.lot-sold { font-size: 13px; font-weight: 700; color: var(--ink-mute); text-align: right; }
+.lot-sold.up { color: var(--good); }
+.lot-icon { display: inline-flex; align-items: center; justify-content: center; flex-wrap: wrap; width: 48px; height: 48px; border-radius: 50%; background: var(--paper-2); border: 1px solid var(--hair); }
+.fair-sold summary { cursor: pointer; margin-top: 8px; font-size: 13.5px; color: var(--ink-soft); }
+@media (max-width: 380px) {
+  .fair-lot { grid-template-columns: 48px minmax(0, 1fr); grid-template-areas: 'art body' 'side side' 'why why'; }
+  .lot-side { flex-direction: row; justify-content: flex-end; align-items: center; flex-wrap: wrap; }
+  .lot-price { margin-right: auto; text-align: left; padding-left: 58px; }
+}

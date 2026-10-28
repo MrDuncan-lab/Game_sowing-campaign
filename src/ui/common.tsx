@@ -161,4 +161,5 @@ export function Btn({ children, onClick, disabled, tone, small, title, class: cl
 }
 
 export const weeksTxt = (n: number) => `${n} ${n % 10 === 1 && n % 100 !== 11 ? 'неделя' : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? 'недели' : 'недель'}`;
-export const weeksShort = (n: number) => `${n} нед.`;
+// v3 · a building site in winter moves half a week a week: a remainder is shown rounded up
+export const weeksShort = (n: number) => `${Math.ceil(n - 1e-9)} нед.`;

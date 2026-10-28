@@ -17,7 +17,7 @@ import { FieldView } from './FieldView';
 import type { VillageApi, VillageMode } from './Village';
 import { HouseView } from './House';
 import { LabView } from './Lab';
-import { BarnView } from './Barn';
+import { BarnView, type BarnTab } from './Barn';
 import { OrdersView } from './Orders';
 import type { Profile } from './persist';
 
@@ -121,7 +121,7 @@ export function FarmScreen({ s, dispatch, profile, fast, onFast, onMap, onRestar
   const [menu, setMenu] = useState(false);
   const [orderTarget,setOrderTarget]=useState<{org:OrgId;key:number}|null>(null);
   const [paymentOpen, setPaymentOpen] = useState(s.phase === 'shortfall');
-  const [barnTarget, setBarnTarget] = useState<{ tab: 'market' | 'shop' | 'bank'; key: number }>({ tab: 'market', key: 0 });
+  const [barnTarget, setBarnTarget] = useState<{ tab: BarnTab; key: number }>({ tab: 'market', key: 0 });
   const [placeRequest, setPlaceRequest] = useState<{ item: BuildItem; key: number } | null>(null);
   const villageApi = useRef<VillageApi | null>(null);
   const [fieldMode, setFieldMode] = useState<VillageMode>('field');
@@ -139,7 +139,7 @@ export function FarmScreen({ s, dispatch, profile, fast, onFast, onMap, onRestar
     el.scrollTo({ left: idx(t) * el.clientWidth, behavior: animate ? 'smooth' : 'auto' });
     setTab(t);
   }
-  function openBarn(target: 'market' | 'shop' | 'bank' = 'market') {
+  function openBarn(target: BarnTab = 'market') {
     setBarnTarget(v => ({ tab: target, key: v.key + 1 }));
     setPaymentOpen(false);
     go('barn');
@@ -264,8 +264,8 @@ export function FarmScreen({ s, dispatch, profile, fast, onFast, onMap, onRestar
       {s.phase === 'shortfall' && !paymentOpen && (tab !== 'field' || fieldMode !== 'field') && <div class="payment-reminder" role="status"><div class="pr-chip"><span>Платёж ожидает решения</span><button type="button" onClick={()=>setPaymentOpen(true)}>Решить платёж</button></div></div>}
       <LessonLocks.Provider value={lockOf}><QuickProjects.Provider value={!!tutorial}><div class="pager" ref={pager}>
         <section class="pane" {...paneProps('lab')}><Peek area="lab" onBack={() => go('field')}><LabView s={s} act={dispatch} active={tab === 'lab' && !menu && !paymentOpen && !suspended && !tabLock('lab')} teaching={tutorial?.session.step === 'lab'} /></Peek></section>
-        <section class="pane" {...paneProps('house')}><Peek area="house" onBack={() => go('field')}><HouseView s={s} act={dispatch} onPlace={(item) => { setPlaceRequest({ item, key: Date.now() }); go('field'); }} /></Peek></section>
-        <section class="pane field-pane" {...paneProps('field')}><FieldView onPresent={setPresent} teaching={!!tutorial} precheck={tutorial?.precheck} lessonVisit={tutorial?.session.step==='visit'} onVisitDone={()=>{if(tutorial?.session.step==='visit')tutorial.onNext();}} onOrder={org=>{setOrderTarget({org,key:Date.now()});go('orders');}} onPayment={()=>setPaymentOpen(true)} onMap={onMap} villageApi={villageApi} onVillageMode={setFieldMode} testing={testing} s={s} dispatch={dispatch} fast={fast} active={tab === 'field' && !menu && !paymentOpen && !suspended} placeRequest={placeRequest} onGo={(t) => t === 'barn' ? openBarn() : go(t as TabId)} /></section>
+        <section class="pane" {...paneProps('house')}><Peek area="house" onBack={() => go('field')}><HouseView s={s} act={dispatch} onFair={() => openBarn('fair')} onPlace={(item) => { setPlaceRequest({ item, key: Date.now() }); go('field'); }} /></Peek></section>
+        <section class="pane field-pane" {...paneProps('field')}><FieldView onPresent={setPresent} teaching={!!tutorial} precheck={tutorial?.precheck} lessonVisit={tutorial?.session.step==='visit'} onVisitDone={()=>{if(tutorial?.session.step==='visit')tutorial.onNext();}} onOrder={org=>{setOrderTarget({org,key:Date.now()});go('orders');}} onPayment={()=>setPaymentOpen(true)} onMap={onMap} villageApi={villageApi} onVillageMode={setFieldMode} testing={testing} s={s} dispatch={dispatch} fast={fast} active={tab === 'field' && !menu && !paymentOpen && !suspended} placeRequest={placeRequest} onGo={(t) => t === 'barn' ? openBarn() : t === 'fair' ? openBarn('fair') : go(t as TabId)} /></section>
         <section class="pane" {...paneProps('barn')}><Peek area="barn" onBack={() => go('field')}><BarnView s={s} act={dispatch} target={barnTarget} onPayment={()=>setPaymentOpen(true)} /></Peek></section>
         <section class="pane" {...paneProps('orders')}><Peek area="orders" onBack={() => go('field')}><OrdersView teaching={!!tutorial} target={orderTarget} s={s} act={dispatch} profile={profile} /></Peek></section>
       </div></QuickProjects.Provider></LessonLocks.Provider>

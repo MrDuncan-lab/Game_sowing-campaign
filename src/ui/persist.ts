@@ -1,4 +1,4 @@
-import { repairOpenOffers } from '../engine/game';
+import { ensureV3, repairOpenOffers } from '../engine/game';
 // Saves: one profile shared by every farm (glory, certificates, pets, the seed bank, records) and one slot per farm.
 import type { CropId, LocationId, PetId } from '../engine/data';
 import { CARDS, CROPS, LOCATION_IDS, ORGS, PETS, SEED_BANK_OK, TERRAIN, TRACKS, TRAITS, WORKERS } from '../engine/data';
@@ -187,9 +187,23 @@ const cell = (x: unknown, y: unknown) => Number.isInteger(x) && Number.isInteger
 const plant = (p: any) => obj(p) && member(CROPS, p.id) && ['grown', 'bonus', 'mult', 'planted', 'pid'].every((k) => num(p[k]));
 const DAMAGE = ['frost', 'dry', 'hail', 'flood', 'crows', 'thieves'];
 const quest = (v: any) => v === null || obj(v) && (v.createdWeek === undefined || Number.isInteger(v.createdWeek) && v.createdWeek >= 0) && member(ORGS, v.org) && ['id', 'step', 'pay', 'rel', 'weeks'].every((k) => num(v[k])) && typeof v.title === 'string' && typeof v.text === 'string' && arr(v.lines, (x) => obj(x) && member(CROPS, x.crop) && num(x.qty));
+const MAT_KEYS = ['logs', 'bricks', 'glass'];
+const mats = (v: any) => obj(v) && Object.entries(v).every(([k, n]) => MAT_KEYS.includes(k) && Number.isInteger(n) && (n as number) >= 0);
+const fairLot = (l: any) => obj(l) && Number.isInteger(l.id) && ['equip', 'mat', 'worker'].includes(l.kind) && num(l.price) && l.price >= 0
+  && (l.kind !== 'equip' || member(TRACKS, l.track) && Number.isInteger(l.level) && l.level >= 1 && l.level <= TRACKS[l.track as keyof typeof TRACKS].levels.length)
+  && (l.kind !== 'mat' || mats(l.mats)) && (l.kind !== 'worker' || member(WORKERS, l.worker))
+  && (l.sold === undefined || ['player', 'rival'].includes(l.sold)) && ['hold', 'deposit', 'wlevel'].every((k) => l[k] === undefined || num(l[k]));
+const fair = (f: any) => f === undefined || obj(f) && ['year', 'season', 'eyeWeek', 'rival', 'nextId'].every((k) => num(f[k])) && (f.eye === null || Number.isInteger(f.eye)) && arr(f.lots, fairLot);
 export function validFarm(v: unknown): v is GameState {
   if (!obj(v) || v.v !== 5 || !loc(v.loc) || typeof v.seed !== 'string' || !v.seed || !['week', 'shortfall', 'gameover'].includes(v.phase)) return false;
-  if (!templates.has(v.loc)) templates.set(v.loc, newGame({ loc: v.loc, seed: 'validation' }));
+  // v3 fields are optional (old saves lack them) and checked on their own: the template leaves them out
+  if (!templates.has(v.loc)) {
+    const { mats: _m, fair: _f, equipSeen: _e, ...base } = newGame({ loc: v.loc, seed: 'validation' });
+    templates.set(v.loc, base as GameState);
+  }
+  if (v.mats !== undefined && (!mats(v.mats) || MAT_KEYS.some((k) => !Number.isInteger(v.mats[k])))) return false;
+  if (!fair(v.fair) || (v.equipSeen !== undefined && !(obj(v.equipSeen) && Object.entries(v.equipSeen).every(([k, n]) => member(TRACKS, k) && Number.isInteger(n))))) return false;
+  if (['helpWeek'].some((k) => v[k] !== undefined && !Number.isInteger(v[k])) || (v.quiet !== undefined && typeof v.quiet !== 'boolean')) return false;
   const base = templates.get(v.loc)!;
   if(v.guide!==undefined && !arr(v.guide,x=>typeof x==='string' && ['plant','rotate','water','harvest','sale','payment','order','delivery','soil'].includes(x))) return false;
   if(['compostReady','shortfallBorrowed'].some(k=>v[k]!==undefined && typeof v[k]!=='boolean')) return false;
@@ -197,7 +211,7 @@ export function validFarm(v: unknown): v is GameState {
   if(v.scenes!==undefined && !arr(v.scenes,e=>obj(e) && typeof e.id==='string' && Number.isInteger(e.week) && e.week>=0 && (e.at===undefined||coords([e.at])) && (e.visit===undefined || obj(e.visit) && ['stolen','empty'].includes(e.visit.outcome) && coords(e.visit.targets) && coords(e.visit.crows)) && ['dogThieves','thieves','watchman','drone','geese'].includes(e.kind))) return false;
 
   if (!shape(v, base) || !Number.isInteger(v.season) || v.season < 0 || v.season > 3 || v.year < 1 || v.week < 0 || v.week > base.temps.length || v.absWeek < 0) return false;
-  if (!Array.isArray(v.tiles) || v.tiles.length !== 36 || !v.tiles.every((t: any) => shape(t, base.tiles[0]) && (t.greenhousePlacedWeek===undefined || Number.isInteger(t.greenhousePlacedWeek) && t.greenhousePlacedWeek>=0 && t.greenhousePlacedWeek<=v.absWeek) && (t.hivePlacedWeek===undefined || Number.isInteger(t.hivePlacedWeek) && t.hivePlacedWeek>=0 && t.hivePlacedWeek<=v.absWeek) && Number.isInteger(t.soil) && t.soil >= 1 && t.soil <= 5 && Number.isInteger(t.moisture) && t.moisture >= 0 && t.moisture <= 3 && member(TERRAIN, t.terrain) && (t.last === null || member(CROPS, t.last)) && [null, 'greenhouse', 'hive'].includes(t.structure) && (t.crop === null || obj(t.crop) && member(CROPS, t.crop.id) && ['grown', 'bonus', 'mult', 'planted', 'pid'].every((k) => num(t.crop[k])) && (t.crop.traits === undefined || arr(t.crop.traits, (x) => member(TRAITS, x)))))) return false;
+  if (!Array.isArray(v.tiles) || v.tiles.length !== 36 || !v.tiles.every((t: any) => shape(t, base.tiles[0]) && (t.greenhousePlacedWeek===undefined || Number.isInteger(t.greenhousePlacedWeek) && t.greenhousePlacedWeek>=0 && t.greenhousePlacedWeek<=v.absWeek) && (t.hivePlacedWeek===undefined || Number.isInteger(t.hivePlacedWeek) && t.hivePlacedWeek>=0 && t.hivePlacedWeek<=v.absWeek) && (t.tree === undefined || Number.isInteger(t.tree) && t.tree >= 0) && (t.chop === undefined || Number.isInteger(t.chop) && t.chop >= 0) && Number.isInteger(t.soil) && t.soil >= 1 && t.soil <= 5 && Number.isInteger(t.moisture) && t.moisture >= 0 && t.moisture <= 3 && member(TERRAIN, t.terrain) && (t.last === null || member(CROPS, t.last)) && [null, 'greenhouse', 'hive'].includes(t.structure) && (t.crop === null || obj(t.crop) && member(CROPS, t.crop.id) && ['grown', 'bonus', 'mult', 'planted', 'pid'].every((k) => num(t.crop[k])) && (t.crop.traits === undefined || arr(t.crop.traits, (x) => member(TRAITS, x)))))) return false;
   if (!['draw', 'hand', 'discard', 'spare'].every((k) => arr(v[k], card)) || !['storage', 'yard'].every((k) => arr(v[k], lot))) return false;
   if (!arr(v.pets, (x) => member(PETS, x)) || !arr(v.certs, (x) => typeof x === 'string') || !['unlocked', 'harvestedKinds'].every((k) => arr(v[k], (x) => member(CROPS, x)))) return false;
   if (!obj(v.levels) || !Object.entries(v.levels).every(([k, n]) => member(TRACKS, k) && Number.isInteger(n) && (n as number) >= (k === 'house' ? 1 : 0) && (n as number) <= TRACKS[k as keyof typeof TRACKS].levels.length) || !coords(v.guards) || !coords(v.scarecrows)) return false;
@@ -239,7 +253,7 @@ export function hasFarmData(loc: LocationId): boolean {
 export function syncFarm(p: Profile, s: GameState): GameState {
   const unlocked = [...new Set([...s.unlocked, ...p.seedBank.filter((c) => SEED_BANK_OK[c]?.includes(s.loc))])];
   const pets = [...new Set([...s.pets, ...p.pets])];
-  return repairOpenOffers(unlocked.length === s.unlocked.length && pets.length === s.pets.length ? s : { ...s, unlocked, pets });
+  return ensureV3(repairOpenOffers(unlocked.length === s.unlocked.length && pets.length === s.pets.length ? s : { ...s, unlocked, pets }));
 }
 export const allFarms = (): Partial<Record<LocationId, GameState>> =>
   Object.fromEntries(LOCATION_IDS.map((l) => [l, loadFarm(l)]).filter(([, s]) => s)) as Partial<Record<LocationId, GameState>>;

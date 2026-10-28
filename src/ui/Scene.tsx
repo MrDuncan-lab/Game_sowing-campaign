@@ -7,7 +7,7 @@ import { MorningLayer, MorningStep, morningPlantClass, morningCellDelay } from '
 import { BedLeftovers } from '../art/collisions';
 import { PlantBody, windFor } from './PlantMotion';
 import { kidDelay, type MissCause } from './collisions';
-import { wetCanals, idx } from '../engine/game';
+import { wetCanals, idx, treeStage, TREE_CHOP, TREE_NAMES } from '../engine/game';
 // The field: beds, terrain, plants, marks, lenses and the farmer. Pure drawing — every decision comes in as props.
 import {CompostHeap} from '../art/compost';
 import {NibbledPlant} from '../art/pestDamage';
@@ -300,6 +300,66 @@ function SandDunes({ x, y, winter = false }: { x: number; y: number; winter?: bo
       <path d={`M10 ${60 + r * 10} Q30 ${46 + r * 6} 52 60 T92 ${56 + r * 8}`} stroke="#cfb175" stroke-width={3} fill="none" />
       <path d="M16 32 Q30 24 44 32 M58 28 Q70 22 82 28" stroke="#cfb175" stroke-width={2.5} fill="none" />
       {r > 0.5 && <path d="M70 76 v-12 M70 70 h-5 v-6 M70 68 h5 v-8" stroke="#6a9a3a" stroke-width={3} stroke-linecap="round" fill="none" />}
+    </g>
+  );
+}
+
+// v3 §4.5 · a tree on a bed let go: a sprout, a young birch, a grown tree (in winter bare, with snow on its
+// branches). Uprooting shows: notches in the trunk, the axe left in it, a little tally of the days put in.
+function FieldTree({ x, y, stage, chop, winter }: { x: number; y: number; stage: 1 | 2 | 3; chop: number; winter: boolean }) {
+  const r = hashN(x, y, 9);
+  const lean = (r - 0.5) * 6;
+  const leaf = winter ? 'none' : '#5f9e3a', leafHi = winter ? 'none' : '#86c94e';
+  return (
+    <g class={`field-tree stage-${stage}${winter ? ' winter' : ''}`} pointer-events="none">
+      <path d="M22 80 q8 -6 14 0 q6 -6 12 0 q6 -6 14 0 q6 -6 14 0" stroke={winter ? '#c9dbe6' : '#6aa843'} stroke-width={3} fill="none" stroke-linecap="round" />
+      {stage === 1 ? (
+        <g transform={`translate(${50 + lean} 78)`}>
+          <path d="M0 0 C1 -8 -1 -14 1 -22" stroke={P.woodDark} stroke-width={2.4} fill="none" stroke-linecap="round" />
+          {!winter && <>
+            <ellipse cx={-6} cy={-16} rx={6} ry={3.4} transform="rotate(-25 -6 -16)" fill={leafHi} stroke={P.ink} stroke-width={1.4} />
+            <ellipse cx={7} cy={-21} rx={6} ry={3.4} transform="rotate(25 7 -21)" fill={leaf} stroke={P.ink} stroke-width={1.4} />
+            <ellipse cx={-3} cy={-25} rx={4.4} ry={2.6} transform="rotate(-10 -3 -25)" fill={leafHi} stroke={P.ink} stroke-width={1.2} />
+          </>}
+        </g>
+      ) : (
+        <g transform={`translate(${50 + lean} 82)`}>
+          <ellipse cx={4} cy={0} rx={stage === 3 ? 26 : 16} ry={stage === 3 ? 6 : 4} fill="rgba(0,0,0,0.16)" />
+          {/* the trunk: a birch, white with black marks */}
+          <path d={stage === 3 ? 'M-5 0 C-4 -20 -4 -40 -2 -62 L3 -62 C4 -40 5 -20 6 0z' : 'M-3 0 C-2 -14 -2 -28 -1 -42 L2 -42 C2 -28 3 -14 4 0z'} fill="#f4f0e4" stroke={P.ink} stroke-width={1.8} />
+          {(stage === 3 ? [-12, -26, -40, -52] : [-10, -24, -34]).map((yy, i) => <path d={`M${i % 2 ? -2 : -3} ${yy} h${stage === 3 ? 5 : 3}`} stroke={P.ink} stroke-width={1.6} stroke-linecap="round" />)}
+          {winter ? (
+            <g fill="none" stroke="#6b5a4a" stroke-width={2} stroke-linecap="round">
+              <path d={stage === 3 ? 'M0 -40 L-16 -58 M0 -48 L15 -66 M-8 -50 L-12 -66 M1 -58 L-2 -76 M8 -58 L18 -60' : 'M0 -28 L-10 -40 M0 -34 L9 -46 M0 -40 L-2 -52'} />
+              <path d={stage === 3 ? 'M-18 -59 q2 -2 4 0 M14 -67 q2 -2 4 0 M-4 -77 q2 -2 4 0' : 'M-11 -41 q2 -2 4 0 M8 -47 q2 -2 4 0'} stroke="#fbfdff" stroke-width={2.6} />
+            </g>
+          ) : stage === 3 ? (
+            <g stroke={P.ink} stroke-width={1.8}>
+              <ellipse cx={-12} cy={-58} rx={15} ry={13} fill={leaf} />
+              <ellipse cx={12} cy={-62} rx={15} ry={14} fill={leaf} />
+              <ellipse cx={0} cy={-76} rx={16} ry={13} fill={leafHi} />
+              <path d="M-14 -62 q4 3 8 0 M6 -66 q4 3 8 0 M-4 -80 q4 3 8 0" fill="none" stroke-width={1.2} opacity={0.6} />
+            </g>
+          ) : (
+            <g stroke={P.ink} stroke-width={1.6}>
+              <ellipse cx={-6} cy={-40} rx={10} ry={9} fill={leaf} />
+              <ellipse cx={6} cy={-46} rx={10} ry={9} fill={leafHi} />
+            </g>
+          )}
+          {stage === 3 && chop > 0 && (
+            <g>
+              {Array.from({ length: chop }, (_, i) => <path d={`M-5 ${-6 - i * 5} l7 3`} stroke="#a0512e" stroke-width={2} stroke-linecap="round" />)}
+              <g transform="translate(6 -10) rotate(30)"><path d="M0 0 L16 0" stroke={P.woodDark} stroke-width={3} stroke-linecap="round" /><path d="M14 -5 Q22 -4 21 4 L14 3z" fill={P.stone} stroke={P.ink} stroke-width={1.2} /></g>
+            </g>
+          )}
+        </g>
+      )}
+      {stage === 3 && chop > 0 && (
+        <g transform="translate(78 84)">
+          <rect x={-12} y={-8} width={24} height={14} rx={7} fill="#fffaf0" stroke={P.ink} stroke-width={1.4} />
+          <text x={0} y={2.6} text-anchor="middle" font-size={9} font-weight={700} fill={P.ink}>{chop}/{TREE_CHOP}</text>
+        </g>
+      )}
     </g>
   );
 }
@@ -896,7 +956,7 @@ export function Scene({
                 tabindex={clickable ? 0 : undefined}
                 aria-expanded={clickable && menuTile === k ? true : undefined}
                 aria-controls={clickable && menuTile === k ? 'bed-menu' : undefined}
-                aria-label={t.terrain === 'river' ? 'Река' : t.terrain === 'forest' ? (clearable ? 'Тайга: можно раскорчевать' : 'Тайга') : t.owned ? `Грядка ${x + 1}:${y + 1}${crop ? `, ${CROPS[crop.id].name}` : t.weeds ? ', сорняки' : ', пусто'}` : buyable ? `Участок на продажу за ${price} ₽` : 'Чужая земля'}
+                aria-label={t.terrain === 'river' ? 'Река' : t.terrain === 'forest' ? (clearable ? 'Тайга: можно раскорчевать' : 'Тайга') : t.owned ? `Грядка ${x + 1}:${y + 1}${crop ? `, ${CROPS[crop.id].name}` : t.tree !== undefined ? `, ${TREE_NAMES[treeStage(t)].toLowerCase()}` : t.weeds ? ', сорняки' : ', пусто'}` : buyable ? `Участок на продажу за ${price} ₽` : 'Чужая земля'}
                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onTile(x, y); } }}
               >
                 {t.terrain === 'river' ? (
@@ -921,6 +981,7 @@ export function Scene({
                 {t.terrain === 'rock' && <Rocks x={x} y={y} owned={t.owned} />}
                 {t.terrain === 'swamp' && <Swamp x={x} y={y} owned={t.owned} winter={winter} />}
                 {!hidePlants && t.owned && t.weeds && <Weeds x={x} y={y} />}
+                {t.owned && t.tree !== undefined && <FieldTree x={x} y={y} stage={treeStage(t) as 1 | 2 | 3} chop={t.chop ?? 0} winter={winter} />}
                 {t.owned && t.drip && <DripHose wet={t.moisture > 0} l={x > 0 && tile(s, x - 1, y).drip} r={x < GRID - 1 && tile(s, x + 1, y).drip} />}
                 {t.structure === 'hive' && <Hive />}
                 {!hidePlants && crop && !hit && (

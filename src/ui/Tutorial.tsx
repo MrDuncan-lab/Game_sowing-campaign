@@ -7,7 +7,11 @@ import {Sheet,Btn} from './common';
 function load():TutorialSession {
   // A lesson stored by an older build (version 3, its own key) is not continued: the training farm starts anew.
   try {const v=JSON.parse(localStorage.getItem(TUTORIAL_KEY)||'null');
-    if(tutorialAccepted(v,validFarm))return normalizeTutorial(v);
+    if(tutorialAccepted(v,validFarm)){
+      // v3 · a lesson saved before the materials keeps going: no sprouting trees, logs for the drip-line lesson
+      for(const f of [v.farm,v.checkpoint?.farm])if(f){f.quiet=true;f.mats={logs:0,bricks:0,glass:0,...f.mats};if((f.levels.irrigation??0)<2)f.mats.logs=Math.max(f.mats.logs,6);}
+      return normalizeTutorial(v);
+    }
   }catch{}return createTutorial();
 }
 export function Tutorial({profile,onExit}:{profile:Profile;onExit:()=>void}) {

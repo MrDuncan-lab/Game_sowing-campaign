@@ -110,6 +110,8 @@ export function createTutorial(): TutorialSession {
   s.money = 250; s.peak = 250; s.guide = []; s.plan = []; s.temps = s.temps.map(() => 18);
   s.flags = { warm: false, rain: false, dry: false }; s.strikes = []; s.crows = null; s.thieves = null;
   s.levels.lab = 1; s.levels.irrigation = 1; s.candidates = ['foreman'];
+  // v3 · no trees sprout on the lesson farm; the shed holds the logs the drip-line lesson needs
+  s.quiet = true; s.mats = { logs: 6, bricks: 0, glass: 0 };
   // the calm lesson weather has no helpers' episode: the first week has the usual working days too
   s.days = weekDays(s);
   for (const t of s.tiles) if (t.owned) { t.moisture = 1; t.weeds = false; t.soil = 3; }

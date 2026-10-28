@@ -166,7 +166,8 @@ test('ripening forecast checks lethal frost before growth and expires mulch prot
 
 test('heating completed at week end is billed starting the following week', () => {
   let s = farm(); date(s, yearLen(s) - 2); s.levels.greenhouse = 2; tile(s, 2, 2).structure = 'greenhouse';
-  s.projects = [{ kind: 'track', track: 'greenhouse', level: 3, weeks: 1, total: 1 }];
+  // v3 · in winter a building site moves at half pace: half a week of work is left
+  s.projects = [{ kind: 'track', track: 'greenhouse', level: 3, weeks: 0.5, total: 1 }];
   assert.equal(weekOutlook(s).costs, 0); s = endWeek(s);
   assert.equal(s.lastReport!.costs.reduce((n, c) => n + c.amount, 0), 0);
   assert.equal(weeklyCosts(s).heating, 2); s = endWeek(s); assert.equal(s.lastReport!.costs.find((c) => c.label.includes('отопление'))!.amount, 2);

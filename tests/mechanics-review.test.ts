@@ -97,7 +97,8 @@ test('soil and row-care previews equal committed yield changes',()=>{
 test('guidance advances on actions and does not mutate the source state',()=>{
  const s=farm();s.guide=[];const c=add(s,'seed_radish');let n=apply(s,{t:'play',uid:c.uid,tiles:[[2,2]]});assert.ok(n.guide?.includes('plant'));assert.deepEqual(s.guide,[]);n=apply(n,{t:'guide',lesson:'rotate'});assert.ok(n.guide?.includes('rotate'));n=apply(n,{t:'guide',lesson:'off'});assert.equal(n.guide,undefined);
 });
-test('previous interface fixture remains readable by the engine; house progression is unchanged',()=>{
+test('previous interface fixture remains readable by the engine; house progression follows v3 §5.2',()=>{
  const fixtures=JSON.parse(readFileSync(new URL('./fixtures/browser-fixtures.json',import.meta.url),'utf8'));const next=apply(fixtures.initial,{t:'endWeek'});assert.equal(next.v,5);
- assert.deepEqual(TRACKS.house.levels.map(l=>[l.cost,l.weeks]),[[0,0],[35,1],[70,2],[120,2],[220,3]]);
+ // 28.10 · progression v3: seven levels, a season to half a year each from the third, and materials
+ assert.deepEqual(TRACKS.house.levels.map(l=>[l.cost,l.weeks]),[[0,0],[25,4],[50,6],[90,8],[150,10],[240,12],[360,14]]);
 });

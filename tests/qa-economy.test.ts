@@ -373,9 +373,15 @@ test('UP-03/UP-04 · hire, train, fire mid-training, upgrade the house: never mo
   assert.throws(() => G.apply(s, { t: 'hire', id: 'agronomist' }), /места/);
   const price = G.trainPrice(s, 'foreman'), cash = s.money;
   s = G.apply(s, { t: 'train', id: 'foreman' }); assert.equal(s.money, cash - price); assert.equal(s.team[0].away, 2); assert.equal(G.wlvl(s, 'foreman'), 0);
+  // v3 · the house takes materials, and the second bed comes with the third level (beds 1, 1, 2, …)
+  s.mats = { logs: 40, bricks: 40, glass: 10 };
   s = G.apply(s, { t: 'track', track: 'house' }); s = G.endWeek(s);
   s = G.apply(s, { t: 'fire', id: 'foreman' }); assert.equal(s.team.length, 0); assert.equal(G.weeklyCosts(s).salaries, 0);
-  while (G.lvl(s, 'house') < 2) { assert.ok(s.team.length <= G.workerSlots(s)); s = pay(G.endWeek(s)); }
+  while (G.lvl(s, 'house') < 3) {
+    assert.ok(s.team.length <= G.workerSlots(s));
+    if (!s.projects.some((p) => p.kind === 'track' && p.track === 'house')) { s.money = Math.max(s.money, 500); s = G.apply(s, { t: 'track', track: 'house' }); }
+    s = pay(G.endWeek(s));
+  }
   s.candidates = ['agronomist', 'irrigator', 'foreman'];
   s = G.apply(s, { t: 'hire', id: 'agronomist' }); s = G.apply(s, { t: 'hire', id: 'irrigator' });
   assert.throws(() => G.apply(s, { t: 'hire', id: 'foreman' }), /места/); assert.equal(s.team.length, G.workerSlots(s));

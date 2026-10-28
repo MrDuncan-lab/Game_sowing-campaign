@@ -210,6 +210,49 @@ export const moreIcons: Record<string, () => JSX.Element> = {
       <path d="M6 18 H42 M6 30 H42" {...S} stroke={P.soilLip} />
     </g>
   ),
+  // v3 · building materials and the season's fair
+  logs: () => (
+    <g>
+      <path d="M8 36 H34 M8 26 H34" fill="none" {...S} />
+      <rect x={8} y={28} width={26} height={10} rx={2} fill={P.woodLight} {...S} />
+      <rect x={14} y={18} width={26} height={10} rx={2} fill={P.wood} {...S} />
+      <circle cx={36} cy={33} r={5.2} fill="#e9c58f" {...S} />
+      <circle cx={36} cy={33} r={2} fill="none" stroke={P.woodDark} stroke-width={1.4} />
+      <circle cx={40} cy={23} r={5.2} fill="#e9c58f" {...S} />
+      <circle cx={40} cy={23} r={2} fill="none" stroke={P.woodDark} stroke-width={1.4} />
+    </g>
+  ),
+  bricks: () => (
+    <g>
+      {[[6, 30], [21, 30], [13, 20], [28, 20], [20, 10]].map(([x, y]) => <rect x={x} y={y} width={14} height={9} rx={1.4} fill="#c4664a" {...S} />)}
+      <path d="M6 41 H42" {...S} />
+    </g>
+  ),
+  glass: () => (
+    <g>
+      <rect x={10} y={10} width={22} height={30} rx={2} fill="#cfe8ef" {...S} transform="rotate(-8 21 25)" />
+      <rect x={18} y={8} width={22} height={30} rx={2} fill="#e3f4f8" {...S} transform="rotate(6 29 23)" />
+      <path d="M24 14 L30 20 M23 20 L27 24" stroke="#fff" stroke-width={2.2} stroke-linecap="round" />
+    </g>
+  ),
+  fair: () => (
+    <g>
+      <path d="M8 18 L12 8 H36 L40 18z" fill={P.red} {...S} />
+      <path d="M8 18 q4 5 8 0 q4 5 8 0 q4 5 8 0 q4 5 8 0" fill="#fff4dc" {...S} />
+      <path d="M12 22 V40 M36 22 V40" {...S} stroke={P.woodDark} />
+      <rect x={10} y={30} width={28} height={6} rx={1.5} fill={P.woodLight} {...S} />
+      <circle cx={18} cy={28} r={2.6} fill={P.gold} {...S} stroke-width={1.4} />
+      <circle cx={25} cy={28} r={2.6} fill="#9cc45e" {...S} stroke-width={1.4} />
+      <circle cx={32} cy={28} r={2.6} fill="#e08a3a" {...S} stroke-width={1.4} />
+    </g>
+  ),
+  eye: () => (
+    <g>
+      <path d="M4 24 Q24 6 44 24 Q24 42 4 24z" fill="#fffaf0" {...S} />
+      <circle cx={24} cy={24} r={7} fill="#6b4a32" {...S} />
+      <circle cx={26} cy={22} r={2} fill="#fff" />
+    </g>
+  ),
 };
 
 // ---------- new crops (100×100 tile, stem base at 50,80) ----------

@@ -405,10 +405,12 @@ def drawing(season):
         fn(r)
         return tidy(''.join(r.out))
     houses = [part(lambda r, lv=lv: Q.homestead(r, HX, HY, HS, lit=r.winter, level=lv), 30 + lv) for lv in range(1, 6)]
+    # the camp on an expedition (v3 §3.4): three levels in the same place as the house
+    camps = [part(lambda r, lv=lv: Q.camp(r, HX, HY, HS, lit=r.winter, level=lv), 70 + lv) for lv in range(1, 4)]
     items = {k: part(lambda r, k=k: ITEM_FN[k](r, *ITEM_AT[k]), 50 + i) for i, k in enumerate(ITEMS)}
     # the house under construction, stages 1..3 (drawn over the house and the yard items, under the front)
     scaffold = [part(lambda r, st=st: Q.scaffold(r, HX, HY, HS, st), 60 + st) for st in (1, 2, 3)]
-    return dict(defs=tidy(defs(season)), back=part(back, 21), houses=houses, items=items, scaffold=scaffold, front=part(front, 41))
+    return dict(defs=tidy(defs(season)), back=part(back, 21), houses=houses, camps=camps, items=items, scaffold=scaffold, front=part(front, 41))
 
 
 def boxes():
@@ -444,7 +446,7 @@ def season_css():
 
 def classes(dr):
     """The classes the drawing uses, for the game's CSS."""
-    txt = dr['defs'] + dr['back'] + ''.join(dr['houses']) + ''.join(dr['items'].values()) + ''.join(dr['scaffold']) + dr['front']
+    txt = dr['defs'] + dr['back'] + ''.join(dr['houses']) + ''.join(dr['camps']) + ''.join(dr['items'].values()) + ''.join(dr['scaffold']) + dr['front']
     cs = set()
     for m in re.findall(r'class="([^"]*)"', txt):
         cs.update(m.split())
@@ -470,7 +472,7 @@ def write(out=OUT, preview=True):
            '// classes k, kf, kn want .estate-v { --vk } rules; spring and autumn recolour summer with ES_SEASON_CSS.',
            f'export const ES_VIEW = {json.dumps(VIEW)};',
            "export type ESItem = 'hive' | 'greenhouse' | 'scarecrow' | 'barrel' | 'meteo' | 'compost';",
-           'export interface ESDrawing { defs: string; back: string; houses: string[]; items: Record<ESItem, string>; scaffold: string[]; front: string }',
+           'export interface ESDrawing { defs: string; back: string; houses: string[]; camps: string[]; items: Record<ESItem, string>; scaffold: string[]; front: string }',
            f'export const ES_SUMMER: ESDrawing = {json.dumps(dr["summer"], ensure_ascii=False)};',
            f'export const ES_WINTER: ESDrawing = {json.dumps(dr["winter"], ensure_ascii=False)};',
            f'export const ES_SEASON_CSS = {json.dumps(css)};',
@@ -485,6 +487,12 @@ def write(out=OUT, preview=True):
                        f'{"".join(d["items"].values())}{d["front"]}</svg>')
                 cells.append(f'<div class="estate-v {sn}" style="display:inline-block;margin:3px;line-height:0">{svg}</div>')
             cells.append('<br>')
+        for lv in range(3):
+            for sn, d in (('season-1', dr['summer']), ('season-3', dr['winter'])):
+                svg = (f'<svg viewBox="{VIEW}" width="360" height="210"><defs>{d["defs"]}</defs>{d["back"]}{d["camps"][lv]}'
+                       f'{"".join(d["items"].values())}{d["front"]}</svg>')
+                cells.append(f'<div class="estate-v {sn}" style="display:inline-block;margin:3px;line-height:0">{svg}</div>')
+        cells.append('<br>')
         for lv in (0, 2, 4):
             for st in range(3):
                 for sn, d in (('season-1', dr['summer']), ('season-3', dr['winter'])):
