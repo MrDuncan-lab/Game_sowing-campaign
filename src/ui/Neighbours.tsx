@@ -14,6 +14,8 @@ import { CropIcon } from '../art/crops';
 import { Icon } from '../art/icons';
 import { Bar, Btn, Dispatch, Pips, Sheet, weeksShort } from './common';
 import { ShedChips } from './Fair';
+import { DistrictTable, FestivalStandings } from './Festival';
+import { districtPlace } from '../engine/game';
 
 export type NeighbourKey = YardId | 'commons';
 /** the village's places that belong to a neighbour or a shared building (see tools/village: the yards' spots) */
@@ -178,6 +180,11 @@ function CommonsBody({ s, act, onFair }: { s: GameState; act: Dispatch; onFair: 
         })}
       </div>
       {open && COMMON_IDS.some((c) => commonProblem(s, c)?.startsWith('Не хватает')) && <p class="small"><button type="button" class="link" onClick={onFair}>Материалы — на ярмарке</button></p>}
+      <FestivalStandings s={s} />
+      <details class="nb-district">
+        <summary><Icon name="trophy" size={18} /> Район: {districtPlace(s)}-е место</summary>
+        <DistrictTable s={s} />
+      </details>
     </>
   );
 }

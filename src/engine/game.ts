@@ -13,6 +13,7 @@ import { EPISODES, Episode, EpisodeKind, YearPlan, covers, episodeEnd, marketMul
 import { gauss, hashSeed, pickWeighted, rand, randInt, shuffle } from './rng';
 import { COMMONS, COMMONS_NEED, COMMON_GLORY, CommonId, FORGE_MULT, FORGE_WEEKS, GRAIN, SAVVA_APPRENTICE, TOLOKA, YARDS, YARD_CANDIDATE, YARD_GLORY, YARD_IDS, YardId } from './neighbours';
 import { KNOW_GLORY, KNOW_NAMES, KNOW_SEED_SALE, VARIETY_CROPS, VARIETY_KNOW, cellNeeds, knowCells, knowLevelOf, knowTraits, traitNeeds } from './knowledge';
+import { DISTRICT, FEST_CATS, FEST_CAT_GLORY, FEST_CERT, FEST_NAMES, FEST_PRIZE, FEST_WIN_GLORY, FestCat, rivalShow } from './festival';
 import { FIRE_HEAT, FIRE_WOOD, TRIALS, TRIAL_FIRST_YEAR, TRIAL_GLORY, TRIAL_POOL, TrialGrade, TrialKind, fireCore, fireRing, firesAllowed, trialDroughtLen, trialFrostTemp, trialGrade, trialPower, trialWaves } from './trials';
 
 // ---------- state ----------
@@ -103,6 +104,7 @@ export interface FairLot {
   price: number;
   used?: boolean; // second-hand: cheaper
   special?: boolean;
+  prize?: boolean; // v3 §9.1 · the festival's prize: Пряхин never buys it
   hold?: number; deposit?: number; // the player's deposit holds the lot to the end of week `hold`
   sold?: 'player' | 'rival';
 }
@@ -204,7 +206,12 @@ export interface GameState {
   // (written in by the game when the farm is opened: ui/persist syncFarm)
   crops?: Partial<Record<CropId, number>>;
   knowBase?: Partial<Record<CropId, number>>;
+  // v3 §9.1 · the year's harvest for the festival, and the festivals held
+  yearHarvest?: YearHarvest;
+  fests?: FestResult[];
 }
+export interface YearHarvest { year: number; units: number; kinds: CropId[]; best: number; bestCrop?: CropId }
+export interface FestResult { year: number; you: Record<FestCat, number>; rival: Record<FestCat, number>; won: FestCat[]; win: boolean; glory: number; bestCrop?: CropId }
 /** a neighbour's yard: the stages done (0..3), the season (year·4+season, or the week when weekly) of the last swap,
  *  the season of the last «Позвать соседа», the year a candidate was last sent */
 export interface YardState { stage: number; swap?: number; help?: number; cand?: number }
@@ -1404,6 +1411,8 @@ function startWeek(s: GameState) {
 function seasonStart(s: GameState) {
   s.dronesUsed = 0;
   s.candidates = keepCandidates(s);
+  // v3 §9.1 · the festival comes before the winter fair, so a win's prize is among its lots
+  if (s.season === 3) festival(s);
   openFair(s);
   yardsSeason(s);
   if (s.season === 1) {
@@ -2351,6 +2360,56 @@ function growWeeds(s: GameState) {
 // Intensive harvests consume soil; light crops and legumes keep distinct roles.
 export const SOIL_HUNGRY: CropId[] = ['sunflower','corn','cabbage','pumpkin'];
 export const soilHarvestCost = (s: GameState, c: CropId) => SOIL_HUNGRY.includes(c) && !(c==='sunflower' && wlvl(s,'soilsci')>=3) ? 1 : 0;
+/** v3 §9.1 · the year's harvest as the festival will judge it: all units, the crops, the best single bed */
+function noteYearHarvest(s: GameState, c: CropId, qty: number) {
+  if (s.yearHarvest?.year !== s.year) s.yearHarvest = { year: s.year, units: 0, kinds: [], best: 0 };
+  const y = s.yearHarvest;
+  y.units += qty;
+  if (!y.kinds.includes(c)) y.kinds.push(c);
+  if (qty > y.best) { y.best = qty; y.bestCrop = c; }
+}
+/** the showing the farm would bring to the festival now */
+export function festShow(s: GameState): Record<FestCat, number> {
+  const y = s.yearHarvest?.year === s.year ? s.yearHarvest : undefined;
+  return { units: y?.units ?? 0, kinds: y?.kinds.length ?? 0, best: y?.best ?? 0 };
+}
+export const festRival = (s: GameState) => rivalShow(s.fests?.length ?? 0);
+/** the festival is held at the first week of winter in a village with a club */
+export const festOpen = (s: GameState) => hasCommon(s, 'club');
+function festival(s: GameState) {
+  if (!festOpen(s) || s.fests?.some((f) => f.year === s.year)) return;
+  const you = festShow(s), rival = festRival(s);
+  const won = FEST_CATS.filter((c) => you[c] >= rival[c]);
+  const win = won.length >= 2;
+  let glory = 0;
+  for (const c of won) { addGlory(s, FEST_CAT_GLORY, `fest-${s.year}-${c}`); glory += FEST_CAT_GLORY; }
+  if (win) {
+    addGlory(s, FEST_WIN_GLORY, `fest-win-${s.year}`);
+    glory += FEST_WIN_GLORY;
+    if (!s.certs.includes(FEST_CERT)) { s.certs.push(FEST_CERT); s.rewardsOut.push({ id: `${s.seed}|${s.loc}|fest|cert`, kind: 'cert', value: FEST_CERT }); }
+  }
+  (s.fests ??= []).push({ year: s.year, you, rival, won, win, glory, ...(s.yearHarvest?.bestCrop ? { bestCrop: s.yearHarvest.bestCrop } : {}) });
+  const msg = win ? `Праздник урожая: вы победили Пряхина (${won.map((c) => FEST_NAMES[c].toLowerCase()).join(', ')}). На зимней ярмарке — призовой лот`
+    : won.length ? `Праздник урожая: Пряхин впереди, но «${FEST_NAMES[won[0]]}» ваша` : 'Праздник урожая: в этот раз первый — Пряхин';
+  s.report.done.push(msg);
+  feed(s, `${msg}.`, win ? 'good' : 'info');
+}
+// ---------- v3 §9.1 · the district ----------
+/** the strength of the farm as the district sees it: the house, the buildings, the village, the festivals */
+export function farmStrength(s: GameState): number {
+  const tracks = (Object.keys(s.levels) as TrackId[]).filter((t) => t !== 'house').reduce((n, t) => n + lvl(s, t), 0);
+  const yards = YARD_IDS.reduce((n, y) => n + yardStage(s, y), 0);
+  const fests = (s.fests ?? []).filter((f) => f.win).length;
+  return Math.round(12 * lvl(s, 'house') + 2 * tracks + 4 * yards + 8 * (s.commons?.length ?? 0) + 10 * fests);
+}
+export interface DistrictRow { name: string; strength: number; note: string; you?: boolean }
+export function districtTable(s: GameState): DistrictRow[] {
+  const rows: DistrictRow[] = DISTRICT.map((v) => ({ name: v.name, note: v.note, strength: Math.round(v.base + v.growth * s.year) }));
+  rows.push({ name: 'Ваше хозяйство', note: LOCATIONS[s.loc].name, strength: farmStrength(s), you: true });
+  return rows.sort((a, b) => b.strength - a.strength || Number(!!b.you) - Number(!!a.you));
+}
+export const districtPlace = (s: GameState) => districtTable(s).findIndex((r) => r.you) + 1;
+
 /** v3 §8.1 · a harvest teaches: the farm's count grows, a new level of knowledge is told, the fifth is a certificate */
 function learnCrop(s: GameState, c: CropId, qty: number) {
   const before = knowLevel(s, c);
@@ -2373,6 +2432,7 @@ function harvestTile(s: GameState, x: number, y: number, qty: number) {
   if (qty > 0) addToStorage(s, c, qty);
   s.stats.harvested += qty;
   if (qty > 0) learnCrop(s, c, qty);
+  if (qty > 0 && !CROPS[c].product) noteYearHarvest(s, c, qty);
   s.report.harvests.push({ crop: c, qty, x, y });
   if (!s.harvestedKinds.includes(c)) {
     s.harvestedKinds.push(c);
@@ -4092,6 +4152,13 @@ function openFair(s: GameState) {
       lot({ kind: 'equip', track: line, level, price: Math.round(equipPrice(s, line, level) * spread() * smith) });
     } else matLot();
   }
+  // v3 §9.1 · the festival's prize at the winter fair: the dearest line's next level at 60%
+  const fest = s.fests?.at(-1);
+  if (season === 3 && fest?.year === s.year && fest.win) {
+    const line = EQUIPMENT.filter((t) => equipNext(s, t) !== null).sort((a, b) => equipPrice(s, b, equipNext(s, b)!) - equipPrice(s, a, equipNext(s, a)!))[0];
+    if (line) lot({ kind: 'equip', track: line, level: equipNext(s, line)!, price: Math.round(equipPrice(s, line, equipNext(s, line)!) * FEST_PRIZE), prize: true });
+    else lot({ kind: 'mat', mats: { logs: 12, bricks: 8, glass: 4 }, price: Math.round(40 * infl(s.year)), special: true, prize: true });
+  }
   s.fair = f;
   eyeLot(s);
 }
@@ -4101,7 +4168,7 @@ function eyeLot(s: GameState) {
   if (!f) return;
   f.eye = null;
   if (f.rival >= RIVAL_MAX) return;
-  const open = f.lots.filter((l) => !l.sold && !fairHeld(s, l));
+  const open = f.lots.filter((l) => !l.sold && !fairHeld(s, l) && !l.prize);
   if (!open.length) return;
   const w = world(s, 'eye', s.absWeek);
   f.eye = pickWeighted(w, open.map((l) => [l.id, l.price] as [number, number]));

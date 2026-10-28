@@ -323,6 +323,12 @@ export const moreIcons: Record<string, () => JSX.Element> = {
       <path d="M3 40 H45" {...S} />
     </g>
   ),
+  send: () => (
+    <g>
+      <path d="M4 22 L44 6 L34 42 L24 30z" fill="#e6f3fb" {...S} />
+      <path d="M44 6 L24 30 L22 40 L18 27z" fill="#8fb5c9" {...S} />
+    </g>
+  ),
   // v3 §8.1 · the book of crops
   book: () => (
     <g>

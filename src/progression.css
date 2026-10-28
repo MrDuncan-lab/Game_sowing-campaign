@@ -217,3 +217,27 @@ button.link:focus-visible { outline: 2px solid var(--leaf-dark); outline-offset:
 .book-bar { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .book-bar small { color: var(--ink-soft); font-size: 12px; line-height: 1.25; }
 .book-row.lv0 { opacity: .78; }
+
+/* ---------- v3 §9.1 · the festival, the district, the rating ---------- */
+.fest-sheet { display: flex; flex-direction: column; gap: 10px; }
+.fest-table { width: 100%; border-collapse: separate; border-spacing: 0 4px; font-variant-numeric: tabular-nums; }
+.fest-table th, .fest-table td { padding: 6px 8px; text-align: center; }
+.fest-table thead th { font-size: 12px; color: var(--ink-soft); font-weight: 600; }
+.fest-table tbody th { text-align: left; font-weight: 700; display: flex; flex-direction: column; }
+.fest-table tbody th small { font-weight: 400; color: var(--ink-soft); font-size: 12px; }
+.fest-table tbody tr { background: #fff8e6; }
+.fest-table tbody tr.win td:nth-child(2), .fest-table tbody tr.lose td:nth-child(3) { font-weight: 800; color: var(--leaf-dark); }
+.fest-table tbody tr > :first-child { border-radius: 10px 0 0 10px; }
+.fest-table tbody tr > :last-child { border-radius: 0 10px 10px 0; }
+.fest-result { margin: 0; font-weight: 600; }
+.fest-standings h3 { display: flex; align-items: center; gap: 6px; }
+.district { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.district li { display: grid; grid-template-columns: 26px 1fr auto; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 10px; background: #fff8e6; border: 1.5px solid var(--hair); }
+.district li.you { background: #e4f1d4; border-color: #9cc27a; }
+.district li span { display: flex; flex-direction: column; min-width: 0; }
+.district li small { color: var(--ink-soft); font-size: 12px; }
+.district .place { font-family: var(--display); font-size: 1.05rem; text-align: center; }
+.district .strength { font-variant-numeric: tabular-nums; }
+.nb-district summary { display: flex; align-items: center; gap: 6px; cursor: pointer; font-weight: 700; padding: 6px 0; }
+.rating-sheet h3 { margin: 8px 0 2px; font-family: var(--display); color: var(--wood-dark); }
+.share-text { margin: 0; padding: 8px 12px; border-radius: 12px; background: var(--paper-2); font-style: italic; }

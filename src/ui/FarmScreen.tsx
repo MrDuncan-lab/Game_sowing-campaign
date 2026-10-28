@@ -14,6 +14,7 @@ import type { BuildItem } from '../engine/game';
 import { Icon } from '../art/icons';
 import { Btn, ClosedLayer, Dispatch, Money, Sheet, compactMoney, reducedMotionNow } from './common';
 import { ArrestLayer, HomeBankrupt, RunOver, VisitSheet } from './Run';
+import { FestivalSheet, RatingSheet, festToShow, markFestSeen } from './Festival';
 import type { ExpeditionId } from '../engine/data';
 import { FieldView } from './FieldView';
 import type { VillageApi, VillageMode } from './Village';
@@ -124,6 +125,8 @@ export function FarmScreen({ s, dispatch, profile, fast, onFast, onMap, onRestar
   // v3 · a visitor at the camp: the sheet opens by itself once a week, a chip brings it back
   const visitKey = s.run?.visit ? `${s.run.visit.id}:${s.run.visit.week}` : '';
   const [visitShut, setVisitShut] = useState('');
+  const [rating, setRating] = useState(false);
+  const [festShut, setFestShut] = useState(0);
   const pager = useRef<HTMLDivElement>(null);
   const tabRef = useRef<TabId>('field');
   const navigationTarget = useRef<TabId|null>(null);
@@ -279,6 +282,8 @@ export function FarmScreen({ s, dispatch, profile, fast, onFast, onMap, onRestar
         {visitShut !== visitKey && !menu && !paymentOpen && tab === 'field' && <VisitSheet s={s} act={dispatch} onClose={() => setVisitShut(visitKey)} />}
         {visitShut === visitKey && <button type="button" class="guest-chip" onClick={() => setVisitShut('')}><Icon name="hand" size={20} /> Гость у лагеря</button>}
       </>}
+      {festShut >= 0 && festToShow(s) && s.phase === 'week' && !tutorial && !menu && !paymentOpen && <FestivalSheet s={s} onClose={() => { markFestSeen(s, s.year); setFestShut(festShut + 1); }} />}
+      {rating && <RatingSheet s={s} profile={profile} onClose={() => setRating(false)} />}
       {menu && (
         <Sheet title={`${loc.name} · ${loc.place}`} icon="map" onClose={() => setMenu(false)}>
           <div class="stack">
@@ -291,6 +296,7 @@ export function FarmScreen({ s, dispatch, profile, fast, onFast, onMap, onRestar
             {!tabs && villageApi.current?.available && <p class="small muted">Те же разделы стоят в деревне: потяните небо вниз или нажмите «Деревня».</p>}
             <Btn tone="primary" onClick={() => { setMenu(false); onMap(); }}><Icon name="map" size={20} /> Карта ферм</Btn>
             {s.run && <Btn onClick={() => { setMenu(false); openBarn('run'); }}><Icon name="cart" size={20} /> Вылазка: находки и свернуть</Btn>}
+            {!tutorial && !testing && <Btn onClick={() => { setMenu(false); setRating(true); }}><Icon name="trophy" size={20} /> Рейтинг и район</Btn>}
             <Btn onClick={onFast}>{fast ? '⏩ Быстрая анимация' : '▶ Обычная анимация'}</Btn>
             {onTest&&<Btn onClick={()=>{setMenu(false);onTest();}}>Режим проверки</Btn>}
             <p class="small muted">{loc.text}</p>

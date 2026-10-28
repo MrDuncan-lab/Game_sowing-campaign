@@ -211,7 +211,8 @@ const mats = (v: any) => obj(v) && Object.entries(v).every(([k, n]) => MAT_KEYS.
 const fairLot = (l: any) => obj(l) && Number.isInteger(l.id) && ['equip', 'mat', 'worker'].includes(l.kind) && num(l.price) && l.price >= 0
   && (l.kind !== 'equip' || member(TRACKS, l.track) && Number.isInteger(l.level) && l.level >= 1 && l.level <= TRACKS[l.track as keyof typeof TRACKS].levels.length)
   && (l.kind !== 'mat' || mats(l.mats)) && (l.kind !== 'worker' || member(WORKERS, l.worker))
-  && (l.sold === undefined || ['player', 'rival'].includes(l.sold)) && ['hold', 'deposit', 'wlevel'].every((k) => l[k] === undefined || num(l[k]));
+  && (l.sold === undefined || ['player', 'rival'].includes(l.sold)) && ['hold', 'deposit', 'wlevel'].every((k) => l[k] === undefined || num(l[k]))
+  && ['used', 'special', 'prize'].every((k) => l[k] === undefined || typeof l[k] === 'boolean');
 const fair = (f: any) => f === undefined || obj(f) && ['year', 'season', 'eyeWeek', 'rival', 'nextId'].every((k) => num(f[k])) && (f.eye === null || Number.isInteger(f.eye)) && arr(f.lots, fairLot);
 export function validFarm(v: unknown): v is GameState {
   if (!obj(v) || v.v !== 5 || !loc(v.loc) || typeof v.seed !== 'string' || !v.seed || !['week', 'shortfall', 'gameover', 'arrest'].includes(v.phase)) return false;
@@ -233,6 +234,10 @@ export function validFarm(v: unknown): v is GameState {
   if (v.commons !== undefined && !arr(v.commons, (c) => member(COMMONS, c))) return false;
   const cropMap = (m: any) => obj(m) && Object.entries(m).every(([k, n]) => member(CROPS, k) && num(n) && (n as number) >= 0);
   if ((v.crops !== undefined && !cropMap(v.crops)) || (v.knowBase !== undefined && !cropMap(v.knowBase))) return false;
+  // v3 §9.1 · the festival
+  const cats = (m: any) => obj(m) && ['units', 'kinds', 'best'].every((k) => num(m[k]));
+  if (v.yearHarvest !== undefined && !(obj(v.yearHarvest) && int(v.yearHarvest.year, 1) && num(v.yearHarvest.units) && num(v.yearHarvest.best) && arr(v.yearHarvest.kinds, (c) => member(CROPS, c)) && (v.yearHarvest.bestCrop === undefined || member(CROPS, v.yearHarvest.bestCrop)))) return false;
+  if (v.fests !== undefined && !arr(v.fests, (f) => obj(f) && int(f.year, 1) && cats(f.you) && cats(f.rival) && arr(f.won, (c) => ['units', 'kinds', 'best'].includes(c)) && typeof f.win === 'boolean' && num(f.glory) && (f.bestCrop === undefined || member(CROPS, f.bestCrop)))) return false;
   if (v.forge !== undefined && !(obj(v.forge) && member(TRACKS, v.forge.track) && int(v.forge.level) && v.forge.level >= 1 && v.forge.level <= TRACKS[v.forge.track as keyof typeof TRACKS].levels.length && int(v.forge.week))) return false;
   if (v.over && v.over.work !== undefined && !(num(v.over.work) && v.over.work > 0)) return false;
   const base = templates.get(v.loc)!;

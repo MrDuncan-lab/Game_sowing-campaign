@@ -64,7 +64,7 @@ function LotCard({ s, l, act }: { s: GameState; l: FairLot; act: Dispatch }) {
         <b class="lot-name">{lotName(l)}</b>
         <small class="lot-note">{lotNote(s, l)}</small>
         <span class="lot-tags">
-          {l.special && <span class="tag good">особый лот</span>}
+          {l.prize ? <span class="tag good"><Icon name="trophy" size={14} /> приз праздника</span> : l.special && <span class="tag good">особый лот</span>}
           {l.used && <span class="tag">б/у</span>}
           {eyed && <span class="tag warn"><Icon name="eye" size={14} /> Пряхин присматривается</span>}
           {held && <span class="tag good">за вами до конца {l.hold === s.absWeek ? 'этой' : 'следующей'} недели · задаток {money(l.deposit ?? 0)}</span>}
