@@ -12,6 +12,8 @@
 
 Пока картинок нет, у всех новых людей в игре — векторный портрет из генератора лиц (`src/art/portraits.tsx`).
 
+**Имена файлов в игре.** Готовый портрет кладётся в `src/assets/portraits/<id>.webp` — тогда он заменяет заглушку сам: Пряхин `pryakhin`; Заречье `varvara`, `nelli`, `leva`, `roza`; встречные `dasha`, `yakov`, `petro`, `gordey`, `afanasich`, `alla`, `nikolay`, `kostya`, `grisha`, `nyura`. Кубань и Алтай — прежние файлы (`irina`, `georgiy`, `ivan`, `zakhar`, `svetlana`, `egor`, `fedor`, `lidiya`): новые промпты ниже, если их решат перерисовать.
+
 ---
 
 ## 1. Соперник
