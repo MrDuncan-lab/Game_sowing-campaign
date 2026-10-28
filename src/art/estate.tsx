@@ -8,7 +8,7 @@ export interface EstateOwns { hive?: boolean; greenhouse?: boolean; scarecrow?: 
 
 const ITEMS: [ESItem, keyof EstateOwns][] = [['hive', 'hive'], ['greenhouse', 'greenhouse'], ['scarecrow', 'scarecrow'], ['barrel', 'irrigation'], ['meteo', 'meteo'], ['compost', 'compost']];
 
-export function Estate({ level, building, season, owns }: { level: number; building: boolean; season: number; owns: EstateOwns }) {
+export function Estate({ level, building, season, owns }: { level: number; building: 0 | 1 | 2 | 3; season: number; owns: EstateOwns }) {
   const d = season === 3 ? ES_WINTER : ES_SUMMER;
   const house = d.houses[Math.max(1, Math.min(5, level)) - 1] ?? d.houses[0];
   const items = ITEMS.filter(([, k]) => owns[k]).map(([item]) => d.items[item]).join('');
@@ -19,6 +19,7 @@ export function Estate({ level, building, season, owns }: { level: number; build
       <g dangerouslySetInnerHTML={{ __html: d.back }} />
       <g class="es-house" dangerouslySetInnerHTML={{ __html: house }} />
       <g dangerouslySetInnerHTML={{ __html: items }} />
+      {building > 0 && <g class="es-scaffold" pointer-events="none" dangerouslySetInnerHTML={{ __html: d.scaffold[building - 1] ?? '' }} />}
       <g dangerouslySetInnerHTML={{ __html: d.front }} />
     </svg>
   );

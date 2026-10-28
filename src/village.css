@@ -23,6 +23,7 @@
 .village.on-g-restaurant .vc-g-restaurant, .village.on-g-college .vc-g-college { display: inline; }
 .village.on-house1 .vc-house1, .village.on-house2 .vc-house2, .village.on-house3 .vc-house3,
 .village.on-house4 .vc-house4, .village.on-house5 .vc-house5 { display: inline; }
+.village.on-build1 .vc-build1, .village.on-build2 .vc-build2, .village.on-build3 .vc-build3 { display: inline; }
 /* captions under the places with a use: a small paper tag, shown once the village stands open */
 .village .v-label { opacity: 0; transition: opacity .3s ease; pointer-events: none; }
 .village:not(.v-asleep) .v-label.shown { opacity: 1; }
@@ -201,11 +202,12 @@
 .estate-v .smoke .pf { fill: #f4efe6; stroke: #a79a86; stroke-width: .6; opacity: 0; animation: v-pf 3.6s ease-out infinite; }
 .estate-v .smoke .pf1 { animation-delay: 1.2s; } .estate-v .smoke .pf2 { animation-delay: 2.4s; }
 .estate-v .bee { animation: v-bee 2.4s ease-in-out infinite; }
+.estate-v .swing { transform-box: fill-box; transform-origin: 50% 0; animation: v-sway 2.2s ease-in-out infinite; }
 .estate-v .cups { transform-box: fill-box; transform-origin: 50% 50%; animation: v-spin 2.4s linear infinite; }
 .estate-v .vane { transform-box: fill-box; transform-origin: 50% 50%; animation: v-vane 5s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) {
   .estate-v .smoke .pf { animation: none; opacity: .8; }
-  .estate-v .bee, .estate-v .cups, .estate-v .vane { animation: none; }
+  .estate-v .bee, .estate-v .cups, .estate-v .vane, .estate-v .swing { animation: none; }
 }
 
 /* 28.10 · the village and the sky over it are pictures, not text to select (a drag over a caption scrolls) */

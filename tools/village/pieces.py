@@ -1452,3 +1452,110 @@ def homestead(r, cx, y, s=1.0, lit=False, level=4):
         flowers(r, x + 2 * s, x + 60 * s, y + 3 * s, y + 9 * s, 12)
     if lv >= 5:
         manor_garden(r, cx, y, s, gate=(cx - 20 * s, cx - 4 * s), fy=y + 30 * s)
+
+
+# ---------------------------------------------------------------- the house being built
+def scaffold(r, cx, y, s=1.0, stage=2):
+    """The house under construction, drawn over the homestead that stands now (same cx, y, s as homestead()): the
+    new level shows only when it is finished. Three stages by the share of the work done:
+    1 — the materials are brought (a stack of logs, a pallet of bricks), the first two poles and a plank on trestles;
+    2 — scaffolding round the walls: poles, two decks along the front and the side, braces, a ladder;
+    3 — up to the ridge: two tall poles by the gable, a top deck, a gin pole with a rope and a bucket."""
+    P = r.P
+    w = r.winter
+    x = cx - 45 * s
+    Wf, Hw, G, Dd = 66 * s, 40 * s, 30 * s, 24 * s
+    dy = Dd * .42
+    wood, wood_s, plank = P['logs'], P['logs_s'], light(P['logs'], .3)
+
+    def pole(px, py, top):
+        quad(r, px - .9 * s, top, px + .9 * s, py, wood_s, .55 * s)
+        r.line([(px - .3 * s, top + 1.5 * s), (px - .3 * s, py - 1 * s)], .3 * s, color=light(wood, .4), op=.7, jitter=False)
+
+    def deck(x0, x1, h, side=False):
+        """A run of planks at height h over the ground: along the front, or receding along the side wall."""
+        t = 2.8 * s
+        if not side:
+            r.shape([(x0, y - h), (x1, y - h), (x1, y - h - t), (x0, y - h - t)], plank, .55 * s)
+            r.lines([[(x0 + (x1 - x0) * k / 4, y - h), (x0 + (x1 - x0) * k / 4, y - h - t)] for k in (1, 2, 3)], .3 * s, op=.5)
+            if w:
+                r.shape([(x0 - .4 * s, y - h - t), (x1 + .4 * s, y - h - t), (x1 - 1 * s, y - h - t - 1.4 * s), (x0 + 1 * s, y - h - t - 1.4 * s)], P['snow'], .3 * s)
+        else:
+            a, b = (x0, y - h), (x1, y - h - dy * (x1 - x0) / Dd)
+            r.shape([a, b, (b[0], b[1] - t), (a[0], a[1] - t)], light(plank, .05), .5 * s)
+            if w:
+                r.shape([(a[0], a[1] - t), (b[0], b[1] - t), (b[0] - 1 * s, b[1] - t - 1.2 * s), (a[0] + 1 * s, a[1] - t - 1.2 * s)], P['snow'], .3 * s)
+
+    def logs(lx, ly):
+        """A stack of fresh logs lying with their ends to the viewer, a lath across."""
+        r.shadow([(lx - 2 * s, ly), (lx + 22 * s, ly - 1 * s), (lx + 26 * s, ly + 2.4 * s), (lx, ly + 2.6 * s)], .55)
+        rows = [(0, 5), (1, 4), (2, 3)]
+        for row, n in rows:
+            for i in range(n):
+                ex, ey = lx + 2.4 * s + (i + row * .5) * 4.4 * s, ly - 2.1 * s - row * 3.7 * s
+                r.blob(ex, ey, 2.2 * s, 2.0 * s, plank, .45 * s, n=9, wob=.05)
+                r.blob(ex + .2 * s, ey + .1 * s, .7 * s, .6 * s, light(wood, .1), 0, n=6, ink=False)
+        r.line([(lx + 1 * s, ly - .4 * s), (lx + 2 * s, ly - 11.6 * s)], .5 * s, color=wood_s)
+        if w:
+            r.blob(lx + 11 * s, ly - 12.4 * s, 7 * s, 1.1 * s, P['snow'], .3 * s, n=8)
+
+    def bricks(bx, by):
+        """A pallet of bricks: a board under, three courses stacked in a step."""
+        quad(r, bx - 1 * s, by - 1.4 * s, bx + 15 * s, by, wood_s, .45 * s)
+        for row, (n, off) in enumerate(((4, 0), (3, 1.8), (2, 3.6))):
+            for i in range(n):
+                x0 = bx + off * s + i * 3.6 * s
+                quad(r, x0, by - 1.4 * s - (row + 1) * 2.1 * s, x0 + 3.5 * s, by - 1.4 * s - row * 2.1 * s, P['brick'] if (i + row) % 3 else light(P['brick'], .12), .35 * s)
+        if w:
+            r.blob(bx + 6.6 * s, by - 8.2 * s, 5 * s, .9 * s, P['snow'], .25 * s, n=7)
+
+    # the materials on the ground, in front of the wall at both corners
+    logs(x + 2 * s, y + 9 * s)
+    bricks(x + 48 * s, y + 8.4 * s)
+    front_poles = [x - 5 * s, x + 22 * s, x + 44 * s, x + 71 * s]
+    if stage <= 1:
+        # the first two poles at the corners and a plank on trestles between them, a few pegs with a string
+        for px in (front_poles[0], front_poles[-1]):
+            pole(px, y + 2.5 * s, y - 24 * s)
+        for tx in (x + 14 * s, x + 54 * s):
+            r.lines([[(tx - 2.4 * s, y + 3 * s), (tx + 1.6 * s, y - 6 * s)], [(tx + 2.4 * s, y + 3 * s), (tx - 1.6 * s, y - 6 * s)]], .55 * s, color=wood_s)
+        deck(x + 8 * s, x + 60 * s, 6 * s)
+        pegs = [(x - 9 * s, y + 6 * s), (x + 76 * s, y + 6 * s)]
+        r.line(pegs, .25 * s, color=P['white'], op=.9, jitter=False)
+        for px, py in pegs:
+            r.line([(px, py), (px, py - 3 * s)], .6 * s, color=wood_s, jitter=False)
+        return
+    # stage 2 and 3: the side poles stand back along the side wall, the front ones in front of the wall
+    side_poles = [(x + Wf + 9 * s, y - dy * 9 / 24 + 1.5 * s), (x + Wf + Dd + 4 * s, y - dy - 1.5 * s + 1.5 * s)]
+    for px, py in side_poles:
+        pole(px, py, py - 50 * s)
+    deck(x + Wf + 4 * s, x + Wf + Dd + 6 * s, 15 * s + 3 * s, side=True)
+    deck(x + Wf + 4 * s, x + Wf + Dd + 6 * s, 35 * s + 3 * s, side=True)
+    for px in front_poles:
+        pole(px, y + 2.5 * s, y - 47 * s)
+    # braces in the bays: crossed in the outer two, one in the middle
+    r.lines([[(front_poles[0], y - 14 * s), (front_poles[1], y - 34 * s)], [(front_poles[2], y - 14 * s), (front_poles[3], y - 34 * s)],
+             [(front_poles[1], y + 1 * s), (front_poles[2], y - 14 * s)], [(front_poles[0], y - 34 * s), (front_poles[1], y - 46 * s)]], .9 * s, color=wood_s)
+    deck(x - 9 * s, x + 75 * s, 15 * s)
+    deck(x - 9 * s, x + 75 * s, 35 * s)
+    # the ladder up to the first deck, leaning on it at the left
+    lb, lt = (x - 15 * s, y + 5 * s), (x - 7 * s, y - 19 * s)
+    for o in (-2 * s, 2 * s):
+        r.line([(lb[0] + o, lb[1]), (lt[0] + o, lt[1])], .8 * s, color=wood_s, jitter=False)
+    r.lines([[(lb[0] + (lt[0] - lb[0]) * t - 2 * s, lb[1] + (lt[1] - lb[1]) * t), (lb[0] + (lt[0] - lb[0]) * t + 2 * s, lb[1] + (lt[1] - lb[1]) * t)] for t in (.15, .35, .55, .75, .95)], .5 * s, color=wood_s)
+    if stage >= 3:
+        # up to the ridge: two tall poles by the gable, a top deck under the peak, the gin pole with its bucket
+        for px in (x + 18 * s, x + 48 * s):
+            pole(px, y - 35 * s, y - Hw - G * .62)
+        deck(x + 12 * s, x + 54 * s, Hw + G * .42)
+        gx = x + Wf / 2 - 1 * s
+        pole(gx, y - Hw - G * .42 - 2 * s, y - Hw - G - 14 * s)
+        arm = [(gx - 3 * s, y - Hw - G - 12 * s), (gx + 16 * s, y - Hw - G - 12 * s)]
+        r.line(arm, 1.1 * s, color=wood_s, jitter=False)
+        bx, by = gx + 14 * s, y - Hw - G + 6 * s
+        r.line([(bx, arm[0][1]), (bx, by - 3 * s)], .3 * s, op=.9, jitter=False)
+        r.add(f'<g class="swing">')
+        r.shape([(bx - 3.4 * s, by - 3 * s), (bx + 3.4 * s, by - 3 * s), (bx + 2.6 * s, by + 2.6 * s), (bx - 2.6 * s, by + 2.6 * s)], P['grey'], .5 * s)
+        r.add('</g>')
+        if w:
+            r.blob(gx + 6 * s, arm[0][1] - .8 * s, 9 * s, .7 * s, P['snow'], .2 * s, n=7)

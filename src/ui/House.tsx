@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { COMMON_TRACKS, PETS, TRACKS, WORKERS, TrackId, WorkerId, DECK_MIN } from '../engine/data';
 import {
   GameState, deckCount, deckLimit, deckList, hirePrice, lvl, money, trackAvailable, trackCost, trackProblem, trackWeeks, trainPrice, trainWeeks,
-  workerSlots, workshopBusy, workshopSlots, locOf, buildStock, buildSpots,
+  workerSlots, workshopBusy, workshopSlots, locOf, buildStock, buildSpots, buildStage,
 } from '../engine/game';
 import type { BuildItem } from '../engine/game';
 import { Icon } from '../art/icons';
@@ -165,7 +165,7 @@ export function HouseView({ s, act, onPlace }: { s: GameState; act: Dispatch; on
       {/* the estate, big: the house at its level with what the farm owns around it, and the ways into the house */}
       <div class="hero house-hero estate-hero">
         <div class="estate-art">
-          <Estate level={house} building={!!houseProj} season={s.season} owns={{ hive: lvl(s, 'apiary') > 0, greenhouse: lvl(s, 'greenhouse') > 0, scarecrow: lvl(s, 'guard') > 0, irrigation: lvl(s, 'irrigation') > 0, meteo: lvl(s, 'meteo') > 0, compost: lvl(s, 'compost') > 0 }} />
+          <Estate level={house} building={buildStage(s, 'house')} season={s.season} owns={{ hive: lvl(s, 'apiary') > 0, greenhouse: lvl(s, 'greenhouse') > 0, scarecrow: lvl(s, 'guard') > 0, irrigation: lvl(s, 'irrigation') > 0, meteo: lvl(s, 'meteo') > 0, compost: lvl(s, 'compost') > 0 }} />
           <div class="estate-plaque"><h2>{TRACKS.house.levels[house - 1].name}</h2><Pips n={house} of={5} /></div>
           {houseProj && houseProj.kind === 'track' && <div class="estate-build"><span>Строим «{TRACKS.house.levels[houseProj.level - 1].name}» · ещё {weeksShort(houseProj.weeks)}</span><Bar value={houseProj.total - houseProj.weeks} max={houseProj.total} tone="good" /></div>}
         </div>

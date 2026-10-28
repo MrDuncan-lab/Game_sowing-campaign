@@ -1903,6 +1903,14 @@ function resolvePayment(s: GameState, amount: number, name: string, seasonEnd: b
 }
 
 // ---------- projects: workshop, lab, training ----------
+/** The stage of a building under construction, for its picture: 0 when nothing is being built, then 1..3 by the
+ *  share of its weeks done (materials brought, scaffolding round the walls, up to the ridge). */
+export function buildStage(s: GameState, t: TrackId): 0 | 1 | 2 | 3 {
+  const p = s.projects.find((x) => x.kind === 'track' && x.track === t);
+  if (!p) return 0;
+  const done = Math.max(0, p.total - p.weeks) / Math.max(1, p.total);
+  return done < 1 / 3 ? 1 : done < 2 / 3 ? 2 : 3;
+}
 export const isLabProject = (p: Project) => p.kind === 'cell' || p.kind === 'trait' || p.kind === 'variety' || p.kind === 'bio';
 export const workshopBusy = (s: GameState) => s.projects.filter((p) => p.kind === 'track').length;
 export const labBusy = (s: GameState) => s.projects.filter(isLabProject).length;

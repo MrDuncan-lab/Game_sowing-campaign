@@ -15,7 +15,7 @@ import type { ComponentChildren, RefObject } from 'preact';
 import { useEffect, useRef } from 'preact/hooks';
 import { V_ANCHORS, V_BOTTOM, V_CART, V_SEASON_CSS, V_SPOTS, V_SUMMER, V_VH, V_W, V_WINTER } from '../art/village/chernozem';
 import { ORGS, type OrgId } from '../engine/data';
-import { GameState, deliverProblem, friends, locOf, lvl, nextPayment, paymentSchedule, thievesBlocked, yearLen } from '../engine/game';
+import { GameState, buildStage, deliverProblem, friends, locOf, lvl, nextPayment, paymentSchedule, thievesBlocked, yearLen } from '../engine/game';
 import { CropSprite } from '../art/crops';
 import { ScoutingKids } from '../art/scouts';
 import { Flock } from '../art/sky';
@@ -42,6 +42,9 @@ function villageClasses(s: GameState): string {
   on.push(lvl(s, 'lab') >= 1 ? 'on-lab' : 'on-nolab');
   // the player's house is drawn at its level, the same drawing as on the house screen
   on.push(`on-house${Math.max(1, Math.min(5, lvl(s, 'house')))}`);
+  // a house under construction stands in scaffolding by the stage of the work
+  const stage = buildStage(s, 'house');
+  if (stage) on.push(`on-build${stage}`);
   if (lvl(s, 'meteo') >= 1) on.push('on-meteo');
   if (lvl(s, 'apiary') >= 1) on.push('on-hives');
   for (const o of locOf(s).orgs) if (friends(s, o)) on.push(`on-g-${o}`);

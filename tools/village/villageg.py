@@ -584,6 +584,14 @@ def hill_F(r):
     # the player's house at each of its five levels; the game shows the one its level names (root class on-houseN)
     for lv in range(1, 6):
         pop(r, 'F', 'house', 108, 1052, lambda X, Y, lv=lv: Q.homestead(r, X, Y, 1.25, lit=r.winter, level=lv), 'Ваша усадьба', cond=f'house{lv}')
+    # the house under construction: scaffolding over whichever house stands, by stage (root class on-buildN); it
+    # lets taps through to the house under it
+    # (its own jitter: the hill's random state is kept, so nothing else on the hill moves)
+    keep = r.rng.getstate()
+    for st in (1, 2, 3):
+        svg, _ = r.capture(lambda st=st: Q.scaffold(r, 108, 1052, 1.25, st))
+        r.add(f'<g class="vc vc-build{st}" pointer-events="none">{svg}</g>')
+    r.rng.setstate(keep)
     pop(r, 'F', 'barn', 294, 1046, lambda X, Y: Q.barn(r, X, Y, 1.05), 'Амбар')
     if not r.winter:
         Q.chick(r, 330, 1084, 1.25, 1, 0)
