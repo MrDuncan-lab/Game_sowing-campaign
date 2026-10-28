@@ -1,4 +1,4 @@
-import { apply, newGame, tile, stockOf, workEffectCells, type Action, type GameState, type Card } from './game';
+import { apply, handMax, newGame, tile, stockOf, workEffectCells, type Action, type GameState, type Card } from './game';
 import { CARDS, CROPS, TRACKS, type CropId } from './data';
 
 // The training farm, version 3: seven calm weeks instead of three crowded ones. Every week brings one
@@ -190,6 +190,21 @@ function sowWeeds(t:TutorialSession):TutorialSession {
 }
 export function normalizeTutorial(t:TutorialSession):TutorialSession {
   const n:TutorialSession=JSON.parse(JSON.stringify(t));
+  // ST-09 · lessons saved before the weekly deal know no Card.keep: until its lesson the compost card must stay
+  // in hand and stay put aside, or the deal discards it and the compost step can never be finished
+  if(!after(n,'compost'))for(const f of [n.farm,n.checkpoint?.farm]){
+    if(!f)continue;
+    let c=f.hand.find(c=>c.uid===n.heldUid);
+    for(const pile of [f.draw,f.discard])if(!c){
+      const i=pile.findIndex(c=>c.uid===n.heldUid);
+      if(i<0)continue;
+      c=pile.splice(i,1)[0];
+      // a full hand gives its last ordinary card back to the discard
+      if(f.hand.length>=handMax(f)){const j=f.hand.map(h=>!h.temp&&!h.keep).lastIndexOf(true);if(j>=0)f.discard.push(...f.hand.splice(j,1));}
+      f.hand.push(c);
+    }
+    if(c&&!c.temp)c.keep=true;
+  }
   lessonOrders(n);
   preparePracticeSeed(n);
   return n;

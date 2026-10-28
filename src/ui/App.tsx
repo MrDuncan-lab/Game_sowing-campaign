@@ -46,7 +46,13 @@ function OwnedApp() {
   useEffect(()=>{writeSessionStorage('posevnaya.tutorial.active',tutorial?'1':null);},[tutorial]);
   const [testRegion,setTestRegion]=useState<LocationId>('chernozem');
   const [testing,setTesting]=useState(()=>window.location.hash==='#test');
-  const [profile, setProfile] = useState<Profile>(() => loadProfile());
+  // ST-05 · a farm stored before an interrupted profile write already counts: its rewards are applied by id, once
+  const [profile, setProfile] = useState<Profile>(() => {
+    const stored = loadProfile();
+    const p = Object.values(allFarms()).reduce((acc, f) => (f ? syncProfile(acc, f) : acc), stored);
+    if (p !== stored) saveProfile(p);
+    return p;
+  });
   const [farms, setFarms] = useState(() => allFarms());
   const [s, setS] = useState<GameState | null>(null);
   const [saveStatus, setSaveStatus] = useState(persistenceStatus);
@@ -72,7 +78,9 @@ function OwnedApp() {
     next = syncFarm(profRef.current, next);
     sRef.current = next;
     setS(next);
-    if (!saved) saveFarm(next);
+    // ST-05 · the profile follows the stored farm: a week that is not saved hands out no profile rewards yet
+    // (play goes on in memory; «Сохранить» writes the farm and then the profile)
+    if (!saved && !saveFarm(next)) return checkSaveSession() ? next : null;
     if (!checkSaveSession()) return null;
     let p = syncProfile(profRef.current, next);
     if (next.phase === 'gameover') p = recordEnd(p, next);
@@ -109,8 +117,15 @@ function OwnedApp() {
     const seed = `${randomSeed()}-${globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${randomSeed()}`}`;
     const g = newGame({ loc: l, seed, pets: profRef.current.pets, seedBank: profRef.current.seedBank });
     if (previous && !saveFarm(previous)) return;
-    if (!saveFarm(g, true)) return;
-    if (previous) commitProfile(recordEnd(syncProfile(profRef.current, previous), previous));
+    if (previous) {
+      // ST-05/ST-06 · the closed run's rewards reach the stored profile before its live slot is replaced
+      const closed = recordEnd(syncProfile(profRef.current, previous), previous);
+      if (closed !== profRef.current && !saveProfile(closed)) return;
+      profRef.current = closed;
+      setProfile(closed);
+    }
+    // ST-10 · with nothing to protect (no earlier run) a refused write still lets the farm be played in this tab
+    if (!saveFarm(g, true) && previous) return;
     show(g, true);
   }
   function toMap() {
@@ -139,7 +154,8 @@ function OwnedApp() {
   }, []);
   function retrySave() {
     if (!checkSaveSession()) return;
-    if (sRef.current) saveFarm(sRef.current);
+    // ST-05 · once the farm is stored, the profile catches up with its rewards
+    if (sRef.current && saveFarm(sRef.current)) show(sRef.current, true);
     saveProfile(profRef.current);
     if (!sRef.current) {
       const existing = { ...allFarms(), ...farms };

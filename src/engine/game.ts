@@ -52,6 +52,8 @@ export interface WeekReport {
   costs: { label: string; amount: number }[];
   yardSold: number; yardUnits?: number; overflow: number; frost: number; dried: number; stolen: number; done: string[];
   soilUp: number; soilDown: number; honey: number; mice: number; insurancePaid?: number;
+  milk?: number; // ECO-04 · the goat's milk money of the week
+  borrowed?: number; // ECO-05 · bills the cash could not cover, added to the bank debt
 }
 export interface Effect { kind: 'review'; mult: number; weeks: number }
 export interface Stats { sales: number; orders: number; seeds: number; work: number; land: number; build: number; salaries: number; interest: number; payments: number; lostUnits: number; harvested: number }
@@ -989,7 +991,8 @@ export function cardBlockReason(s: GameState, card: CardLike): string | null {
   if (s.days < cardNeedDays(s, k)) return 'Не хватает рабочих дней';
   if (d.kind === 'seed') {
     const crop = d.crop!;
-    const cost = seedCost(s, crop) * cardCells(k).length;
+    // ECO-03 · the same kopeck-rounded price `sow` charges
+    const cost = round2(seedCost(s, crop) * cardCells(k).length);
     if (s.money < cost && s.carry + seedDebt(s, cost) > seedCreditCap(s)) return 'Нет денег, а в долг семян больше не дают';
     if (CROPS[crop].greenhouseOnly && !countStructure(s, 'greenhouse')) return 'Нужна теплица';
     if (winter && !s.tiles.some((t) => t.structure === 'greenhouse' && heated(s))) return 'Земля промёрзла';
@@ -1535,9 +1538,11 @@ function mischiefMorning(s: GameState) {
     const m = ORGS[o].mischief;
     if (m === 'fine' && s.weekInSeason === 1 && s.absWeek - st.lastMischief >= 6) {
       const f = Math.max(5, round2(s.money * 0.08));
-      s.money = round2(s.money - Math.min(f, s.money));
+      // ORG-03 · the journal names what was actually taken: an empty till pays less than the fine
+      const taken = round2(Math.min(f, s.money));
+      s.money = round2(s.money - taken);
       st.lastMischief = s.absWeek;
-      feed(s, `${ORGS[o].short}: ${ORGS[o].mischiefText.toLowerCase()} — ${money(f)}.`, 'bad');
+      feed(s, `${ORGS[o].short}: ${ORGS[o].mischiefText.toLowerCase()} — ${money(taken)}${taken < f ? ` (штраф ${money(f)}, больше в кассе не было)` : ''}.`, 'bad');
     }
     if (m === 'review' && s.absWeek - st.lastMischief >= 8 && !s.effects.some((e) => e.kind === 'review')) {
       s.effects.push({ kind: 'review', mult: 0.9, weeks: 3 });
@@ -1548,8 +1553,11 @@ function mischiefMorning(s: GameState) {
 }
 
 // ---------- the end of the week ----------
-// rain and irrigation → frost → dry check → declared blows → crows → thieves → growth → harvest → water → weeds → farm work
-// (honey, compost, geese) → yard → spoilage and mice → projects → organisations → money → payment
+// CAL-01 · the one order of a week's end (resolveWeek, then the payment):
+// rain and irrigation → frost → dry check → declared blows (hail/flood, beetles, locusts, weeds) → thieves → crows →
+// growth → yard crates to the barn or the reseller → harvest → water loss → weeds → farm work (honey, compost, geese) →
+// spoilage and mice → projects and training → organisations → money (milk, interest, salaries, heating) → payment
+// → the next week starts (season and year change, threats announced, a fresh hand)
 export function endWeek(state: GameState): GameState {
   if (state.phase !== 'week') return state;
   const s = clone(state);
@@ -1566,6 +1574,9 @@ function resolveWeek(s: GameState, diagnostic?: Pick<WeekOutlook, 'threats'>) {
   const costs = weeklyCosts(s);
   const air = airTemp(s);
   const winter = s.season === 3;
+  // ECO-08 · mice go for the lots the barn warned about this week (miceTargets), not for crates that only
+  // arrive at the week's end from the yard or the harvest
+  const miceList = miceTargets(s);
   // 1. Water arrives before drought/growth; identical to the visible forecast.
   const watered=growthMoisture(s);
   s.tiles.forEach((t,i)=>t.moisture=watered[i]);
@@ -1579,9 +1590,10 @@ function resolveWeek(s: GameState, diagnostic?: Pick<WeekOutlook, 'threats'>) {
     r.lost.push(`Мороз погубил ${r.frost} ${plural(r.frost, 'растение', 'растения', 'растений')}`);
     feed(s, `${air}°: мороз погубил ${r.frost} ${plural(r.frost, 'растение', 'растения', 'растений')}.`, 'bad');
   }
-  // 3. the dry check (sleeping plants need no water)
+  // 3. the dry check (sleeping plants need no water). CAL-03/WTH-04 · in winter only a heated greenhouse is
+  // tended (watered by hand, by cards and by irrigation); an unheated one sleeps like the open field.
   for (const [t, x, y] of ownedTiles(s)) {
-    if (!t.crop || t.crop.rest || (winter && t.structure !== 'greenhouse')) continue;
+    if (!t.crop || t.crop.rest || !winterCareTarget(s, x, y)) continue;
     if (t.moisture >= 1) {
       t.crop.dry = 0;
       continue;
@@ -1603,7 +1615,8 @@ function resolveWeek(s: GameState, diagnostic?: Pick<WeekOutlook, 'threats'>) {
   // 7. growth
   for (const [t, x, y] of ownedTiles(s)) if (t.crop && (t.crop.dry ?? 0) === 0 && !blocked.has(`${x},${y}`)) t.crop.grown += growStep(s, x, y, true);
   // Pollination is evaluated before harvest removes this week's flowers.
-  const productiveHives=ownedTiles(s).filter(([t,x,y])=>t.structure==='hive' &&
+  // WTH-02/03 · a hive set down or moved this week makes honey from the next week, like its pollination bonus
+  const productiveHives=ownedTiles(s).filter(([t,x,y])=>hiveYieldReady(s,t) &&
     (wlvl(s,'beekeeper')>=1?neighbors8(x,y):neighbors4(x,y)).some(([a,b])=>{
       const p=tile(s,a,b).crop;
       return p && !p.rest && (CROPS[p.id].flowering || p.id==='strawberry' || p.id==='watermelon') && !growNote(s,a,b,true);
@@ -1615,7 +1628,7 @@ function resolveWeek(s: GameState, diagnostic?: Pick<WeekOutlook, 'threats'>) {
   ripe.forEach(([, x, y], i) => harvestTile(s, x, y, yields[i]));
   // 9. water
   for (const [t, x, y] of ownedTiles(s)) {
-    if (winter && t.structure !== 'greenhouse') continue;
+    if (!winterCareTarget(s, x, y)) continue;
     const shade = nearTerrain(s, x, y, 'forest');
     if (!(t.mulch > 0) && !t.drip && (!shade || t.structure === 'greenhouse')) t.moisture = Math.max(0, t.moisture - 1);
     const hotWeek = s.flags.dry || air >= 28;
@@ -1660,7 +1673,7 @@ function resolveWeek(s: GameState, diagnostic?: Pick<WeekOutlook, 'threats'>) {
     l.qty = 0;
   }
   if (!hasPet(s, 'cat') && lvl(s, 'barn') < 2) {
-    for (const crop of miceTargets(s)) {
+    for (const crop of miceList) {
       const lots = s.storage.filter((l) => l.crop === crop).sort((a, b) => b.age - a.age);
       const total = lots.reduce((n, l) => n + l.qty, 0);
       if (total < 10) continue;
@@ -1686,23 +1699,37 @@ function resolveWeek(s: GameState, diagnostic?: Pick<WeekOutlook, 'threats'>) {
   // 14. organisations
   tickOrgs(s);
   // 15. money (rates and facilities at the beginning of this week)
+  // PSV-031/ECO-04 · the goat's milk money is income too: it arrives before the bills and is written in the journal
+  if (hasPet(s, 'goat')) {
+    const milk = Math.round(3 * infl(s.year));
+    s.money = round2(s.money + milk);
+    s.earned = round2(s.earned + milk);
+    r.milk = milk;
+    feed(s, `Коза: молоко продано за ${money(milk)}.`, 'good');
+  }
+  let borrowed = 0;
   for (const loan of s.loans) {
     const i = loanInterest(loan);
-    payOrBorrow(s, i, loan);
+    borrowed += payOrBorrow(s, i, loan);
     s.stats.interest = round2(s.stats.interest + i);
   }
   if (costs.interest) r.costs.push({ label: 'проценты', amount: costs.interest });
   if (costs.salaries) {
-    payOrBorrow(s, costs.salaries);
+    borrowed += payOrBorrow(s, costs.salaries);
     s.stats.salaries += costs.salaries;
     r.costs.push({ label: 'зарплаты', amount: costs.salaries });
   }
   if (costs.heating) {
-    payOrBorrow(s, costs.heating);
+    borrowed += payOrBorrow(s, costs.heating);
     r.costs.push({ label: 'отопление теплиц', amount: costs.heating });
   }
-  // PSV-031 · the goat's milk money is income too
-  if (hasPet(s, 'goat')) { const milk = Math.round(3 * infl(s.year)); s.money = round2(s.money + milk); s.earned = round2(s.earned + milk); }
+  // ECO-05 · bills the cash could not cover join the bank debt: never silently
+  borrowed = round2(borrowed);
+  if (borrowed > 0) {
+    r.borrowed = borrowed;
+    r.lost.push(`Не хватило денег на расходы: ${money(borrowed)} добавлено к долгу банку`);
+    feed(s, `Не хватило денег на расходы недели: ${money(borrowed)} добавлено к долгу банку.`, 'bad');
+  }
   for (const e of s.effects) e.weeks -= 1;
   s.effects = s.effects.filter((e) => e.weeks > 0);
   s.strikes = s.strikes.filter((x) => x.week > s.absWeek);
@@ -1837,7 +1864,8 @@ function takeStock(s: GameState, crop: CropId, qty: number): number {
   return qty - left;
 }
 
-function payOrBorrow(s: GameState, amount: number, loan?: Loan) {
+/** pays a bill from cash; what the cash cannot cover is added to a bank loan. Returns the amount borrowed. */
+function payOrBorrow(s: GameState, amount: number, loan?: Loan): number {
   s.money = round2(s.money - amount);
   if (s.money < 0) {
     const debt = -s.money;
@@ -1845,7 +1873,9 @@ function payOrBorrow(s: GameState, amount: number, loan?: Loan) {
     if (loan) loan.principal = round2(loan.principal + debt);
     else if (s.loans[0]) s.loans[0].principal = round2(s.loans[0].principal + debt);
     else s.loans.push({ id: s.nextLoanId++, principal: debt, rate: loanRate(s) });
+    return debt;
   }
+  return 0;
 }
 function settle(s: GameState) {
   s.money = round2(s.money);
@@ -2002,8 +2032,11 @@ export function orderCropAvailable(s: GameState,c: CropId): boolean {
   if(!cropProducible(s,c))return freeStock(s,c)>0;
   return true;
 }
+/** ORG-01 · an open offer line can be met: the crop is available, and a crop that can no longer be grown here
+ *  is still covered by the stock the offer was capped to */
+export const offerLineOk = (s: GameState, l: QuestLine) => orderCropAvailable(s, l.crop) && (cropProducible(s, l.crop) || freeStock(s, l.crop) >= l.qty);
 export function repairOpenOffers(state: GameState): GameState {
-  const bad=locOf(state).orgs.filter(o=>{const q=state.orgs[o];return q?.offer&&!q.active&&q.offer.lines.some(l=>!orderCropAvailable(state,l.crop));});
+  const bad=locOf(state).orgs.filter(o=>{const q=state.orgs[o];return q?.offer&&!q.active&&q.offer.lines.some(l=>!offerLineOk(state,l));});
   if(!bad.length)return state;
   const s=clone(state);
   for(const o of bad){const q=s.orgs[o]!;q.offer=null;q.wait=0;q.idle=0;}
@@ -2055,14 +2088,16 @@ function tickOrgs(s: GameState) {
   for (const o of locOf(s).orgs) {
     const st = s.orgs[o];
     if (!st) continue;
+    let failed = false;
     if (st.active && st.active.deadline !== undefined && st.active.deadline <= s.absWeek) {
       st.rel = Math.max(-100, st.rel - 20);
       s.report.lost.push(`${ORGS[o].short}: срок заказа вышел (отношения −20)`);
       feed(s, `${ORGS[o].short}: заказ «${st.active.title}» не сдан, отношения испортились.`, 'bad');
       st.active = null;
       st.wait = 2;
+      failed = true;
     }
-    if(st.offer && !st.active && !st.offer.lines.every(l=>orderCropAvailable(s,l.crop))) {
+    if(st.offer && !st.active && !st.offer.lines.every(l=>offerLineOk(s,l))) {
       st.offer=null;st.idle=0;st.wait=0;
     }
     if (st.offer && !st.active) {
@@ -2078,7 +2113,8 @@ function tickOrgs(s: GameState) {
         continue;
       }
     }
-    if (!st.offer && !st.active && ORGS[o].mischief === 'silence' && st.rel < -35) st.rel += 2;
+    // ORG-06 · the slow thaw of a «silent» org does not start in the week an order was missed (the −20 holds)
+    if (!failed && !st.offer && !st.active && ORGS[o].mischief === 'silence' && st.rel < -35) st.rel += 2;
     if (!st.offer && !st.active) {
       st.wait -= 1;
       const step = ORGS[o].steps[st.step];
@@ -2128,11 +2164,14 @@ function grant(s: GameState, rw: Reward, src: string): number {
     feed(s, `Новые семена: ${CROPS[rw.seeds].name}.`, 'good');
   }
   if (rw.worker) {
-    if (!s.freeHire.includes(rw.worker) && !s.team.some((w) => w.id === rw.worker)) s.freeHire.push(rw.worker);
-    if (!s.candidates.includes(rw.worker)) s.candidates.push(rw.worker);
-    feed(s, `${WORKERS[rw.worker].name} (${WORKERS[rw.worker].title.toLowerCase()}) — можно нанять без платы за наём. Зарплата сохраняется — условия в доме.`, 'good');
+    const hired = s.team.some((w) => w.id === rw.worker);
+    if (!s.freeHire.includes(rw.worker) && !hired) s.freeHire.push(rw.worker);
+    // ORG-04 · someone already on the team is not offered for hire a second time
+    if (!hired && !s.candidates.includes(rw.worker)) s.candidates.push(rw.worker);
+    if (!hired) feed(s, `${WORKERS[rw.worker].name} (${WORKERS[rw.worker].title.toLowerCase()}) — можно нанять без платы за наём. Зарплата сохраняется — условия в доме.`, 'good');
   }
-  if (rw.card) addCard(s, rw.card, { temp: true });
+  // ORG-04 · a one-off card takes no deck place, so it never lands among the spare cards
+  if (rw.card) s.discard.push({ uid: s.nextUid++, def: rw.card, temp: true });
   if (rw.glory) addGlory(s, rw.glory, `${src}|glory`);
   return bonus;
 }
@@ -2256,15 +2295,16 @@ export function apply(state: GameState, a: Action): GameState {
       if(choices.length) {
         // Preserve the draw order; a discard-only alternative is chosen deterministically at random.
         const replacement=pile===s.draw?choices[choices.length-1]:choices[randInt(s,choices.length)];
-        pile.splice(pile.findIndex(c=>c.uid===replacement.uid),1);s.hand.push(replacement);
+        // CAL-06 · a card coming back from the piles is not «put aside» any more (drawCards clears it too)
+        pile.splice(pile.findIndex(c=>c.uid===replacement.uid),1);delete replacement.keep;s.hand.push(replacement);
       } else drawCards(s,1);
-      if(!out.temp) s.discard.push(out);
+      if(!out.temp) { delete out.keep; s.discard.push(out); }
       break;
     }
     case 'compostCard': {
       const why=compostProblem(s,a.uid); if(why) fail(why);
       useExchange(s);
-      s.discard.push(...s.hand.splice(s.hand.findIndex(c=>c.uid===a.uid),1));
+      for (const c of s.hand.splice(s.hand.findIndex(c=>c.uid===a.uid),1)) { delete c.keep; s.discard.push(c); }
       s.compostTick=Math.min(compostWeeks(s),s.compostTick+1);
       s.compostReady=s.compostTick>=compostWeeks(s);
       break;
@@ -2275,7 +2315,7 @@ export function apply(state: GameState, a: Action): GameState {
         // A full hand gives up one card of the player's choice for the compost.
         const i=a.uid===undefined?-1:s.hand.findIndex(c=>c.uid===a.uid);
         if(i<0) fail('Освободите место в руке или выберите карту на замену. Компост останется в яме');
-        const [out]=s.hand.splice(i,1); if(!out.temp) s.discard.push(out);
+        const [out]=s.hand.splice(i,1); if(!out.temp) { delete out.keep; s.discard.push(out); }
       }
       deliverTemporary(s,'compost'); s.compostReady=false; s.compostTick=0;
       break;
@@ -2295,11 +2335,14 @@ export function apply(state: GameState, a: Action): GameState {
       const i = s.hand.findIndex((c) => c.uid === a.uid);
       if (i < 0) fail('Карты нет в руке');
       needDay(s);
-      s.discard.push(...s.hand.splice(i, 1));
+      for (const c of s.hand.splice(i, 1)) { delete c.keep; s.discard.push(c); }
       break;
     }
     case 'waterHand': {
-      const cells = [...new Map((a.tiles ?? []).filter(([x, y]) => cellOk(x, y)).map((c) => [`${c[0]},${c[1]}`, c] as const)).values()];
+      // CRD-03 · malformed input is refused with a game message, never a crash
+      const given: unknown[] = Array.isArray(a.tiles) ? a.tiles : [];
+      const valid = given.filter((c): c is [number, number] => Array.isArray(c) && c.length === 2 && cellOk(c[0], c[1]));
+      const cells = [...new Map(valid.map((c) => [`${c[0]},${c[1]}`, c] as const)).values()];
       if (!cells.length || cells.length > handWaterMax(s)) fail(`Полить можно до ${handWaterMax(s)} грядок`);
       const line = cells.every(([x]) => x === cells[0][0]) || cells.every(([, y]) => y === cells[0][1]);
       const span = Math.max(...cells.map(([x, y]) => x + y)) - Math.min(...cells.map(([x, y]) => x + y));
@@ -2412,6 +2455,8 @@ export function apply(state: GameState, a: Action): GameState {
       break;
     case 'moveBuild':
       if (!Array.isArray(a.from) || !Array.isArray(a.to) || !cellOk(...a.from) || !cellOk(...a.to)) fail('Клетка вне поля');
+      // UP-05 · a «move» onto its own cell would only reset the week a greenhouse or hive needs to settle
+      if (a.item === 'drip' ? a.from[1] === a.to[1] : a.from[0] === a.to[0] && a.from[1] === a.to[1]) fail('Постройка уже стоит здесь');
       unbuild(s, a.item, ...a.from);
       build(s, a.item, ...a.to);
       break;
@@ -2627,7 +2672,9 @@ export function apply(state: GameState, a: Action): GameState {
       s.carry = Math.round(s.due.amount * 1.2);
       s.rating = Math.max(0, s.rating - 2);
       s.cleanSeasons = 0;
-      s.incident = true;
+      // CAL-02 · the incident belongs to the season it happened in: at a season's last payment that season
+      // closes here (rating −2, clean count 0), so the next season is not penalised a second time
+      s.incident = !s.due.seasonEnd;
       s.due = null;
       feed(s, `Платёж перенесён: ${money(s.carry)} добавятся к следующему. Рейтинг −2.`, 'bad');
       startWeek(s);
@@ -2691,7 +2738,9 @@ export function buildMoveSpots(s: GameState, item: BuildItem, from?: [number, nu
 }
 function build(s: GameState, item: BuildItem, x: number, y: number) {
   if (!cellOk(x, y)) fail('Клетка вне поля');
-  const st = buildStock(s)[item];
+  // CRD-03 · only real buildings: an inherited key such as «constructor» is not one
+  const stock = buildStock(s);
+  const st = typeof item === 'string' && Object.prototype.hasOwnProperty.call(stock, item) ? stock[item] : undefined;
   if (!st) fail('Нет такой постройки');
   if (st.used >= st.have) fail(st.have ? 'Все такие постройки уже стоят на поле' : 'Сначала её нужно построить в мастерской');
   if (!buildSpots(s, item).some(([a, b]) => (item === 'drip' ? b === y : a === x && b === y))) fail('Сюда не поставить');
@@ -2732,6 +2781,9 @@ function playCard(s: GameState, uid: number, cells: [number, number][], row?: nu
   const block = cardBlockReason(s, card);
   if (block) fail(block);
   let days = cardDays(s, card);
+  // CRD-03 · every given cell must be a pair of whole numbers: malformed input is refused, never a crash
+  // (the other cells past the edge are named by plantBlock: «за краем поля»)
+  if (!Array.isArray(cells) || !cells.every((c) => Array.isArray(c) && c.length === 2 && isInt(c[0]) && isInt(c[1]))) fail('Клетка вне поля');
   const one = cells[0];
   if (one && !cellOk(one[0], one[1])) fail('Клетка вне поля');
   if (d.kind === 'seed') {
@@ -2809,6 +2861,7 @@ function playCard(s: GameState, uid: number, cells: [number, number][], row?: nu
       s.sidejobWeek = s.absWeek;
       s.money = round2(s.money + sidejobPay(s));
       s.earned = round2(s.earned + sidejobPay(s));
+      feed(s, `Подработка: +${money(sidejobPay(s))}.`, 'good');
     }
     if (card.def === 'forage') {
       s.forageWeek = s.absWeek;
@@ -2820,7 +2873,8 @@ function playCard(s: GameState, uid: number, cells: [number, number][], row?: nu
   }
   s.days -= days;
   s.hand.splice(s.hand.indexOf(card), 1);
-  // cards made by the compost pit or the lab are used up
+  // cards made by the compost pit or the lab are used up; a played card is no longer «put aside»
+  delete card.keep;
   if (!card.temp) s.discard.push(card);
 }
 function sow(s: GameState, card: Card, cells: [number, number][]) {

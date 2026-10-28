@@ -73,7 +73,8 @@ if (managedSaveSession) {
   // Older game versions do not know about Web Locks. Refuse further actions if
   // one of them changes a live save while this document owns the new lock.
   window.addEventListener('storage', e => {
-    if (isPersistentGameKey(e.key)) saveSession.invalidate();
+    // ST-10 · key null is storage.clear(): nothing was written; persist.checkSaveSession() handles a wiped store
+    if (e.key !== null && isPersistentGameKey(e.key)) saveSession.invalidate();
   });
   window.addEventListener('pagehide', () => saveSession.release());
 }

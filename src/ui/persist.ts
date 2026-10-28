@@ -21,12 +21,22 @@ export function resetPersistenceSession() {
     try { observed.set(key, localStorage.getItem(key)); } catch { /* read() reports unavailable storage */ }
   }
 }
+// ST-10 · site data wiped while the game is open: every live key is gone at once. Nothing newer exists anywhere,
+// so this tab's progress is the only copy left and must stay writable (another tab never deletes every save).
+const CLEARED = 'storage:cleared';
+function storageCleared(): boolean {
+  if (![...observed.values()].some((v) => v !== null)) return false;
+  if (!liveKeys.every((k) => localStorage.getItem(k) === null)) return false;
+  for (const k of observed.keys()) observed.set(k, null);
+  issue(CLEARED, 'Данные сайта в браузере очищены. Прогресс этой вкладки будет записан заново.');
+  return true;
+}
 export function checkSaveSession(): boolean {
   if (!canWriteSession()) return false;
   if (!managedSaveSession) return true;
   try {
     for (const [key, raw] of observed) {
-      if (localStorage.getItem(key) !== raw) { saveSession.invalidate(); return false; }
+      if (localStorage.getItem(key) !== raw) { if (storageCleared()) return true; saveSession.invalidate(); return false; }
     }
   } catch {
     // A storage outage must preserve in-memory play. The exclusive browser lock
@@ -35,7 +45,7 @@ export function checkSaveSession(): boolean {
   return true;
 }
 function rememberRead(key: string, raw: string | null) {
-  if (managedSaveSession && observed.has(key) && observed.get(key) !== raw) {
+  if (managedSaveSession && observed.has(key) && observed.get(key) !== raw && !(raw === null && storageCleared())) {
     saveSession.invalidate();
     return false;
   }
@@ -144,6 +154,7 @@ function write<T>(key: string, value: T, valid: (v: unknown) => v is T, replaceI
     invalid.delete(key);
     issue(`${key}:read`);
     issue(`${key}:write`);
+    if (issues.has(CLEARED) && key !== PROFILE) issue(CLEARED); // the progress is written again
     return true;
   } catch {
     issue(`${key}:write`, `${label(key)} не ${key === PROFILE ? "сохранён" : "сохранена"}: запись недоступна или недостаточно места. Прогресс остаётся в этой вкладке; повторите сохранение.`);
@@ -204,7 +215,7 @@ export function validFarm(v: unknown): v is GameState {
   if (!(v.crows === null || obj(v.crows) && num(v.crows.week) && typeof v.crows.shoo === 'boolean' && typeof v.crows.drone === 'boolean' && arr(v.crows.targets, (x) => obj(x) && ['x', 'y', 'pid'].every((k) => num(x[k])) && cell(x.x, x.y) && ['young', 'ripe'].includes(x.type)))) return false;
   if (!['crowWarn', 'crowRolled', 'kidsWarn', 'kidsRolled'].every((k) => v[k] === undefined || arr(v[k], num))) return false;
   if (!(v.thieves === null || obj(v.thieves) && num(v.thieves.week) && typeof v.thieves.talked === 'boolean' && arr(v.thieves.targets, (x) => obj(x) && ['x', 'y', 'pid'].every((k) => num(x[k])) && cell(x.x, x.y)))) return false;
-  const report = (x: unknown) => obj(x) && (x.fieldDamage === undefined || arr(x.fieldDamage, (d) => obj(d) && DAMAGE.includes(d.kind) && cell(d.x, d.y) && plant(d.before) && (d.after === null || plant(d.after)) && num(d.lost) && (d.note === undefined || typeof d.note === 'string'))) && (x.pestHits===undefined || arr(x.pestHits,h=>obj(h)&&['locust','beetle'].includes(h.kind)&&coords([[h.x,h.y]])&&num(h.lost)&&h.lost>=0&&obj(h.plant)&&member(CROPS,h.plant.id)&&['grown','bonus','mult','planted','pid'].every(k=>num(h.plant[k]))&&(h.after===undefined||h.after===null||obj(h.after)&&member(CROPS,h.after.id)&&['grown','bonus','mult','planted','pid'].every(k=>num(h.after[k]))))) && shape(x, base.report) && arr(x.harvests, (h) => obj(h) && member(CROPS, h.crop) && ['qty', 'x', 'y'].every((k) => num(h[k])) && cell(h.x, h.y)) && arr(x.lost, (s) => typeof s === 'string') && arr(x.done, (s) => typeof s === 'string') && arr(x.costs, (c) => obj(c) && typeof c.label === 'string' && num(c.amount));
+  const report = (x: unknown) => obj(x) && ['milk', 'borrowed', 'insurancePaid', 'yardUnits'].every((k) => x[k] === undefined || num(x[k]) && x[k] >= 0) && (x.fieldDamage === undefined || arr(x.fieldDamage, (d) => obj(d) && DAMAGE.includes(d.kind) && cell(d.x, d.y) && plant(d.before) && (d.after === null || plant(d.after)) && num(d.lost) && (d.note === undefined || typeof d.note === 'string'))) && (x.pestHits===undefined || arr(x.pestHits,h=>obj(h)&&['locust','beetle'].includes(h.kind)&&coords([[h.x,h.y]])&&num(h.lost)&&h.lost>=0&&obj(h.plant)&&member(CROPS,h.plant.id)&&['grown','bonus','mult','planted','pid'].every(k=>num(h.plant[k]))&&(h.after===undefined||h.after===null||obj(h.after)&&member(CROPS,h.after.id)&&['grown','bonus','mult','planted','pid'].every(k=>num(h.after[k]))))) && shape(x, base.report) && arr(x.harvests, (h) => obj(h) && member(CROPS, h.crop) && ['qty', 'x', 'y'].every((k) => num(h[k])) && cell(h.x, h.y)) && arr(x.lost, (s) => typeof s === 'string') && arr(x.done, (s) => typeof s === 'string') && arr(x.costs, (c) => obj(c) && typeof c.label === 'string' && num(c.amount));
   return report(v.report) && (v.lastReport === null || report(v.lastReport))
     && arr(v.feed, (x) => obj(x) && num(x.week) && typeof x.text === 'string' && ['good', 'bad', 'info'].includes(x.tone))
     && arr(v.rewardsOut, (x) => obj(x) && typeof x.id === 'string' && (x.kind === 'glory' ? num(x.value) && x.value >= 0 : x.kind === 'pet' ? member(PETS, x.value) : x.kind === 'seed' ? member(CROPS, x.value) : x.kind === 'cert' && typeof x.value === 'string'))
