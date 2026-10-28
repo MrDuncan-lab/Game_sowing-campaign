@@ -1,4 +1,4 @@
-import { apply, expectedYield, handMax, newGame, tile, stockOf, weekDays, workEffectCells, type Action, type GameState, type Card } from './game';
+import { apply, cardShopPrice, cellPrice, deckList, expectedYield, handMax, handWaterMax, hirePrice, LAB_WEEKS, lvl, money, newGame, targetGrow, tile, stockOf, trackCost, trackWeeks, weekDays, workEffectCells, type Action, type GameState, type Card } from './game';
 import { CARDS, CROPS, TRACKS, type CropId } from './data';
 
 // The training farm, version 4 (docs/ONBOARDING-v4.md). Written for a newcomer from match-3 games:
@@ -48,7 +48,8 @@ export const AREA_IDS = Object.keys(AREA_OPENS) as TutorialArea[];
 export const areaOpen = (step: TutorialStep, area: TutorialArea) => TUTORIAL_STEPS.indexOf(step) >= TUTORIAL_STEPS.indexOf(AREA_OPENS[area]);
 // the beds where Палыч's radish ripens on the first night
 export const PALYCH_BEDS: readonly [number, number][] = [[1, 1], [2, 1]];
-export interface SoloGoals { planted: boolean; watered: boolean; sold: boolean; sell: boolean }
+/** the week on one's own: what is done; sell — whether there was anything to sell; weeks — 2 when it is the second try */
+export interface SoloGoals { planted: boolean; watered: boolean; sold: boolean; sell: boolean; weeks?: number }
 export interface TutorialSession {
   version: 4; farm: GameState; step: TutorialStep; labUid: number;
   watered: boolean; delivered: boolean; checkpoint?: Omit<TutorialSession, 'checkpoint'>;
@@ -61,12 +62,45 @@ export interface TutorialSession {
   compostUid?: number;
   /** the first sale's counter: how much of Палыч's radish there was to sell */
   saleOf?: number;
+  /** whether the week on one's own was done in full (the certificate ticks it only then) */
+  soloPassed?: boolean;
+  /** the crop whose seeds the selection lesson improved */
+  labCrop?: CropId;
 }
 export const TUTORIAL_KEY = 'posevnaya.tutorial.atlas.v4';
 export const TUTORIAL_SEED = 'atlas-tutorial-v4';
 const at = (i: number): [number, number] => [i % 6, Math.floor(i / 6)];
 const after = (t: TutorialSession, step: TutorialStep) => TUTORIAL_STEPS.indexOf(t.step) > TUTORIAL_STEPS.indexOf(step);
 const same = ([a, b]: [number, number], [x, y]: [number, number]) => a === x && b === y;
+// The lesson's paid steps: the helper, the first selection project, the drip line. While they lie ahead, free
+// time keeps the money they need (T01): a newcomer who spends everything in the shop must not reach a step
+// that cannot be done. On these steps selling, a loan and a delivery stay possible too.
+const PAID_STEPS: readonly TutorialStep[] = ['hire', 'lab', 'upgrade'];
+export function lessonReserve(t: TutorialSession): number {
+  const s = t.farm;
+  let need = 0;
+  if (!after(t, 'hire') && !s.team.some((w) => w.id === 'foreman')) need += hirePrice(s, 'foreman');
+  if (!after(t, 'lab')) need += cellPrice(s, { uid: 0, def: 'seed_radish' });
+  if (!after(t, 'upgrade') && lvl(s, 'irrigation') < 2) need += trackCost(s, 'irrigation', 2);
+  return need;
+}
+/** What the current paid step costs, or null when the step costs nothing. */
+export function lessonPrice(t: TutorialSession): number | null {
+  const s = t.farm;
+  if (t.step === 'hire') return hirePrice(s, 'foreman');
+  if (t.step === 'lab') return cellPrice(s, { uid: 0, def: 'seed_radish' });
+  if (t.step === 'upgrade') return trackCost(s, 'irrigation', 2);
+  return null;
+}
+// What differs on the player's own farm (T11): read from a real new farm, never typed by hand.
+export function ownFarmDifferences() {
+  const own = newGame({ loc: 'chernozem', seed: 'own-farm-preview' }), lesson = createTutorial().farm;
+  return {
+    money: own.money, lessonMoney: lesson.money,
+    can: handWaterMax(own), lessonCan: handWaterMax(lesson),
+    projectWeeks: Math.min(trackWeeks(own, 'irrigation', 2), LAB_WEEKS.cell),
+  };
+}
 // the order the deck deals after the first week. Cards not played stay in the hand, so the first week's water
 // is still there: the second week adds three seeds to it, the third the hail lesson's «Укрытие», the rest below
 const DEAL_ORDER = ['seed_radish', 'seed_potato', 'seed_onion', 'shelter', 'seed_carrot', 'seed_potato', 'seed_cabbage', 'seed_wheat', 'mulch', 'fertilizer'];
@@ -103,7 +137,7 @@ function advance(t: TutorialSession, step: TutorialStep): TutorialSession {
     // nothing is dry (it cannot happen on this farm, but a lesson never waits for the impossible)
     if (!n.thirsty.length) n = { ...n, step: 'play2' };
   }
-  if (step === 'solo') n.solo = { planted: false, watered: false, sold: false, sell: storageUnits(n.farm) > 0 };
+  if (step === 'solo') n.solo = { planted: false, watered: false, sold: false, sell: storageUnits(n.farm) > 0, weeks: 1 };
   if (step === 'sale') n.saleOf = stockOf(n.farm, 'radish');
   return checkpoint(n);
 }
@@ -121,6 +155,8 @@ export function tutorialReserve(t: TutorialSession): number {
 export function dryBeds(s: GameState): [number, number][] {
   return s.tiles.flatMap((v, i) => v.owned && v.crop && !v.crop.rest && v.moisture === 0 ? [at(i)] : []);
 }
+/** The week on one's own is done: planted, watered a planting, sold when there was something to sell. */
+export const soloDone = (g: SoloGoals) => g.planted && g.watered && (!g.sell || g.sold);
 /** The first sale's counter: how much of Палыч's radish is sold. */
 export function saleProgress(t: TutorialSession): { done: number; of: number } {
   const of = t.saleOf ?? 0;
@@ -181,10 +217,16 @@ export function tutorialProblem(t: TutorialSession, a: Action): string | null {
   if (FREE_STEPS.includes(t.step) || t.step === 'solo') {
     // free time: anything a farmer does in a normal week; what a later lesson explains waits for it
     if (!FREE_ACTIONS.includes(a.t)) return 'На учебной ферме это Палыч показывает в своё время. На своей ферме — когда угодно.';
+    // the money the next paid lessons need is kept (T01)
+    const spend = a.t === 'buyCard' ? cardShopPrice(t.farm, a.def) : 0;
+    const reserve = lessonReserve(t);
+    if (spend > 0 && t.farm.money - spend < reserve) return `Эти деньги отложим: на помощника, селекцию и полив нужно ещё ${money(reserve)}.`;
     return null;
   }
+  // a paid step can always raise its money: sell, borrow, deliver an order
+  if (PAID_STEPS.includes(t.step) && ['sell', 'borrow', 'deliver'].includes(a.t)) return null;
   switch (t.step) {
-    case 'plant': return a.t === 'play' && def === 'seed_radish' ? null : 'Начнём с редиса: перетащите его карту на свободную грядку.';
+    case 'plant': return a.t === 'play' && def === 'seed_radish' ? null : 'Начнём с редиса: нажмите его карту, потом свободную грядку.';
     case 'rotate': return 'Коснитесь выбранной фасоли ещё раз — фигура повернётся.';
     case 'bean': return a.t === 'play' && def === 'seed_bean' ? null : 'Посадите повёрнутую фасоль на свободные грядки.';
     case 'night': return one(['endWeek']);
@@ -193,7 +235,7 @@ export function tutorialProblem(t: TutorialSession, a: Action): string | null {
       const dry = stillThirsty(t);
       const hits = (cells: [number, number][]) => cells.some((c) => dry.some((d) => same(c, d)));
       const ok = (a.t === 'waterHand' && hits(a.tiles)) || (a.t === 'play' && def === 'water' && !!a.tiles?.[0] && hits(workEffectCells(t.farm, 'water', ...a.tiles[0])));
-      return ok ? null : 'Полейте ростки с красной каплей: картой «Полив» или лейкой из меню грядки.';
+      return ok ? null : 'Полейте ростки с красной каплей: лейкой из меню грядки или картой «Полив».';
     }
     case 'visit': return 'К ферме идут гости — встретьте их.';
     case 'village': return 'Заказ ждут в деревне — откройте её над полем.';
@@ -255,18 +297,17 @@ function shapeHand(t: TutorialSession) {
     s.hand.push(card);
   }
 }
-// the practice order asks for what the farm actually has: beans if there are two, else another crop
+// The practice order asks for a crop the player has to grow (T10): never one already lying in the barn.
+// Whatever is quickest to bring in wins: a planting already on the field, a seed in hand, a seed in the deck.
+// A small figure counts in its favour: by then weeds may hold some beds, and each takes a day to clear.
 function practiceCrop(s: GameState): CropId {
-  if (stockOf(s, 'bean') >= 2) return 'bean';
-  const held = s.storage.reduce((m, l) => m.set(l.crop, (m.get(l.crop) ?? 0) + l.qty), new Map<CropId, number>());
-  const stored = [...held.entries()].find(([, q]) => q >= 2)?.[0];
-  if (stored) return stored;
-  const growing = s.tiles.find((v) => v.crop && !v.crop.rest)?.crop?.id;
-  if (growing) return growing;
-  // The last exercise starts from this farm's actual means of production.
-  // A novice who sold everything should not be asked to wait blindly for beans.
-  const seedCrop = (cards: Card[]) => cards.map((c) => CARDS[c.def].crop).filter((c): c is CropId => !!c).sort((a, b) => CROPS[a].grow - CROPS[b].grow)[0];
-  return seedCrop(s.hand) ?? seedCrop([...s.draw, ...s.discard]) ?? 'radish';
+  const short = (c: CropId) => stockOf(s, c) < 2;
+  const cells = (c: Card) => CROPS[CARDS[c.def].crop!].shape.length + (c.extra?.length ?? 0);
+  const options: [CropId, number][] = [];
+  for (const v of s.tiles) if (v.crop && !v.crop.rest && !CROPS[v.crop.id].perennial && short(v.crop.id)) options.push([v.crop.id, targetGrow(s, v.crop) - v.crop.grown]);
+  for (const c of s.hand) { const crop = CARDS[c.def].crop; if (crop && short(crop)) options.push([crop, CROPS[crop].grow + cells(c) / 2]); }
+  for (const c of deckList(s)) { const crop = CARDS[c.def].crop; if (crop && short(crop)) options.push([crop, CROPS[crop].grow + 1 + cells(c) / 2]); }
+  return options.sort((a, b) => a[1] - b[1])[0]?.[0] ?? 'radish';
 }
 export function practiceNeed(t: TutorialSession) {
   const s = t.farm;
@@ -361,7 +402,8 @@ export function applyTutorial(t: TutorialSession, a: Action): TutorialSession {
     if (p?.kind === 'track' && entry?.text.startsWith('Началась стройка:')) entry.text = `Началась стройка: ${TRACKS[p.track].levels[p.level - 1].name}, ${p.weeks} неделя.`;
   }
   const watering = a.t === 'waterHand' || (a.t === 'play' && t.farm.hand.find((c) => c.uid === a.uid)?.def === 'water');
-  const wetter = watering && s.tiles.some((v, i) => v.moisture > prepared.farm.tiles[i].moisture);
+  // watering counts when a planting got the water, not bare soil (T10)
+  const wetter = watering && s.tiles.some((v, i) => !!v.crop && !v.crop.rest && v.moisture > prepared.farm.tiles[i].moisture);
   switch (t.step) {
     case 'plant': if (a.t === 'play') n = advance({ ...n, plantedAt: a.tiles![0] }, 'rotate'); break;
     case 'rotate': if (a.t === 'guide' && a.lesson === 'rotate') n = advance(n, 'bean'); break;
@@ -382,13 +424,17 @@ export function applyTutorial(t: TutorialSession, a: Action): TutorialSession {
     case 'hail': if (a.t === 'guard' || a.t === 'play') n = advance(n, 'play3'); break;
     case 'play3': if (newWeek) n = advance(n, 'solo'); break;
     case 'solo': {
-      const g = { ...(n.solo ?? { planted: false, watered: false, sold: false, sell: false }) };
+      const g = { ...(n.solo ?? { planted: false, watered: false, sold: false, sell: false, weeks: 1 }) };
       if (a.t === 'play' && CARDS[t.farm.hand.find((c) => c.uid === a.uid)?.def ?? '']?.kind === 'seed') g.planted = true;
       if (wetter) g.watered = true;
       if (a.t === 'sell') g.sold = true;
       n = { ...n, solo: g };
-      // chapter I ends with its fourth week: the certificate greets the player on the morning of week 5
-      if (newWeek) n = advance(n, 'chapter');
+      if (newWeek) {
+        // T02 · the week counts only when it is done; an unfinished one gets a second try, then an honest certificate
+        const done = soloDone(g);
+        if (done || (g.weeks ?? 1) >= 2) n = advance({ ...n, soloPassed: done }, 'chapter');
+        else n = checkpoint({ ...n, hiddenHintStep: undefined, solo: { ...g, weeks: 2, sell: g.sold || storageUnits(s) > 0 } });
+      }
       break;
     }
     case 'weeds': if (a.t === 'weed') n = advance(n, 'lens'); break;
@@ -396,7 +442,7 @@ export function applyTutorial(t: TutorialSession, a: Action): TutorialSession {
     case 'play5': if (newWeek) n = advance(n, 'hire'); break;
     case 'hire': if (a.t === 'hire') n = advance(n, 'play6'); break;
     case 'play6': if (newWeek) n = advance(n, 'lab'); break;
-    case 'lab': if (a.t === 'labCell') n = advance({ ...n, labUid: a.uid }, 'play7'); break;
+    case 'lab': if (a.t === 'labCell') { const crop = CARDS[deckList(t.farm).find((c) => c.uid === a.uid)?.def ?? '']?.crop; n = advance({ ...n, labUid: a.uid, labCrop: crop }, 'play7'); } break;
     case 'play7': if (newWeek) n = advance(n, 'upgrade'); break;
     case 'upgrade': if (a.t === 'track') n = advance(n, 'play8'); break;
     case 'play8': if (newWeek && !s.projects.some((p) => p.kind === 'track' && p.track === 'irrigation')) n = advance(n, 'place'); break;

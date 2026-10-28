@@ -34,7 +34,7 @@ export function lessonAction(t:TutorialSession,w:Way={}):G.Action|'next' {
    if(!g.planted){
     for(const c of s.hand.filter(c=>CARDS[c.def].kind==='seed')){const p=G.placements(s,c)[0];if(p&&s.days>0)return{t:'play',uid:c.uid,tiles:p.tiles};}
    }
-   if(!g.watered&&s.days>0){const i=s.tiles.findIndex(v=>v.owned&&!v.canal&&v.moisture<3);if(i>=0)return{t:'waterHand',tiles:[[i%6,Math.floor(i/6)]]};}
+   if(!g.watered&&s.days>0){const i=s.tiles.findIndex(v=>v.owned&&!v.canal&&!!v.crop&&!v.crop.rest&&v.moisture<3);if(i>=0)return{t:'waterHand',tiles:[[i%6,Math.floor(i/6)]]};}
    if(g.sell&&!g.sold){const lot=s.storage[0];if(lot)return{t:'sell',crop:lot.crop,qty:lot.qty};}
    return{t:'endWeek'};
   }
@@ -46,10 +46,23 @@ export function lessonAction(t:TutorialSession,w:Way={}):G.Action|'next' {
   case 'upgrade':return{t:'track',track:'irrigation'};
   case 'place':return{t:'build',item:'drip',x:2,y:2};
   case 'practice':{
-   if(!t.watered){const owned=s.tiles.findIndex(v=>v.owned&&!v.drip&&v.moisture<3);return{t:'waterHand',tiles:[[owned%6,Math.floor(owned/6)]]};}
+   // the order is grown, not taken from the barn: accept, sow its seed, water the planting, deliver at harvest
    const o=s.orgs[ORG(t)]!;if(o.offer)return{t:'accept',org:ORG(t)};
-   const need=o.active?.lines[0];if(need&&G.stockOf(s,need.crop)>=need.qty)return{t:'deliver',org:ORG(t)};
-   const dry=dryBeds(s);return dry.length?{t:'waterHand',tiles:[dry[0]]}:{t:'endWeek'};}
+   const need=o.active?.lines[0];
+   if(need&&G.stockOf(s,need.crop)>=need.qty)return{t:'deliver',org:ORG(t)};
+   const thirsty=s.tiles.findIndex(v=>v.owned&&!v.drip&&!!v.crop&&!v.crop.rest&&v.moisture<3);
+   if(!t.watered&&thirsty>=0&&s.days>0)return{t:'waterHand',tiles:[[thirsty%6,Math.floor(thirsty/6)]]};
+   const growing=need&&s.tiles.some(v=>v.crop?.id===need.crop&&!v.crop.rest);
+   const seed=need&&s.hand.find(c=>CARDS[c.def].crop===need.crop);
+   if(need&&!growing&&seed&&s.days>0){
+    const p=G.placements(s,seed)[0];if(p)return{t:'play',uid:seed.uid,tiles:p.tiles};
+    // no room for the order: weeds hold the beds, clear one
+    const w=s.tiles.findIndex(v=>v.owned&&v.weeds&&!v.crop);if(w>=0)return{t:'weed',x:w%6,y:Math.floor(w/6)};
+   }
+   if(!t.watered&&!s.tiles.some(v=>v.owned&&!!v.crop&&!v.crop.rest)&&s.days>0){
+    for(const c of s.hand.filter(c=>CARDS[c.def].kind==='seed')){const p=G.placements(s,c)[0];if(p)return{t:'play',uid:c.uid,tiles:p.tiles};}
+   }
+   const dry=dryBeds(s);return dry.length&&s.days>0?{t:'waterHand',tiles:[dry[0]]}:{t:'endWeek'};}
   default:{
    const dry=dryBeds(s);
    if(w.freeWater!==false&&dry.length&&s.days>0)return{t:'waterHand',tiles:dry.slice(0,G.handWaterMax(s))};
@@ -58,7 +71,7 @@ export function lessonAction(t:TutorialSession,w:Way={}):G.Action|'next' {
 }
 export function play(t:TutorialSession,until:TutorialStep,w:Way={},check?:(prev:TutorialSession,next:TutorialSession,a:G.Action|'next')=>void):TutorialSession {
  let n=t,guard=0;
- while(n.step!==until&&guard++<90){
+ while(n.step!==until&&guard++<140){
   const a=lessonAction(n,w),before=JSON.stringify(n);
   const next=a==='next'?tutorialNext(n):applyTutorial(n,a);
   assert.equal(JSON.stringify(n),before,'transitions are immutable');

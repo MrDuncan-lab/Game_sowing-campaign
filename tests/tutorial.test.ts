@@ -1,7 +1,8 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../src/engine/game';
-import {applyTutorial,areaOpen,createTutorial,dryBeds,normalizeTutorial,practiceNeed,restartTutorialStep,saleProgress,tutorialAccepted,tutorialNext,tutorialPlant,tutorialProblem,tutorialReserve,wateringProgress,AREA_IDS,AREA_OPENS,FREE_STEPS,HAND_BY_WEEK,PALYCH_BEDS,TUTORIAL_SEED,TUTORIAL_STEPS,TUTORIAL_WEEK,type TutorialSession,type TutorialStep} from '../src/engine/tutorial';
+import {readFileSync} from 'node:fs';
+import {applyTutorial,areaOpen,createTutorial,lessonReserve,ownFarmDifferences,dryBeds,normalizeTutorial,practiceNeed,restartTutorialStep,saleProgress,tutorialAccepted,tutorialNext,tutorialPlant,tutorialProblem,tutorialReserve,wateringProgress,AREA_IDS,AREA_OPENS,FREE_STEPS,HAND_BY_WEEK,PALYCH_BEDS,TUTORIAL_SEED,TUTORIAL_STEPS,TUTORIAL_WEEK,type TutorialSession,type TutorialStep} from '../src/engine/tutorial';
 import {cards,play,reload,ORG} from './lesson-walk';
 import {validFarm} from '../src/ui/persist';
 import {CARDS} from '../src/engine/data';
@@ -120,11 +121,13 @@ test('the hail comes once, after the order, over the beans the player has; the c
 
 test('the week on one\'s own: goals are counted from real actions; an unpaid rent keeps the week until it is settled',()=>{
  let t=play(createTutorial(),'solo');
- assert.deepEqual({...t.solo},{planted:false,watered:false,sold:false,sell:true});
+ assert.deepEqual({...t.solo},{planted:false,watered:false,sold:false,sell:true,weeks:1});
  const seed=t.farm.hand.find(c=>CARDS[c.def].kind==='seed'&&G.placements(t.farm,c).length)!;
  t=applyTutorial(t,{t:'play',uid:seed.uid,tiles:G.placements(t.farm,seed)[0].tiles});assert.equal(t.solo!.planted,true);
  const lot=t.farm.storage[0];t=applyTutorial(t,{t:'sell',crop:lot.crop,qty:lot.qty});assert.equal(t.solo!.sold,true);
- const dry=t.farm.tiles.findIndex(v=>v.owned&&v.moisture<3);
+ const bare=t.farm.tiles.findIndex(v=>v.owned&&!v.crop&&v.moisture<3);
+ if(bare>=0){t=applyTutorial(t,{t:'waterHand',tiles:[[bare%6,Math.floor(bare/6)]]});assert.equal(t.solo!.watered,false,'bare soil is not a planting');}
+ const dry=t.farm.tiles.findIndex(v=>v.owned&&!!v.crop&&v.moisture<3);
  t=applyTutorial(t,{t:'waterHand',tiles:[[dry%6,Math.floor(dry/6)]]});assert.equal(t.solo!.watered,true);
  assert.equal(t.step,'solo','ending the week is the player\'s own choice');
  // the spring rent falls at the end of this week; without the money the week waits for the payment
@@ -173,8 +176,13 @@ test('the chapter certificate offers both roads: the map (the step waits) or cha
 function practice(){return play(createTutorial(),'practice');}
 test('final card watering counts actual water and expired offers recover without ordinary quests',()=>{
  let t=practice();const initial=t.farm.orgs[ORG(t)]!.offer!.id;
+ // a planting to water: what the order asks for, sown from the hand
+ const need=practiceNeed(t)!;
+ for(const v of t.farm.tiles)v.weeds=false; // this check is about water, not weeds
+ if(!need.plants.length){const p=G.placements(t.farm,need.seed!)[0];t=applyTutorial(t,{t:'play',uid:need.seed!.uid,tiles:p.tiles});}
+ const at=practiceNeed(t)!.plants[0].at;G.tile(t.farm,...at).moisture=0;
  const card=t.farm.hand.find(c=>c.def==='water');
- t=applyTutorial(t,card?{t:'play',uid:card.uid,tiles:[[2,2]]}:{t:'waterHand',tiles:[[2,2]]});assert.equal(t.watered,true);
+ t=applyTutorial(t,card?{t:'play',uid:card.uid,tiles:[at]}:{t:'waterHand',tiles:[at]});assert.equal(t.watered,true);
  for(let i=0;i<6;i++)t=applyTutorial(t,t.farm.phase==='shortfall'?{t:'emergency'}:{t:'endWeek'});
  const offer=t.farm.orgs[ORG(t)]!.offer!;assert.ok(offer);assert.notEqual(offer.id,initial);assert.equal(offer.title,'К столу соседей');assert.ok(offer.deadline!>t.farm.absWeek);assert.match(t.orderNotice!,/Срок/);
  assert.equal(Object.values(t.farm.orgs).filter(o=>o.offer||o.active).length,1);
@@ -214,8 +222,10 @@ test('selling everything and skipping optional care still gives a concrete recov
   if(t.delivered&&!t.watered){const i=t.farm.tiles.findIndex(v=>v.owned&&!v.drip&&v.moisture<3);t=applyTutorial(t,i>=0&&t.farm.days>0?{t:'waterHand',tiles:[[i%6,Math.floor(i/6)]]}:{t:'endWeek'});}
   else if((need=practiceNeed(t)!).have>=need.qty)t=applyTutorial(t,{t:'deliver',org:ORG(t)});
   else if(need.seed&&!need.plants.length&&t.farm.days>0){
-   const p=G.placements(t.farm,need.seed)[0];assert.ok(p);
-   t=applyTutorial(t,{t:'play',uid:need.seed.uid,tiles:p.tiles});
+   const p=G.placements(t.farm,need.seed)[0];
+   const w=t.farm.tiles.findIndex(v=>v.owned&&v.weeds&&!v.crop);
+   if(p)t=applyTutorial(t,{t:'play',uid:need.seed.uid,tiles:p.tiles});
+   else{assert.ok(w>=0,'no room only because of weeds');t=applyTutorial(t,{t:'weed',x:w%6,y:Math.floor(w/6)});}
   }else{
    const dry=need.plants.find(v=>v.dry);
    t=applyTutorial(t,dry&&t.farm.days>0?{t:'waterHand',tiles:[dry.at]}:{t:'endWeek'});
@@ -276,4 +286,77 @@ test('chapter II gives every topic a week of its own',()=>{
  play(createTutorial(),'done',{},(p)=>{weeks[p.step]??=p.farm.absWeek;});
  for(const step of ['weeds','hire','lab','upgrade','place','practice'] as const)assert.equal(weeks[step],TUTORIAL_WEEK[step],`${step} in week ${TUTORIAL_WEEK[step]}`);
  assert.deepEqual(['weeds','hire','lab','upgrade','place','practice'].map(s=>TUTORIAL_WEEK[s as TutorialStep]),[5,6,7,8,9,10]);
+});
+
+// ---------- the review of 28.10 (POSEVNAYA_REAL_TUTORIAL_AUDIT): one check per finding the engine can show ----------
+test('T01 · shopping never strands a paid lesson: free time keeps the reserve, a paid step can raise its money',()=>{
+ let t=play(createTutorial(),'play5');
+ assert.ok(lessonReserve(t)>0);
+ const def=G.shopCards(t.farm)[0];
+ let refused='';
+ for(let i=0;i<80&&!refused;i++){try{t=applyTutorial(t,{t:'buyCard',def});}catch(e){refused=(e as Error).message;}}
+ assert.match(refused,/отложим/,'the shop stops before the reserve');
+ assert.ok(t.farm.money>=lessonReserve(t));
+ t=play(t,'hire');
+ assert.ok(t.farm.money>=G.hirePrice(t.farm,'foreman'),'the helper is affordable');
+ assert.ok(restartTutorialStep(reload(t)).farm.money>=G.hirePrice(t.farm,'foreman'),'a retry lands on a doable step');
+ // and if the money is gone anyway, the paid step allows a loan and a sale and goes on
+ const poor=reload(t);poor.farm.money=1.6;
+ assert.equal(tutorialProblem(poor,{t:'borrow',amount:30}),null);
+ assert.equal(tutorialProblem(poor,{t:'sell',crop:'bean',qty:1}),null);
+ let n=applyTutorial(poor,{t:'borrow',amount:30});n=applyTutorial(n,{t:'hire',id:'foreman'});
+ assert.equal(n.step,'play6');
+});
+
+test('T02 · an empty week on one\'s own gets one more try, then an honest certificate',()=>{
+ let t=play(createTutorial(),'solo');
+ t=applyTutorial(t,{t:'endWeek'});
+ assert.equal(t.step,'solo','nothing done: the week is tried again');assert.equal(t.solo!.weeks,2);
+ t=applyTutorial(t,{t:'endWeek'});
+ assert.equal(t.step,'chapter');assert.equal(t.soloPassed,false,'not ticked as learned');
+ assert.equal(play(createTutorial(),'chapter').soloPassed,true,'a week done in full is ticked');
+});
+
+test('T05, T06, T12 · the lesson\'s words agree with the engine and the screen',()=>{
+ const src=readFileSync(new URL('../src/ui/Guide.tsx',import.meta.url),'utf8');
+ assert.match(src,/фасоль потеряет половину урожая/);
+ for(const wrong of [/погибнет/,/справа/,/Каждая карта стоит рабочий день/,/weather-instrument/])assert.doesNotMatch(src,wrong);
+ // an uncovered hail halves the beans' harvest; they live on
+ const t=play(createTutorial(),'hail');const [x,y]=t.farm.strikes[0].cells[0];
+ const n=G.endWeek(JSON.parse(JSON.stringify(t.farm)));
+ const hit=n.lastReport!.fieldDamage!.find(d=>d.kind==='hail'&&d.x===x&&d.y===y)!;
+ assert.ok(hit,'the hail struck the beans');assert.notEqual(hit.after,null,'the beans live');
+ assert.equal(hit.after!.mult,hit.before.mult*0.5);
+});
+
+test('T07 · the selection lesson remembers the crop it improved',()=>{
+ let t=play(createTutorial(),'lab');
+ const potato=G.deckList(t.farm).find(c=>c.def==='seed_potato')!;
+ t=applyTutorial(t,{t:'labCell',uid:potato.uid,cell:G.upgradeSpots(t.farm,potato)[0]});
+ assert.equal(t.labCrop,'potato');
+});
+
+test('T08 · a card not played in free time stays in the next week\'s hand (rule of 28.10, no put-aside button)',()=>{
+ let t=play(createTutorial(),'play2');
+ const c=t.farm.hand.find(c=>!c.temp)!;
+ t=applyTutorial(t,{t:'endWeek'});
+ assert.ok(t.farm.hand.some(h=>h.uid===c.uid),'the unplayed card is still in hand');
+ assert.equal(t.farm.hand.filter(h=>!h.temp).length,HAND_BY_WEEK[3]);
+ assert.ok(t.farm.hand.some(h=>h.def==='shelter'),'the hail lesson still has its cover');
+});
+
+test('T10 · the final order is grown, and only watering a planting counts',()=>{
+ for(const freeWater of [true,false]){
+  const t=play(createTutorial(),'practice',{freeWater});
+  const need=practiceNeed(t)!;
+  assert.ok(need.have<need.qty,`the order is not already in the barn (${need.crop})`);
+  const bare=t.farm.tiles.findIndex(v=>v.owned&&!v.crop&&!v.drip&&v.moisture<3);
+  if(bare>=0)assert.equal(applyTutorial(t,{t:'waterHand',tiles:[[bare%6,Math.floor(bare/6)]]}).watered,false,'bare soil is not a planting');
+ }
+});
+
+test('T11 · the certificate\'s own-farm notes come from a real new farm',()=>{
+ const d=ownFarmDifferences();
+ assert.equal(d.money,G.newGame({loc:'chernozem',seed:'x'}).money);
+ assert.ok(d.lessonMoney>d.money);assert.ok(d.lessonCan>d.can);assert.ok(d.projectWeeks>1);
 });

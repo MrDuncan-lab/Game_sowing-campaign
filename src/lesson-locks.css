@@ -71,3 +71,16 @@
   display: flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 12px; background: var(--paper); border: 2px solid var(--c-ink);
   box-shadow: 0 6px 16px rgba(63, 42, 29, .25); font: 700 .86rem/1.25 var(--ui); color: var(--c-ink); pointer-events: none; animation: rise .15s ease-out; }
 .farm .field-view .dock .lock-say svg { flex: none; width: 14px; height: 14px; }
+
+/* T03 · the coach's note is a solid sheet: a tap on its paper stays on it and never presses what lies beneath */
+.guide-note.pal-note, .guide-note.coach-strip { pointer-events: auto; }
+
+/* T02 · a lesson not done in full is shown without a tick, never as learned */
+.coach-cert .cc-list li.cc-skip { color: var(--ink-soft); }
+.coach-cert .cc-list li.cc-skip i { background: none; border-color: rgba(63, 42, 29, .4); }
+.coach-cert .cc-list li small { font-weight: 500; color: var(--ink-soft); }
+
+/* T11 · what changes on one's own farm */
+.coach-cert .cc-own { margin: 0 0 12px; padding: 9px 12px 10px; text-align: left; border-radius: 10px; background: rgba(242, 193, 63, .16); border: 1.5px solid rgba(167, 123, 20, .4); }
+.coach-cert .cc-own b { display: block; margin-bottom: 4px; font: 700 .92rem/1.2 var(--ui); color: var(--ink); }
+.coach-cert .cc-own ul { margin: 0; padding-left: 18px; display: grid; gap: 3px; font: 500 .86rem/1.3 var(--ui); color: var(--ink-soft); }

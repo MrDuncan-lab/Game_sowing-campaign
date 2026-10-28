@@ -7,7 +7,7 @@
 // The lesson logic lives in engine/tutorial.ts: this file only reads the screen and points.
 import {useEffect,useLayoutEffect,useRef,useState} from 'preact/hooks';
 
-import {AREA_IDS,areaOpen,dryBeds,tutorialChapter,tutorialPlant,tutorialReserve,practiceNeed,saleProgress,wateringProgress,FREE_STEPS,TUTORIAL_STEPS,TUTORIAL_WEEK,CHAPTER_WEEKS,type TutorialArea,type TutorialSession,type TutorialStep} from '../engine/tutorial';
+import {AREA_IDS,areaOpen,dryBeds,lessonPrice,ownFarmDifferences,tutorialChapter,tutorialPlant,tutorialReserve,practiceNeed,saleProgress,wateringProgress,FREE_STEPS,TUTORIAL_STEPS,TUTORIAL_WEEK,CHAPTER_WEEKS,type TutorialArea,type TutorialSession,type TutorialStep} from '../engine/tutorial';
 import type {VillageMode} from './Village';
 import type {TabId} from './FarmScreen';
 import {workEffectCells,shapeTiles,plantBlock,nextPayment,money,type Action} from '../engine/game';
@@ -48,7 +48,7 @@ const OPENED:Partial<Record<TutorialArea,{text:string;at:string}>>={
 // free time: a quiet tip each week, never an instruction
 const TIP:Partial<Record<TutorialStep,string>>={
   play2:'Можно посадить ещё что-нибудь — или сразу завершить неделю.',
-  play3:'Прибор погоды справа показывает и следующую неделю — заморозки, жару, град.',
+  play3:'Значки в небе над полем — прогноз: на эту неделю и следующие. Заморозки, жару и град видно заранее.',
   play5:'Журнал в инструментах расскажет, что было за ночь.',
   play6:'У помощника свои дни: их в неделе стало больше.',
   play7:'Карта вернётся из лаборатории к утру — с новой клеткой.',
@@ -64,7 +64,6 @@ const TO_SECTION:Partial<Record<TutorialStep,string>>={
   weeds:'Глава II. На поле — сорняк.',
   hire:'Неделя помощника. Дом открыт.',
   lab:'Лаборатория открыта — улучшим семена.',
-  upgrade:'Селекция готова: улучшенный редис вернулся в колоду.',
 };
 
 function hint(t:TutorialSession,tab:TabId,visitLate=false,village:VillageMode='field'):Hint{
@@ -94,9 +93,18 @@ function hint(t:TutorialSession,tab:TabId,visitLate=false,village:VillageMode='f
     if(!sign&&step==='village')return{text:'Заказ ждёт в разделе «Заказы».',target:null,next:true,nextLabel:'К заказам',hello:'Утро! Ваш редис созрел.'};
     return{text:'Откройте деревню: нажмите «Деревня» над полем.',target:sign??nav('field'),gesture:'tap',hello:step==='village'?'Утро! Ваш редис созрел. Учительница ждёт его в деревне.':undefined,more:'Деревня — над полем: можно и потянуть небо вниз. Там дом, амбар, лаборатория и доска заказов.'};
   }
-  if(step!=='practice'&&step!=='place'&&step!=='solo'&&tab!==need)return goto(need,TO_SECTION[step]);
+  // T07 · the selection line names the crop that was really improved
+  const toSection=(st:TutorialStep)=>st==='upgrade'?(t.labCrop?`Селекция готова: семена «${CROPS[t.labCrop].name}» вернулись в колоду с новой клеткой.`:'Селекция готова: семена вернулись в колоду с новой клеткой.'):TO_SECTION[st];
+  // T01 · a paid step without the money for it: raise it first (sell, a loan), the lesson waits
+  const price=lessonPrice(t);
+  if(price!==null&&s.money<price){
+    const short=money(Math.ceil((price-s.money)*100)/100);
+    if(tab!=='barn')return{...goto('barn'),hello:`На этот шаг нужно ${money(price)}, не хватает ${short}.`,more:'Продайте урожай или возьмите кредит в кассе амбара.'};
+    return{text:`Не хватает ${short}: продайте урожай или возьмите кредит в «Кассе».`,target:q('.sale-row .sale-go')??q('.barn-links [role="tab"]:last-child'),gesture:'tap',more:'Когда денег хватит, Палыч продолжит урок.'};
+  }
+  if(step!=='practice'&&step!=='place'&&step!=='solo'&&tab!==need)return goto(need,toSection(step));
   // a lesson on the field while the village stands open: back to the field first
-  if(need==='field'&&tab==='field'&&village!=='field'&&step!=='solo')return{text:'Вернитесь к полю: «К полю» внизу.',target:q('.v-back')??nav('field'),gesture:'tap',hello:TO_SECTION[step]};
+  if(need==='field'&&tab==='field'&&village!=='field'&&step!=='solo')return{text:'Вернитесь к полю: «К полю» внизу.',target:q('.v-back')??nav('field'),gesture:'tap',hello:toSection(step)};
   if(step==='sale'&&q('.barn-links [role="tab"]:first-child[aria-selected="false"]'))return{text:'В амбаре откройте «Урожай».',target:q('.barn-links [role="tab"]:first-child'),gesture:'tap'};
   if(step==='lab'&&q('.lab-pane .seg button:first-child:not(.on)'))return{text:'Откройте раздел «Селекция».',target:q('.lab-pane .seg button:first-child'),gesture:'tap'};
   if(['accept','deliver'].includes(step)&&q('.orders-pane .hall'))return{text:'Вернитесь из зала славы к заказам.',target:q('.orders-pane .back-link'),gesture:'tap'};
@@ -108,8 +116,9 @@ function hint(t:TutorialSession,tab:TabId,visitLate=false,village:VillageMode='f
       const e=card('seed_radish'),other=q('.fan-slot .card.selected');
       const hello=t.plantedAt?undefined:'Здравствуйте! Я Палыч. Мой редис к утру поспеет — а вы посадите свой.';
       if(other&&!selected(e))return{text:'Эта карта пригодится позже. Начнём с редиса.',target:e,gesture:'tap',hello};
+      // T04 · the first gesture is two taps: it lands exactly where the finger is (a drag aims above the finger)
       return selected(e)?{text:'Теперь нажмите на свободную грядку.',target:bed(2,2),gesture:'tap',more:'Подойдёт любая пустая грядка.'}
-        :{text:'Перетащите редис на грядку.',target:e,drop:bed(2,2),gesture:'drag',more:'Или нажмите карту, а потом грядку.',hello};
+        :{text:'Нажмите на карту редиса.',target:e,gesture:'tap',more:'Потом — на свободную грядку. Карту можно и перетащить: она встанет чуть выше пальца.',hello};
     }
     case 'rotate':{const e=card('seed_bean');return selected(e)?{text:'Нажмите на фасоль ещё раз — фигура повернётся.',target:e,gesture:'double',more:'Каждое касание поворачивает посадку.'}:{text:'Фасоль сажают фигурой. Выберите её карту.',target:e,gesture:'tap',more:'Рисунок на карте — какие клетки займёт посадка.',hello:'Взошло! А теперь — фигура посложнее.'};}
     case 'bean':{
@@ -120,7 +129,7 @@ function hint(t:TutorialSession,tab:TabId,visitLate=false,village:VillageMode='f
       const at=anchors.find(([x,y])=>c&&!plantBlock(s,c,shapeTiles(c,x,y,rot)))??[3,2];
       return{text:'Посадите фасоль на подсвеченные грядки.',target:bed(at[0],at[1]),gesture:'tap',more:'Нажмите на первую клетку фигуры.',area:c?shapeTiles(c,...at,rot).map(([x,y])=>bed(x,y)).filter((e):e is Element=>!!e):[]};
     }
-    case 'night':return{text:'На сегодня хватит. Завершите неделю.',target:q('.end-week'),gesture:'tap',hello:'Утром соберём мой редис — увидите, как это бывает.',more:'Каждая карта стоит рабочий день — жёлтый кружок на карте. За ночь всё подрастёт, а спелое соберётся само.'};
+    case 'night':return{text:'На сегодня хватит. Завершите неделю.',target:q('.end-week'),gesture:'tap',hello:'Утром соберём мой редис — увидите, как это бывает.',more:'Число в жёлтом кружке на карте — сколько рабочих дней она займёт: большим посадкам нужно два. За ночь всё подрастёт, а спелое соберётся само.'};
     case 'sale':{
       const range=q('.sale-row[data-crop="radish"] input[type="range"]') as HTMLInputElement|null,all=!!range&&range.value===range.max;
       const prog=saleProgress(t),goal={label:'Продать редис',done:prog.done,of:prog.of};
@@ -134,8 +143,10 @@ function hint(t:TutorialSession,tab:TabId,visitLate=false,village:VillageMode='f
       const e=card('water');
       if(q('.water-confirm'))return waterCells.some(isDry)?{text:'Нажмите лейку — польём.',target:q('.water-confirm'),gesture:'tap',goal}:{text:'Сухая грядка не выбрана. Отмените полив и нажмите на неё.',target:button('Отменить полив'),gesture:'tap',goal};
       if(q('.bed-popover'))return isDry(menuAt)?{text:'Нажмите лейку и выберите грядки.',target:button('Выбрать грядки'),gesture:'tap',more:'Лейка польёт до трёх грядок подряд в одну линию.',goal}:{text:'Откройте меню сухой грядки.',target:bed(...first),gesture:'tap',goal};
-      return selected(e)?{text:'Нажмите на сухую грядку.',target:bed(...first),gesture:'tap',more:'Карта польёт и соседние грядки крестом.',goal}
-        :{text:'Ростки просят пить — красная капля. Выберите «Полив».',target:e??bed(...first),gesture:'tap',more:'Можно и лейкой: нажмите на грядку и выберите её в меню.',hello:'Цифра на грядке — сколько недель до урожая. Без воды рост встанет.',goal};
+      if(selected(e))return{text:'Нажмите на сухую грядку.',target:bed(...first),gesture:'tap',more:'Карта польёт и соседние грядки крестом.',goal};
+      // T09 · the can comes first: it costs no card, and on one's own farm water cards are few
+      if(q('.fan-slot .card.selected'))return cancelCard();
+      return{text:'Ростки просят пить — красная капля. Нажмите на сухую грядку.',target:bed(...first),gesture:'tap',more:'В её меню — лейка: она не тратит карту. Карта «Полив» тоже подойдёт.',hello:'Цифра на грядке — сколько недель до урожая. Без воды рост встанет.',goal};
     }
     case 'hail':{
       const st=s.strikes[0]?.cells[0],e=card('shelter');
@@ -145,7 +156,7 @@ function hint(t:TutorialSession,tab:TabId,visitLate=false,village:VillageMode='f
         const at=anchors.find(([x,y])=>x>=1&&x<=2&&y>=1&&y<=2&&workEffectCells(s,'shelter',x,y).some(([a,b])=>a===st[0]&&b===st[1]))??[st[0],st[1]];
         return{text:'Накройте подсвеченный квадрат.',target:bed(at[0],at[1]),gesture:'tap',more:'Нажмите на его верхнюю левую грядку. Укрытие держится 3 недели.',area:workEffectCells(s,'shelter',...at).map(([x,y])=>bed(x,y)).filter((e):e is Element=>!!e)};
       }
-      return{text:'Выберите «Укрытие» — накроем фасоль.',target:e??(st?bed(st[0],st[1]):q('.weather-instrument')),gesture:'tap',more:'Угроза видна на грядке и на приборе погоды справа. Можно и щитом из меню грядки.',hello:'Ночью обещают град. Фасоль погибнет, если не накроем.'};
+      return{text:'Выберите «Укрытие» — накроем фасоль.',target:e??(st?bed(st[0],st[1]):q('.sky-token.bad')),gesture:'tap',more:'Град видно на грядке и в небе над полем. Можно и щитом из меню грядки.',hello:'Ночью обещают град, если не накроем, то фасоль потеряет половину урожая.'};
     }
     case 'visit':return{text:'К ферме идут гости…',target:null,hello:'Продано! Слух о редисе Палыча дошёл до деревни.',more:'Гости приходят с заказами: урожай за деньги и дружбу.',...(visitLate?{next:true,nextLabel:'К заказам'}:{})};
     case 'accept':{
@@ -156,6 +167,7 @@ function hint(t:TutorialSession,tab:TabId,visitLate=false,village:VillageMode='f
     case 'deliver':return{text:'Сдайте заказ — дети ждут.',target:button('Сдать'),gesture:'tap',more:'Урожай сам к покупателю не уходит.'};
     case 'solo':{
       const g=t.solo??{planted:false,watered:false,sold:false,sell:false};
+      const again=(g.weeks??1)>=2;
       const check:[string,boolean][]=[['Посадить',g.planted],['Полить',g.watered],...(g.sell?[['Продать урожай',g.sold] as [string,boolean]]:[])];
       const left=check.filter(([,ok])=>!ok).map(([l])=>l);
       const pay=nextPayment(s);
@@ -163,6 +175,7 @@ function hint(t:TutorialSession,tab:TabId,visitLate=false,village:VillageMode='f
       const stuck=s.days<1&&left.every(l=>l!=='Продать урожай');
       if(!left.length||stuck)return tab!=='field'?{...goto('field'),check}
         :{text:stuck?'Дни закончились. Завершите неделю.':'Всё сделано. Завершите неделю.',target:q('.end-week'),gesture:'tap',check,more:rent,area:[q('.tb-pay')].filter((e):e is Element=>!!e)};
+      if(again)return{text:`Ещё неделя: осталось — ${left.join(', ').toLowerCase()}.`,target:null,free:true,check,hello:'Не беда, попробуем ещё раз. Если что, то я рядом.',more:'Полить — значит полить посадку: сухая земля без ростков не в счёт.'};
       return{text:'Неделя ваша: посадите, полейте, продайте.',target:null,free:true,check,hello:g.planted||g.watered||g.sold?undefined:'Дальше вы уже сами. Если что, то я рядом.',more:'Рука теперь полная: 7 карт, а дней по-прежнему 3. И обмен открыт.'};
     }
     case 'weeds':{
@@ -203,7 +216,12 @@ function hint(t:TutorialSession,tab:TabId,visitLate=false,village:VillageMode='f
           const e=hand(need.seed.uid),rot=Number(q('.field-view')?.getAttribute('data-card-rotation')??0);
           const at=([[1,1],[2,1],[3,1],[1,2],[2,2],[3,2],[1,3],[2,3],[3,3]] as [number,number][]).find(([x,y])=>!plantBlock(s,need.seed!,shapeTiles(need.seed!,x,y,rot)));
           if(selected(e)&&at)return{text:`Посадите «${name}» на свободные грядки.`,target:bed(...at),gesture:'tap',area:shapeTiles(need.seed,...at,rot).map(([x,y])=>bed(x,y)).filter((e):e is Element=>!!e),more:'Потом полейте посадку и завершите неделю.',check};
-          if(!at)return{text:'Освободите место для посева.',target:q('.end-week'),gesture:'tap',more:'Ухаживайте за растущими культурами и дождитесь урожая. Можно повернуть карту — она займёт другое место.',check};
+          if(!at){
+            // the beds are held by weeds: the player finds them on his own field, as on his own farm
+            const w=s.tiles.findIndex(v=>v.owned&&v.weeds&&!v.crop);
+            if(w>=0)return q('.fan-slot .card.selected')?cancelCard():{text:button('Прополоть')?'Прополите грядку.':'Грядки заросли — прополите место для посева.',target:button('Прополоть')??bed(w%6,Math.floor(w/6)),gesture:'tap',more:'Нажмите на заросшую грядку и выберите прополку: 1 день за грядку.',check};
+            return{text:'Освободите место для посева.',target:q('.end-week'),gesture:'tap',more:'Ухаживайте за растущими культурами и дождитесь урожая. Можно повернуть карту — она займёт другое место.',check};
+          }
           return{text:`Для заказа посадите «${name}». Выберите карту.`,target:e,gesture:'tap',more:`Нужно ${need.qty} ед. урожая. После посадки не забывайте поливать.`,check};
         }
         const ready=s.days>0&&s.exchangeWeek!==s.absWeek;
@@ -214,8 +232,11 @@ function hint(t:TutorialSession,tab:TabId,visitLate=false,village:VillageMode='f
         ?{text:'Урожай готов. Сдайте учебный заказ.',target:button('Сдать')??button('Взять заказ'),gesture:'tap',more:t.orderNotice,check}
         :{text:'Урожая достаточно. Откройте заказы.',target:nav('orders'),gesture:'tap',more:t.orderNotice,check};
       if(tab!=='field')return{...goto('field'),more:'Осталось полить грядку — и обучение пройдено.',check};
-      const dry=s.tiles.findIndex(v=>v.owned&&v.moisture<3);
-      return{text:'Осталось полить грядку.',target:dry>=0?bed(dry%6,Math.floor(dry/6)):q('.end-week'),gesture:'tap',more:dry>=0?'Нажмите на сухую грядку и выберите лейку. Подойдёт и карта «Полив».':'Все грядки политы. Завершите неделю и полейте, когда земля подсохнет.',check};
+      const dry=s.tiles.findIndex(v=>v.owned&&!!v.crop&&!v.crop.rest&&v.moisture<3);
+      const growing=s.tiles.some(v=>v.owned&&!!v.crop&&!v.crop.rest);
+      if(dry>=0)return{text:'Осталось полить посадку.',target:bed(dry%6,Math.floor(dry/6)),gesture:'tap',more:'Нажмите на грядку с ростком и выберите лейку. Подойдёт и карта «Полив».',check};
+      return growing?{text:'Посадки политы до краёв. Завершите неделю.',target:q('.end-week'),gesture:'tap',more:'Полейте, когда земля подсохнет: засчитывается полив посадки.',check}
+        :{text:'Посадите любую карту — и полейте посадку.',target:q('.fan-slot .card'),gesture:'tap',more:'Засчитывается полив ростка, а не пустой земли.',check};
     }
     default:return{text:'Продолжайте хозяйство.',target:null};
   }
@@ -244,8 +265,13 @@ function Gest({kind}:{kind:Gesture}){
 }
 
 // ---------- the chapter certificate ----------
-function Certificate({chapter,onPrimary,primary,onSecondary,secondary}:{chapter:'I'|'II';primary:string;onPrimary:()=>void;secondary?:string;onSecondary?:()=>void}){
-  const items=chapter==='I'?CH1:CH2;
+// T11 · what is different on one's own farm, read once from a real new farm
+let ownFarm:ReturnType<typeof ownFarmDifferences>|null=null;
+const own=()=>ownFarm??=ownFarmDifferences();
+function Certificate({chapter,soloPassed=true,onPrimary,primary,onSecondary,secondary}:{chapter:'I'|'II';soloPassed?:boolean;onPrimary:()=>void;secondary?:string;onSecondary?:()=>void;primary:string}){
+  // T02 · the week on one's own is ticked only when it was done
+  const items:[string,boolean][]=(chapter==='I'?CH1:CH2).map(it=>[it,it!=='Неделя без подсказок'||soloPassed]);
+  const o=own();
   // PSV-007 · a real modal: focus on the first action, Tab stays inside, the farm behind is inert
   const ref=useRef<HTMLDivElement>(null);
   useModal(ref);
@@ -255,7 +281,13 @@ function Certificate({chapter,onPrimary,primary,onSecondary,secondary}:{chapter:
       <small class="cc-kicker">учебная ферма · глава {chapter}</small>
       <h2 id="coach-cert-title">{chapter==='I'?'Первый урожай':'Своё хозяйство'}</h2>
       <p class="cc-lead">{chapter==='I'?'Четыре недели позади: первый урожай собран, сдан и продан. Вот чему вы научились:':'Вы прошли всё обучение. Теперь вы умеете:'}</p>
-      <ul class="cc-list">{items.map((it,i)=><li style={{['--i' as string]:String(i)}}><i aria-hidden="true">✓</i>{it}</li>)}</ul>
+      <ul class="cc-list">{items.map(([it,ok],i)=><li class={ok?'':'cc-skip'} style={{['--i' as string]:String(i)}}><i aria-hidden="true">{ok?'✓':''}</i>{it}{!ok&&<small> — потренируетесь на своей ферме</small>}</li>)}</ul>
+      <div class="cc-own"><b>На своей ферме по-другому</b><ul>
+        <li>Денег на старте {money(o.money)} — здесь Палыч дал {money(o.lessonMoney)}.</li>
+        <li>Лейка поливает {o.can} грядки за раз — у Палыча бочка на {o.lessonCan}.</li>
+        <li>Погода настоящая: заморозки, жара, град. Прогноз — в небе над полем.</li>
+        {chapter==='II'&&<li>Стройки и селекция идут от {o.projectWeeks} недель, а не одну.</li>}
+      </ul></div>
       <div class="cc-palych"><img src={PORTRAIT_IMAGES.palych} alt=""/><p>{chapter==='I'?'«Хозяйство ваше — можно на свою ферму. А хотите — покажу землю, помощников и селекцию. Вернуться можно в любой момент с карты ферм.»':'«Дальше в настоящей игре — вороны и воры, зима, ярмарки и новые регионы. Журнал всегда подскажет.»'}</p></div>
       <div class="cc-actions"><button type="button" class="guide-next primary" onClick={onPrimary}>{primary}</button>{secondary&&<button type="button" class="guide-next" onClick={onSecondary}>{secondary}</button>}</div>
     </div>
@@ -432,8 +464,8 @@ export function GuideHint({controls,tab,village='field',flyTo}:{controls:Tutoria
     const pos=tab==='field'&&stage?{left:`${stage.left+8}px`,top:`${stage.top+8}px`}:{left:`${(farm?.left??0)+10}px`,bottom:'calc(12px + env(safe-area-inset-bottom, 0px))'};
     return <>{layers}<button class="guide-restore" style={pos} onClick={()=>onHideHint(false)}><img src={PORTRAIT_IMAGES.palych} alt=""/>Показать подсказку</button></>;
   }
-  if(t.step==='chapter')return <>{layers}<Certificate chapter="I" primary="Своя ферма" onPrimary={onExit} secondary="Ещё у Палыча · глава II" onSecondary={onNext}/>{cheer&&<Cheer c={cheer}/>}</>;
-  if(t.step==='done')return <>{layers}<Certificate chapter="II" primary="На карту ферм" onPrimary={onExit} secondary="Ещё осмотрюсь" onSecondary={()=>onHideHint(true)}/>{cheer&&<Cheer c={cheer}/>}</>;
+  if(t.step==='chapter')return <>{layers}<Certificate chapter="I" soloPassed={t.soloPassed!==false} primary="Своя ферма" onPrimary={onExit} secondary="Ещё у Палыча · глава II" onSecondary={onNext}/>{cheer&&<Cheer c={cheer}/>}</>;
+  if(t.step==='done')return <>{layers}<Certificate chapter="II" soloPassed={t.soloPassed!==false} primary="На карту ферм" onPrimary={onExit} secondary="Ещё осмотрюсь" onSecondary={()=>onHideHint(true)}/>{cheer&&<Cheer c={cheer}/>}</>;
 
   const r=h.target?.getBoundingClientRect();
   const field=tab==='field'&&stage;
@@ -441,9 +473,10 @@ export function GuideHint({controls,tab,village='field',flyTo}:{controls:Tutoria
   // The thing being explained is not always the next button. Protect both:
   // the thirsty crop when pointing at a card, and the comparison before "Start".
   const subjects:Element[]=[];
-  const protect=(sel:string)=>{const e=q(sel);if(e)subjects.push(e);};
+  const protect=(sel:string)=>{const e=q(sel);if(e)subjects.push(e);return !!e;};
   if(t.step==='water'){const [x,y]=tutorialPlant(t);protect(`[data-tile="${x},${y}"]`);}
   if(t.step==='hail')for(const st of t.farm.strikes)for(const [x,y]of st.cells)protect(`[data-tile="${x},${y}"]`);
+  if(t.step==='hail'||t.step==='play3')protect('.sky-token.bad')||protect('.sky-token');
   if(t.step==='lab'&&tab==='lab'){
     // The subject changes with the editor's stage: first the seed, then its
     // figure, then the before/after table. Protect the current explanation,
@@ -483,9 +516,9 @@ export function GuideHint({controls,tab,village='field',flyTo}:{controls:Tutoria
   };
   const x0=Math.max((farm?.left??0)+6,Math.min((farm?.right??innerWidth)-fullW-6,r?r.x+r.width/2-fullW/2:(innerWidth-fullW)/2));
   const reading=expanded||help||h.next;
-  // Details may use the quiet header above the field, with their own scroll,
-  // instead of covering the beds or borrowing space from the card controls.
-  const fullSpaces=gaps(x0,fullW,reading?4:topLimit);
+  // T03 · the note never covers the money, the days or the section tabs: everything it places starts below them.
+  // Details scroll inside the room they find there instead of covering the beds or the card controls.
+  const fullSpaces=gaps(x0,fullW,topLimit);
   const natural=fullSpaces.find(b=>b.h>=fullH+6);
   const bounded=reading?[...fullSpaces].sort((a,b)=>b.h-a.h).find(b=>b.h>=96):undefined;
   if(natural||bounded){
@@ -493,10 +526,9 @@ export function GuideHint({controls,tab,village='field',flyTo}:{controls:Tutoria
   }else{
     mode='strip';W=(farm?.width??innerWidth)-12;left=(farm?.left??0)+6;
     const sh=stripH_.current;
-    const barTop=Math.max(4,(q('.topbar')?.getBoundingClientRect().top??0)+4);
-    const free=gaps(left,W,4);
-    const fit=free.find(b=>b.y<=barTop&&b.y+b.h>=barTop+sh)??free.find(b=>b.h>=sh);
-    top=fit?Math.max(fit.y,fit.y<=barTop?barTop:fit.y):4;
+    const free=gaps(left,W,topLimit);
+    const fit=free.find(b=>b.h>=sh);
+    top=fit?fit.y:topLimit;
     maxH=fit?fit.h:sh;
   }
   const H=mode==='strip'?stripH_.current:Math.min(fullH,maxH);
