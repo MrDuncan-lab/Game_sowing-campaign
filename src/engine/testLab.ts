@@ -43,6 +43,11 @@ export const TEST_SCENARIOS=[
  ['equipment','Все постройки','Приборы куплены; размещайте их через мастерскую и двигайте на поле.'],
  ['pets','Все питомцы','Коснитесь питомца: он остановится и отреагирует.'],
  ['guide','Обучение и событие','Погоня с репликой временно заменяет подсказку, затем обучение продолжается.'],
+ ['trialAnnounce','Испытание года: объявление','Третий год начинается: появляется карточка испытания. Значок в небе ведёт счёт неделям.'],
+ ['trialFrost','Испытание: чёрный заморозок','Ночь −6°. Два кострища стоят — разожгите их, укройте грядки и завершите неделю.'],
+ ['trialLocust','Испытание: великая саранча','Первая волна идёт с запада. Разожгите дымовые костры, поставьте охрану и завершите неделю.'],
+ ['trialDrought','Испытание: великая сушь','Сушь: открытые грядки сохнут за неделю. Полейте, замульчируйте и завершите неделю.'],
+ ['fires','Костры','Кострища построены: поставьте их на стык грядок в режиме построек и разожгите перед заморозком.'],
  ['normal','Обычный старт','Чистая партия выбранного региона; кнопки теста по-прежнему доступны.'],
 ] as const;
 export type TestScenario=typeof TEST_SCENARIOS[number][0];
@@ -118,6 +123,25 @@ export function testFixture(which:TestScenario,loc:D.LocationId='chernozem'):G.G
  }
  const s=G.newGame({loc,seed:`TEST-${which}-${Date.now()}-${++serial}`});
  if(which==='normal')return s;
+ if(which==='trialAnnounce'){testDate(s,0,3);delete s.trial;G.planTrial(s);s.money=400;return s;}
+ if(which==='trialFrost'||which==='trialLocust'||which==='trialDrought'||which==='fires'){
+  const kind=which==='trialFrost'?'frost':which==='trialLocust'?'locust':'drought';
+  testDate(s,1,which==='fires'?1:3);s.money=1000;s.days=8;s.plan=[];s.strikes=[];s.crows=null;s.thieves=null;s.crowWarn=[];s.kidsWarn=[];s.flags={rain:false,dry:false,warm:false};s.temps.fill(18);delete s.trial;
+  for(const o of Object.values(s.orgs))if(o){o.offer=null;o.active=null;o.wait=1000;}
+  for(const t of s.tiles)Object.assign(t,{owned:false,crop:null,weeds:false,moisture:2,soil:3,structure:null,shelter:0,mulch:0,drip:false,canal:false});
+  for(let y=1;y<=4;y++)for(let x=1;x<=4;x++)Object.assign(G.tile(s,x,y),{owned:true,terrain:'plain'});
+  const plan:[number,number,D.CropId][]=[[1,1,'potato'],[2,1,'potato'],[3,1,'cabbage'],[4,1,'carrot'],[1,2,'potato'],[2,2,'bean'],[3,2,'cabbage'],[4,2,'carrot'],[1,3,'corn'],[2,3,'corn'],[3,3,'pumpkin'],[4,3,'onion'],[1,4,'wheat'],[2,4,'wheat'],[3,4,'radish'],[4,4,'sunflower']];
+  for(const[x,y,c]of plan)if(D.CROPS[c])crop(s,x,y,c,which==='fires'?1:Math.max(1,D.CROPS[c].grow-2));
+  s.levels.fires=which==='fires'?1:2;
+  if(which==='fires'){climate(s,'frost',-2);s.fires=[];testHand(s,['shelter','seed_radish','water']);return s;}
+  s.fires=kind==='drought'?[]:[[1,1],[2,3]];
+  if(kind==='drought'){s.levels.irrigation=2;for(let x=0;x<6;x++)G.tile(s,x,4).drip=true;G.tile(s,3,2).mulch=3;for(const t of s.tiles)if(t.owned)t.moisture=1;}
+  G.planTrial(s,kind,s.absWeek);
+  if(kind==='locust'){s.trial!.dir='w';G.trialMorning(s);}
+  if(kind==='drought')s.flags.dry=true;
+  testHand(s,kind==='frost'?['shelter','shelter','mulch','early']:kind==='locust'?['early','early','water']:['water','water','mulch','mulch']);
+  return s;
+ }
  s.money=1000;s.days=8;s.plan=[];s.strikes=[];s.crows=null;s.thieves=null;s.flags={rain:false,dry:false,warm:false};s.temps.fill(20);
  for(const o of Object.values(s.orgs))if(o){o.offer=null;o.active=null;o.wait=1;}
  for(const t of s.tiles)if(t.owned)Object.assign(t,{terrain:'plain',crop:null,soil:3,moisture:2,weeds:false});

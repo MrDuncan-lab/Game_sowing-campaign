@@ -2,6 +2,7 @@
 import type { JSX } from 'preact';
 import { P } from './palette';
 import { moreIcons } from './extra';
+import { FireIcon } from './fire';
 
 const S = { stroke: P.ink, 'stroke-width': 2.2, 'stroke-linejoin': 'round' as const, 'stroke-linecap': 'round' as const };
 
@@ -382,6 +383,7 @@ export const icons: Record<string, () => JSX.Element> = {
 };
 
 Object.assign(icons, moreIcons);
+icons.fire = () => <FireIcon />;
 
 export function Icon({ name, size = 22, label }: { name: string; size?: number; label?: string }) {
   const draw = icons[name] ?? icons.star;

@@ -155,7 +155,7 @@ export const MATERIALS: Record<MaterialId, { name: string; one: string; gen: str
 export type Mats = Partial<Record<MaterialId, number>>;
 
 // ---------- workshop ----------
-export type TrackId = 'house' | 'irrigation' | 'greenhouse' | 'apiary' | 'drone' | 'barn' | 'meteo' | 'machinery' | 'guard' | 'planning' | 'compost' | 'lab' | 'canal' | 'clearing';
+export type TrackId = 'house' | 'irrigation' | 'greenhouse' | 'apiary' | 'drone' | 'barn' | 'meteo' | 'machinery' | 'guard' | 'fires' | 'planning' | 'compost' | 'lab' | 'canal' | 'clearing';
 export interface TrackLevel { name: string; cost: number; weeks: number; text: string; needHouse?: number; mat?: Mats }
 /** equipment: bought ready-made at the season's fair (v3 §4.1), never built in the workshop */
 export interface TrackDef { id: TrackId; name: string; icon: string; text: string; levels: TrackLevel[]; place?: 'tile' | 'row' | 'corner'; equipment?: boolean }
@@ -248,6 +248,14 @@ export const TRACKS: Record<TrackId, TrackDef> = {
       { name: 'Сторожка', cost: 50, weeks: 4, mat: { logs: 10, bricks: 4 }, text: 'воры не заходят, одна стая ворон за лето улетает сама' },
     ],
   },
+  fires: {
+    id: 'fires', name: 'Костры', icon: 'fire', text: 'Кострища на стыке четырёх грядок. В холодную ночь их разжигают: у огня теплее, а дым гонит саранчу.', place: 'corner',
+    levels: [
+      { name: 'Дымовые кучи', cost: 18, weeks: 1, text: '2 кострища: у огня +5°, рядом +2°; дым гонит саранчу' },
+      { name: 'Печки-буржуйки', cost: 40, weeks: 2, text: '4 печки: у огня +7°, рядом +3°' },
+      { name: 'Тепловые пушки', cost: 90, weeks: 2, text: '6 пушек: у огня +9°, рядом +4°; разжигаются без рабочего дня', needHouse: 2 },
+    ],
+  },
   planning: {
     id: 'planning', name: 'Планёрка', icon: 'calendar', text: 'Несыгранные карты остаются в руке, каждую неделю рука добирается до 7 карт. Планёрка помогает менять ненужные.',
     levels: [
@@ -293,7 +301,7 @@ export const CAMP: TrackDef = {
 export const EQUIPMENT: TrackId[] = ['machinery', 'drone', 'meteo'];
 /** Beds by house (or camp) level: workers are hired onto a free bed. */
 export const HOUSE_BEDS = [1, 1, 2, 2, 3, 4, 5];
-export const COMMON_TRACKS: TrackId[] = ['irrigation', 'greenhouse', 'apiary', 'drone', 'barn', 'meteo', 'machinery', 'guard', 'planning', 'compost'];
+export const COMMON_TRACKS: TrackId[] = ['irrigation', 'greenhouse', 'apiary', 'drone', 'barn', 'meteo', 'machinery', 'guard', 'fires', 'planning', 'compost'];
 export const BARN_CAP = [40, 60, 90, 130, 180];
 
 // ---------- workers ----------

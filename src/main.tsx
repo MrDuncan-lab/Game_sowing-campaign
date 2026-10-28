@@ -27,6 +27,8 @@ import './main-screen.css';
 import './progression.css';
 // the training farm's locks, openings and goal counter sit on top of every section's look
 import './lesson-locks.css';
+// the year's ordeal and the fire pits
+import './trials.css';
 
 // favicon is set from code so the single-file build keeps it inlined
 if (!document.querySelector('link[rel="icon"]')) {
