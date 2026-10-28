@@ -155,3 +155,37 @@ test('an older save without neighbours loads and plays', () => {
   assert.ok(validFarm(old));
   assert.equal(G.yardStage(old as unknown as G.GameState, 'zina'), 0);
 });
+
+test('review 28.10 · a level Savva is forging is not sold at the fair; a forge made pointless is refunded', () => {
+  let s = stage(stage(home('NB-FORGE'), 'savva'), 'savva');
+  const line = G.forgeOfferLines(s)[0];
+  const o = G.forgeOffer(s, line)!;
+  s = G.apply(s, { t: 'forge', track: line });
+  const lot = { id: 999, kind: 'equip' as const, track: line, level: o.level, price: 1 };
+  s.fair!.lots.push(lot);
+  assert.match(G.fairBuyProblem(s, lot) ?? '', /Савва/);
+  // the level arrives another way: Savva gives the money back
+  s.levels[line] = o.level;
+  const m = s.money;
+  s = weeks(s, 4);
+  assert.ok(s.money >= m + o.price - 1e-6 || s.feed.some((f) => f.text.includes('деньги вернул')));
+});
+
+test('review 28.10 · built-in property names are not neighbours', () => {
+  const s = home();
+  assert.throws(() => G.apply(s, { t: 'yardBuild', yard: 'constructor' as N.YardId }), G.GameError);
+  assert.throws(() => G.apply(s, { t: 'commonBuild', id: 'toString' as N.CommonId }), G.GameError);
+  assert.throws(() => G.apply(s, { t: 'yardHelp', yard: 'toString' as N.YardId }), G.GameError);
+});
+
+test('review 28.10 · an older farm gets its harvest shared out over the crops it grew', () => {
+  const s = home();
+  const old = json(s) as unknown as Record<string, unknown>;
+  delete old.crops;
+  (old as unknown as G.GameState).harvestedKinds = ['potato', 'radish'];
+  (old as unknown as G.GameState).stats.harvested = 130;
+  assert.ok(validFarm(old));
+  const n = G.ensureV3(old as unknown as G.GameState);
+  assert.deepEqual(n.crops, { potato: 65, radish: 65 });
+  assert.equal(G.knowLevel(n, 'potato'), 2);
+});

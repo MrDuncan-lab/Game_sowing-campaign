@@ -10,11 +10,15 @@
 import * as G from '../src/engine/game';
 import * as D from '../src/engine/data';
 import { plotOffers, type CondId } from '../src/engine/run';
+import { COMMON_IDS, YARDS, YARD_IDS, type CommonId, type YardId } from '../src/engine/neighbours';
+import { KNOW_NAMES } from '../src/engine/knowledge';
 
 const seeds = Number(process.env.SIM_SEEDS || 12), horizon = Number(process.env.SIM_WEEKS || 230);
 const loc = (process.env.SIM_LOC || 'chernozem') as D.LocationId;
 // diagnostics: SIM_FAIR=0 never buys at the fair, SIM_BUILD=0 never builds, SIM_SPARE=0 leaves trees, stones and sites alone
 const FAIR = process.env.SIM_FAIR !== '0', BUILD = process.env.SIM_BUILD !== '0', SPARE = process.env.SIM_SPARE !== '0';
+// v3 §7 · SIM_NB=0 leaves the neighbours alone (no stages, swaps or help)
+const NB = process.env.SIM_NB !== '0' && loc === 'chernozem';
 const QUEUE: [D.TrackId, number][] = loc === 'chernozem'
   ? [['irrigation', 1], ['compost', 1], ['barn', 1], ['house', 2], ['house', 3], ['lab', 1], ['irrigation', 2], ['house', 4], ['barn', 2], ['greenhouse', 1], ['house', 5], ['lab', 2], ['planning', 1], ['house', 6], ['house', 7], ['barn', 3], ['greenhouse', 2], ['lab', 3]]
   : [['irrigation', 1], ['compost', 1], ['barn', 1], ['house', 2], ['house', 3], ['irrigation', 2], ['barn', 2]];
@@ -65,7 +69,31 @@ function run(seed: string) {
         if (!places.length || !act({ t: 'build', item, x: places[0][0], y: places[0][1] })) break;
       }
   }
-  function sell() { for (const c of D.CROP_IDS) { const n = G.stockOf(s, c); if (n > 0) act({ t: 'sell', crop: c, qty: n }); } }
+  // the crops the next affordable yard stage needs stay in the barn
+  const keepFor = (): Partial<Record<D.CropId, number>> => {
+    if (!NB) return {};
+    const y = nextYard();
+    const st = y ? YARDS[y].stages[G.yardStage(s, y)] : undefined;
+    return st?.crop ? { [st.crop.crops[0]]: st.crop.qty } : {};
+  };
+  function sell() { const keep = keepFor(); for (const c of D.CROP_IDS) { const n = G.stockOf(s, c) - (keep[c] ?? 0); if (n > 0) act({ t: 'sell', crop: c, qty: n }); } }
+  // v3 §7 · the neighbours: the lowest yard first, the club first among the shared buildings
+  // (a cautious neighbour: while the house is mortgaged it keeps its cash for the payments)
+  const nextYard = (): YardId | undefined => G.lvl(s, 'house') < 2 || G.isMortgaged(s) ? undefined
+    : [...YARD_IDS].filter((y) => G.yardStage(s, y) < 3 && !s.projects.some((p) => p.kind === 'yard' && p.yard === y)).sort((a, b) => G.yardStage(s, a) - G.yardStage(s, b))[0];
+  const COMMON_ORDER: CommonId[] = ['club', 'hostel', 'pump', 'bridge'];
+  function neighbours() {
+    if (!NB) return;
+    for (const y of YARD_IDS) {
+      if (!G.yardHelpProblem(s, y)) act({ t: 'yardHelp', yard: y });
+      const sw = YARDS[y].swap.take.crops.find((c) => !G.swapProblem(s, y, c));
+      if (sw && (y !== 'miller' || G.yardStage(s, 'miller') >= 1)) act({ t: 'yardSwap', yard: y, crop: sw, ...(y === 'zina' ? { card: 'compost' as const } : {}) });
+    }
+    const c = COMMON_ORDER.find((c) => !G.commonProblem(s, c) && s.money - G.commonCost(s, c) > reserve() * 1.5);
+    if (c) act({ t: 'commonBuild', id: c });
+    const y = nextYard();
+    if (y && !G.yardProblem(s, y) && s.money - G.yardCost(s, y, G.yardStage(s, y) + 1) > reserve() * 1.5) act({ t: 'yardBuild', yard: y });
+  }
   // the field play of tests/strategy-astra.ts (market mode), verbatim, plus the v3 spare-day actions
  function choose(){
    const actions:{a:G.Action;score:number}[]=[];
@@ -124,7 +152,7 @@ function run(seed: string) {
    actions.sort((a,b)=>b.score-a.score);return actions;
   }
   while (s.phase !== 'gameover' && weeks < horizon) {
-    if (s.phase === 'shortfall') { sell(); if (act({ t: 'pay' }) || act({ t: 'emergency' }) || act({ t: 'restructure' })) continue; act({ t: 'giveUp' }); break; }
+    if (s.phase === 'shortfall') { sell(); if (act({ t: 'pay' }) || act({ t: 'emergency' }) || act({ t: 'restructure' }) || act({ t: 'seize' })) continue; act({ t: 'giveUp' }); break; }
     if (s.run?.visit && s.run.visit.week === s.absWeek) {
       // a visitor: the first answer the bot can afford (the last one is always «no»)
       const opts = G.visitOptions(s), i = opts.findIndex((o) => !o.problem);
@@ -136,7 +164,7 @@ function run(seed: string) {
       act({ t: 'fold', picks: [...offers].sort((a, b) => b.length - a.length).slice(0, n) });
       break;
     }
-    sell(); if (FAIR) fair(); if (BUILD) build();
+    neighbours(); sell(); if (FAIR) fair(); if (BUILD) build(); neighbours();
     for (let i = 0; i < 18 && s.days > 0; i++) {
       const before = G.matStock(s, 'logs') + G.matStock(s, 'bricks');
       const o = choose().find((o) => o.score > 0 && act(o.a));
@@ -153,7 +181,10 @@ function run(seed: string) {
     if (!reached[h]) reached[h] = s.absWeek;
   }
   const folded = s.run?.result && !s.run.result.bankrupt ? s.run.result : null;
-  return { seed, weeks, alive: s.phase !== 'gameover' || !!folded, folded, cond: offer?.cond, relics: s.run?.relics ?? [], hits, visits, house: G.lvl(s, 'house'), reached, cashByYear, got, lots, levels: s.levels, team: s.team.length, mats: s.mats };
+  const stages = YARD_IDS.reduce((n, y) => n + G.yardStage(s, y), 0);
+  const know = D.SOWN_IDS.map((c) => G.knowLevel(s, c)).filter((l) => l > 0).sort((a, b) => b - a);
+  return { seed, weeks, alive: s.phase !== 'gameover' || !!folded, folded, cond: offer?.cond, relics: s.run?.relics ?? [], hits, visits, house: G.lvl(s, 'house'), reached, cashByYear, got, lots, levels: s.levels, team: s.team.length, mats: s.mats,
+    stages, commons: s.commons ?? [], fests: (s.fests ?? []).length, festWins: (s.fests ?? []).filter((f) => f.win).length, place: loc === 'chernozem' ? G.districtPlace(s) : 0, know, glory: s.glory };
 }
 
 const res = Array.from({ length: seeds }, (_, i) => run(`V3SIM-${i}`));
@@ -171,6 +202,11 @@ for (let y = 0; y < years; y++) {
 }
 const sum = (f: (r: typeof res[number]) => number) => res.reduce((n, r) => n + f(r), 0);
 console.log(`materials per run: fair ${Math.round(sum((r) => r.got.fair) / seeds)}, field ${Math.round(sum((r) => r.got.field) / seeds)}; lots seen ${Math.round(sum((r) => r.lots.total) / seeds)}, bought by the bot ${Math.round(sum((r) => r.lots.player) / seeds)}, by Пряхин ${Math.round(sum((r) => r.lots.rival) / seeds)} (${Math.round(100 * sum((r) => r.lots.rival) / Math.max(1, sum((r) => r.lots.total)))}%)`);
+if (loc === 'chernozem') {
+  console.log(`neighbours: yard stages median ${pct(res.map((r) => r.stages), 0.5)}/15 (p25–p75 ${pct(res.map((r) => r.stages), 0.25)}–${pct(res.map((r) => r.stages), 0.75)}); shared buildings median ${pct(res.map((r) => r.commons.length), 0.5)}; club in ${res.filter((r) => r.commons.includes('club')).length}/${seeds}`);
+  console.log(`festivals per run median ${pct(res.map((r) => r.fests), 0.5)}, won ${pct(res.map((r) => r.festWins), 0.5)}; district place median ${pct(res.map((r) => r.place), 0.5)} (best ${Math.min(...res.map((r) => r.place))}); farm glory median ${pct(res.map((r) => r.glory), 0.5)}`);
+  console.log(`knowledge (first run): ${res[0].know.map((l) => KNOW_NAMES[l]).join(', ') || '—'}`);
+}
 console.log('final levels (first run):', JSON.stringify(res[0].levels), 'team', res[0].team, 'shed', JSON.stringify(res[0].mats));
 if (COND) {
   const f = res.filter((r) => r.folded);

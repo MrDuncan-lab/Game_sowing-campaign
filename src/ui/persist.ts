@@ -218,7 +218,7 @@ export function validFarm(v: unknown): v is GameState {
   if (!obj(v) || v.v !== 5 || !loc(v.loc) || typeof v.seed !== 'string' || !v.seed || !['week', 'shortfall', 'gameover', 'arrest'].includes(v.phase)) return false;
   // v3 fields are optional (old saves lack them) and checked on their own: the template leaves them out
   if (!templates.has(v.loc)) {
-    const { mats: _m, fair: _f, equipSeen: _e, paidYears: _p, ...base } = newGame({ loc: v.loc, seed: 'validation' });
+    const { mats: _m, fair: _f, equipSeen: _e, paidYears: _p, crops: _c, ...base } = newGame({ loc: v.loc, seed: 'validation' });
     templates.set(v.loc, base as GameState);
   }
   if (v.mats !== undefined && (!mats(v.mats) || MAT_KEYS.some((k) => !Number.isInteger(v.mats[k])))) return false;
@@ -238,7 +238,7 @@ export function validFarm(v: unknown): v is GameState {
   const cats = (m: any) => obj(m) && ['units', 'kinds', 'best'].every((k) => num(m[k]));
   if (v.yearHarvest !== undefined && !(obj(v.yearHarvest) && int(v.yearHarvest.year, 1) && num(v.yearHarvest.units) && num(v.yearHarvest.best) && arr(v.yearHarvest.kinds, (c) => member(CROPS, c)) && (v.yearHarvest.bestCrop === undefined || member(CROPS, v.yearHarvest.bestCrop)))) return false;
   if (v.fests !== undefined && !arr(v.fests, (f) => obj(f) && int(f.year, 1) && cats(f.you) && cats(f.rival) && arr(f.won, (c) => ['units', 'kinds', 'best'].includes(c)) && typeof f.win === 'boolean' && num(f.glory) && (f.bestCrop === undefined || member(CROPS, f.bestCrop)))) return false;
-  if (v.forge !== undefined && !(obj(v.forge) && member(TRACKS, v.forge.track) && int(v.forge.level) && v.forge.level >= 1 && v.forge.level <= TRACKS[v.forge.track as keyof typeof TRACKS].levels.length && int(v.forge.week))) return false;
+  if (v.forge !== undefined && !(obj(v.forge) && member(TRACKS, v.forge.track) && int(v.forge.level) && v.forge.level >= 1 && v.forge.level <= TRACKS[v.forge.track as keyof typeof TRACKS].levels.length && int(v.forge.week) && (v.forge.price === undefined || num(v.forge.price)))) return false;
   if (v.over && v.over.work !== undefined && !(num(v.over.work) && v.over.work > 0)) return false;
   const base = templates.get(v.loc)!;
   if(v.guide!==undefined && !arr(v.guide,x=>typeof x==='string' && ['plant','rotate','water','harvest','sale','payment','order','delivery','soil'].includes(x))) return false;

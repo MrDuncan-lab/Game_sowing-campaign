@@ -10,7 +10,7 @@
 
 > Cozy hand-painted 2D farming-game character portrait, not pixel art. Soft cel shading with gentle gradients, clean dark brown outlines (#3f2a1d) of medium thickness, warm saturated palette (leaf green, wheat gold, terracotta, sky blue), slightly chibi proportions with a large head and friendly expressive eyes, rounded shapes, subtle warm rim light. Head and shoulders, centered, facing slightly to the side and looking at the viewer. Transparent background, no text, no logos, no frame.
 
-Пока картинок нет, у всех новых людей в игре — векторный портрет из генератора лиц (`src/art/portraits.tsx`).
+**28.10 · портреты в игре.** Из пакета `posevnaya_characters_v3_pack` поставлен 21 портрет: Пряхин, Варвара, Нелли, Лёва, Роза, Ирина и Георгий (перерисованы), Даша, Яков, Петро, Гордей, Афанасьич, Алла, Николай, Костя, Гриша, Нюра, Савва, Ефим, Матвей, Карпова. Из листов вырезаны лишние фрагменты и фон, 768 px, webp. По README пакета 20 портретов — черновики; Даша почти повторяет Нелли — её стоит перерисовать первой. Иван, Захар, Светлана, Егор, Фёдор и Лидия остались прежними: в пакете их варианты не совпадали с описаниями. У кого картинки нет, стоит векторный портрет из генератора лиц (`src/art/portraits.tsx`).
 
 **Имена файлов в игре.** Готовый портрет кладётся в `src/assets/portraits/<id>.webp` — тогда он заменяет заглушку сам: Пряхин `pryakhin`; Заречье `varvara`, `nelli`, `leva`, `roza`; встречные `dasha`, `yakov`, `petro`, `gordey`, `afanasich`, `alla`, `nikolay`, `kostya`, `grisha`, `nyura`. Кубань и Алтай — прежние файлы (`irina`, `georgiy`, `ivan`, `zakhar`, `svetlana`, `egor`, `fedor`, `lidiya`): новые промпты ниже, если их решат перерисовать.
 

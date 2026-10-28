@@ -201,7 +201,7 @@ export interface GameState {
   // buildings standing; the level the smith is forging
   yards?: Partial<Record<YardId, YardState>>;
   commons?: CommonId[];
-  forge?: { track: TrackId; level: number; week: number };
+  forge?: { track: TrackId; level: number; week: number; price?: number };
   // v3 §8.1 · knowledge of the crops: units harvested on this farm, and what the profile's other farms know
   // (written in by the game when the farm is opened: ui/persist syncFarm)
   crops?: Partial<Record<CropId, number>>;
@@ -1293,7 +1293,7 @@ export function newGame(o: GameOptions): GameState {
     storage: [], yard: [], demand: {} as GameState['demand'], noise: Object.fromEntries(CROP_IDS.map((c) => [c, 0])) as Record<CropId, number>,
     plan: [], temps: [], flags: { warm: false, rain: false, dry: false }, strikes: [], crows: null, raids: 0, thieves: null, guards: [], scarecrows: [],
     levels: { house: 1, ...(o.loc === 'kuban' ? { canal: 1 } : {}), ...(o.loc === 'altai' ? { clearing: 1 } : {}) },
-    projects: [], team: [], candidates: [], freeHire: [], unlocked: [], orgs: {}, nextQuestId: 1, pets: [...(o.pets ?? [])], certs: [], glory: 0, harvestedKinds: [],
+    projects: [], team: [], candidates: [], freeHire: [], unlocked: [], orgs: {}, nextQuestId: 1, crops: {}, pets: [...(o.pets ?? [])], certs: [], glory: 0, harvestedKinds: [],
     loans: [], nextLoanId: 1, rating: 2, cleanSeasons: 0, carry: 0, restructured: false, incident: false, insurance: 0, dronesUsed: 0, autoShoo: false,
     effects: [], compostTick: 0, report: emptyReport(), lastReport: null, feed: [], over: null, due: null, rewardsOut: [], yearsCompleted: 0,
     stats: { sales: 0, orders: 0, seeds: 0, work: 0, land: 0, build: 0, salaries: 0, interest: 0, payments: 0, lostUnits: 0, harvested: 0 },
@@ -2373,7 +2373,7 @@ export function festShow(s: GameState): Record<FestCat, number> {
   const y = s.yearHarvest?.year === s.year ? s.yearHarvest : undefined;
   return { units: y?.units ?? 0, kinds: y?.kinds.length ?? 0, best: y?.best ?? 0 };
 }
-export const festRival = (s: GameState) => rivalShow(s.fests?.length ?? 0);
+export const festRival = (s: GameState) => rivalShow(Math.max(0, s.year - 1));
 /** the festival is held at the first week of winter in a village with a club */
 export const festOpen = (s: GameState) => hasCommon(s, 'club');
 function festival(s: GameState) {
@@ -2708,7 +2708,7 @@ function takeCropNeed(s: GameState, crops: CropId[], qty: number) {
 }
 export function yardProblem(s: GameState, y: YardId): string | null {
   if (!isHome(s)) return 'Соседи — дома, в Черноземье';
-  if (!YARDS[y]) return 'Нет такого соседа';
+  if (!Object.hasOwn(YARDS, y)) return 'Нет такого соседа';
   const next = yardStage(s, y) + 1;
   const st = YARDS[y].stages[next - 1];
   if (!st) return 'Двор уже отстроен';
@@ -2722,7 +2722,7 @@ export function yardProblem(s: GameState, y: YardId): string | null {
 }
 export function commonProblem(s: GameState, c: CommonId): string | null {
   if (!isHome(s)) return 'Общие постройки — дома, в Черноземье';
-  if (!COMMONS[c]) return 'Нет такой постройки';
+  if (!Object.hasOwn(COMMONS, c)) return 'Нет такой постройки';
   if (hasCommon(s, c)) return 'Уже стоит';
   if (!commonsOpen(s)) return `Деревня возьмётся, когда ${COMMONS_NEED} двора будут на второй стадии (сейчас ${yardsStanding(s)})`;
   if (s.projects.some((p) => p.kind === 'common' && p.id === c)) return 'Уже строится';
@@ -2739,7 +2739,7 @@ export const ZINA_CARDS = ['compost', 'mulch', 'shelter'] as const;
 export type ZinaCard = (typeof ZINA_CARDS)[number];
 export function swapProblem(s: GameState, y: YardId, crop?: CropId): string | null {
   if (!isHome(s)) return 'Соседи — дома, в Черноземье';
-  if (!YARDS[y]) return 'Нет такого соседа';
+  if (!Object.hasOwn(YARDS, y)) return 'Нет такого соседа';
   if (yardStage(s, y) < 1) return 'Обмен откроется после первой стадии';
   const st = s.yards?.[y];
   if (st?.swap === swapKey(s, y)) return swapWeekly(s, y) ? 'На этой неделе уже менялись' : 'В этом сезоне уже менялись';
@@ -2805,7 +2805,13 @@ function forgeWeek(s: GameState) {
   const f = s.forge;
   if (!f || f.week > s.absWeek) return;
   delete s.forge;
-  if (lvl(s, f.track) < f.level) s.levels[f.track] = f.level;
+  if (lvl(s, f.track) >= f.level) {
+    // the level came some other way meanwhile: Savva gives the money back
+    if (f.price) s.money = round2(s.money + f.price);
+    feed(s, `Савва: «${TRACKS[f.track].levels[f.level - 1].name}» у вас уже есть — деньги вернул.`, 'info');
+    return;
+  }
+  s.levels[f.track] = f.level;
   const msg = `Савва сковал: ${TRACKS[f.track].levels[f.level - 1].name} — ${TRACKS[f.track].levels[f.level - 1].text}`;
   s.report.done.push(msg);
   feed(s, `${msg}.`, 'good');
@@ -3746,7 +3752,7 @@ export function apply(state: GameState, a: Action): GameState {
       break;
     }
     case 'yardSwap': {
-      if (!YARDS[a.yard]) fail('Нет такого соседа');
+      if (!Object.hasOwn(YARDS, a.yard)) fail('Нет такого соседа');
       if (!CROP_IDS.includes(a.crop)) fail('Нет такой культуры');
       const why = swapProblem(s, a.yard, a.crop);
       if (why) fail(why);
@@ -3767,7 +3773,7 @@ export function apply(state: GameState, a: Action): GameState {
       break;
     }
     case 'yardHelp': {
-      if (!YARDS[a.yard]) fail('Нет такого соседа');
+      if (!Object.hasOwn(YARDS, a.yard)) fail('Нет такого соседа');
       const why = yardHelpProblem(s, a.yard);
       if (why) fail(why);
       s.yards![a.yard]!.help = seasonKey(s);
@@ -3781,7 +3787,7 @@ export function apply(state: GameState, a: Action): GameState {
       if (why) fail(why);
       const o = forgeOffer(s, a.track)!;
       spend(s, o.price, 'build');
-      s.forge = { track: a.track, level: o.level, week: s.absWeek + FORGE_WEEKS };
+      s.forge = { track: a.track, level: o.level, week: s.absWeek + FORGE_WEEKS, price: o.price };
       feed(s, `Савва взялся ковать: ${TRACKS[a.track].levels[o.level - 1].name}, ${FORGE_WEEKS} недели.`, 'info');
       break;
     }
@@ -4086,9 +4092,11 @@ export function lotName(l: FairLot): string {
 }
 /** the next level of an equipment line the farm can use now, or null */
 function equipNext(s: GameState, line: TrackId, step = 1): number | null {
-  const L = TRACKS[line].levels, next = lvl(s, line) + step;
+  // a level Savva is forging counts as had: the fair offers the one after it
+  const now = Math.max(lvl(s, line), s.forge?.track === line ? s.forge.level : 0);
+  const L = TRACKS[line].levels, next = now + step;
   if (next > L.length) return null;
-  for (let k = lvl(s, line) + 1; k <= next; k++) if ((L[k - 1].needHouse ?? 0) > lvl(s, 'house')) return null;
+  for (let k = now + 1; k <= next; k++) if ((L[k - 1].needHouse ?? 0) > lvl(s, 'house')) return null;
   return next;
 }
 const equipPrice = (s: GameState, line: TrackId, level: number) => TRACKS[line].levels[level - 1].cost * infl(s.year);
@@ -4199,6 +4207,7 @@ export function fairBuyProblem(s: GameState, l: FairLot | undefined): string | n
   if (l.sold) return l.sold === 'rival' ? 'Лот купил Пряхин' : 'Уже куплено';
   if (l.kind === 'equip') {
     if (lvl(s, l.track!) >= l.level!) return 'Это уже есть';
+    if (s.forge && s.forge.track === l.track && s.forge.level >= l.level!) return 'Это уже куёт Савва';
     for (let k = lvl(s, l.track!) + 1; k <= l.level!; k++) {
       const need = TRACKS[l.track!].levels[k - 1].needHouse;
       if (need && lvl(s, 'house') < need) return `Нужен дом ${need}-го уровня`;
@@ -4224,11 +4233,17 @@ export function fairHoldProblem(s: GameState, l: FairLot | undefined): string | 
  *  an empty shed and this season's fair; on an expedition the house becomes a camp of at most three levels, and what
  *  was built above that is paid back at its old price. */
 const OLD_HOUSE_COST = [0, 35, 70, 120, 220];
-const v3Ready = (s: GameState) => !!s.mats && !!s.equipSeen && !!s.fair && (isHome(s) ? s.paidYears !== undefined : lvl(s, 'house') <= CAMP.levels.length);
+const v3Ready = (s: GameState) => !!s.mats && !!s.equipSeen && !!s.fair && !!s.crops && (isHome(s) ? s.paidYears !== undefined : lvl(s, 'house') <= CAMP.levels.length);
 function fillV3(s: GameState) {
   if (v3Ready(s)) return;
   s.mats ??= { logs: 0, bricks: 0, glass: 0 };
   s.equipSeen ??= {};
+  if (!s.crops) {
+    // v3 §8.1 · an older farm knew nothing of crops by name: what it harvested is shared out over the crops it grew
+    s.crops = {};
+    const kinds = s.harvestedKinds.filter((c) => !CROPS[c].product);
+    for (const c of kinds) s.crops[c] = Math.floor(s.stats.harvested / kinds.length);
+  }
   if (isHome(s) && s.paidYears === undefined) {
     // an older home save: every year it lived through paid its autumn (the ladder was the same); three of them buy it out
     s.paidYears = Math.min(BUYOUT_YEARS, s.yearsCompleted + (s.season === 3 ? 1 : 0));

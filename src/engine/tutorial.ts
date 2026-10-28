@@ -387,6 +387,10 @@ export function normalizeTutorial(t: TutorialSession): TutorialSession {
       f.hand.push(c); n.compostUid = c.uid;
     }
   }
+  // v3 §8.1 · a lesson saved before crop knowledge: Палыч's crops are known as in a new lesson
+  const known = Object.fromEntries(SOWN_IDS.map((c) => [c, 60]));
+  n.farm.knowBase ??= known;
+  if (n.checkpoint?.farm) n.checkpoint.farm.knowBase ??= known;
   lessonOrders(n);
   preparePracticeSeed(n);
   return n;
@@ -458,6 +462,10 @@ export function applyTutorial(t: TutorialSession, a: Action): TutorialSession {
       if (n.watered && n.delivered) n = advance(n, 'done'); break;
   }
   if (newWeek) shapeHand(n);
+  // v3 §8.1 · a lesson saved before crop knowledge: Палыч's crops are known as in a new lesson
+  const known = Object.fromEntries(SOWN_IDS.map((c) => [c, 60]));
+  n.farm.knowBase ??= known;
+  if (n.checkpoint?.farm) n.checkpoint.farm.knowBase ??= known;
   lessonOrders(n);
   preparePracticeSeed(n);
   return n;

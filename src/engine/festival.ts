@@ -7,11 +7,11 @@ export type FestCat = 'units' | 'kinds' | 'best';
 export const FEST_CATS: FestCat[] = ['units', 'kinds', 'best'];
 export const FEST_NAMES: Record<FestCat, string> = { units: 'Урожай года', kinds: 'Разнообразие', best: 'Лучшая грядка' };
 export const FEST_UNITS: Record<FestCat, string> = { units: 'ед.', kinds: 'культур', best: 'ед. с грядки' };
-/** Пряхин's showing at his k-th festival (0 = the first): he grows every year */
+/** Пряхин's showing in the k-th year of the farm (0 = the first): he grows every year, club or no club */
 export const rivalShow = (k: number): Record<FestCat, number> => ({
-  units: Math.round(220 * (1 + 0.15 * k)),
-  kinds: Math.min(12, 5 + Math.floor(k / 2)),
-  best: 10 + 2 * k,
+  units: Math.round(200 * (1 + 0.1 * k)),
+  kinds: Math.min(10, 5 + Math.floor(k / 3)),
+  best: Math.round(10 + 1.5 * k),
 });
 /** glory for each judging won, and for winning two of three */
 export const FEST_CAT_GLORY = 5;
