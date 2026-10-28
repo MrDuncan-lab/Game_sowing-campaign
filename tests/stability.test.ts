@@ -25,7 +25,7 @@ test('the whole unplayed hand survives every regional season and year boundary, 
 });
 test('lab explicitly takes the selected hand UID and returns it once after research',()=>{
  for(const type of ['labCell','labTrait'] as const){
-  let s=quiet();s.levels.lab=2;const card={uid:s.nextUid++,def:'seed_radish'};s.hand.push(card);
+  let s=quiet();s.levels.lab=2;s.knowBase={ radish: 600, potato: 600, bean: 600, carrot: 600, onion: 600, cabbage: 600, wheat: 600, buckwheat: 600, pumpkin: 600, cranberry: 600 };const card={uid:s.nextUid++,def:'seed_radish'};s.hand.push(card);
   const a:G.Action=type==='labCell'?{t:type,uid:card.uid,cell:G.upgradeSpots(s,card)[0]}:{t:type,uid:card.uid,trait:'fast'};
   s=G.apply(s,a);assert.equal(cards(s).filter(c=>c.uid===card.uid).length,0);
   assert.equal(s.projects.filter(p=>'card' in p&&p.card.uid===card.uid).length,1);

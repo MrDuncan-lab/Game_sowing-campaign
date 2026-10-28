@@ -415,7 +415,7 @@ test('UP-05 · equipment moves: an invalid target changes nothing; a moved green
 });
 
 test('UP-06/UP-07 · a lab shape change kept through save/load and a region switch returns once, on time, across a season change', () => {
-  let s = quiet('chernozem', 0); date(s, D.LOCATIONS.chernozem.seasons[0]); s.levels.lab = 1; s.money = 1000;
+  let s = quiet('chernozem', 0); date(s, D.LOCATIONS.chernozem.seasons[0]); s.levels.lab = 1; s.money = 1000; s.knowBase = { radish: 600, potato: 600, bean: 600, carrot: 600, onion: 600, cabbage: 600, wheat: 600, buckwheat: 600, pumpkin: 600, cranberry: 600 };
   const c = s.hand.find((k) => D.CARDS[k.def].kind === 'seed')!, deck = G.deckCount(s), weeks = G.labWeeksFor(s, 'cell');
   const cell = G.upgradeSpots(s, c).find((sp) => G.spotFits(s, c, sp))!;
   s = G.apply(s, { t: 'labCell', uid: c.uid, cell });

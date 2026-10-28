@@ -323,6 +323,15 @@ export const moreIcons: Record<string, () => JSX.Element> = {
       <path d="M3 40 H45" {...S} />
     </g>
   ),
+  // v3 §8.1 · the book of crops
+  book: () => (
+    <g>
+      <path d="M4 12 Q14 8 24 13 Q34 8 44 12 V38 Q34 34 24 39 Q14 34 4 38z" fill="#fffaf0" {...S} />
+      <path d="M24 13 V39" {...S} />
+      <path d="M30 18 q4 -6 8 -3 q-1 6 -8 3z" fill={P.leaf} {...S} stroke-width={1.4} />
+      <path d="M9 20 H19 M9 25 H19 M9 30 H17 M29 26 H39 M29 31 H39" {...S} stroke-width={1.4} />
+    </g>
+  ),
   // v3 §7 · the village and its shared buildings
   village: () => (
     <g>

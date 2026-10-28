@@ -1,5 +1,5 @@
 import { apply, cardShopPrice, cellPrice, deckList, expectedYield, handMax, handWaterMax, hirePrice, LAB_WEEKS, lvl, money, newGame, targetGrow, tile, stockOf, trackCost, trackWeeks, weekDays, workEffectCells, type Action, type GameState, type Card } from './game';
-import { CARDS, CROPS, TRACKS, type CropId } from './data';
+import { CARDS, CROPS, SOWN_IDS, TRACKS, type CropId } from './data';
 
 // The training farm, version 4 (docs/ONBOARDING-v4.md). Written for a newcomer from match-3 games:
 // a reward after the very first «Конец недели», one or two new things a week, everything else locked but
@@ -110,6 +110,8 @@ export function createTutorial(): TutorialSession {
   s.money = 250; s.peak = 250; s.guide = []; s.plan = []; s.temps = s.temps.map(() => 18);
   s.flags = { warm: false, rain: false, dry: false }; s.strikes = []; s.crows = null; s.thieves = null;
   s.levels.lab = 1; s.levels.irrigation = 1; s.candidates = ['foreman'];
+  // v3 §8.1 · the lesson's crops are Палыч's own: known well enough for the lab's first extra cell
+  s.knowBase = Object.fromEntries(SOWN_IDS.map((c) => [c, 60]));
   // v3 · no trees sprout on the lesson farm; the shed holds the logs the drip-line lesson needs
   s.quiet = true; s.mats = { logs: 6, bricks: 0, glass: 0 };
   // the calm lesson weather has no helpers' episode: the first week has the usual working days too

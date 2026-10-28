@@ -204,3 +204,16 @@ button.link:focus-visible { outline: 2px solid var(--leaf-dark); outline-offset:
 .nb-say::before { content: ''; position: absolute; left: -9px; top: 50%; width: 14px; height: 14px; background: #fff8e6; border-left: 2px solid var(--wood-light); border-bottom: 2px solid var(--wood-light); transform: translateY(-50%) rotate(45deg); }
 .nb-say small { display: block; color: var(--ink-soft); font-size: 12px; margin-bottom: 2px; }
 .nb-say p { margin: 0; font-size: 15px; line-height: 1.35; }
+
+/* ---------- v3 §8.1 · knowledge of the crops ---------- */
+.know-line { display: flex; flex-direction: column; gap: 2px; margin: 4px 0 0; }
+.know-line span { display: inline-flex; align-items: center; gap: 6px; }
+.crop-book { display: flex; flex-direction: column; gap: 6px; }
+.book-row { display: grid; grid-template-columns: 36px minmax(84px, 7.5em) 1fr; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 12px; background: #fff8e6; border: 1.5px solid var(--hair); }
+.book-row.lv5 { background: #f6ecc8; border-color: #c8931f; }
+.book-name { display: flex; flex-direction: column; min-width: 0; }
+.book-name b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.book-name small { color: var(--ink-soft); font-size: 12px; }
+.book-bar { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.book-bar small { color: var(--ink-soft); font-size: 12px; line-height: 1.25; }
+.book-row.lv0 { opacity: .78; }

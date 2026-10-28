@@ -12,6 +12,7 @@ import {
 import { EPISODES, Episode, EpisodeKind, YearPlan, covers, episodeEnd, marketMult, planYear, seasonOf, baseTemp } from './calendar';
 import { gauss, hashSeed, pickWeighted, rand, randInt, shuffle } from './rng';
 import { COMMONS, COMMONS_NEED, COMMON_GLORY, CommonId, FORGE_MULT, FORGE_WEEKS, GRAIN, SAVVA_APPRENTICE, TOLOKA, YARDS, YARD_CANDIDATE, YARD_GLORY, YARD_IDS, YardId } from './neighbours';
+import { KNOW_GLORY, KNOW_NAMES, KNOW_SEED_SALE, VARIETY_CROPS, VARIETY_KNOW, cellNeeds, knowCells, knowLevelOf, knowTraits, traitNeeds } from './knowledge';
 import { FIRE_HEAT, FIRE_WOOD, TRIALS, TRIAL_FIRST_YEAR, TRIAL_GLORY, TRIAL_POOL, TrialGrade, TrialKind, fireCore, fireRing, firesAllowed, trialDroughtLen, trialFrostTemp, trialGrade, trialPower, trialWaves } from './trials';
 
 // ---------- state ----------
@@ -199,6 +200,10 @@ export interface GameState {
   yards?: Partial<Record<YardId, YardState>>;
   commons?: CommonId[];
   forge?: { track: TrackId; level: number; week: number };
+  // v3 §8.1 · knowledge of the crops: units harvested on this farm, and what the profile's other farms know
+  // (written in by the game when the farm is opened: ui/persist syncFarm)
+  crops?: Partial<Record<CropId, number>>;
+  knowBase?: Partial<Record<CropId, number>>;
 }
 /** a neighbour's yard: the stages done (0..3), the season (year·4+season, or the week when weekly) of the last swap,
  *  the season of the last «Позвать соседа», the year a candidate was last sent */
@@ -331,6 +336,38 @@ export const workshopSlots = (s: GameState) => 1 + (lvl(s, 'house') >= 4 ? 1 : 0
 export const labSlots = (s: GameState) => (lvl(s, 'lab') >= 2 ? 2 : 1) + (wlvl(s, 'breeder') >= 2 ? 1 : 0);
 export const maxExtra = (s: GameState) => lvl(s, 'lab');
 export const maxTraits = (s: GameState) => lvl(s, 'lab') + (wlvl(s, 'breeder') >= 3 ? 1 : 0);
+// ---------- v3 §8.1 · knowledge of the crops ----------
+/** units of a crop harvested on every farm of the profile (this one included) */
+export const cropKnow = (s: Pick<GameState, 'crops' | 'knowBase'>, c: CropId) => Math.round((s.knowBase?.[c] ?? 0) + (s.crops?.[c] ?? 0));
+export const knowLevel = (s: Pick<GameState, 'crops' | 'knowBase'>, c: CropId) => knowLevelOf(cropKnow(s, c));
+/** extra cells / traits a card can carry: the lab's level and the knowledge of its crop, whichever is lower */
+export function cardExtraMax(s: GameState, c: CardLike): number {
+  const crop = CARDS[asCard(c).def]?.crop;
+  return Math.min(maxExtra(s), crop ? knowCells(knowLevel(s, crop)) : 0);
+}
+export function cardTraitMax(s: GameState, c: CardLike): number {
+  const crop = CARDS[asCard(c).def]?.crop;
+  return Math.min(maxTraits(s), crop ? knowTraits(knowLevel(s, crop)) : 0);
+}
+/** why the lab cannot give a card one more cell / trait: the lab's level or the knowledge of the crop */
+export function cellLimit(s: GameState, c: CardLike): string | null {
+  const k = asCard(c).extra?.length ?? 0, crop = CARDS[asCard(c).def]?.crop;
+  if (k >= maxExtra(s)) return k ? `Лаборатория ${lvl(s, 'lab')}-го уровня даёт до +${maxExtra(s)} кл.` : 'Нужна лаборатория';
+  if (crop && knowLevel(s, crop) < cellNeeds(k)) return `Нужно знание «${CROPS[crop].name}» ${cellNeeds(k)} (${KNOW_NAMES[cellNeeds(k)]})`;
+  return null;
+}
+export function traitLimit(s: GameState, c: CardLike): string | null {
+  const k = asCard(c).traits?.length ?? 0, crop = CARDS[asCard(c).def]?.crop;
+  if (k >= maxTraits(s)) return `Лаборатория ${lvl(s, 'lab')}-го уровня даёт до ${maxTraits(s)} свойств`;
+  if (crop && knowLevel(s, crop) < traitNeeds(k)) return `Нужно знание «${CROPS[crop].name}» ${traitNeeds(k)} (${KNOW_NAMES[traitNeeds(k)]})`;
+  return null;
+}
+/** crops known at the level a new variety needs */
+export const varietyKnown = (s: GameState) => SOWN_IDS.filter((c) => knowLevel(s, c) >= VARIETY_KNOW);
+export function varietyProblem(s: GameState): string | null {
+  const n = varietyKnown(s).length;
+  return n >= VARIETY_CROPS ? null : `Новый сорт: нужно знание ${VARIETY_KNOW} у ${VARIETY_CROPS} культур (сейчас ${n})`;
+}
 export const greenhousesAllowed = (s: GameState) => [0, 1, 2, 2, 3][lvl(s, 'greenhouse')] ?? 3;
 export const heated = (s: GameState) => lvl(s, 'greenhouse') >= 3;
 export const hivesAllowed = (s: GameState) => [0, 1, 2, 2][lvl(s, 'apiary')] ?? 2;
@@ -966,7 +1003,9 @@ export const seedCost = (s: GameState, c: CropId) => {
   const sale = activeEpisodes(s).some((e) => e.kind === 'seeds' && e.crop === c) ? 0.75 : 1;
   const seeder = lvl(s, 'machinery') >= 1 ? 2 / 3 : 1;
   const bag = hasRelic(s, 'seedbag') ? 0.8 : 1;
-  return round2(CROPS[c].seedCost * infl(s.year) * Math.max(0.5, sale * seeder) * bag);
+  // v3 §8.1 · a crop known well (level 3) is sown for less: the farmer saves seed of their own
+  const know = knowLevel(s, c) >= 3 ? KNOW_SEED_SALE : 1;
+  return round2(CROPS[c].seedCost * infl(s.year) * Math.max(0.5, sale * seeder) * bag * know);
 };
 export const cardCost = (s: GameState, def: string) => round2((CARDS[def].cost ?? 0) * infl(s.year));
 export const cardShopPrice = (s: GameState, def: string) => Math.round(CARDS[def].shop * infl(s.year));
@@ -2312,12 +2351,28 @@ function growWeeds(s: GameState) {
 // Intensive harvests consume soil; light crops and legumes keep distinct roles.
 export const SOIL_HUNGRY: CropId[] = ['sunflower','corn','cabbage','pumpkin'];
 export const soilHarvestCost = (s: GameState, c: CropId) => SOIL_HUNGRY.includes(c) && !(c==='sunflower' && wlvl(s,'soilsci')>=3) ? 1 : 0;
+/** v3 §8.1 · a harvest teaches: the farm's count grows, a new level of knowledge is told, the fifth is a certificate */
+function learnCrop(s: GameState, c: CropId, qty: number) {
+  const before = knowLevel(s, c);
+  (s.crops ??= {})[c] = (s.crops[c] ?? 0) + qty;
+  const after = knowLevel(s, c);
+  if (after <= before) return;
+  feed(s, `Знание: ${CROPS[c].name} — ${KNOW_NAMES[after]} (${after} из 5).`, 'good');
+  if (after >= 5) {
+    // once on the profile whichever farm gets there: the reward's id has no farm in it
+    s.glory += KNOW_GLORY;
+    s.rewardsOut.push({ id: `know|${c}|5`, kind: 'glory', value: KNOW_GLORY });
+    const cert = `Свой сорт: ${CROPS[c].name.toLowerCase()}`;
+    if (!s.certs.includes(cert)) { s.certs.push(cert); s.rewardsOut.push({ id: `know|${c}|cert`, kind: 'cert', value: cert }); }
+  }
+}
 function harvestTile(s: GameState, x: number, y: number, qty: number) {
   const t = tile(s, x, y);
   if (!t.crop) return;
   const c = t.crop.id;
   if (qty > 0) addToStorage(s, c, qty);
   s.stats.harvested += qty;
+  if (qty > 0) learnCrop(s, c, qty);
   s.report.harvests.push({ crop: c, qty, x, y });
   if (!s.harvestedKinds.includes(c)) {
     s.harvestedKinds.push(c);
@@ -2538,12 +2593,14 @@ export function helpProblem(s: GameState, t: TrackId): string | null {
   return null;
 }
 const labWeeks = (s: GameState, base: number) => Math.max(1, base - (wlvl(s, 'breeder') >= 1 ? 1 : 0) - (lvl(s, 'lab') >= 3 ? 1 : 0));
-export const cellPrice = (s: GameState, c: Card) => Math.round((12 + 8 * (c.extra?.length ?? 0)) * infl(s.year));
-export const traitPrice = (s: GameState, c: Card) => Math.round((15 + 10 * (c.traits?.length ?? 0)) * infl(s.year));
-export const varietyPrice = (s: GameState) => Math.round(25 * infl(s.year));
+// v3 §8.2 · every improvement is a decision: a cell costs the square of how many the card will have, a trait doubles
+export const cellPrice = (s: GameState, c: Card) => Math.round(15 * ((c.extra?.length ?? 0) + 1) ** 2 * infl(s.year));
+export const traitPrice = (s: GameState, c: Card) => Math.round(20 * 2 ** (c.traits?.length ?? 0) * infl(s.year));
+export const varietyPrice = (s: GameState) => Math.round(40 * infl(s.year));
 export const bioPrice = (s: GameState) => Math.round(6 * infl(s.year));
-export const LAB_WEEKS = { cell: 2, trait: 3, variety: 4, bio: 1 };
-export const labWeeksFor = (s: GameState, kind: keyof typeof LAB_WEEKS) => labWeeks(s, LAB_WEEKS[kind]);
+/** base weeks: a cell 3 / 4 / 5 by how many the card has, a trait 4, a variety 6, the bio-preparation 1 */
+export const LAB_WEEKS = { cell: 3, trait: 4, variety: 6, bio: 1 };
+export const labWeeksFor = (s: GameState, kind: keyof typeof LAB_WEEKS, c?: Card) => labWeeks(s, LAB_WEEKS[kind] + (kind === 'cell' ? c?.extra?.length ?? 0 : 0));
 export function labProblem(s: GameState): string | null {
   if (lvl(s, 'lab') < 1) return 'Лабораторию нужно построить';
   if (labBusy(s) >= labSlots(s)) return 'Все столы лаборатории заняты';
@@ -2551,7 +2608,7 @@ export function labProblem(s: GameState): string | null {
 }
 export function upgradeSpots(s: GameState, c: CardLike): [number, number][] {
   const cells = cardCells(c);
-  if ((asCard(c).extra?.length ?? 0) >= maxExtra(s)) return [];
+  if ((asCard(c).extra?.length ?? 0) >= cardExtraMax(s, c)) return [];
   const has = new Set(cells.map((x) => x.join(',')));
   const out = new Map<string, [number, number]>();
   for (const [x, y] of cells)
@@ -3684,14 +3741,15 @@ export function apply(state: GameState, a: Action): GameState {
       if (why) fail(why);
       const c = findDeckCard(s, a.uid);
       if (!c || !isSeed(c.def)) fail('Выбери карту семян');
+      { const lim = cellLimit(s, c!); if (lim) fail(lim); }
       // Selecting a hand card explicitly transfers that UID into the project.
       if (!Array.isArray(a.cell) || !upgradeSpots(s, c!).some(([x, y]) => x === a.cell[0] && y === a.cell[1])) fail('Сюда клетку не добавить');
       // PSV-018 · never charge for a shape that has no possible place in this region
       if (!spotFits(s, c!, [a.cell[0], a.cell[1]])) fail('Такой фигуре в этом регионе негде расти');
       spend(s, cellPrice(s, c!), 'build');
       const origin = s.spare.some((c) => c.uid === a.uid) ? 'spare' as const : 'deck' as const;
+      const weeks = labWeeksFor(s, 'cell', c!);
       const card = removeCard(s, a.uid);
-      const weeks = labWeeksFor(s, 'cell');
       s.projects.push({ kind: 'cell', card, origin, cell: [a.cell[0], a.cell[1]], weeks, total: weeks });
       break;
     }
@@ -3703,7 +3761,7 @@ export function apply(state: GameState, a: Action): GameState {
       // Selecting a hand card explicitly transfers that UID into the project.
       if (!Object.prototype.hasOwnProperty.call(TRAITS, a.trait)) fail('Нет такого признака');
       if ((c!.traits ?? []).includes(a.trait)) fail('Этот признак уже есть');
-      if ((c!.traits?.length ?? 0) >= maxTraits(s)) fail('Больше признаков эта лаборатория не привьёт');
+      { const lim = traitLimit(s, c!); if (lim) fail(lim); }
       spend(s, traitPrice(s, c!), 'build');
       const origin = s.spare.some((c) => c.uid === a.uid) ? 'spare' as const : 'deck' as const;
       const card = removeCard(s, a.uid);
@@ -3715,6 +3773,7 @@ export function apply(state: GameState, a: Action): GameState {
       const why = labProblem(s);
       if (why) fail(why);
       if (!labCrops(s).includes(a.crop)) fail('Этот сорт здесь не вывести');
+      { const why2 = varietyProblem(s); if (why2) fail(why2); }
       if (s.projects.some((p) => p.kind === 'variety' && p.crop === a.crop)) fail('Уже выводится');
       spend(s, varietyPrice(s), 'build');
       const weeks = labWeeksFor(s, 'variety');

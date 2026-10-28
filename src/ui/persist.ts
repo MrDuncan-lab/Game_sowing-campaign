@@ -81,6 +81,8 @@ export interface Profile {
   best: { years: number; money: number; harvest: number };
   history: FarmRecord[];
   settings: { fast: boolean; intro: boolean; guide?: boolean };
+  /** v3 §8.1 · knowledge of the crops: units harvested, by farm (its run id), so a farm adds only its own */
+  know?: Record<string, Partial<Record<CropId, number>>>;
 }
 export const emptyProfile = (): Profile => ({
   v: 1, glory: 0, applied: [], pets: [], certs: [], seedBank: [], best: { years: 0, money: 0, harvest: 0 }, history: [], settings: { fast: false, intro: false },
@@ -170,7 +172,8 @@ function validProfile(v: unknown): v is Profile {
     && arr(v.pets, (x) => member(PETS, x)) && arr(v.certs, (x) => obj(x) && typeof x.name === 'string' && loc(x.loc) && num(x.year))
     && arr(v.seedBank, (x) => member(CROPS, x)) && obj(v.best) && ['years', 'money', 'harvest'].every((k) => num(v.best[k]))
     && arr(v.history, (x) => obj(x) && loc(x.loc) && ['years', 'glory', 'at'].every((k) => num(x[k])) && typeof x.reason === 'string')
-    && obj(v.settings) && typeof v.settings.fast === 'boolean' && typeof v.settings.intro === 'boolean' && (v.settings.guide === undefined || typeof v.settings.guide === 'boolean');
+    && obj(v.settings) && typeof v.settings.fast === 'boolean' && typeof v.settings.intro === 'boolean' && (v.settings.guide === undefined || typeof v.settings.guide === 'boolean')
+    && (v.know === undefined || (obj(v.know) && Object.values(v.know).every((m) => obj(m) && Object.entries(m).every(([k, n]) => member(CROPS, k) && num(n) && (n as number) >= 0))));
 }
 
 // Match every mandatory scalar/object against an engine-created state. Empty
@@ -228,6 +231,8 @@ export function validFarm(v: unknown): v is GameState {
   if (v.yards !== undefined && !(obj(v.yards) && Object.entries(v.yards).every(([k, y]: [string, any]) => member(YARDS, k) && obj(y) && int(y.stage) && y.stage >= 0 && y.stage <= 3
     && ['swap', 'help', 'cand'].every((f) => y[f] === undefined || int(y[f]))))) return false;
   if (v.commons !== undefined && !arr(v.commons, (c) => member(COMMONS, c))) return false;
+  const cropMap = (m: any) => obj(m) && Object.entries(m).every(([k, n]) => member(CROPS, k) && num(n) && (n as number) >= 0);
+  if ((v.crops !== undefined && !cropMap(v.crops)) || (v.knowBase !== undefined && !cropMap(v.knowBase))) return false;
   if (v.forge !== undefined && !(obj(v.forge) && member(TRACKS, v.forge.track) && int(v.forge.level) && v.forge.level >= 1 && v.forge.level <= TRACKS[v.forge.track as keyof typeof TRACKS].levels.length && int(v.forge.week))) return false;
   if (v.over && v.over.work !== undefined && !(num(v.over.work) && v.over.work > 0)) return false;
   const base = templates.get(v.loc)!;
@@ -280,10 +285,21 @@ export const saveFarm = (s: GameState, replaceInvalid = false) => write(FARM(s.l
 export function hasFarmData(loc: LocationId): boolean {
   try { return localStorage.getItem(FARM(loc)) !== null; } catch { return true; }
 }
+/** what the profile's other farms know of each crop (v3 §8.1) */
+export function knowElsewhere(p: Profile, s: GameState): Partial<Record<CropId, number>> {
+  const me = farmRunId(s), out: Partial<Record<CropId, number>> = {};
+  for (const [id, m] of Object.entries(p.know ?? {})) if (id !== me) for (const [c, n] of Object.entries(m)) out[c as CropId] = (out[c as CropId] ?? 0) + (n ?? 0);
+  return out;
+}
+const sameCounts = (a: Partial<Record<CropId, number>> = {}, b: Partial<Record<CropId, number>> = {}) =>
+  Object.keys(a).length === Object.keys(b).length && Object.entries(a).every(([k, n]) => b[k as CropId] === n);
 export function syncFarm(p: Profile, s: GameState): GameState {
   const unlocked = [...new Set([...s.unlocked, ...p.seedBank.filter((c) => SEED_BANK_OK[c]?.includes(s.loc))])];
   const pets = [...new Set([...s.pets, ...p.pets])];
-  return ensureV3(repairOpenOffers(unlocked.length === s.unlocked.length && pets.length === s.pets.length ? s : { ...s, unlocked, pets }));
+  const knowBase = knowElsewhere(p, s);
+  const sameKnow = sameCounts(knowBase, s.knowBase);
+  if (unlocked.length === s.unlocked.length && pets.length === s.pets.length && sameKnow) return ensureV3(repairOpenOffers(s));
+  return ensureV3(repairOpenOffers({ ...s, unlocked, pets, ...(sameKnow ? {} : { knowBase }) }));
 }
 export const allFarms = (): Partial<Record<LocationId, GameState>> =>
   Object.fromEntries(LOCATION_IDS.map((l) => [l, loadFarm(l)]).filter(([, s]) => s)) as Partial<Record<LocationId, GameState>>;
@@ -306,6 +322,12 @@ export function syncProfile(p: Profile, s: GameState): Profile {
   if (s.money > next.best.money) (next.best.money = Math.round(s.money)), (changed = true);
   if (s.yearsCompleted > next.best.years) (next.best.years = s.yearsCompleted), (changed = true);
   if (s.stats.harvested > next.best.harvest) (next.best.harvest = s.stats.harvested), (changed = true);
+  // v3 §8.1 · this farm's harvest by crop, under its own id (a lesson farm teaches nothing for keeps)
+  const id = farmRunId(s);
+  if (s.crops && Object.keys(s.crops).length && !s.seed.startsWith('atlas-tutorial') && !sameCounts(s.crops, p.know?.[id])) {
+    next.know = { ...(p.know ?? {}), [id]: { ...s.crops } };
+    changed = true;
+  }
   return changed ? next : p;
 }
 export const farmRunId = (s: GameState) => `${s.loc}|${s.seed}`;
