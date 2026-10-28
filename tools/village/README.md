@@ -33,6 +33,10 @@ rooks and a man digging in spring; golden birches, stooks, pumpkins, geese, a sm
   3 + workshop and sawhorse, 4 + light room with a balcony and carved frames, 5 + columns, a green iron roof, the
   front garden and a painted fence with a gate. The village draws all five (`cond='houseN'`; the game shows one by
   the root class `on-houseN`).
+- The house under construction: `scaffold(r, cx, y, s, stage)` draws over whichever house stands (same `cx, y, s`
+  as `homestead()`), in three stages — materials brought, scaffolding round the walls, up to the ridge. The village
+  draws all three (`cond='buildN'`, root class `on-buildN`, taps go through to the house); the estate exports them as
+  `scaffold[0..2]`, stacked over the yard items.
 - `estate.py` — the House screen's picture (`ES_VIEW` 360×210): `back`, `houses[0..4]` (the same homestead, larger),
   the yard `items` (hive, greenhouse, scarecrow, barrel, meteo, compost — placed clear of the house at every level),
   `front`; ids in `defs` start with `es-`; `ES_SEASON_CSS` recolours summer under `.estate-v.season-0/2`.
