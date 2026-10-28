@@ -98,20 +98,17 @@ test('WTH-02 · a greenhouse placed under an announced frost protects at once; i
 });
 
 // ---------------------------------------------------------------- CAL-06 / CRD-09
-test('FIX CAL-06/CRD-09 · a card put aside and then played comes back through an exchange without its stale «kept» mark', () => {
+test('CAL-06 · a played card comes back from the piles once, and an old save\'s «put aside» mark never survives', () => {
   let s = quiet();
-  const seed: G.Card = { uid: s.nextUid++, def: 'seed_radish' }, water: G.Card = { uid: s.nextUid++, def: 'water' };
+  const seed: G.Card = { uid: s.nextUid++, def: 'seed_radish', keep: true }, water: G.Card = { uid: s.nextUid++, def: 'water' };
   s.hand = [seed, water]; s.draw = []; s.discard = [];
-  s = G.apply(s, { t: 'keepCard', uid: seed.uid });
   s = G.apply(s, { t: 'play', uid: seed.uid, tiles: [[4, 4]] }); // spent: it goes to the discard
+  assert.equal(s.discard.filter((c) => c.uid === seed.uid).length, 1);
   s = G.apply(s, { t: 'exchangeCard', uid: water.uid }); // the only other card is the radish
-  const back = s.hand.find((c) => c.uid === seed.uid)!;
-  assert.ok(back, 'the exchange brought the radish back');
-  assert.equal(back.keep, undefined, 'the player never put it aside again');
-  assert.equal(G.keptCount(s), 0);
-  // the stale mark eats the keep allowance: the player cannot put aside a card of their choice
-  const other = card(s, 'mulch');
-  assert.doesNotThrow(() => G.apply(s, { t: 'keepCard', uid: other.uid }));
+  const back = s.hand.filter((c) => c.uid === seed.uid);
+  assert.equal(back.length, 1, 'the exchange brought the radish back once');
+  assert.equal(back[0].keep, undefined);
+  assert.ok(!G.deckList(s).some((c) => c.keep));
 });
 
 test('CRD-09 · many identical cards: unique uids, stable deck count through draws, exchanges and weeks', () => {

@@ -246,6 +246,8 @@ def _roads(season):
 # ---------------------------------------------------------------- pieces: what stands where
 POPS = []
 ANCHORS = {}
+SPOTS = {}                # key -> where the piece stands (summer): for labels under the buildings
+HOUSE_SPOTS = []          # the same for each of the house's five levels, in order
 
 
 def fronts(layer, x):
@@ -263,6 +265,10 @@ def pop(r, layer, key, x, base, draw, label, cls='', cond=None):
     fr = fronts(layer, x)
     if r.season == 'summer':
         POPS.append((layer, key, x, base, h))
+        spot = {'l': layer, 'x': round((b[0] + b[2]) / 2, 1), 'y': round(base, 1), 'w': round(b[2] - b[0], 1), 'top': round(b[1], 1)}
+        SPOTS.setdefault(key, spot)
+        if key == 'house':
+            HOUSE_SPOTS.append(spot)
     f = ';'.join(f'{kk}:{y:.1f}' for kk, y in fr)
     c = ' '.join(filter(None, ['spot-g', cls, f'vc vc-{cond}' if cond else '']))
     r.add(f'<g class="{c}" data-k="{key}" role="button" tabindex="-1" aria-label="{label}">'
@@ -272,6 +278,14 @@ def pop(r, layer, key, x, base, draw, label, cls='', cond=None):
 
 def anchor(name, layer, x, y):
     ANCHORS[name] = {'l': layer, 'x': round(x, 1), 'y': round(y, 1)}
+
+
+def bubble_over(r, name, layer, lift=1.5):
+    """An order bubble just over the roof the piece just drawn marked as its top (r.roof: x, y); the bubble's tail
+    is its anchor. Summer geometry: winter only adds snow."""
+    x, y = r.roof
+    if r.season == 'summer':
+        anchor(name, layer, x, y - lift)
 
 
 # trees stand on their hills as they are drawn: no group of their own
@@ -448,11 +462,10 @@ def hill_B(r):
     spruce(r, 352, 356, 46)
     spruce(r, 338, 352, 30)
     h = pop(r, 'B', 'lot-school', 60, 392, lambda X, Y: Q.lot(r, X, Y, 50, 22), 'Участок на вырост')
-    h = pop(r, 'B', 'council', 186, 394, lambda X, Y: Q.council_c(r, X, Y, 1.0, lit=r.winter), 'Сельсовет')
-    anchor('bubble-council', 'B', 214, 394 - h - 2)
-    birch(r, 258, 400, 38)
-    h = pop(r, 'B', 'college', 312, 398, lambda X, Y: Q.college(r, X, Y, .74, lit=r.winter), 'Агроколледж')
-    anchor('bubble-college', 'B', 318, 398 - h - 4)
+    pop(r, 'B', 'council', 186, 394, lambda X, Y: Q.council_c(r, X, Y, 1.0, lit=r.winter), 'Сельсовет')
+    bubble_over(r, 'bubble-council', 'B')
+    pop(r, 'B', 'college', 313, 398, lambda X, Y: Q.college(r, X, Y, .74, lit=r.winter), 'Агроколледж')
+    bubble_over(r, 'bubble-college', 'B')
     lilac(r, 132, 404, 13)
     lilac(r, 244, 408, 12)
     if not r.winter:
@@ -474,8 +487,8 @@ def hill_C(r):
     H.garden(r, [(272, 470), (362, 466), (364, 494), (270, 498)], rows=4)
     H.garden(r, [(146, 508), (204, 506), (208, 532), (144, 534)], rows=4, crop='cabbage')
     H.palisade(r, 144, 210, 538, .5)
-    h = pop(r, 'C', 'orphanage', 86, 542, lambda X, Y: Q.orphanage(r, X, Y, .78, lit=r.winter), 'Интернат «Солнышко»')
-    anchor('bubble-orphanage', 'C', 66, 542 - h - 2)
+    pop(r, 'C', 'orphanage', 92, 542, lambda X, Y: Q.orphanage(r, X, Y, .78, lit=r.winter), 'Интернат «Солнышко»')
+    bubble_over(r, 'bubble-orphanage', 'C')
     pop(r, 'C', 'izba1', 250, 536, lambda X, Y: (Q.izba_c(r, X, Y, .78, roof='tes', frame=P['blue'], lit=r.winter, smoke_on=True),
                                                   H.palisade(r, X - 38, X + 40, Y + 7, .5, gate=(X + 14, X + 24))), 'Дом соседей')
     pop(r, 'C', 'izba2', 334, 548, lambda X, Y: (Q.izba_c(r, X, Y, .7, roof='iron_r', frame=P['white'], shutters=True, lit=r.winter),
@@ -500,22 +513,21 @@ def hill_D(r):
     birch(r, 22, 640, 54)
     birch(r, 344, 636, 50, lean=-.02)
     spruce(r, 364, 668, 58)
-    h = pop(r, 'D', 'bakery', 58, 714, lambda X, Y: Q.bakery(r, X, Y, .85, lit=r.winter), 'Пекарня «Колосок»')
-    anchor('bubble-bakery', 'D', 44, 714 - h + 2)
+    pop(r, 'D', 'bakery', 60, 714, lambda X, Y: Q.bakery(r, X, Y, .85, lit=r.winter), 'Пекарня «Колосок»')
+    bubble_over(r, 'bubble-bakery', 'D')
     pop(r, 'D', 'board', 128, 692, lambda X, Y: Q.board_c(r, X, Y, 1.35), 'Доска объявлений: заказы деревни')
     pop(r, 'D', 'well', 184, 698, lambda X, Y: Q.well_c(r, X, Y, .95), 'Колодец')
     pop(r, 'D', 'palych', 236, 698, lambda X, Y: Q.palych(r, X, Y, 1.5), 'Палыч на лавке')
-    h = pop(r, 'D', 'restaurant', 312, 712, lambda X, Y: Q.restaurant(r, X, Y, .8, lit=r.winter), 'Ресторан «Печь»')
-    anchor('bubble-restaurant', 'D', 318, 712 - h - 2)
+    pop(r, 'D', 'restaurant', 322, 712, lambda X, Y: Q.restaurant(r, X, Y, .8, lit=r.winter), 'Ресторан «Печь»')
+    bubble_over(r, 'bubble-restaurant', 'D')
     if not r.winter:
         H.yoke(r, 158, 708, 1.1)
-        H.bicycle(r, 98, 712, 1.0)
         Q.chick(r, 112, 722, 1.0, -1, .3)
         Q.chick(r, 120, 724, 1.0, 1, 1.1)
     else:
         H.person(r, 206, 708, 1.1, coat=P['coat2'], scarf=P['coat4'])
         H.sled(r, 112, 718, 1.0)
-    pop(r, 'D', 'fair', 250, 722, lambda X, Y: Q.fair_stall(r, X, Y, 1.1), 'Рынок')
+    pop(r, 'D', 'fair', 246, 722, lambda X, Y: Q.fair_stall(r, X, Y, 1.1), 'Рынок')
     # a woman with a basket crosses the square and back
     stroll = r.capture(lambda: (H.person(r, 0, 0, 1.3, coat=P['coat2'], kind='woman', pose='walk', scarf=P['coat4']),
                                 r.blob(4.6, -6.5, 2.6, 1.8, P['straw'], .4, n=8, wob=.04)))[0]
@@ -558,16 +570,17 @@ def hill_F(r):
     lilac(r, 150, 930, 16)
     lilac(r, 250, 934, 14)
     pop(r, 'F', 'meteo', 346, 976, lambda X, Y: Q.meteo(r, X, Y, 1.05), 'Метеостанция', cond='meteo')
-    H.woodpile(r, 14, 1062, 1.3)
-    pop(r, 'F', 'house', 116, 1052, lambda X, Y: Q.homestead(r, X, Y, 1.25, lit=r.winter), 'Ваша усадьба')
+    if r.winter:
+        H.woodcutter(r, 84, 1080, 1.2)
+    # the player's house at each of its five levels; the game shows the one its level names (root class on-houseN)
+    for lv in range(1, 6):
+        pop(r, 'F', 'house', 116, 1052, lambda X, Y, lv=lv: Q.homestead(r, X, Y, 1.25, lit=r.winter, level=lv), 'Ваша усадьба', cond=f'house{lv}')
     pop(r, 'F', 'barn', 294, 1046, lambda X, Y: Q.barn(r, X, Y, 1.05), 'Амбар')
     if not r.winter:
         Q.chick(r, 330, 1084, 1.25, 1, 0)
         Q.chick(r, 340, 1088, 1.25, -1, .8)
         Q.chick(r, 348, 1082, 1.25, 1, 1.5)
         H.cat(r, 182, 1060, 1.2)
-    else:
-        H.woodcutter(r, 56, 1070, 1.2)
     H.dog(r, 236, 1066, 1.1)
     pop(r, 'F', 'lab', 66, 1158, lambda X, Y: Q.lab(r, X, Y, 1.0, lit=r.winter), 'Лаборатория', cond='lab')
     pop(r, 'F', 'lot-lab', 64, 1150, lambda X, Y: Q.lot(r, X, Y, 46, 22), 'Место под лабораторию', cond='nolab')
@@ -672,6 +685,8 @@ def defs(season):
 def layers(season='summer'):
     if season == 'summer':
         POPS.clear()
+        SPOTS.clear()
+        HOUSE_SPOTS.clear()
     out = []
     r = Hy(season, seed=11)
     sky_layer(r)

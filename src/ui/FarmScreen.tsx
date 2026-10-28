@@ -179,8 +179,8 @@ export function FarmScreen({ s, dispatch, profile, fast, onFast, onMap, onRestar
   }, []);
   // PSV-006 · only the shown section is in the Tab order and the accessibility tree. Swiping still works:
   // the pager scrolls, and the section that settles in view becomes the live one.
-  // the tab row is kept for the teaching farm only (its lessons point at the sections there)
-  const tabs = !!tutorial;
+  // 28.10 · a small tab row under the bar on every farm (the village stays a second way into the sections)
+  const tabs = true;
   const lockOf = (area: TutorialArea) => tutorial && !areaOpen(tutorial.session.step, area) ? closedReason(area) : null;
   const tabLock = (id: TabId) => { const a = TAB_AREA[id]; return a ? lockOf(a) : null; };
   const paneProps = (id: TabId) => ({ id: `pane-${id}`, role: tabs ? 'tabpanel' as const : 'region' as const, ...(tabs ? { 'aria-labelledby': `tab-${id}` } : { 'aria-label': TABS[idx(id)].name }), inert: tab !== id, 'data-inert-base': String(tab !== id) });

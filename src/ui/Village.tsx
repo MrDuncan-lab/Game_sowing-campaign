@@ -13,7 +13,7 @@
 // village's own little lives (smoke, sails, hens) wait while it moves and play once it stands.
 import type { ComponentChildren, RefObject } from 'preact';
 import { useEffect, useRef } from 'preact/hooks';
-import { V_ANCHORS, V_BOTTOM, V_CART, V_SEASON_CSS, V_SUMMER, V_VH, V_W, V_WINTER } from '../art/village/chernozem';
+import { V_ANCHORS, V_BOTTOM, V_CART, V_SEASON_CSS, V_SPOTS, V_SUMMER, V_VH, V_W, V_WINTER } from '../art/village/chernozem';
 import { ORGS, type OrgId } from '../engine/data';
 import { GameState, deliverProblem, friends, locOf, lvl, nextPayment, paymentSchedule, thievesBlocked, yearLen } from '../engine/game';
 import { CropSprite } from '../art/crops';
@@ -40,6 +40,8 @@ export interface VillageApi {
 function villageClasses(s: GameState): string {
   const on: string[] = [];
   on.push(lvl(s, 'lab') >= 1 ? 'on-lab' : 'on-nolab');
+  // the player's house is drawn at its level, the same drawing as on the house screen
+  on.push(`on-house${Math.max(1, Math.min(5, lvl(s, 'house')))}`);
   if (lvl(s, 'meteo') >= 1) on.push('on-meteo');
   if (lvl(s, 'apiary') >= 1) on.push('on-hives');
   for (const o of locOf(s).orgs) if (friends(s, o)) on.push(`on-g-${o}`);
@@ -106,6 +108,29 @@ function Bubble({ s, o }: { s: GameState; o: OrgId }) {
   );
 }
 
+// Small captions under the places that do something when tapped (28.10). The other houses get theirs once they
+// have a use. Captions stand in the nearest hill's overlay: with the village open every hill is in its place, so
+// they sit right under their building; while the village moves they fade out (see village.css).
+export const VILLAGE_LABELS: { k: string; text: string; cond?: string; x?: number }[] = [
+  { k: 'house', text: 'Дом', x: 116 }, { k: 'barn', text: 'Амбар' },
+  { k: 'lab', text: 'Лаборатория', cond: 'lab' }, { k: 'lot-lab', text: 'Под лабораторию', cond: 'nolab' },
+  { k: 'meteo', text: 'Метеостанция', cond: 'meteo' }, { k: 'hives', text: 'Пасека', cond: 'hives' },
+  { k: 'board', text: 'Заказы' }, { k: 'fair', text: 'Рынок' }, { k: 'signpost', text: 'Карта ферм' },
+  { k: 'council', text: 'Сельсовет' }, { k: 'college', text: 'Колледж' }, { k: 'orphanage', text: 'Интернат' },
+  { k: 'bakery', text: 'Пекарня' }, { k: 'restaurant', text: 'Ресторан' },
+];
+const LABEL_FS = 8.6;
+function PlaceLabel({ k, x, y, text, cond }: { k: string; x: number; y: number; text: string; cond?: string }) {
+  const w = Math.round(text.length * LABEL_FS * 0.56 + 9), h = LABEL_FS + 5;
+  const left = Math.max(2, Math.min(V_W - w - 2, x - w / 2));
+  return (
+    <g class={`v-label${cond ? ` vc vc-${cond}` : ''}`} data-for={k} transform={`translate(${left.toFixed(1)} ${(y + 2.5).toFixed(1)})`} aria-hidden="true">
+      <rect class="vl-tag" width={w} height={h} rx={h / 2} />
+      <text class="vl-text" x={w / 2} y={h / 2 + LABEL_FS * 0.35} text-anchor="middle" font-size={LABEL_FS}>{text}</text>
+    </g>
+  );
+}
+
 function CartArt({ amount }: { amount: string }) {
   return (
     <g class="v-cart-art">
@@ -126,6 +151,8 @@ export function Village({ s, rootRef, onPlace }: { s: GameState; rootRef: RefObj
   const ov: Record<string, ComponentChildren[]> = {};
   const add = (k: string, el: ComponentChildren) => { (ov[k] ??= []).push(el); };
   for (const o of locOf(s).orgs) { const a = V_ANCHORS[`bubble-${o}`]; if (a) add(a.l, <Bubble s={s} o={o} />); }
+  const front = (villageDrawing(s) === 'winter' ? V_WINTER : V_SUMMER).layers.at(-1)?.k ?? 'F';
+  for (const l of VILLAGE_LABELS) { const p = V_SPOTS[l.k]; if (p) add(front, <PlaceLabel k={l.k} x={l.x ?? p.x} y={p.y} text={l.text} cond={l.cond} />); }
   const crowsComing = (s.crowWarn ?? []).some((w) => w > s.absWeek);
   if (crowsComing && V_ANCHORS.flock) add(V_ANCHORS.flock.l, <g class="v-flock" transform={`translate(${V_ANCHORS.flock.x} ${V_ANCHORS.flock.y}) scale(1.25)`}><Flock far={false} /></g>);
   if (kidsScouting(s) && !thievesBlocked(s) && V_ANCHORS.kids) add(V_ANCHORS.kids.l, <g class="v-kids" transform={`translate(${V_ANCHORS.kids.x} ${V_ANCHORS.kids.y}) scale(.34)`}><ScoutingKids /></g>);
@@ -286,6 +313,7 @@ export function useVillagePager(o: {
       if (up !== q.up) { q.up = up; q.g.classList.toggle('up', up); q.g.setAttribute('tabindex', up ? '0' : '-1'); }
     }
     const upNow = new Set(S.pops.filter((q) => q.up).map((q) => q.g.dataset.k ?? ''));
+    // order bubbles and captions show over a place once it can be tapped
     for (const b of S.bubbles) b.classList.toggle('shown', upNow.has(b.dataset.for ?? ''));
     set(O.moveRef.current, 'visibility', fieldY(s) > S.HS * S.u + 40 ? 'hidden' : '');
     const mode: VillageMode = phi > 0.96 ? 'field' : phi < 0.12 ? 'village' : 'between';
@@ -426,7 +454,7 @@ export function useVillagePager(o: {
     }));
     S.carts = [...root.querySelectorAll<SVGGElement>('.v-cart')];
     S.cartTf = S.carts.map(() => '\u0000');
-    S.bubbles = [...root.querySelectorAll<SVGGElement>('.v-bubble')];
+    S.bubbles = [...root.querySelectorAll<SVGGElement>('.v-bubble, .v-label')];
     S.s = wasField ? S.T : wasTop ? 0 : wasBottom ? S.S2 : clamp(S.s, 0, S.T);
     S.ready = true;
     put(S.s);

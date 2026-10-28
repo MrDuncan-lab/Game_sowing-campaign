@@ -21,6 +21,14 @@
 .village.on-lab .vc-lab, .village.on-nolab .vc-nolab, .village.on-meteo .vc-meteo, .village.on-hives .vc-hives,
 .village.on-g-orphanage .vc-g-orphanage, .village.on-g-bakery .vc-g-bakery, .village.on-g-council .vc-g-council,
 .village.on-g-restaurant .vc-g-restaurant, .village.on-g-college .vc-g-college { display: inline; }
+.village.on-house1 .vc-house1, .village.on-house2 .vc-house2, .village.on-house3 .vc-house3,
+.village.on-house4 .vc-house4, .village.on-house5 .vc-house5 { display: inline; }
+/* captions under the places with a use: a small paper tag, shown once the village stands open */
+.village .v-label { opacity: 0; transition: opacity .3s ease; pointer-events: none; }
+.village:not(.v-asleep) .v-label.shown { opacity: 1; }
+.village .vl-tag { fill: #fffaf0; fill-opacity: .9; stroke: var(--vk); stroke-width: .7; }
+.village .vl-text { fill: var(--vk); font-family: var(--display, serif); font-weight: 700; letter-spacing: .02em; }
+.village.season-3 .vl-tag { fill: #f6f3ff; }
 
 /* houses fold flat behind the hill in front and stand up as it moves away */
 .village .pop { transform-box: fill-box; transform-origin: 50% 100%; }
@@ -160,3 +168,19 @@
 /* the sign up to the village goes as soon as the way there starts */
 .field-view .v-sign { transition: opacity .18s ease-out; }
 .field-view.v-moving .v-sign { opacity: 0; pointer-events: none; }
+
+/* ---------- the estate on the house screen: the same drawing kit as the village (src/art/village/estate.ts) ---------- */
+.estate-v { --vk: #3a2a1f; }
+.estate-v.season-3 { --vk: #33283a; }
+.estate-v .k { fill: none; stroke: var(--vk); stroke-linecap: round; stroke-linejoin: round; }
+.estate-v .kn { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.estate-v .kf { stroke: var(--vk); stroke-linejoin: round; }
+.estate-v .smoke .pf { fill: #f4efe6; stroke: #a79a86; stroke-width: .6; opacity: 0; animation: v-pf 3.6s ease-out infinite; }
+.estate-v .smoke .pf1 { animation-delay: 1.2s; } .estate-v .smoke .pf2 { animation-delay: 2.4s; }
+.estate-v .bee { animation: v-bee 2.4s ease-in-out infinite; }
+.estate-v .cups { transform-box: fill-box; transform-origin: 50% 50%; animation: v-spin 2.4s linear infinite; }
+.estate-v .vane { transform-box: fill-box; transform-origin: 50% 50%; animation: v-vane 5s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .estate-v .smoke .pf { animation: none; opacity: .8; }
+  .estate-v .bee, .estate-v .cups, .estate-v .vane { animation: none; }
+}

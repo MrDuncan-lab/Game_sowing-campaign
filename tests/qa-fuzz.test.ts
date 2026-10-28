@@ -18,7 +18,7 @@ function actions(s: G.GameState): G.Action[] {
   for (const c of s.hand) {
     if (D.CARDS[c.def].kind === 'seed') { const pl = G.placements(s, c); if (pl.length) out.push({ t: 'play', uid: c.uid, tiles: pick(pl).tiles }); }
     else { const tg = G.playableTargets(s, c.def); out.push({ t: 'play', uid: c.uid, tiles: tg.length ? [pick(tg)] : [cell()], row: Math.floor(r() * 6), col: Math.floor(r() * 6) }); }
-    out.push({ t: 'keepCard', uid: c.uid }, { t: 'exchangeCard', uid: c.uid }, { t: 'discardCard', uid: c.uid }, { t: 'compostCard', uid: c.uid });
+    out.push({ t: 'exchangeCard', uid: c.uid }, { t: 'discardCard', uid: c.uid }, { t: 'compostCard', uid: c.uid });
   }
   const [x, y] = cell();
   out.push({ t: 'drawCard' }, { t: 'claimCompost', uid: s.hand[0]?.uid }, { t: 'waterHand', tiles: [cell()] }, { t: 'weed', x, y }, { t: 'guard', x, y }, { t: 'shoo' }, { t: 'droneCrows' }, { t: 'talkKids' },
@@ -60,7 +60,7 @@ function check(s: G.GameState, where: string) {
   if ([...s.storage, ...s.yard].some((l) => !(l.qty >= 0))) bad('negative stock');
   if (G.storageUsed(s) > G.storageCap(s)) bad(`barn over capacity ${G.storageUsed(s)}>${G.storageCap(s)}`);
   if (s.hand.length > G.handMax(s)) bad(`hand ${s.hand.length}`);
-  if (G.keptCount(s) > G.keepSlots(s)) bad('too many kept');
+  if (s.hand.some((c) => c.keep)) bad('a stale «put aside» mark');
   if (s.team.length > G.workerSlots(s)) bad('team over slots');
   if (G.countStructure(s, 'greenhouse') > G.greenhousesAllowed(s) || G.countStructure(s, 'hive') > G.hivesAllowed(s)) bad('structures over stock');
   for (const t of s.tiles) {

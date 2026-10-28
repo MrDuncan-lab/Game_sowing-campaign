@@ -337,8 +337,10 @@ def window(r, wx, wy, s, frame, lit, shutters=False, kind='izba'):
         r.ellipse(wx, wy, ww * 1.6, wh * 1.2, P['win'], op=.22, blur=True)
 
 
-def izba(r, x, y, s=1.0, roof='tes', frame=None, shutters=False, yard=False, svetelka=False, porch=True, lit=False, chimney=True, smoke_on=None):
-    """A log house with its gable to the street: three windows, carved frames, bargeboards."""
+def izba(r, x, y, s=1.0, roof='tes', frame=None, shutters=False, yard=False, svetelka=False, porch=True, lit=False, chimney=True, smoke_on=None,
+         carved=True, gable_win=True):
+    """A log house with its gable to the street: three windows, carved frames (plain boards if not `carved`),
+    bargeboards, a round window in the gable (`gable_win`)."""
     P = r.P
     frame = frame or P['blue']
     Wf, Hw, G, D = 66 * s, 40 * s, 30 * s, 24 * s
@@ -407,10 +409,11 @@ def izba(r, x, y, s=1.0, roof='tes', frame=None, shutters=False, yard=False, sve
     if r.winter:
         r.shape([(x - ov - 2 * s, y - Hw + 1.5 * s), (x + Wf / 2, y - Hw - G - 3.2 * s), (x + Wf / 2 + 3 * s, y - Hw - G - 1 * s), (x - ov + 1 * s, y - Hw + 3 * s)], P['snow'], .6 * s)
     ay = y - Hw - G * .38
-    r.blob(x + Wf / 2, ay, 4 * s, 4 * s, P['white'], .6 * s, n=10, wob=.02)
-    r.blob(x + Wf / 2, ay, 2.4 * s, 2.4 * s, P['win'] if lit else P['glass'], .45 * s, n=9, wob=.02)
+    if gable_win:
+        r.blob(x + Wf / 2, ay, 4 * s, 4 * s, P['white'], .6 * s, n=10, wob=.02)
+        r.blob(x + Wf / 2, ay, 2.4 * s, 2.4 * s, P['win'] if lit else P['glass'], .45 * s, n=9, wob=.02)
     for i in range(3):
-        window(r, x + Wf * (i + .5) / 3, y - Hw * .55, s, frame, lit, shutters)
+        window(r, x + Wf * (i + .5) / 3, y - Hw * .55, s, frame, lit, shutters, kind='izba' if carved else 'plain')
     r.shape([(x - 1, y), (x + Wf + 1, y), (x + Wf + 1, y - 3 * s), (x - 1, y - 3 * s)], P['logs_s'], .7 * s + .1)
     if r.winter:
         r.blob(x + Wf * .5, y + 1, Wf * .56, 3 * s, P['snow'], .6 * s, n=14, wob=.08)

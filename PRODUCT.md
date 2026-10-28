@@ -23,7 +23,8 @@ Crops are cards with shapes, so planting is a spatial puzzle on a small field, p
 ## Operating Context
 
 - One week = one turn: the player places cards from a hand onto beds, then ends the week; the morning plays back growth, pests, weather, harvest.
-- Sections: Лаборатория · Дом · Поле (center, opens first) · Амбар · Заказы. The user decided sections are reached through the village; the current thin tab row stays.
+- The hand keeps every card not played (decision 28.10); each new week only tops it up to 7 from the deck. The planning notebook makes an exchange free of working days.
+- Sections: Лаборатория · Дом · Поле (center, opens first) · Амбар · Заказы, in a small tab row under the top bar (restored 28.10); the village buildings lead to the same sections. Places with a use carry small captions in the village.
 - Three farms (Черноземье, Кубанская пойма, Алтайская заимка) share fame.
 
 ## Capabilities and Constraints

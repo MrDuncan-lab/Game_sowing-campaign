@@ -187,6 +187,8 @@
 /* ---------- cards travel to and from the deck: a new card leaves the deck for its place in the fan,
    a card given away flies back into the deck (the slot keeps the fan's turn, so the path is drawn in it) ---------- */
 .farm .field-view .fan-slot.dealt .card { animation: card-from-deck 460ms cubic-bezier(.22, 1, .36, 1) var(--deal, 0ms) both; }
+/* the new week's cards wait in the deck while the night and its events play: dealt once, after them */
+.field-view .fan-slot.awaiting-deal { visibility: hidden; pointer-events: none; }
 @keyframes card-from-deck {
   0% { transform: translate(var(--from-x, -120px), var(--from-y, 40px)) rotate(-10deg) scale(.36); opacity: 0; }
   12% { opacity: 1; }

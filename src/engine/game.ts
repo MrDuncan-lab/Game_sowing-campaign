@@ -200,11 +200,10 @@ export const storageCap = (s: GameState) => BARN_CAP[Math.min(BARN_CAP.length - 
 export const storageUsed = (s: GameState) => s.storage.reduce((a, l) => a + l.qty, 0);
 export const storageKeepWeeks = (s: GameState, c: CropId) => (CROPS[c].perishable ?? 99) + (lvl(s, 'house') >= 2 ? 1 : 0) + (lvl(s, 'barn') >= 3 ? 2 : 0) + (wlvl(s, 'greenhouser') >= 3 ? 2 : 0);
 export const yardUsed = (s: GameState) => s.yard.reduce((a, l) => a + l.qty, 0);
-// The hand never grows: five cards always fit the fan. Each week brings a fresh hand; the planning track
-// lets the player put more cards aside for the next week.
+// The hand never grows past HAND_BASE: it always fits the fan. Cards not played stay in the hand from week to
+// week (decision of 28.10); each new week tops the hand up from the deck.
 export const handMax = (_s: GameState) => HAND_BASE;
-export const keepSlots = (s: GameState) => 1 + Math.min(2, lvl(s, 'planning'));
-export const keptCount = (s: GameState) => s.hand.filter((c) => c.keep && !c.temp).length;
+
 export const deckLimit = (s: GameState) => DECK_LIMIT[Math.min(4, lvl(s, 'house') - 1)];
 export const workerSlots = (s: GameState) => lvl(s, 'house');
 export const workshopSlots = (s: GameState) => 1 + (lvl(s, 'house') >= 4 ? 1 : 0) + (wlvl(s, 'mechanic') >= 3 ? 1 : 0);
@@ -823,12 +822,14 @@ export function weekDays(s: GameState): number {
   if (lvl(s, 'planning') >= 3) d += 1;
   return d;
 }
-// Every new week deals a fresh hand: one-off cards and the cards put aside stay, the rest go to the discard.
-export const weeklyDraw = (s: GameState) => Math.max(0, handMax(s) - s.hand.filter((c) => c.temp || c.keep).length);
+// Every new week tops the hand up: the cards not played stay, the deck brings the missing ones.
+export const weeklyDraw = (s: GameState) => Math.max(0, handMax(s) - s.hand.length);
 // Exchanges (and cards sent to the compost pit) share one weekly allowance.
 export const exchangesPerWeek = (s: GameState) => 1 + (lvl(s, 'planning') >= 2 ? 1 : 0) + (lvl(s, 'house') >= 5 ? 1 : 0) + (wlvl(s, 'foreman') >= 2 ? 1 : 0);
 export const exchangesUsed = (s: GameState) => (s.exchangeWeek === s.absWeek ? s.exchanges ?? 1 : 0);
-export const exchangeDays = (_s: GameState) => 1;
+// Cards stay in the hand until played, so the exchange is how a hand is refreshed: the planning notebook makes it
+// free of working days (28.10, replaces the notebook's «put a card aside»).
+export const exchangeDays = (s: GameState) => (lvl(s, 'planning') >= 1 ? 0 : 1);
 /** The card the next draw brings, when the planning headquarters lets the player see it (null: unknown). */
 export const nextDraw = (s: GameState): Card | null => (lvl(s, 'planning') >= 3 && s.draw.length ? s.draw[s.draw.length - 1] : null);
 export function drawCards(s: GameState, n: number) {
@@ -843,16 +844,11 @@ export function drawCards(s: GameState, n: number) {
     s.hand.push(c);
   }
 }
-// The new week's hand: one-off cards and up to keepSlots cards put aside stay, the rest go to the discard.
+// The new week's hand: every card not played stays where it is (28.10: «все карты остаются на руке»); the deck
+// tops the hand up to handMax. Saves made under the old «put aside» rule lose their marks.
 function dealWeek(s: GameState) {
-  let slots = keepSlots(s);
-  const stay: Card[] = [];
-  for (const c of s.hand) {
-    if (c.temp || (c.keep && slots-- > 0)) stay.push(c);
-    else { delete c.keep; s.discard.push(c); }
-  }
-  s.hand = stay;
-  drawCards(s, handMax(s) - s.hand.length);
+  for (const c of s.hand) delete c.keep;
+  drawCards(s, weeklyDraw(s));
 }
 export const deckList = (s: GameState): Card[] => [...s.hand, ...s.draw, ...s.discard];
 // A laboratory project reserves its permanent active slot until it returns.
@@ -1108,7 +1104,7 @@ function startWeek(s: GameState) {
   }
   if (newSeason) seasonStart(s);
   s.days = weekDays(s);
-  // Cards kept by the player survive every season and year boundary.
+  // Cards not played stay in the hand across every season and year boundary (dealWeek).
   // price noise
   const sigma = Math.min(0.12, 0.035 * (1 + 0.12 * (s.year - 1)));
   const nw = world(s, 'noise', s.absWeek);
@@ -1123,7 +1119,7 @@ function startWeek(s: GameState) {
     const beds = s.strikes.filter((st) => st.week === s.absWeek && st.kind !== 'weedsurge').flatMap((st) => strikeVictims(s, st));
     for (const [x, y] of beds.slice(0, 2)) if (!isGuarded(s, x, y)) s.guards.push([x, y]);
   }
-  // Every week brings a fresh hand of five.
+  // Every week tops the hand up from the deck.
   dealWeek(s);
 }
 
@@ -2188,7 +2184,6 @@ export type Action =
   | { t: 'guide'; lesson: 'rotate' | 'off' }
   | { t: 'drawCard' }
   | { t: 'discardCard'; uid: number }
-  | { t: 'keepCard'; uid: number }
   | { t: 'exchangeCard'; uid: number }
   | { t: 'compostCard'; uid: number }
   | { t: 'claimCompost'; uid?: number }
@@ -2320,22 +2315,12 @@ export function apply(state: GameState, a: Action): GameState {
       deliverTemporary(s,'compost'); s.compostReady=false; s.compostTick=0;
       break;
     }
-    case 'keepCard': {
-      const c = s.hand.find((h) => h.uid === a.uid);
-      if (!c) fail('Карты нет в руке');
-      if (c.temp) fail('Разовая карта и так останется в руке');
-      if (c.keep) delete c.keep;
-      else {
-        if (keptCount(s) >= keepSlots(s)) fail(keepSlots(s) === 1 ? 'Отложить можно одну карту' : `Отложить можно не больше ${keepSlots(s)} карт`);
-        c.keep = true;
-      }
-      break;
-    }
     case 'discardCard': {
+      // a working day; a one-off card is simply used up
       const i = s.hand.findIndex((c) => c.uid === a.uid);
       if (i < 0) fail('Карты нет в руке');
       needDay(s);
-      for (const c of s.hand.splice(i, 1)) { delete c.keep; s.discard.push(c); }
+      for (const c of s.hand.splice(i, 1)) { delete c.keep; if (!c.temp) s.discard.push(c); }
       break;
     }
     case 'waterHand': {

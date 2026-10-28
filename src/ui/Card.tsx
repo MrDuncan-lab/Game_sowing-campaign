@@ -243,7 +243,7 @@ export function FanCard({ s, card, selected, blocked, onClick, rot = 0, onPointe
     <button
       type="button"
       data-card-uid={'uid' in card?String(card.uid):undefined}
-      class={`card p2 kind-${d.kind}${card.temp ? ' temp' : ' perm'}${card.keep ? ' kept' : ''}${selected ? ' selected' : ''}${blocked ? ' blocked' : ''}${mini ? ' mini' : ''}`}
+      class={`card p2 kind-${d.kind}${card.temp ? ' temp' : ' perm'}${selected ? ' selected' : ''}${blocked ? ' blocked' : ''}${mini ? ' mini' : ''}`}
       style={{ ['--tint' as string]: tint, ['--ink2' as string]: ink }}
       onClick={onClick}
       onPointerDown={onPointerDown}
@@ -266,7 +266,6 @@ export function FanCard({ s, card, selected, blocked, onClick, rot = 0, onPointe
       {minT !== null && <span class={`p2-temp${minT >= 12 ? ' warm' : minT <= 3 ? ' cold' : ''}`} title={`Растёт, когда почва не холоднее ${minT}°`}>от {minT > 0 ? '+' : ''}{minT}°</span>}
       {price > 0 && !noPrice && <span class={`p2-price${d.kind === 'seed' && s.money < price ? ' debt' : ''}`}>{rub(price)} ₽</span>}
       {selected && rotatable && turnHint && <span class="p2-turn" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M18.5 9.5 A7 7 0 1 0 19 14" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/><path d="M19.5 4.5 V10 H14" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>}
-      {card.keep && <span class="pc-keep" title="Отложена на следующую неделю" aria-hidden="true"><PinIcon /></span>}
       <TraitBadges traits={card.traits} />
       {!!card.extra?.length && <span class="up-tag" title={`Селекция: +${card.extra.length} кл. (до ${maxExtra(s)})`}>+{card.extra.length}</span>}
       {card.temp && <span class="temp-card-tag">разовая</span>}
@@ -302,7 +301,7 @@ export function CardView({
     <button
       type="button"
       data-card-uid={'uid' in card?String(card.uid):undefined}
-      class={`card pc kind-${d.kind}${card.temp ? ' temp' : ' perm'}${card.keep ? ' kept' : ''}${selected ? ' selected' : ''}${blocked ? ' blocked' : ''}${compact ? ' compact' : ''}${mini ? ' mini' : ''}`}
+      class={`card pc kind-${d.kind}${card.temp ? ' temp' : ' perm'}${selected ? ' selected' : ''}${blocked ? ' blocked' : ''}${compact ? ' compact' : ''}${mini ? ' mini' : ''}`}
       onClick={onClick}
       onPointerDown={onPointerDown}
       aria-pressed={selected}
@@ -335,7 +334,6 @@ export function CardView({
       {/* the corner index, as on a playing card: days, what it is and its footprint — the part a neighbour never covers */}
       <span class="pc-index" aria-hidden="true"><CardArt def={card.def} size={20} /></span>
       <span class="pc-shape" aria-hidden="true"><MiniShape card={card} /></span>
-      {card.keep && <span class="pc-keep" title="Отложена на следующую неделю" aria-hidden="true"><PinIcon /></span>}
       <span class="gem gem-day" aria-hidden="true">{card.def === 'fertilizer' ? `${days}+` : days}</span>
       {price > 0 && !noPrice && <span class={`gem gem-money${d.kind === 'seed' && s.money < price ? ' debt' : ''}`} aria-hidden="true">{rub(price)}</span>}
       {minT !== null && <span class={`pc-temp${minT >= 12 ? ' warm' : minT <= 3 ? ' cold' : ''}`} title={`Растёт, когда почва не холоднее ${minT}°`}>от {minT > 0 ? '+' : ''}{minT}°</span>}

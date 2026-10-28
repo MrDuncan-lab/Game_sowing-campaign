@@ -7,7 +7,7 @@ import {readWeekResume,saveWeekResume,clearWeekResume,type WeekResume} from './w
 import { PrecisionLoupe } from './PrecisionLoupe';
 import { greenhouseYieldReady, hiveYieldReady, neighbors8, inGrid, wlvl } from '../engine/game';
 
-import { exchangeProblem, compostProblem, compostWeeks, growthMoisture, frostKills, wetCanals, idx, thievesBlocked, handMax as maxHand, exchangesUsed, exchangesPerWeek, nextDraw, keepSlots, keptCount, yardUsed, storageUsed, storageCap, deliverProblem } from '../engine/game';
+import { exchangeProblem, compostProblem, compostWeeks, growthMoisture, frostKills, wetCanals, idx, thievesBlocked, handMax as maxHand, exchangesUsed, exchangesPerWeek, nextDraw, exchangeDays, yardUsed, storageUsed, storageCap, deliverProblem } from '../engine/game';
 import type { JSX } from 'preact';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { CARDS, CROPS, GRID, ORGS, SEASON_NAMES, TRACKS, TRAITS } from '../engine/data';
@@ -24,7 +24,7 @@ import type { Episode } from '../engine/calendar';
 import { Icon } from '../art/icons';
 import { CropIcon } from '../art/crops';
 import type { FarmerAction } from '../art/farm';
-import { CardArt, CardView, FanCard, PinIcon, cardPrice, cardStat, seedWeeks } from './Card';
+import { CardArt, CardView, FanCard, cardPrice, cardStat, seedWeeks } from './Card';
 import { CardReadout } from './CardReadout';
 import { CELL, FarmerPos, FarmerState, Flock, Floater, FxKind, Highlight, Lens, PAD, QueueMark, Scene, TileFx, FIELD_YARD, camera, farmerXY, BuildView, FX_LIFE, FX_CONTACT, type SkyView } from './Scene';
 import { skyTokens, raidSigns, fogText, type SkyToken, type SkyKind } from './skyForecast';
@@ -243,7 +243,7 @@ function JournalNow(c: JournalCtx & {compact?:boolean}) {
       <h3 class="page-title">Эта неделя</h3>
       {quiet && <div class="book-calm"><SproutDoodle /><p>Срочных дел нет. Можно спокойно сажать и ухаживать за грядками.</p></div>}
       {deadlines.map(d => <p class="ink-line bad" key={d.text}>{d.text}</p>)}
-      {s.weekInSeason === seasonLen(s) && <p class="ink-line">После этой недели сменится сезон. Отложенные карты останутся в руке, остальные уйдут в колоду.</p>}
+      {s.weekInSeason === seasonLen(s) && <p class="ink-line">После этой недели сменится сезон. Несыгранные карты останутся в руке.</p>}
       {crowsOpen(s) && <div class="book-note"><Icon name="crow" size={30} /><div class="grow"><b>Вороны на поле</b><p>Задержат рост молодых всходов или поклюют созревающий урожай. Теплицы и пугала защищают.</p></div><div class="book-acts"><Btn small disabled={s.days < 1 ? 'Нужен рабочий день' : null} onClick={() => act({ t: 'shoo' })}>Отогнать · 1 д.</Btn>{sortiesPerSeason(s) > s.dronesUsed && <Btn small onClick={() => act({ t: 'droneCrows' })}>Дрон</Btn>}</div></div>}
       {risky && outlook && <div class="book-note"><Icon name="thermo" size={28} /><div class="grow"><b>К концу этой недели</b>{outlook.frost > 0 && <p class="bad">Мороз угрожает {outlook.frost} грядкам. Проверьте укрытия.</p>}{outlook.dying > 0 && <p class="bad">Без полива погибнет {outlook.dying} грядок.</p>}{outlook.threats.map(t => <p class={t.guard === 'дрон' ? 'up' : 'bad'}>{t.name}: {t.beds} гр. · {t.guard === 'дрон' ? 'защитит дрон' : t.guard ? 'урожай пострадает; страховка выплатит деньги' : 'нужна защита'}.</p>)}</div><div class="book-acts"><Btn small onClick={onClose}>На поле</Btn></div></div>}
       {scouting && <div class="book-note"><Icon name="kids" size={28} /><div class="grow"><b>У поля крутятся дети</b><p>{thievesBlocked(s) ? 'Ребята из интерната приглядываются к спелым грядкам, но пёс и сторож их не подпустят.' : 'Ребята из интерната приглядываются к спелым грядкам. На следующей неделе могут прийти за урожаем — укройте грядки или заведите пса либо сторожа.'}</p></div></div>}
@@ -1461,9 +1461,12 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
     const add = [...now].filter((u) => !before.has(u));
     if (add.length) setDealt((f) => [...f.filter((u) => now.has(u)), ...add]);
   }, [handKey]);
+  // The new week's cards wait in the deck while the night and its events play (they are not shown in the fan
+  // yet), then each flies once to its place; the cards that stayed in the hand do not move.
+  const dealing = night === 'off' && !weekPlaying;
   // a dealt card starts on the deck and flies to its place in the fan
   useLayoutEffect(() => {
-    if (!dealt.length) return;
+    if (!dealt.length || !dealing) return;
     const deck = viewRef.current?.querySelector('.dock-top .deck-svg')?.getBoundingClientRect();
     if (!deck) return;
     for (const uid of dealt) {
@@ -1473,14 +1476,15 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
       el.style.setProperty('--from-x', `${Math.round(deck.left + deck.width / 2 - (r.left + r.width / 2))}px`);
       el.style.setProperty('--from-y', `${Math.round(deck.top + deck.height / 2 - (r.top + r.height / 2))}px`);
     }
-  }, [dealt.join(',')]);
+  }, [dealt.join(','), dealing]);
   useEffect(() => {
-    if (night !== 'off' || !dealt.length) return;
+    if (!dealing || !dealt.length) return;
     const t = clock.schedule(() => setDealt([]), 1500 + dealt.length * 110);
     return () => clock.cancel(t);
-  }, [night, dealt.join(',')]);
+  }, [dealing, dealt.join(',')]);
 
   const hand = s.hand;
+  const exDays = exchangeDays(s);
   // a phone held sideways leaves little height: smaller cards
   const short = typeof window !== 'undefined' && window.innerHeight < 700;
   const fan = fanLayout(fanW, hand.length, hand.findIndex((c) => c.uid === selected), hand.findIndex((c) => c.uid === peek), short, room.grow);
@@ -1731,9 +1735,9 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
             const why=exchangeProblem(s,card?.uid); if(why)return say(why);
             if(card) {if(act({t:'exchangeCard',uid:card.uid}))setSelected(null);}
             else {closeContext();setBuild(null);setLens(null);setTools(false);setExchanging(exchanging==='card'?false:'card');}
-          }} title="Колода. Обменять одну карту за 1 день · раз в неделю" aria-label={`Колода: ${deckCount(s)} карт. Обменять карту за 1 день`}>
+          }} title={`Колода. Обменять карту ${exDays ? 'за 1 день' : 'без рабочего дня'}`} aria-label={`Колода: ${deckCount(s)} карт. Обменять карту ${exDays ? 'за 1 день' : 'без рабочего дня'}`}>
             <DeckPile n={deckCount(s)} />
-            <small>{deckLock?<><Icon name="lock" size={11}/> обмен</>:exchangesUsed(s)>=exchangesPerWeek(s)?'обменено':<>обмен<br/>1 д.</>}</small>
+            <small>{deckLock?<><Icon name="lock" size={11}/> обмен</>:exchangesUsed(s)>=exchangesPerWeek(s)?'обменено':<>обмен<br/>{exDays ? `${exDays} д.` : 'без дня'}</>}</small>
           </button>
           {/* the toolbox: one round button; the journal, the lenses and the buildings unfold from it */}
           <div class={`toolbox${tools ? ' open' : ''}${lensMenu ? ' lenses' : ''}`} role="toolbar" aria-label="Инструменты поля">
@@ -1769,7 +1773,7 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
           </div>
           <div class="dock-say" role="status">
             {weekPlaying ? <FieldVoice s={s} active={lifeActive&&pageVisible} cue={weekCue} quiet={true} testReplay={testing} onOpen={()=>openSheet('journal')} fallback={<span />}/>
-              : exchanging ? <><span class="say-two"><strong>{exchanging==='compost'?'Что заменит компост?':'Какую обменять?'}</strong><small>{exchanging==='compost'?'карта уйдёт в сброс':'коснитесь карты · 1 день'}</small></span><button class="exchange-cancel" onClick={()=>setExchanging(false)}>Отмена</button></>
+              : exchanging ? <><span class="say-two"><strong>{exchanging==='compost'?'Что заменит компост?':'Какую обменять?'}</strong><small>{exchanging==='compost'?'карта уйдёт в сброс':`коснитесь карты${exDays ? ' · 1 день' : ''}`}</small></span><button class="exchange-cancel" onClick={()=>setExchanging(false)}>Отмена</button></>
               : watering ? <><strong>Полив {watering.length}/{handWaterMax(s)}</strong><small>отметьте соседние грядки</small></>
               : build ? <><span class="say-two"><strong>{buildItem ? BUILD_NAMES[buildItem].name : 'Постройки'}</strong><small>{buildItem === 'scarecrow' ? 'коснитесь угла грядки' : moveFrom || buildItem ? 'коснитесь подсветки' : 'коснитесь постройки'}</small></span>
                   <button type="button" class="say-done" onClick={() => { setBuild(null); setMoveFrom(null); }}>Готово</button></>
@@ -1781,15 +1785,10 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
               : <FieldVoice onOrder={onOrder ?? (()=>onGo('orders'))} testReplay={testing} s={s} active={sceneActive} cue={sceneCue} quiet={true} onOpen={() => openSheet('journal')} fallback={<span />}/>}
           </div>
           {card && def && !weekPlaying && !exchanging && !watering && !build && !lens && <div class="card-tools dock-card-tools">
-            {!card.temp && s.phase === 'week' && <button type="button" class={`icon-btn keep-btn${card.keep ? ' on' : ''}`} aria-pressed={!!card.keep}
-              title={card.keep ? 'Отложена на следующую неделю' : `Отложить на следующую неделю: ${keptCount(s)} из ${keepSlots(s)}`}
-              aria-label={card.keep ? 'Не откладывать карту' : 'Отложить карту на следующую неделю'}
-              onClick={() => { if (!card.keep && keptCount(s) >= keepSlots(s)) return say(keepSlots(s) === 1 ? 'Отложить можно одну карту: снимите булавку с другой' : `Отложить можно не больше ${keepSlots(s)} карт`); act({ t: 'keepCard', uid: card.uid }); }}><PinIcon /></button>}
             <button type="button" class="icon-btn tool-x" onClick={() => setSelected(null)} aria-label="Отменить выбор">✕</button>
           </div>}
         </div>
         <div class={`hand-row${weekPlaying ? ' upcoming' : ''}`} style={{ ['--cw' as string]: `${fan.cw}px` }}>
-          {weekPlaying && <small class="hand-next">Карты новой недели</small>}
           <div
             class={`hand fan${fan.tight ? ' tight' : ''}${peek !== null ? ' peeking' : ''}`}
             ref={(el) => { fanRef.current = el; }}
@@ -1803,7 +1802,7 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
                 <div
                   role="listitem"
                   data-uid={c.uid}
-                  class={`fan-slot${drag?.uid === c.uid && drag.active ? ' slot-empty' : ''}${night === 'off' && dealt.includes(c.uid) ? ' dealt' : ''}${peek === c.uid ? ' peek' : ''}${compostArrival===c.uid?' compost-arriving':''}`}
+                  class={`fan-slot${drag?.uid === c.uid && drag.active ? ' slot-empty' : ''}${dealt.includes(c.uid) ? (dealing ? ' dealt' : ' awaiting-deal') : ''}${peek === c.uid ? ' peek' : ''}${compostArrival===c.uid?' compost-arriving':''}`}
                   style={{ left: `${slot.left}px`, zIndex: slot.z, ['--rot' as string]: `${slot.rot}deg`, ['--tx' as string]: `${slot.tx}px`, ['--dy' as string]: `${slot.dy}px`, ['--sc' as string]: String(slot.sc), ['--deal' as string]: `${Math.max(0, dealt.indexOf(c.uid)) * 110}ms` }}
                 >
                   <FanCard s={s} card={c} rot={selected === c.uid ? rot : 0} selected={selected === c.uid} blocked={cardBlockReason(s, c)} onClick={() => { if (justDragged.current) { justDragged.current = false; return; } pickCard(c.uid); }} onPointerDown={(e) => onCardPointerDown(e, c.uid)} />

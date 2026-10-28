@@ -9,17 +9,17 @@ function quiet(){const s=testFixture('fertilizers');testDate(s,1);s.money=100000
 function plant(s:G.GameState,x:number,y:number,id:D.CropId,grown:number){const t=G.tile(s,x,y);t.owned=true;t.crop={id,pid:s.nextPid++,mult:1,bonus:0,planted:s.absWeek,grown};return t.crop;}
 const cards=(s:G.GameState)=>[...s.hand,...s.draw,...s.discard,...s.spare];
 
-test('saved hand survives all regional season and year boundaries with spare slots or full hand',()=>{
+test('the whole unplayed hand survives every regional season and year boundary, topped up from the deck',()=>{
  for(const loc of D.LOCATION_IDS)for(let season=0;season<4;season++)for(const full of [false,true]){
   let s=testFixture('normal',loc);testDate(s,season);s.money=100000;s.plan=[];
   const n=D.LOCATIONS[loc].seasons[season]-1;s.week+=n;s.absWeek+=n;s.weekInSeason+=n;
   if(full)while(s.hand.length<G.handMax(s))G.drawCards(s,1);else s.discard.push(...s.hand.splice(2));
   s.hand[0]={...s.hand[0],traits:['fast'],extra:[[9,9]],temp:true};
-  // a one-off card and a card put aside stay; every other card goes to the discard and a fresh hand is dealt
-  s.hand[1]={...s.hand[1],keep:true};
-  const held=structuredClone(s.hand.slice(0,2)),rest=s.hand.slice(2).map(c=>c.uid),count=G.deckCount(s);s=G.endWeek(JSON.parse(JSON.stringify(s)));
+  // 28.10 · every card not played stays exactly as it was (one-off cards too); the deck only tops the hand up
+  s.hand[1]={...s.hand[1],keep:true}; // a mark from an older save is dropped
+  const held=structuredClone(s.hand),count=G.deckCount(s);delete held[1].keep;s=G.endWeek(JSON.parse(JSON.stringify(s)));
   for(const c of held)assert.deepEqual(s.hand.find(x=>x.uid===c.uid),c);
-  for(const uid of rest)assert.ok(!s.hand.some(c=>c.uid===uid)||s.hand.find(c=>c.uid===uid)?.keep===undefined);
+  assert.deepEqual(s.hand.slice(0,held.length).map(c=>c.uid),held.map(c=>c.uid),'the cards that stay keep their places');
   assert.ok(s.hand.length<=G.handMax(s));assert.equal(G.deckCount(s),count);
  }
 });
@@ -54,7 +54,7 @@ test('one paid side job per week survives save/load and does not charge rejected
  const first=s.hand[0].uid,second=s.hand[1].uid;const earned=G.sidejobPay(s),cash=s.money;
  s=G.apply(s,{t:'play',uid:first});assert.equal(s.money,cash+earned);
  s=JSON.parse(JSON.stringify(s));const snapshot=JSON.stringify(s);assert.throws(()=>G.apply(s,{t:'play',uid:second}),/неделе/);assert.equal(JSON.stringify(s),snapshot);
- s=G.apply(s,{t:'keepCard',uid:second});s=G.endWeek(s);assert.ok(s.hand.some(c=>c.uid===second));assert.equal(G.cardBlockReason(s,s.hand.find(c=>c.uid===second)!),null);
+ s=G.endWeek(s);assert.ok(s.hand.some(c=>c.uid===second));assert.equal(G.cardBlockReason(s,s.hand.find(c=>c.uid===second)!),null);
 });
 test('acceptance never shifts offer deadline; ignored offers expire without relationship penalty',()=>{
  let s=quiet();const org=D.LOCATIONS[s.loc].orgs[0];const st=s.orgs[org]!;

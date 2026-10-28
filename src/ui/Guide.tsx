@@ -199,7 +199,7 @@ function hint(t:TutorialSession,tab:TabId,visitLate=false,village:VillageMode='f
             :{text:'Посадка полита. Завершите неделю — она подрастёт.',target:q('.end-week'),gesture:'tap',more:`Для заказа нужно ${need.qty} ед.: ${name.toLowerCase()}. Проверяйте влагу каждую неделю.`,check};
         }
         if(need.seed){
-          if(s.days<1)return{text:'Рабочие дни закончились. Завершите неделю.',target:q('.end-week'),gesture:'tap',more:`Семена отложены и останутся в руке. Утром посадите «${name}».`,check};
+          if(s.days<1)return{text:'Рабочие дни закончились. Завершите неделю.',target:q('.end-week'),gesture:'tap',more:`Семена останутся в руке. Утром посадите «${name}».`,check};
           const e=hand(need.seed.uid),rot=Number(q('.field-view')?.getAttribute('data-card-rotation')??0);
           const at=([[1,1],[2,1],[3,1],[1,2],[2,2],[3,2],[1,3],[2,3],[3,3]] as [number,number][]).find(([x,y])=>!plantBlock(s,need.seed!,shapeTiles(need.seed!,x,y,rot)));
           if(selected(e)&&at)return{text:`Посадите «${name}» на свободные грядки.`,target:bed(...at),gesture:'tap',area:shapeTiles(need.seed,...at,rot).map(([x,y])=>bed(x,y)).filter((e):e is Element=>!!e),more:'Потом полейте посадку и завершите неделю.',check};
@@ -208,7 +208,7 @@ function hint(t:TutorialSession,tab:TabId,visitLate=false,village:VillageMode='f
         }
         const ready=s.days>0&&s.exchangeWeek!==s.absWeek;
         return ready?{text:q('.exchange-cancel')?'Выберите ненужную карту для обмена.':'Нужных семян в руке нет. Нажмите обмен на колоде.',target:q('.exchange-cancel')?hand(s.hand[0]?.uid):button('Обменять карту'),gesture:'tap',more:`В учебной колоде следующими подготовлены семена: ${name.toLowerCase()}. Обмен стоит один рабочий день.`,check}
-          :{text:'Завершите неделю — обмен снова станет доступен.',target:q('.end-week'),gesture:'tap',more:`Нужны семена: ${name.toLowerCase()}. В новой неделе придут свежие карты, и обмен снова станет доступен.`,check};
+          :{text:'Завершите неделю — обмен снова станет доступен.',target:q('.end-week'),gesture:'tap',more:`Нужны семена: ${name.toLowerCase()}. В новой неделе рука доберётся из колоды, и обмен снова станет доступен.`,check};
       }
       if(need&&need.have>=need.qty&&!t.delivered)return tab==='orders'
         ?{text:'Урожай готов. Сдайте учебный заказ.',target:button('Сдать')??button('Взять заказ'),gesture:'tap',more:t.orderNotice,check}

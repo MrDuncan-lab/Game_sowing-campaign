@@ -67,9 +67,9 @@ export const TUTORIAL_SEED = 'atlas-tutorial-v4';
 const at = (i: number): [number, number] => [i % 6, Math.floor(i / 6)];
 const after = (t: TutorialSession, step: TutorialStep) => TUTORIAL_STEPS.indexOf(t.step) > TUTORIAL_STEPS.indexOf(step);
 const same = ([a, b]: [number, number], [x, y]: [number, number]) => a === x && b === y;
-// the order the deck deals after the first week: the second week's four cards, then the third week's five
-// (the hail lesson's «Укрытие» among them), the rest below
-const DEAL_ORDER = ['water', 'seed_radish', 'seed_potato', 'seed_onion', 'shelter', 'seed_carrot', 'seed_potato', 'seed_cabbage', 'seed_wheat', 'mulch', 'fertilizer'];
+// the order the deck deals after the first week. Cards not played stay in the hand, so the first week's water
+// is still there: the second week adds three seeds to it, the third the hail lesson's «Укрытие», the rest below
+const DEAL_ORDER = ['seed_radish', 'seed_potato', 'seed_onion', 'shelter', 'seed_carrot', 'seed_potato', 'seed_cabbage', 'seed_wheat', 'mulch', 'fertilizer'];
 
 export function createTutorial(): TutorialSession {
   const s = newGame({ loc: 'chernozem', seed: TUTORIAL_SEED });
@@ -223,16 +223,37 @@ function lessonWeather(s: GameState) {
   s.strikes = []; s.candidates = s.team.some((w) => w.id === 'foreman') ? [] : ['foreman'];
   for (const o of Object.values(s.orgs)) if (!o.active && !o.offer) o.wait = 999;
 }
-// A new week deals the full hand; in the first weeks the lesson puts the cards it does not need yet back on
-// top of the deck, in the same order, so they come next week.
+// the card each week's lesson works with: the water card in week 2, the cover for the hail in week 3
+const WEEK_NEEDS: Record<number, string[]> = { 2: ['water'], 3: ['shelter'] };
+// A new week tops the hand up (cards not played stay, 28.10); in the first weeks the lesson puts the newest cards
+// it does not need yet back on top of the deck, in the same order, so they come next week. Whatever the learner
+// played before, the card the week's lesson needs is in the hand: it is fetched from the deck in place of the
+// newest ordinary card, so the hand keeps its size and the deck its cards.
 function shapeHand(t: TutorialSession) {
-  const s = t.farm, size = HAND_BY_WEEK[TUTORIAL_WEEK[t.step]];
-  if (!size) return;
-  const ordinary = s.hand.filter((c) => !c.temp);
-  if (ordinary.length <= size) return;
-  const back = ordinary.slice(size);
-  s.hand = s.hand.filter((c) => !back.includes(c));
-  s.draw.push(...back.reverse());
+  const s = t.farm, week = TUTORIAL_WEEK[t.step], size = HAND_BY_WEEK[week];
+  if (size) {
+    const ordinary = s.hand.filter((c) => !c.temp);
+    if (ordinary.length > size) {
+      const back = ordinary.slice(size);
+      s.hand = s.hand.filter((c) => !back.includes(c));
+      s.draw.push(...back.reverse());
+    }
+  }
+  for (const def of WEEK_NEEDS[week] ?? []) {
+    if (s.hand.some((c) => c.def === def)) continue;
+    let card: Card | undefined;
+    for (const pile of [s.draw, s.discard]) {
+      const i = pile.map((c) => c.def === def).lastIndexOf(true);
+      if (i >= 0) { card = pile.splice(i, 1)[0]; break; }
+    }
+    if (!card) continue;
+    const full = s.hand.filter((c) => !c.temp).length >= (size ?? handMax(s));
+    if (full) {
+      const j = s.hand.map((c) => !c.temp && !(WEEK_NEEDS[week] ?? []).includes(c.def)).lastIndexOf(true);
+      if (j >= 0) s.draw.push(...s.hand.splice(j, 1));
+    }
+    s.hand.push(card);
+  }
 }
 // the practice order asks for what the farm actually has: beans if there are two, else another crop
 function practiceCrop(s: GameState): CropId {
@@ -259,8 +280,7 @@ export function practiceNeed(t: TutorialSession) {
 function preparePracticeSeed(t: TutorialSession) {
   if (t.step !== 'practice' || t.delivered) return;
   const need = practiceNeed(t);
-  // the seed already in hand waits for the morning: it is put aside so the new week's hand keeps it
-  if (need?.seed && need.have < need.qty && !need.plants.length && !need.seed.keep) { const c = t.farm.hand.find((c) => c.uid === need.seed!.uid); if (c && !c.temp && t.farm.hand.filter((h) => h.keep).length < 1 + Math.min(2, t.farm.levels.planning ?? 0)) c.keep = true; }
+  // the seed already in hand simply waits for the morning: cards not played stay in the hand (28.10)
   if (!need || need.have >= need.qty || need.plants.length || need.seed) return;
   // Only this fixed lesson controls the next draw. Reuse an existing UID;
   // exchange still costs the normal day and replaces a real card.
