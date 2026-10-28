@@ -2,6 +2,7 @@
 // gets back what the folded farm earned; a bankrupt mortgaged home is worked off on expeditions. Pure functions:
 // they take states and return new ones, the UI stores them.
 import { CROPS, DECK_MIN, EXPEDITION_IDS, ExpeditionId, LOCATIONS, PetId, CropId, SEED_BANK_OK, TRACKS, WORKERS, WorkerId } from './data';
+// (bedsUsed and workerSlots: a returning worker may overfill the house; hiring then waits for a bed)
 import {
   Card, GameError, GameState, Worker, addMats, deckCount, deckList, infl, money, newGame, note, ownedTiles, plural, raiseSoil, returnCards,
   round2, wakeHome, workerSlots, bedsUsed, lvl,
@@ -72,19 +73,20 @@ export function recallCart(home: GameState): GameState {
   if (!home.away) return home;
   const h = clone(home);
   returnCards(h, h.away!.cards);
-  if (h.away!.worker && !h.team.some((w) => w.id === h.away!.worker!.id)) welcome(h, h.away!.worker!);
+  if (h.away!.worker) welcome(h, h.away!.worker!);
   note(h, 'Обоз вернулся ни с чем.', 'info');
   delete h.away;
   return h;
 }
+/** the worker of the cart comes home to the bed they left: with their level (trained on the expedition too), even if
+ *  the house filled up meanwhile — then nobody new is hired until a bed is free */
 function welcome(h: GameState, w: Worker) {
-  if (bedsUsed(h) < workerSlots(h)) h.team.push({ id: w.id, level: w.level, away: 0 });
-  else {
-    // no free bed: the worker waits among the candidates and can be taken back for free
-    if (!h.freeHire.includes(w.id)) h.freeHire.push(w.id);
-    if (!h.candidates.includes(w.id)) h.candidates.push(w.id);
-    note(h, `${WORKERS[w.id].name} вернулся, но кровати нет: ждёт среди кандидатов, наём бесплатный.`, 'info');
-  }
+  const there = h.team.find((x) => x.id === w.id);
+  if (there) { there.level = Math.max(there.level, w.level); delete there.leaves; delete there.free; return; }
+  h.team.push({ id: w.id, level: w.level, away: 0 });
+  h.candidates = h.candidates.filter((x) => x !== w.id);
+  h.freeHire = h.freeHire.filter((x) => x !== w.id);
+  if (bedsUsed(h) > workerSlots(h)) note(h, `${WORKERS[w.id].name} вернулся на своё место. В доме тесно: новых не нанять, пока не освободится кровать.`, 'info');
 }
 
 /** a finished expedition (folded or bankrupt) hands over to the home it came from: cash first pays an arrest's debt,
@@ -120,7 +122,7 @@ export function settleRun(home: GameState | null, run: GameState): { home: GameS
   addMats(h, res.mats);
   returnCards(h, res.cards);
   const w = res.worker ?? h.away!.worker;
-  if (w && !h.team.some((x) => x.id === w.id)) welcome(h, w);
+  if (w) welcome(h, w);
   const name = LOCATIONS[run.loc].name;
   delete h.away;
   if (h.phase === 'arrest' && h.arrest) {
@@ -137,6 +139,19 @@ export function settleRun(home: GameState | null, run: GameState): { home: GameS
       note(h, 'Дом ушёл с молотка. Пряхин записал покупку в тетрадь.', 'bad');
       return { home: h, run: done };
     } else note(h, `${name}: в счёт долга ${money(pay)}. Осталось ${money(h.arrest.debt)}, вылазок — ${h.arrest.runs}.`, 'bad');
+  } else if (h.phase === 'gameover' && h.over?.work) {
+    // the home went bankrupt while the cart was away: what the cart brings pays the bank first, and a debt paid in
+    // full wakes the house (next spring) without an arrest
+    const pay = Math.min(cash, h.over.work);
+    cash = round2(cash - pay);
+    const left = round2(h.over.work - pay);
+    if (left <= 0) {
+      h = wakeHome(h);
+      note(h, `${name}: обоз закрыл долг банку (${money(pay)}). Дом спасён.`, 'good');
+    } else {
+      h.over = { ...h.over, work: left };
+      note(h, `${name}: в счёт долга ${money(pay)}, осталось ${money(left)}.`, 'bad');
+    }
   }
   if (cash > 0) { h.money = round2(h.money + cash); h.earned = round2(h.earned + cash); }
   const back = [cash > 0 ? money(cash) : '', ...lines, res.cards.length ? `${res.cards.length} ${plural(res.cards.length, 'карта', 'карты', 'карт')}` : ''].filter(Boolean);

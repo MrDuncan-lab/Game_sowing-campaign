@@ -393,17 +393,21 @@ test('the cart: up to three cards, one worker and some cash leave the home; fold
   assert.equal(lone.run.run!.result!.settled, true);
 });
 
-test('a bankrupt expedition sends home one poor find and the cart, no cash', () => {
+test('a bankrupt expedition sends home the cart, no cash, and after a year one poor find', () => {
   let home = G.newGame({ loc: 'chernozem', seed: 'HOME-3' }); home.money = 100;
   const { home: h, run } = M.depart(home, 'rent', M.departureOffers(home, 'rent')[0], { uids: [], cash: 0 }, 'RUN-BUST', { glory: 0 });
   let r = run; r.money = 0; r.storage = [];
   while (r.phase === 'week') r = G.endWeek(r);
   assert.equal(r.phase, 'shortfall');
+  const later = structuredClone(r); later.run!.autumns = 1;
   r = G.apply(r, { t: 'giveUp' });
-  assert.equal(r.run!.result!.bankrupt, true); assert.equal(r.run!.result!.cash, 0); assert.equal(r.run!.result!.loot.length, 1);
+  // bankrupt before the first autumn: the cart comes back, no find (no free loot loop)
+  assert.equal(r.run!.result!.bankrupt, true); assert.equal(r.run!.result!.cash, 0); assert.equal(r.run!.result!.loot.length, 0);
   const H = M.settleRun(h, r)!.home!;
-  assert.equal(H.money, 100 + Math.round((R.LOOT[r.run!.result!.loot[0]].cash ?? 0) * G.infl(H.year)));
+  assert.equal(H.money, 100);
   assert.ok(H.feed.some((f) => /почти пустым/.test(f.text)));
+  // after a year's work one poor find
+  assert.equal(G.apply(later, { t: 'giveUp' }).run!.result!.loot.length, 1);
 });
 
 // ---------------------------------------------------------------- the home: mortgage, buyout, tax, inventory, arrest
@@ -530,4 +534,42 @@ test('saves: a played run and an old home save are valid; an old home is bought 
   const fresh = G.newGame({ loc: 'chernozem', seed: 'SAVE-NEW' });
   assert.equal(G.ensureV3(fresh), fresh);
   void hashSeed;
+});
+
+// ---------------------------------------------------------------- review 28.10: the cart's edge cases
+test('the cart: giving up before the first autumn sends no find; a bankrupt home is saved by the cart; the worker keeps their level and is never sold at the fair', () => {
+  const home0 = G.newGame({ loc: 'chernozem', seed: 'EDGE-1' });
+  home0.money = 200; home0.team = [{ id: 'agronomist', level: 3, away: 0 }];
+  const { home, run } = M.depart(home0, 'rent', M.departureOffers(home0, 'rent')[0], { uids: [], worker: 'agronomist', cash: 0 }, 'EDGE-RUN', { glory: 0 });
+  // give up at once: the cart only
+  const quit = G.apply(run, { t: 'giveUp' });
+  assert.deepEqual(quit.run!.result!.loot, []);
+  // meanwhile the home went bankrupt; the cart's cash pays the bank first and wakes the house when it is enough
+  let h = structuredClone(home); h.money = 0; h.storage = [];
+  while (h.phase === 'week') h = G.endWeek(h);
+  h = G.apply(h, { t: 'giveUp' });
+  assert.ok(h.over!.work! > 0);
+  const rich = structuredClone(quit); rich.run!.result = { ...rich.run!.result!, cash: h.over!.work! + 50, bankrupt: false };
+  const saved = M.settleRun(h, rich)!.home!;
+  assert.equal(saved.phase, 'week');
+  assert.ok(saved.money >= 49);
+  const poor = structuredClone(quit); poor.run!.result = { ...poor.run!.result!, cash: 5, bankrupt: false };
+  const still = M.settleRun(h, poor)!.home!;
+  assert.equal(still.phase, 'gameover'); assert.equal(still.over!.work, G.round2(h.over!.work! - 5)); assert.equal(still.money, h.money);
+  // the worker comes back with their level even into a full house, and the hired namesake does not replace them
+  const full = structuredClone(home); full.team = [{ id: 'foreman', level: 1, away: 0 }];
+  const back = M.settleRun(full, quit)!.home!;
+  assert.ok(back.team.some((w) => w.id === 'agronomist' && w.level === 3));
+});
+test('the worker away with the cart is never offered by the fair and cannot be hired', () => {
+  const home0 = G.newGame({ loc: 'chernozem', seed: 'EDGE-2' });
+  home0.money = 200; home0.team = [{ id: 'agronomist', level: 2, away: 0 }];
+  let { home } = M.depart(home0, 'rent', M.departureOffers(home0, 'rent')[0], { uids: [], worker: 'agronomist', cash: 0 }, 'EDGE-RUN-2', { glory: 0 });
+  home.money = 1e5; home.candidates = ['agronomist'];
+  assert.throws(() => G.apply(home, { t: 'hire', id: 'agronomist' }), /уехал с обозом/);
+  for (let i = 0; i < 40; i++) {
+    home = G.endWeek(home);
+    if (home.phase === 'shortfall') home = G.apply(home, { t: 'pay' });
+    assert.ok(!home.fair!.lots.some((l) => l.kind === 'worker' && l.worker === 'agronomist'), `week ${home.absWeek}`);
+  }
 });

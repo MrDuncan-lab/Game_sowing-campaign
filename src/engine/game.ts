@@ -3273,6 +3273,7 @@ export function apply(state: GameState, a: Action): GameState {
       if (!WORKERS[a.id]) fail('Нет такого работника');
       if (!s.candidates.includes(a.id)) fail('Этого человека нет среди кандидатов');
       if (s.team.some((w) => w.id === a.id)) fail('Уже в команде');
+      if (s.away?.worker?.id === a.id) fail('Этот работник уехал с обозом');
       if (bedsUsed(s) >= workerSlots(s)) fail('Все места в доме заняты: нужен дом побольше');
       spend(s, hirePrice(s, a.id), 'build');
       s.team.push({ id: a.id, level: 1, away: 0 });
@@ -3394,7 +3395,9 @@ export function apply(state: GameState, a: Action): GameState {
       const short = s.due ? round2(Math.max(0, s.due.amount - s.money)) : 0;
       // v3 §3.3 · a mortgaged home that fails a payment can be worked off: the debt is the shortfall + 20%
       const work = isMortgaged(s) && s.due && short > 0 ? Math.round(short * 1.2) : 0;
-      if (s.run) s.run.result = runResult(s, [worstLoot(s)], true);
+      // a bankrupt expedition sends home its cart and, after a year's work, one poor find (before that: nothing,
+      // or giving up at once would be a free loot loop)
+      if (s.run) s.run.result = runResult(s, s.run.autumns >= 1 ? [worstLoot(s)] : [], true);
       s.phase = 'gameover';
       s.over = { reason: s.due ? `Не хватило ${money(short)} на платёж «${s.due.name}»` : 'Ферма закрыта', ...(work ? { work } : {}) };
       feed(s, 'Ферма обанкротилась.', 'bad');
@@ -3537,7 +3540,8 @@ function openFair(s: GameState) {
   }
   for (let i = 0; i < plan.mat; i++) matLot();
   for (let i = 0; i < plan.worker; i++) {
-    const pool = WORKER_IDS.filter((id) => !s.team.some((x) => x.id === id) && !s.candidates.includes(id));
+    // the worker away with the cart is still the home's: never offered to someone else
+    const pool = WORKER_IDS.filter((id) => !s.team.some((x) => x.id === id) && !s.candidates.includes(id) && s.away?.worker?.id !== id);
     if (!pool.length) { matLot(); continue; }
     const id = pool[randInt(w, pool.length)];
     const wlevel = rand(w) < 0.15 ? 2 : 1;
@@ -3603,6 +3607,7 @@ export function fairBuyProblem(s: GameState, l: FairLot | undefined): string | n
   }
   if (l.kind === 'worker') {
     if (s.team.some((x) => x.id === l.worker)) return 'Уже в команде';
+    if (s.away?.worker?.id === l.worker) return 'Этот работник уехал с обозом';
     if (bedsUsed(s) >= workerSlots(s)) return 'Нет свободной кровати';
   }
   if (s.money < fairPayNow(l) - 1e-9) return `Нужно ${money(fairPayNow(l))}`;

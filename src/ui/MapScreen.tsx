@@ -125,9 +125,10 @@ export function MapScreen({ profile, farms, onOpen, onNew, onTest, onTutorial, o
   onDepart?: (loc: ExpeditionId, offer: PlotOffer, cart: Cart, seed: string) => void; departFor?: { loc: ExpeditionId; key: number } | null }) {
   const [pick, setPick] = useState<LocationId | null>(null);
   const [confirm, setConfirm] = useState<LocationId | null>(null);
-  const [depart, setDepart] = useState<ExpeditionId | null>(departFor?.loc ?? null);
+  const [depart, setDepart] = useState<ExpeditionId | null>(null);
   const [replace, setReplace] = useState<ExpeditionId | null>(null);
-  useEffect(() => { if (departFor) setDepart(departFor.loc); }, [departFor?.key]);
+  // a departure asked from elsewhere (the arrest, a finished farm) asks the same questions as one from the map
+  useEffect(() => { if (departFor) askDepart(departFor.loc); }, [departFor?.key]);
   const home = farms.chernozem && farms.chernozem.phase !== 'gameover' ? farms.chernozem : null;
   // why a cart cannot leave for `l` now (null: it can)
   const departWhy = (l: ExpeditionId) => !home ? 'Сначала заведите родной дом в Черноземье: обоз собирается из дома' : departProblem(home, l, profile.glory);

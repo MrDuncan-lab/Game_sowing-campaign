@@ -3,11 +3,11 @@ import {TestLab} from './TestLab';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { EXPEDITION_IDS, type ExpeditionId, type LocationId } from '../engine/data';
 import { Action, GameError, GameState, apply, newGame, randomSeed, startArrest } from '../engine/game';
-import { depart as departRun, settleRun, type Cart } from '../engine/meta';
+import { depart as departRun, recallCart, settleRun, type Cart } from '../engine/meta';
 import type { PlotOffer } from '../engine/run';
 import { FarmScreen } from './FarmScreen';
 import { MapScreen } from './MapScreen';
-import { Profile, allFarms, checkSaveSession, loadFarm, loadProfile, persistenceStatus, profileRecoveryRequired, recordEnd, resetPersistenceSession, saveFarm, saveProfile, subscribePersistence, syncFarm, syncProfile, writeSessionStorage } from './persist';
+import { Profile, allFarms, checkSaveSession, hasFarmData, loadFarm, loadProfile, persistenceStatus, profileRecoveryRequired, recordEnd, resetPersistenceSession, saveFarm, saveProfile, subscribePersistence, syncFarm, syncProfile, writeSessionStorage } from './persist';
 import { saveSession } from './saveSession';
 import { Intro } from './Intro';
 import { Btn, Sheet } from './common';
@@ -83,12 +83,14 @@ function OwnedApp() {
   function settle(run: GameState): GameState {
     if (!run.run || run.phase !== 'gameover' || run.run.result?.settled) return run;
     const home = farmsRef.current.chernozem ?? loadFarm('chernozem');
+    // a home slot that exists but cannot be read now (corrupt, storage out) is not «no home»: settle later
+    if (!home && hasFarmData('chernozem')) return run;
     const r = settleRun(home, run);
     if (!r) return run;
     if (r.home && r.home !== home) {
       if (!saveFarm(r.home)) return run;
       const p = syncProfile(profRef.current, r.home);
-      commitProfile(r.home.phase === 'gameover' ? recordEnd(p, r.home) : p);
+      commitProfile(r.home.phase === 'gameover' && !r.home.over?.work ? recordEnd(p, r.home) : p);
       setFarms({ ...farmsRef.current, chernozem: r.home });
     }
     return r.run;
@@ -111,13 +113,22 @@ function OwnedApp() {
     if (next.loc === 'chernozem') farmsRef.current = { ...farmsRef.current, chernozem: next };
     return next;
   }
-  // an expedition that ended while the game was closed between two saves settles on start
+  // on start: an expedition that ended while the game was closed between two saves settles; a cart whose
+  // expedition never got written (or was lost) comes back home with its cards and worker
   useEffect(() => {
     for (const l of EXPEDITION_IDS) {
       const f = farmsRef.current[l];
       if (!f?.run || f.phase !== 'gameover' || f.run.result?.settled) continue;
       const done = settle(f);
       if (done !== f && saveFarm(done)) setFarms({ ...farmsRef.current, [l]: done });
+    }
+    const home = farmsRef.current.chernozem;
+    const away = home?.away;
+    const slot = away ? farmsRef.current[away.loc] : undefined;
+    // the slot holds another farm, or nothing at all (an unreadable slot waits: it may still be recovered)
+    if (home && away && (slot ? slot.seed !== away.seed : !hasFarmData(away.loc))) {
+      const back = recallCart(home);
+      if (saveFarm(back)) setFarms({ ...farmsRef.current, chernozem: back });
     }
   }, []);
   /** the cart leaves the home: the home is stored without what it took, the expedition starts */
@@ -139,7 +150,12 @@ function OwnedApp() {
     }
     if (!saveFarm(pair.home)) return;
     setFarms({ ...farmsRef.current, chernozem: pair.home });
-    if (!saveFarm(pair.run, true) && previous) return;
+    if (!saveFarm(pair.run, true) && previous) {
+      // the expedition could not be written over the old farm: the cart turns back
+      const back = recallCart(pair.home);
+      if (saveFarm(back)) setFarms({ ...farmsRef.current, chernozem: back });
+      return;
+    }
     show(pair.run, true);
   }
   /** a bankrupt mortgaged home goes to work off its debt: the house is under arrest */
@@ -235,7 +251,7 @@ function OwnedApp() {
         fast={profile.settings.fast}
         onFast={() => commitProfile({ ...profRef.current, settings: { ...profRef.current.settings, fast: !profRef.current.settings.fast } })}
         onMap={toMap}
-        onRestart={() => startNew(s.loc)}
+        onRestart={() => s.loc === 'chernozem' ? startNew(s.loc) : (toMap(), setDepartFor({ loc: s.loc as ExpeditionId, key: Date.now() }))}
         onHome={() => { toMap(); open('chernozem'); }}
         onWork={goWork}
         onExpedition={(l) => { toMap(); setDepartFor({ loc: l, key: Date.now() }); }}
