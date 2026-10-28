@@ -13,6 +13,15 @@ const sceneLines:Record<SceneCue['kind'],Omit<Remark,'key'>>={
  thieves:{who:'zina',text:'Воры тащат урожай! Пёс или сторож защитят грядки.',critical:true},
  drone:{who:'vera',text:'Дрон отгоняет вредителей от грядок.'},
  geese:{who:'zina',text:'Гуси щиплют сорняки.'},
+ bear:{who:'egor',text:'Медведя отогнали. Хромой ушёл к ручью — ульи целы.',critical:true},
+ boars:{who:'ivan',text:'Кабанов отогнали от поля. Хозяйство цело!',critical:true},
+ fire:{who:'egor',text:'Огонь прошёл по краю поля. Политые до краёв грядки не горят.',critical:true},
+ buyout:{who:'marat',text:'Залог снят: дом ваш. Поздравляю — от души!',critical:true},
+};
+// a bear or boars that got through: the line says what happened and what stops them
+const beastHit:Partial<Record<SceneCue['kind'],Omit<Remark,'key'>>>={
+ bear:{who:'egor',text:'Медведь прошёл по пасеке и грядкам. Караул у ульев или сторож его остановят.',critical:true},
+ boars:{who:'ivan',text:'Кабаны перерыли край поля. Караул, пёс или сторож их остановят.',critical:true},
 };
 export function FieldVoice({s,active,onOpen,onOrder,cue=null,fallback,quiet=false,testReplay=false}:{s:GameState;active:boolean;onOpen:()=>void;onOrder?:(org:OrgId)=>void;cue?:SceneCue|null;fallback?:ComponentChildren;quiet?:boolean;testReplay?:boolean}){
  const[remark,setRemark]=useState<Remark|null>(null);
@@ -25,7 +34,8 @@ export function FieldVoice({s,active,onOpen,onOrder,cue=null,fallback,quiet=fals
   const weekKey=`posevnaya.voice.${s.loc}.${s.seed}.${s.absWeek}${testReplay&&cue?`.replay.${cue.id}`:''}`;
   let seen=readVoices(weekKey);
   let next:Remark|undefined;
-  if(cue){const base=sceneLines[cue.kind];
+  if(cue){const hit=(cue.kind==='bear'||cue.kind==='boars')&&s.lastReport?.lost.some(l=>l.startsWith(cue.kind==='bear'?'Медведь':'Кабаны'));
+   const base=(hit&&beastHit[cue.kind])||sceneLines[cue.kind];
    // an earlier trouble got to the children's beds first (see collisions.ts)
    const causes=new Set((cue.misses??[]).map(m=>m.cause).filter(c=>c!=='gone'));
    const first=causes.size===1?{frost:'Мороз успел',dry:'Засуха успела',locust:'Саранча успела'}[[...causes][0] as 'frost'|'dry'|'locust']:causes.size?'Ненастья успели':'';

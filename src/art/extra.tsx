@@ -252,6 +252,76 @@ export const moreIcons: Record<string, () => JSX.Element> = {
       <circle cx={24} cy={24} r={7} fill="#6b4a32" {...S} />
       <circle cx={26} cy={22} r={2} fill="#fff" />
     </g>
+  ),  // v3 · the expeditions: their hazards, the finds of a run, the cart
+  bear: () => (
+    <g>
+      <circle cx={13} cy={13} r={5.5} fill="#7a4e2c" {...S} />
+      <circle cx={35} cy={13} r={5.5} fill="#7a4e2c" {...S} />
+      <ellipse cx={24} cy={26} rx={15} ry={14} fill="#8a5a33" {...S} />
+      <ellipse cx={24} cy={32} rx={7.5} ry={6} fill="#d9a466" {...S} stroke-width={1.6} />
+      <ellipse cx={24} cy={29.5} rx={2.8} ry={2} fill={P.ink} />
+      <circle cx={18} cy={23} r={1.8} fill={P.ink} />
+      <circle cx={30} cy={23} r={1.8} fill={P.ink} />
+      <path d="M22 35 q2 1.6 4 0" fill="none" {...S} stroke-width={1.4} />
+    </g>
+  ),
+  boar: () => (
+    <g>
+      <path d="M8 28 Q8 14 24 14 Q38 14 42 26 L44 30 Q42 34 36 33 Q30 40 20 39 Q8 38 8 28z" fill="#7d6a5a" {...S} />
+      <path d="M14 15 l-2 -6 l6 4 M24 14 l1 -6 l3 6" fill="#5e4e42" {...S} stroke-width={1.6} />
+      <ellipse cx={41} cy={30} rx={4} ry={3.4} fill="#c9a08a" {...S} stroke-width={1.6} />
+      <path d="M36 33 q2 4 6 3" fill="none" stroke="#fff6e0" stroke-width={2.4} stroke-linecap="round" />
+      <circle cx={31} cy={23} r={1.8} fill={P.ink} />
+      <path d="M12 38 V43 M30 38 V43" {...S} stroke-width={3} />
+    </g>
+  ),
+  fire: () => (
+    <g>
+      <path d="M24 4 Q34 16 32 24 Q38 20 37 14 Q46 26 40 36 Q35 44 24 44 Q12 44 9 34 Q6 24 15 16 Q15 24 19 26 Q16 14 24 4z" fill="#f08a24" {...S} />
+      <path d="M24 20 Q31 28 29 34 Q27 40 24 40 Q18 40 18 34 Q18 28 24 20z" fill={P.gold} {...S} stroke-width={1.6} />
+    </g>
+  ),
+  wind: () => (
+    <g fill="none" {...S} stroke-width={3}>
+      <path d="M6 18 H30 q8 0 8 -6 q0 -6 -6 -6 q-5 0 -6 5" />
+      <path d="M6 26 H38 q6 0 6 6 q0 6 -6 6 q-5 0 -6 -5" />
+      <path d="M6 34 H22" />
+      <circle cx={40} cy={10} r={3} fill={P.gold} stroke-width={1.6} />
+    </g>
+  ),
+  jar: () => (
+    <g>
+      <rect x={14} y={6} width={20} height={6} rx={2} fill={P.red} {...S} />
+      <path d="M14 12 H34 Q38 16 38 22 V38 Q38 42 34 42 H14 Q10 42 10 38 V22 Q10 16 14 12z" fill="#e3f6ff" {...S} />
+      <circle cx={19} cy={28} r={4.2} fill="#7fb24a" {...S} stroke-width={1.4} />
+      <circle cx={28} cy={32} r={4.2} fill="#7fb24a" {...S} stroke-width={1.4} />
+      <circle cx={24} cy={22} r={3} fill={P.red} {...S} stroke-width={1.4} />
+    </g>
+  ),
+  note: () => (
+    <g>
+      <rect x={6} y={14} width={36} height={20} rx={3} fill={P.red} {...S} />
+      <path d="M14 14 V34 M20 14 V34 M26 14 V34 M32 14 V34" {...S} stroke-width={1.4} />
+      <rect x={4} y={16} width={6} height={16} rx={1.5} fill={P.woodLight} {...S} stroke-width={1.6} />
+      <rect x={38} y={16} width={6} height={16} rx={1.5} fill={P.woodLight} {...S} stroke-width={1.6} />
+      <circle cx={7} cy={24} r={1.2} fill={P.ink} /><circle cx={41} cy={24} r={1.2} fill={P.ink} />
+    </g>
+  ),
+  cart: () => (
+    <g>
+      <path d="M6 22 H38 L35 32 H9z" fill={P.woodLight} {...S} />
+      <path d="M10 22 Q12 10 24 10 Q36 10 36 22" fill="#f2e3b3" {...S} />
+      <path d="M38 24 L46 20" {...S} stroke={P.woodDark} stroke-width={3} />
+      <circle cx={14} cy={36} r={6} fill={P.wood} {...S} /><circle cx={14} cy={36} r={1.6} fill={P.ink} />
+      <circle cx={31} cy={36} r={6} fill={P.wood} {...S} /><circle cx={31} cy={36} r={1.6} fill={P.ink} />
+    </g>
+  ),
+  tent: () => (
+    <g>
+      <path d="M6 40 L24 8 L42 40z" fill="#c9a04a" {...S} />
+      <path d="M24 8 L18 40 H30z" fill="#7c4f2b" {...S} />
+      <path d="M3 40 H45" {...S} />
+    </g>
   ),
 };
 
@@ -648,6 +718,39 @@ const EMBLEM: Record<string, () => JSX.Element> = {
     <g>
       <circle cx={24} cy={24} r={17} fill="#fff" {...S} />
       <path d="M20 12 H28 V20 H36 V28 H28 V36 H20 V28 H12 V20 H20z" fill="#5aa0a8" {...S} stroke-width={1.6} />
+    </g>
+  ),  // Заречье
+  samovar: () => (
+    <g>
+      <path d="M18 8 H30 L28 12 H20z" fill={P.goldDark} {...S} />
+      <path d="M14 14 Q12 14 12 18 V30 Q12 36 24 36 Q36 36 36 30 V18 Q36 14 34 14z" fill={P.gold} {...S} />
+      <path d="M36 22 H42 V26 H38" fill="none" {...S} />
+      <path d="M12 20 Q6 20 6 26 Q6 30 10 30" fill="none" {...S} />
+      <path d="M16 36 L14 42 H34 L32 36" fill={P.goldDark} {...S} />
+      <circle cx={24} cy={24} r={4} fill="#fff4dc" {...S} stroke-width={1.4} />
+    </g>
+  ),
+  book: () => (
+    <g>
+      <path d="M6 12 Q16 8 24 13 Q32 8 42 12 V38 Q32 34 24 39 Q16 34 6 38z" fill="#fffaf0" {...S} />
+      <path d="M24 13 V39" {...S} />
+      <path d="M30 18 q4 -6 8 -3 q-1 6 -8 3z" fill={P.leaf} {...S} stroke-width={1.4} />
+      <path d="M11 20 H19 M11 25 H19 M29 26 H37 M29 31 H37" {...S} stroke-width={1.4} />
+    </g>
+  ),
+  abacus: () => (
+    <g>
+      <rect x={8} y={8} width={32} height={32} rx={3} fill={P.woodLight} {...S} />
+      <path d="M12 16 H36 M12 24 H36 M12 32 H36" {...S} stroke-width={1.4} />
+      {[[15, 16], [19, 16], [29, 16], [17, 24], [27, 24], [31, 24], [15, 32], [21, 32], [33, 32]].map(([x, y]) => <circle cx={x} cy={y} r={2.6} fill={P.red} {...S} stroke-width={1.2} />)}
+    </g>
+  ),
+  mask: () => (
+    <g>
+      <path d="M8 12 Q24 6 40 12 Q40 32 24 40 Q8 32 8 12z" fill="#fff4dc" {...S} />
+      <path d="M14 20 q4 -3 8 0 M26 20 q4 -3 8 0" fill="none" {...S} />
+      <path d="M16 28 Q24 36 32 28" fill="#b0477a" {...S} />
+      <path d="M38 6 l3 5 l5 1 l-4 3 l1 5 l-5 -3" fill={P.gold} {...S} stroke-width={1.2} />
     </g>
   ),
 };

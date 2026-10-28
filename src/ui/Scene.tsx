@@ -31,7 +31,7 @@ import { KidsPeek } from '../art/people';
 import { ScoutingKids } from '../art/scouts';
 import { P } from '../art/palette';
 import { SkyBand, SKY_H } from '../art/sky';
-import { HailShadow, FloodMark, WeedSeeds, BeetleScouts } from '../art/omens';
+import { HailShadow, FloodMark, WeedSeeds, BeetleScouts, BearTracks, BoarFurrows, FireSmoke } from '../art/omens';
 import type { RaidSign, SkyToken } from './skyForecast';
 
 export type Lens = 'water' | 'soil' | 'temp' | null;
@@ -1014,9 +1014,15 @@ export function Scene({
                 ) : danger.get(k)!.kind === 'hail' ? <HailShadow faint={!danger.get(k)!.now} />
                   : danger.get(k)!.kind === 'flood' ? <FloodMark />
                   : danger.get(k)!.kind === 'weedsurge' ? <WeedSeeds landing />
+                  : danger.get(k)!.kind === 'bear' ? <BearTracks />
+                  : danger.get(k)!.kind === 'boars' ? <BoarFurrows />
+                  : danger.get(k)!.kind === 'fire' ? <FireSmoke />
                   : null)}
                 {showWarnings && !hidePlants && omen.get(k) === 'beetle' && crop && <BeetleScouts />}
                 {showWarnings && !hidePlants && omen.get(k) === 'weedsurge' && !crop && <WeedSeeds />}
+                {showWarnings && !hidePlants && !danger.has(k) && omen.get(k) === 'bear' && <BearTracks faint />}
+                {showWarnings && !hidePlants && !danger.has(k) && omen.get(k) === 'boars' && <BoarFurrows faint />}
+                {showWarnings && !hidePlants && !danger.has(k) && omen.get(k) === 'fire' && <FireSmoke faint />}
                 {lens && t.owned && !t.canal && <LensCell s={s} x={x} y={y} lens={lens} minT={highlight.minT} m={mLens} />}
                 {inArea && <rect x={4} y={6} width={92} height={88} rx={12} class={`area-overlay${highlight.areaKind ? ` k-${highlight.areaKind}` : ''}`} pointer-events="none" />}
                 {build?.removable.has(k) && (

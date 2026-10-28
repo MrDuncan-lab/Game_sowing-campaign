@@ -54,3 +54,101 @@ button.link:focus-visible { outline: 2px solid var(--leaf-dark); outline-offset:
   .lot-side { flex-direction: row; justify-content: flex-end; align-items: center; flex-wrap: wrap; }
   .lot-price { margin-right: auto; text-align: left; padding-left: 58px; }
 }
+
+/* v3 · the expeditions' raids on the field (FarmLife scenes) and in the morning replay (Morning.tsx) */
+.event-bear .beast-route, .event-boars .beast-route { animation: beast-cross var(--scene-ms, 5.2s) ease-in-out both; }
+@keyframes beast-cross {
+  0% { transform: translate(-90px, var(--scene-mid)); }
+  45% { transform: translate(calc(var(--scene-width) * .45), var(--scene-mid)); }
+  60% { transform: translate(calc(var(--scene-width) * .45), var(--scene-mid)); }
+  100% { transform: translate(calc(var(--scene-width) + 90px), calc(var(--scene-mid) - 30px)); }
+}
+.event-boars .beast-face { animation: boar-trot .4s ease-in-out infinite alternate; }
+@keyframes boar-trot { from { transform: translateY(0); } to { transform: translateY(-4px); } }
+.fire-puff { animation: fire-puff var(--scene-ms, 5.2s) ease-out both; transform-box: fill-box; transform-origin: 50% 50%; }
+.fire-puff.p1 { animation-delay: .3s; } .fire-puff.p2 { animation-delay: .6s; } .fire-puff.p3 { animation-delay: .9s; }
+@keyframes fire-puff { 0% { opacity: 0; transform: translateY(20px) scale(.5); } 30% { opacity: .45; } 100% { opacity: 0; transform: translateY(-60px) scale(1.6); } }
+.buyout-banner { animation: buyout-pop var(--scene-ms, 5.2s) ease-out both; }
+@keyframes buyout-pop { 0% { opacity: 0; transform-origin: center; } 10% { opacity: 1; } 85% { opacity: 1; } 100% { opacity: 0; } }
+.buyout-text { font: 800 26px/1 var(--display, serif); fill: #3f2a1d; }
+.buyout-banner .confetti { animation: confetti-fall 2.2s ease-in infinite; }
+@keyframes confetti-fall { 0% { transform: translateY(0) rotate(0); opacity: 1; } 100% { transform: translateY(90px) rotate(200deg); opacity: 0; } }
+.m-bear-walk, .m-boar-run { animation: m-beast var(--m-dur, 2.6s) ease-in-out both; animation-delay: var(--d, 0ms); }
+@keyframes m-beast { 0% { transform: translate(-60px, 20px); opacity: 0; } 20% { opacity: 1; } 55% { transform: translate(0, 0); } 80% { opacity: 1; } 100% { transform: translate(70px, -10px); opacity: 0; } }
+.m-bear-art .m-step, .m-boar-art .m-crack { animation: m-mark var(--m-dur, 2.6s) ease-out both; }
+@keyframes m-mark { 0%, 30% { opacity: 0; } 50%, 85% { opacity: .8; } 100% { opacity: 0; } }
+.m-flame { animation: m-flame var(--m-dur, 2.7s) ease-in-out both; transform-box: fill-box; transform-origin: 50% 100%; }
+@keyframes m-flame { 0% { transform: scale(.2); opacity: 0; } 25%, 55% { transform: scale(1); opacity: 1; } 75% { transform: scale(1.1); opacity: .6; } 100% { transform: scale(.4); opacity: 0; } }
+.m-ash { animation: m-ash var(--m-dur, 2.7s) ease-in both; }
+@keyframes m-ash { 0%, 50% { opacity: 0; } 70%, 90% { opacity: 1; } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .beast-route, .beast-face, .fire-puff, .buyout-banner, .buyout-banner .confetti, .m-bear-walk, .m-boar-run, .m-flame, .m-ash, .m-bear-art .m-step, .m-boar-art .m-crack { animation: none !important; }
+  .event-bear .beast-route, .event-boars .beast-route { transform: translate(calc(var(--scene-width) * .45), var(--scene-mid)); }
+}
+
+/* v3 · the departure: three plots, the cart, the road */
+.plot-offers { display: flex; flex-direction: column; gap: 10px; margin: 8px 0 12px; }
+.plot-offer { appearance: none; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px; align-items: start; text-align: left; padding: 10px; border-radius: 14px; border: 2px solid var(--hair); background: var(--paper); color: var(--ink); font: inherit; cursor: pointer; }
+.plot-offer.on { border-color: var(--leaf-dark); background: #eef6dc; box-shadow: 0 0 0 3px rgba(62, 122, 42, .18); }
+.plot-offer:focus-visible { outline: 3px solid var(--leaf-dark); outline-offset: 2px; }
+.po-body { display: flex; flex-direction: column; gap: 3px; min-width: 0; font-size: 14px; line-height: 1.3; }
+.po-body > b { font-family: var(--display, serif); font-size: 1.05rem; }
+.po-plus { color: var(--leaf-dark); }
+.po-minus { color: #9a3b2a; }
+.po-find { display: flex; gap: 6px; align-items: flex-start; margin-top: 3px; padding-top: 5px; border-top: 1px dashed var(--hair); color: var(--ink-soft); }
+.po-find svg { flex: none; margin-top: 1px; }
+.plot-map { display: block; }
+@media (max-width: 380px) { .plot-offer { grid-template-columns: 1fr; } .plot-map { width: 96px; height: 96px; } }
+.cart-h { display: flex; align-items: baseline; gap: 8px; margin: 12px 0 4px; font-family: var(--display, serif); font-size: 1rem; }
+.cart-h small { color: var(--ink-mute); font-family: var(--ui); font-weight: 600; }
+.cart-cards { flex-wrap: nowrap; overflow-x: auto; overflow-y: visible; padding: 14px 4px 10px; scroll-snap-type: x proximity; }
+.cart-cards .grid-card { flex: none; scroll-snap-align: start; }
+.cart-workers { display: flex; flex-wrap: wrap; gap: 8px; }
+.cart-worker { appearance: none; display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 72px; padding: 6px 8px; border-radius: 12px; border: 2px solid var(--hair); background: var(--paper); font: inherit; color: var(--ink); cursor: pointer; }
+.cart-worker.on { border-color: var(--leaf-dark); background: #eef6dc; }
+.cart-worker small { font-size: 12px; }
+.cw-none { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: var(--paper-2); font-weight: 800; }
+.cart-cash { display: flex; align-items: center; gap: 10px; }
+.cart-cash input { flex: 1; }
+.departure-scene { position: fixed; inset: 0; z-index: 90; display: grid; place-content: center; justify-items: center; gap: 18px; background: rgba(40, 28, 18, .92); color: #fff8e6; text-align: center; font-family: var(--ui); }
+.departure-scene p { display: flex; flex-direction: column; gap: 4px; margin: 0; }
+.departure-scene b { font-family: var(--display, serif); font-size: 1.5rem; }
+.dep-road { position: relative; width: min(80vw, 420px); height: 90px; border-bottom: 6px dashed #dfc794; overflow: hidden; }
+.dep-cart { position: absolute; bottom: 0; left: 0; animation: dep-roll 1.9s ease-in both; }
+@keyframes dep-roll { 0% { transform: translateX(-80px); } 100% { transform: translateX(min(80vw, 420px)); } }
+
+/* the visitor at the camp: the order meeting's layout, with answers */
+.meeting-person.vector { display: block; width: 180px; height: auto; bottom: 10px; left: 0; }
+.visit-choices { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+.visit-choice { appearance: none; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 10px 12px; border-radius: 12px; border: 2px solid var(--frame); background: linear-gradient(#fff8e4, #f6e7c2); color: var(--ink); font: inherit; text-align: left; cursor: pointer; box-shadow: 0 2px 0 rgba(63, 42, 29, .25); }
+.visit-choice b { font-size: 1rem; }
+.visit-choice small { color: var(--ink-soft); font-size: 13px; line-height: 1.3; }
+.visit-choice.off { opacity: .6; cursor: not-allowed; border-color: var(--hair); }
+.visit-choice:focus-visible { outline: 3px solid var(--leaf-dark); outline-offset: 2px; }
+.guest-chip { position: absolute; left: 50%; top: calc(110px + env(safe-area-inset-top, 0px)); transform: translateX(-50%); z-index: 30; display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 999px; border: 2px solid var(--frame); background: #fff6dc; color: var(--ink); font: 700 14px/1 var(--ui); box-shadow: 0 3px 8px rgba(63, 42, 29, .25); cursor: pointer; animation: guest-bob 2.4s ease-in-out infinite; }
+@keyframes guest-bob { 0%, 100% { transform: translate(-50%, 0); } 50% { transform: translate(-50%, -3px); } }
+
+/* the run in the barn: condition, finds, folding */
+.run-cond { display: flex; gap: 10px; align-items: flex-start; }
+.run-cond > span { display: flex; flex-direction: column; gap: 2px; font-size: 14px; line-height: 1.3; }
+.run-cond b { font-family: var(--display, serif); font-size: 1.05rem; }
+.relic-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: 14px; line-height: 1.3; }
+.relic-list li { display: flex; gap: 8px; align-items: flex-start; }
+.relic-chip { display: inline-flex; align-items: center; gap: 3px; margin: 0 2px; padding: 1px 8px 1px 4px; border-radius: 999px; background: var(--paper-2); border: 1px solid var(--hair); font-size: 12.5px; vertical-align: middle; }
+.run-guest { display: flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 10px; background: #fde7b8; font-size: 14px; }
+.fold-sum { display: flex; flex-direction: column; gap: 3px; padding: 8px 10px; border-radius: 10px; background: var(--paper-2); font-size: 14px; }
+.fold-sum span { display: flex; justify-content: space-between; gap: 10px; }
+.fold-sum b { font-variant-numeric: tabular-nums lining-nums; }
+.fold-sum .good { color: var(--leaf-dark); } .fold-sum .bad { color: #9a3b2a; }
+.loot-offers { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; margin: 6px 0 12px; }
+.loot-card { appearance: none; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 8px; border-radius: 12px; border: 2px solid var(--hair); background: var(--paper); color: var(--ink); font: inherit; text-align: center; cursor: pointer; }
+.loot-card small { color: var(--ink-soft); font-size: 12.5px; line-height: 1.25; }
+.loot-card.on { border-color: var(--leaf-dark); background: #eef6dc; box-shadow: 0 0 0 3px rgba(62, 122, 42, .18); }
+.run-back { list-style: none; margin: 8px 0; padding: 0; display: flex; flex-direction: column; gap: 6px; text-align: left; }
+.run-back li { display: flex; align-items: center; gap: 8px; }
+.bank-cart { display: flex; justify-content: center; align-items: center; gap: 10px; margin: 4px 0 8px; }
+.deed { display: flex; gap: 8px; align-items: flex-start; font-size: 14px; line-height: 1.35; }
+.deed.owned, .deed.away { padding: 8px 10px; border-radius: 10px; background: var(--paper-2); }
+.loc-run { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; font-size: 14px; }
+.loc-home { margin: 4px 0; color: var(--ink-soft); }
+@media (prefers-reduced-motion: reduce) { .dep-cart, .guest-chip { animation: none; } .dep-cart { transform: translateX(40%); } }

@@ -1,8 +1,11 @@
 // Посевная v4 — static game data. Numbers are starting values, not a calibrated balance.
 
 // ---------- locations ----------
-export type LocationId = 'chernozem' | 'kuban' | 'altai';
-export const LOCATION_IDS: LocationId[] = ['chernozem', 'kuban', 'altai'];
+export type LocationId = 'chernozem' | 'kuban' | 'altai' | 'rent';
+export const LOCATION_IDS: LocationId[] = ['chernozem', 'kuban', 'altai', 'rent'];
+/** the regions an expedition goes to from the home farm (v3 §3.4) */
+export type ExpeditionId = 'rent' | 'kuban' | 'altai';
+export const EXPEDITION_IDS: ExpeditionId[] = ['rent', 'kuban', 'altai'];
 
 export type Terrain = 'plain' | 'river' | 'sand' | 'rock' | 'forest' | 'swamp';
 export const TERRAIN: Record<Terrain, { name: string; text: string; plantable: boolean; buyable: boolean }> = {
@@ -325,7 +328,8 @@ export const PET_IDS = Object.keys(PETS) as PetId[];
 export type OrgId =
   | 'orphanage' | 'council' | 'bakery' | 'restaurant' | 'college'
   | 'cannery' | 'ricemill' | 'stanitsa' | 'beekeepers'
-  | 'camp' | 'forestry' | 'apiarists' | 'sanatorium';
+  | 'camp' | 'forestry' | 'apiarists' | 'sanatorium'
+  | 'teahouse' | 'school' | 'steward' | 'club';
 export type Mischief = 'thieves' | 'fine' | 'silence' | 'review' | 'training';
 export interface Reward { money?: number; pet?: PetId; cert?: string; seeds?: CropId; worker?: WorkerId; glory?: number; card?: string }
 export interface StepDef { title: string; crops: CropId[]; qty: number; lines?: number; weeks: number; pay: number; reward?: Reward; text: string }
@@ -487,6 +491,51 @@ export const ORGS: Record<OrgId, OrgDef> = {
     ],
     perk: 'Клюква, облепиха и капуста на рынке +10%', mischief: 'review', mischiefText: 'Санаторий жалуется в район: рынок дешевеет',
   },
+  // ---- Заречье (Аренда у Пряхина): docs/CHARACTERS-v3.md §2
+  teahouse: {
+    id: 'teahouse', name: 'Чайная «Самовар»', short: 'Чайная', who: 'Хозяйка Варвара Кузьминична', emblem: 'samovar', color: '#c8553d',
+    wants: ['potato', 'cabbage', 'onion', 'pumpkin', 'carrot'],
+    steps: [
+      { title: 'Пирожки для трассы', crops: ['potato', 'cabbage', 'onion'], qty: 10, weeks: 5, pay: 1.2, text: 'Голубчик, у меня фура к обеду, а начинка кончилась.' },
+      { title: 'Борщ на сто тарелок', crops: ['cabbage', 'potato', 'carrot', 'onion'], qty: 14, lines: 2, weeks: 6, pay: 1.2, reward: { money: 40 }, text: 'Трасса голодная: ставлю самую большую кастрюлю.' },
+      { title: 'Свадьба племянницы', crops: ['pumpkin', 'potato', 'cabbage', 'carrot'], qty: 12, lines: 3, weeks: 7, pay: 1.3, reward: { cert: 'Друг чайной «Самовар»', glory: 10 }, text: 'Гуляем всем селом — Пряхина тоже позвала, пусть видит.' },
+      { title: 'Чайная в путеводителе', crops: ['potato', 'cabbage', 'onion', 'pumpkin'], qty: 16, lines: 3, weeks: 8, pay: 1.4, reward: { glory: 25, money: 60 }, text: 'Про нас напишут в путеводителе по трассе. На вывеске будет ваша ферма.' },
+    ],
+    perk: 'Картофель и капуста на рынке +15%', mischief: 'review', mischiefText: 'Варвара рассказала всей трассе: рынок 3 недели платит на 10% меньше',
+  },
+  school: {
+    id: 'school', name: 'Кружок юннатов', short: 'Юннаты', who: 'Учительница Нелли Марковна', emblem: 'book', color: '#4f8a5b',
+    wants: ['bean', 'corn', 'sunflower', 'buckwheat', 'radish'],
+    steps: [
+      { title: 'Образцы для практикума', crops: ['bean', 'radish', 'carrot'], qty: 5, lines: 2, weeks: 4, pay: 1.2, text: 'Гипотеза: фасоль рядом с кукурузой даст больше. Начнём с образцов.' },
+      { title: 'Опытная делянка', crops: ['bean', 'corn', 'sunflower'], qty: 8, weeks: 6, pay: 1.2, reward: { card: 'bio' }, text: 'Дети подписали каждую грядку. Поделимся школьным биопрепаратом.' },
+      { title: 'Районная олимпиада', crops: ['sunflower', 'corn', 'buckwheat', 'bean'], qty: 10, lines: 2, weeks: 7, pay: 1.3, reward: { cert: 'Наставник юннатов', glory: 10 }, text: 'Нужен контрольный образец. То есть самый обычный. Не надо его хвалить.' },
+      { title: 'Школьный сорт', crops: ['corn', 'sunflower', 'bean', 'pumpkin'], qty: 10, lines: 3, weeks: 8, pay: 1.3, reward: { glory: 25, money: 50 }, text: 'Выводим свой сорт вместе с вами. Название придумают дети.' },
+    ],
+    perk: 'Юннаты летом помогают: +1 рабочий день в неделю', mischief: 'silence', mischiefText: 'Нелли Марковна увела кружок на другую ферму',
+  },
+  steward: {
+    id: 'steward', name: 'Приказчик Лёва', short: 'Лёва', who: 'Приказчик Лёва Пряхин', emblem: 'abacus', color: '#5d6fa8',
+    wants: ['wheat', 'buckwheat', 'rye', 'sunflower'],
+    steps: [
+      { title: 'Пробная партия', crops: ['wheat', 'buckwheat'], qty: 12, weeks: 6, pay: 1.15, text: 'Дядя сказал взять подешевле. Я записал среднюю цену.' },
+      { title: 'Контракт на крупу', crops: ['buckwheat', 'wheat', 'rye'], qty: 18, weeks: 7, pay: 1.2, reward: { money: 40 }, text: 'Ровные крупные поставки — дядя такое уважает.' },
+      { title: 'Тайная поставка', crops: ['wheat', 'sunflower', 'buckwheat'], qty: 16, lines: 2, weeks: 7, pay: 1.3, reward: { cert: 'Поставщик лавки Лёвы', glory: 10 }, text: 'Это для моей лавки в райцентре. Только дяде ни слова.' },
+      { title: 'Открытие лавки', crops: ['wheat', 'buckwheat', 'potato', 'sunflower'], qty: 18, lines: 3, weeks: 9, pay: 1.4, reward: { glory: 25, money: 80 }, text: 'Лавка открывается. Дядя обещал прийти. Кажется.' },
+    ],
+    perk: 'Земля на 30% дешевле', mischief: 'fine', mischiefText: 'Дядя узнал о просрочке: штраф по договору аренды',
+  },
+  club: {
+    id: 'club', name: 'Сельский клуб', short: 'Клуб', who: 'Завклубом Роза Ахметовна', emblem: 'mask', color: '#b0477a',
+    wants: ['pumpkin', 'sunflower', 'strawberry', 'tomato', 'cabbage'],
+    steps: [
+      { title: 'Осенний концерт', crops: ['sunflower', 'pumpkin'], qty: 6, weeks: 5, pay: 1.2, text: 'Без подсолнухов сцена — как без занавеса!' },
+      { title: 'Спектакль «Репка»', crops: ['radish', 'carrot', 'potato'], qty: 8, lines: 2, weeks: 5, pay: 1.2, reward: { money: 30 }, text: 'Нужна настоящая репа. То есть редис! Зритель не заметит.' },
+      { title: 'Праздник урожая', crops: ['pumpkin', 'sunflower', 'strawberry', 'cabbage'], qty: 12, lines: 3, weeks: 7, pay: 1.3, reward: { cert: 'Душа праздника', glory: 15 }, text: 'Самая большая тыква. Самая! Это не каприз, это декорация.' },
+      { title: 'Смотр с Пряхиным', crops: ['pumpkin', 'sunflower', 'tomato', 'strawberry'], qty: 12, lines: 3, weeks: 8, pay: 1.5, reward: { glory: 30, money: 60 }, text: 'Пряхин записался в жюри. Он всегда ставит четвёрки. Даже себе.' },
+    ],
+    perk: 'Тыква и подсолнечник на рынке +15%', mischief: 'silence', mischiefText: 'Клуб обиделся и вычеркнул вас из афиши',
+  },
 };
 export const ORG_IDS = Object.keys(ORGS) as OrgId[];
 // relationship tiers
@@ -558,20 +607,38 @@ export const LOCATIONS: Record<LocationId, LocationDef> = {
     orgs: ['camp', 'forestry', 'apiarists', 'sanatorium'],
     extra: ['clearing'],
   },
+  rent: {
+    id: 'rent', name: 'Аренда у Пряхина', place: 'Заречье', tagline: 'Чужая земля, своё село',
+    text: 'Полоса Пряхина за рекой. Климат как дома, но земля чужая: аренду платят по лестнице, а заказчики — люди Заречья.',
+    unique: ['открыто всегда', 'четыре заказчика Заречья', 'свёрнутое хозяйство отдаёт домой 70%'],
+    map: ['......', '......', '......', '......', '......', '~~~...'],
+    soil: 3, seasons: [4, 12, 4, 3],
+    temp: { spring: [6, 16], summer: [18, 27], autumn: [13, 3], winter: [-6, -12] },
+    glory: 0, mild: true, payMult: 1.15,
+    starter: ['seed_radish', 'seed_radish', 'seed_potato', 'seed_potato', 'seed_bean', 'seed_carrot', 'seed_onion', 'seed_cabbage', 'seed_wheat', 'water', 'water', 'fertilizer', 'mulch', 'shelter'],
+    shop: ['radish', 'bean', 'potato', 'buckwheat', 'pumpkin', 'wheat', 'carrot', 'onion', 'cabbage'],
+    lab: ['tomato', 'corn', 'sunflower', 'garlic', 'rye'],
+    orgs: ['teahouse', 'school', 'steward', 'club'],
+    extra: [],
+  },
 };
 
 // where a rare crop from the profile's seed bank can be grown
 export const SEED_BANK_OK: Partial<Record<CropId, LocationId[]>> = {
-  strawberry: ['chernozem', 'kuban', 'altai'],
-  seabuckthorn: ['chernozem', 'altai'],
+  strawberry: ['chernozem', 'kuban', 'altai', 'rent'],
+  seabuckthorn: ['chernozem', 'altai', 'rent'],
   cranberry: ['altai'],
-  watermelon: ['kuban', 'chernozem'],
+  watermelon: ['kuban', 'chernozem', 'rent'],
   rice: ['kuban'],
 };
 
 export const SEASON_NAMES = ['Весна', 'Лето', 'Осень', 'Зима'] as const;
 export const SEASON_GEN = ['весны', 'лета', 'осени', 'зимы'] as const;
 export const PAYMENT_NAMES = ['Аренда', 'Поставщики', 'Годовой платёж', ''] as const;
+/** v3 §3.1–3.2 · the home farm: the third autumn payment buys it out; a bought-out home pays a yearly tax */
+export const BUYOUT_YEARS = 3;
+export const BUYOUT_NAME = 'Выкуп дома';
+export const TAX_NAME = 'Налог';
 export const BASE_PAYMENTS: [number, number, number] = [32, 62, 112];
 
 export const RATINGS = ['D', 'C', 'B', 'A', 'AA', 'AAA'] as const;

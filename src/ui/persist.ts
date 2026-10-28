@@ -1,4 +1,5 @@
-import { ensureV3, repairOpenOffers } from '../engine/game';
+import { SCENE_KINDS, ensureV3, repairOpenOffers } from '../engine/game';
+import { CONDITIONS, LOOT, RELICS, VISITS } from '../engine/run';
 // Saves: one profile shared by every farm (glory, certificates, pets, the seed bank, records) and one slot per farm.
 import type { CropId, LocationId, PetId } from '../engine/data';
 import { CARDS, CROPS, LOCATION_IDS, ORGS, PETS, SEED_BANK_OK, TERRAIN, TRACKS, TRAITS, WORKERS } from '../engine/data';
@@ -185,7 +186,20 @@ const card = (v: any) => obj(v) && Number.isInteger(v.uid) && member(CARDS, v.de
 const lot = (v: any) => obj(v) && member(CROPS, v.crop) && num(v.qty) && v.qty >= 0 && num(v.age);
 const cell = (x: unknown, y: unknown) => Number.isInteger(x) && Number.isInteger(y) && (x as number) >= 0 && (x as number) < 6 && (y as number) >= 0 && (y as number) < 6;
 const plant = (p: any) => obj(p) && member(CROPS, p.id) && ['grown', 'bonus', 'mult', 'planted', 'pid'].every((k) => num(p[k]));
-const DAMAGE = ['frost', 'dry', 'hail', 'flood', 'crows', 'thieves'];
+const DAMAGE = ['frost', 'dry', 'hail', 'flood', 'crows', 'thieves', 'bear', 'boars', 'fire'];
+const STRIKES = ['hail', 'flood', 'beetle', 'locust', 'weedsurge', 'bear', 'boars', 'fire'];
+const int = (v: unknown, min = 0) => Number.isInteger(v) && (v as number) >= min;
+const worker = (x: any) => obj(x) && member(WORKERS, x.id) && Number.isInteger(x.level) && x.level >= 1 && x.level <= WORKERS[x.id as keyof typeof WORKERS].levels.length && Number.isInteger(x.away) && x.away >= 0
+  && (x.leaves === undefined || int(x.leaves)) && (x.free === undefined || typeof x.free === 'boolean');
+// v3 · an expedition's run and the home's cart, arrest and buyout: optional, checked on their own
+const runResult = (x: any) => obj(x) && num(x.cash) && x.cash >= 0 && arr(x.loot, (l) => member(LOOT, l)) && mats(x.mats) && arr(x.cards, card) && (x.worker === undefined || worker(x.worker)) && typeof x.bankrupt === 'boolean' && (x.settled === undefined || typeof x.settled === 'boolean');
+const run = (r: any) => obj(r) && member(CONDITIONS, r.cond) && arr(r.relics, (x) => member(RELICS, x)) && (r.home === undefined || typeof r.home === 'string') && (r.work === undefined || typeof r.work === 'boolean')
+  && obj(r.carried) && arr(r.carried.uids, Number.isInteger) && (r.carried.worker === undefined || member(WORKERS, r.carried.worker)) && num(r.carried.cash)
+  && (r.visit === null || obj(r.visit) && member(VISITS, r.visit.id) && int(r.visit.week) && (r.visit.relic === undefined || member(RELICS, r.visit.relic)) && (r.visit.price === undefined || num(r.visit.price)))
+  && int(r.nextVisit) && arr(r.seen, (x) => typeof x === 'string') && arr(r.used, (x) => typeof x === 'string') && int(r.autumns)
+  && (r.dig === undefined || obj(r.dig) && cell(r.dig.x, r.dig.y) && int(r.dig.until)) && (r.calm === undefined || obj(r.calm) && ['bear', 'boars'].every((k) => r.calm[k] === undefined || int(r.calm[k])))
+  && (r.cones === undefined || int(r.cones)) && (r.surcharge === undefined || num(r.surcharge) && r.surcharge >= 0) && (r.result === undefined || runResult(r.result));
+const away = (a: any) => obj(a) && ['rent', 'kuban', 'altai'].includes(a.loc) && typeof a.seed === 'string' && arr(a.cards, card) && (a.worker === undefined || worker(a.worker)) && num(a.cash) && a.cash >= 0 && int(a.week);
 const quest = (v: any) => v === null || obj(v) && (v.createdWeek === undefined || Number.isInteger(v.createdWeek) && v.createdWeek >= 0) && member(ORGS, v.org) && ['id', 'step', 'pay', 'rel', 'weeks'].every((k) => num(v[k])) && typeof v.title === 'string' && typeof v.text === 'string' && arr(v.lines, (x) => obj(x) && member(CROPS, x.crop) && num(x.qty));
 const MAT_KEYS = ['logs', 'bricks', 'glass'];
 const mats = (v: any) => obj(v) && Object.entries(v).every(([k, n]) => MAT_KEYS.includes(k) && Number.isInteger(n) && (n as number) >= 0);
@@ -195,27 +209,32 @@ const fairLot = (l: any) => obj(l) && Number.isInteger(l.id) && ['equip', 'mat',
   && (l.sold === undefined || ['player', 'rival'].includes(l.sold)) && ['hold', 'deposit', 'wlevel'].every((k) => l[k] === undefined || num(l[k]));
 const fair = (f: any) => f === undefined || obj(f) && ['year', 'season', 'eyeWeek', 'rival', 'nextId'].every((k) => num(f[k])) && (f.eye === null || Number.isInteger(f.eye)) && arr(f.lots, fairLot);
 export function validFarm(v: unknown): v is GameState {
-  if (!obj(v) || v.v !== 5 || !loc(v.loc) || typeof v.seed !== 'string' || !v.seed || !['week', 'shortfall', 'gameover'].includes(v.phase)) return false;
+  if (!obj(v) || v.v !== 5 || !loc(v.loc) || typeof v.seed !== 'string' || !v.seed || !['week', 'shortfall', 'gameover', 'arrest'].includes(v.phase)) return false;
   // v3 fields are optional (old saves lack them) and checked on their own: the template leaves them out
   if (!templates.has(v.loc)) {
-    const { mats: _m, fair: _f, equipSeen: _e, ...base } = newGame({ loc: v.loc, seed: 'validation' });
+    const { mats: _m, fair: _f, equipSeen: _e, paidYears: _p, ...base } = newGame({ loc: v.loc, seed: 'validation' });
     templates.set(v.loc, base as GameState);
   }
   if (v.mats !== undefined && (!mats(v.mats) || MAT_KEYS.some((k) => !Number.isInteger(v.mats[k])))) return false;
   if (!fair(v.fair) || (v.equipSeen !== undefined && !(obj(v.equipSeen) && Object.entries(v.equipSeen).every(([k, n]) => member(TRACKS, k) && Number.isInteger(n))))) return false;
   if (['helpWeek'].some((k) => v[k] !== undefined && !Number.isInteger(v[k])) || (v.quiet !== undefined && typeof v.quiet !== 'boolean')) return false;
+  if (['paidYears', 'skipYears'].some((k) => v[k] !== undefined && !int(v[k])) || (v.owned !== undefined && typeof v.owned !== 'boolean')) return false;
+  if ((v.run !== undefined && !run(v.run)) || (v.away !== undefined && !away(v.away))) return false;
+  if (v.arrest !== undefined && !(obj(v.arrest) && num(v.arrest.debt) && v.arrest.debt >= 0 && int(v.arrest.runs))) return false;
+  if (v.phase === 'arrest' && v.arrest === undefined) return false;
+  if (v.over && v.over.work !== undefined && !(num(v.over.work) && v.over.work > 0)) return false;
   const base = templates.get(v.loc)!;
   if(v.guide!==undefined && !arr(v.guide,x=>typeof x==='string' && ['plant','rotate','water','harvest','sale','payment','order','delivery','soil'].includes(x))) return false;
   if(['compostReady','shortfallBorrowed'].some(k=>v[k]!==undefined && typeof v[k]!=='boolean')) return false;
   if(v.exchangeWeek!==undefined && (!Number.isInteger(v.exchangeWeek) || v.exchangeWeek<0)) return false;
-  if(v.scenes!==undefined && !arr(v.scenes,e=>obj(e) && typeof e.id==='string' && Number.isInteger(e.week) && e.week>=0 && (e.at===undefined||coords([e.at])) && (e.visit===undefined || obj(e.visit) && ['stolen','empty'].includes(e.visit.outcome) && coords(e.visit.targets) && coords(e.visit.crows)) && ['dogThieves','thieves','watchman','drone','geese'].includes(e.kind))) return false;
+  if(v.scenes!==undefined && !arr(v.scenes,e=>obj(e) && typeof e.id==='string' && Number.isInteger(e.week) && e.week>=0 && (e.at===undefined||coords([e.at])) && (e.visit===undefined || obj(e.visit) && ['stolen','empty'].includes(e.visit.outcome) && coords(e.visit.targets) && coords(e.visit.crows)) && (SCENE_KINDS as string[]).includes(e.kind))) return false;
 
   if (!shape(v, base) || !Number.isInteger(v.season) || v.season < 0 || v.season > 3 || v.year < 1 || v.week < 0 || v.week > base.temps.length || v.absWeek < 0) return false;
   if (!Array.isArray(v.tiles) || v.tiles.length !== 36 || !v.tiles.every((t: any) => shape(t, base.tiles[0]) && (t.greenhousePlacedWeek===undefined || Number.isInteger(t.greenhousePlacedWeek) && t.greenhousePlacedWeek>=0 && t.greenhousePlacedWeek<=v.absWeek) && (t.hivePlacedWeek===undefined || Number.isInteger(t.hivePlacedWeek) && t.hivePlacedWeek>=0 && t.hivePlacedWeek<=v.absWeek) && (t.tree === undefined || Number.isInteger(t.tree) && t.tree >= 0) && (t.chop === undefined || Number.isInteger(t.chop) && t.chop >= 0) && Number.isInteger(t.soil) && t.soil >= 1 && t.soil <= 5 && Number.isInteger(t.moisture) && t.moisture >= 0 && t.moisture <= 3 && member(TERRAIN, t.terrain) && (t.last === null || member(CROPS, t.last)) && [null, 'greenhouse', 'hive'].includes(t.structure) && (t.crop === null || obj(t.crop) && member(CROPS, t.crop.id) && ['grown', 'bonus', 'mult', 'planted', 'pid'].every((k) => num(t.crop[k])) && (t.crop.traits === undefined || arr(t.crop.traits, (x) => member(TRAITS, x)))))) return false;
   if (!['draw', 'hand', 'discard', 'spare'].every((k) => arr(v[k], card)) || !['storage', 'yard'].every((k) => arr(v[k], lot))) return false;
   if (!arr(v.pets, (x) => member(PETS, x)) || !arr(v.certs, (x) => typeof x === 'string') || !['unlocked', 'harvestedKinds'].every((k) => arr(v[k], (x) => member(CROPS, x)))) return false;
   if (!obj(v.levels) || !Object.entries(v.levels).every(([k, n]) => member(TRACKS, k) && Number.isInteger(n) && (n as number) >= (k === 'house' ? 1 : 0) && (n as number) <= TRACKS[k as keyof typeof TRACKS].levels.length) || !coords(v.guards) || !coords(v.scarecrows)) return false;
-  if (!arr(v.team, (x) => obj(x) && member(WORKERS, x.id) && Number.isInteger(x.level) && x.level >= 1 && x.level <= WORKERS[x.id as keyof typeof WORKERS].levels.length && Number.isInteger(x.away) && x.away >= 0) || !['candidates', 'freeHire'].every((k) => arr(v[k], (x) => member(WORKERS, x)))) return false;
+  if (!arr(v.team, worker) || !['candidates', 'freeHire'].every((k) => arr(v[k], (x) => member(WORKERS, x)))) return false;
   // PSV-022 · a story step is a whole number from 0; relations stay within −100…100
   if (!obj(v.orgs) || !Object.entries(v.orgs).every(([k, x]) => member(ORGS, k) && obj(x) && ['rel', 'step', 'wait', 'idle', 'lastMischief'].every((n) => num(x[n])) && Number.isInteger(x.step) && x.step >= 0 && x.rel >= -100 && x.rel <= 100 && quest(x.offer) && quest(x.active))) return false;
   if (!arr(v.projects, (x) => obj(x) && num(x.weeks) && num(x.total) && (x.kind === 'track' ? member(TRACKS, x.track) && Number.isInteger(x.level) && x.level >= 1 && x.level <= TRACKS[x.track as keyof typeof TRACKS].levels.length : x.kind === 'cell' ? card(x.card) && points([x.cell]) : x.kind === 'trait' ? card(x.card) && member(TRAITS, x.trait) : x.kind === 'variety' ? member(CROPS, x.crop) : x.kind === 'train' ? member(WORKERS, x.worker) : x.kind === 'bio'))) return false;
@@ -225,7 +244,7 @@ export function validFarm(v: unknown): v is GameState {
   if (new Set(uids).size !== uids.length) return false;
   if (!arr(v.plan, (x) => obj(x) && member(EPISODES, x.kind) && ['id', 'start', 'len'].every((k) => num(x[k]))) || !arr(v.temps, num) || v.temps.length !== base.temps.length) return false;
   if (!arr(v.loans, (x) => obj(x) && ['id', 'principal', 'rate'].every((k) => num(x[k]))) || !arr(v.effects, (x) => obj(x) && x.kind === 'review' && num(x.mult) && num(x.weeks))) return false;
-  if (!arr(v.strikes, (x) => obj(x) && ['hail', 'flood', 'beetle', 'locust', 'weedsurge'].includes(x.kind) && num(x.ep) && num(x.week) && typeof x.zone === 'boolean' && arr(x.cells, (c) => Array.isArray(c) && c.length === 3 && c.every(num) && cell(c[0], c[1])))) return false;
+  if (!arr(v.strikes, (x) => obj(x) && STRIKES.includes(x.kind) && num(x.ep) && num(x.week) && typeof x.zone === 'boolean' && arr(x.cells, (c) => Array.isArray(c) && c.length === 3 && c.every(num) && cell(c[0], c[1])))) return false;
   if (!(v.crows === null || obj(v.crows) && num(v.crows.week) && typeof v.crows.shoo === 'boolean' && typeof v.crows.drone === 'boolean' && arr(v.crows.targets, (x) => obj(x) && ['x', 'y', 'pid'].every((k) => num(x[k])) && cell(x.x, x.y) && ['young', 'ripe'].includes(x.type)))) return false;
   if (!['crowWarn', 'crowRolled', 'kidsWarn', 'kidsRolled'].every((k) => v[k] === undefined || arr(v[k], num))) return false;
   if (!(v.thieves === null || obj(v.thieves) && num(v.thieves.week) && typeof v.thieves.talked === 'boolean' && arr(v.thieves.targets, (x) => obj(x) && ['x', 'y', 'pid'].every((k) => num(x[k])) && cell(x.x, x.y)))) return false;

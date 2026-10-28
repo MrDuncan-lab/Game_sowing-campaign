@@ -163,12 +163,14 @@ test('ECO-05 · six years of steady paying play: every number finite, no hidden 
         const pl = G.placements(s, c); if (pl.length) s = G.apply(s, { t: 'play', uid: c.uid, tiles: pl[0].tiles });
       }
       for (const crop of D.CROP_IDS) { const q = G.freeStock(s, crop); if (q > 0) s = G.apply(s, { t: 'sell', crop, qty: q }); }
-      const p = G.paymentNow(s); const before = s.stats.payments, base = p ? G.paymentBase(s, p.season) + s.carry : 0;
+      const p = G.paymentNow(s); const before = s.stats.payments, base = p ? G.paymentDue(s, p.season) + s.carry : 0;
       s = pay(G.endWeek(s));
       if (p) assert.equal(G.round2(s.stats.payments - before), base);
       assert.ok(finite(s), `${loc} y${s.year} w${s.week}`); assert.equal(s.loans.length, 0); assert.ok(s.money >= 0);
     }
     assert.equal(G.paymentBase(s, 2), Math.round(112 * Math.pow(1.42, s.year - 1) * D.LOCATIONS[loc].payMult));
+    // v3 §3.1–3.2 · three autumn payments buy the home out: from then on it pays only the yearly tax
+    if (G.isHome(s)) { assert.equal(s.owned, true); assert.equal(G.paymentDue(s, 2), G.homeTax(s)); assert.equal(G.paymentSchedule(s).length, 1); }
   }
 });
 

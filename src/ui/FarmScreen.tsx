@@ -3,7 +3,7 @@ import {LessonLocks,QuickProjects} from './lesson';
 import {Peek} from './Peek';
 import {areaOpen,closedReason,type TutorialArea} from '../engine/tutorial';
 import { useEffect, useRef, useState } from 'preact/hooks';
-import type { ComponentChildren, JSX } from 'preact';
+import type { JSX } from 'preact';
 import { LOCATIONS, SEASON_NAMES } from '../engine/data';
 import {
   GameState, deliverProblem, labBusy, labSlots, lvl, money, nextPayment, plural, seasonLen, storageCap, storageUsed, workshopBusy, workshopSlots,
@@ -12,7 +12,9 @@ import {
 import type { OrgId } from '../engine/data';
 import type { BuildItem } from '../engine/game';
 import { Icon } from '../art/icons';
-import { Btn, Dispatch, Money, Sheet, compactMoney, reducedMotionNow, useModal } from './common';
+import { Btn, ClosedLayer, Dispatch, Money, Sheet, compactMoney, reducedMotionNow } from './common';
+import { ArrestLayer, HomeBankrupt, RunOver, VisitSheet } from './Run';
+import type { ExpeditionId } from '../engine/data';
 import { FieldView } from './FieldView';
 import type { VillageApi, VillageMode } from './Village';
 import { HouseView } from './House';
@@ -70,27 +72,18 @@ function ShortfallSheet({ s, act, onBarn, onOrders, onClose, onRetry }: { s: Gam
         {main !== 'postpone' && deficit > 0 && <Btn small tone="ghost" disabled={s.restructured ? 'Переносить можно один раз' : null} onClick={() => act({ t: 'restructure' })}>Перенести · +20%, рейтинг −2</Btn>}
       </div>
       {onRetry&&<div class="stack tight"><p class="small muted">Это учебная ферма. Можно вернуться к началу задания и попробовать ещё раз.</p><Btn onClick={onRetry}>Повторить этот шаг</Btn></div>}
-      <details class="more"><summary>Закрыть ферму</summary>
-        <p class="small muted">{onRetry?'Учебная ферма закроется. После этого можно повторить шаг или вернуться на карту.':'Партия закончится. Слава, грамоты и питомцы останутся в профиле.'}</p>
+      {s.loc === 'chernozem' && s.owned && !onRetry ? <details class="more"><summary>Опись</summary>
+        <p class="small muted">Выкупленный дом не отбирают: банк заберёт самое дорогое оборудование по 60% цены, остаток долга станет кредитом. Рейтинг −2.</p>
+        <Btn small tone="danger" onClick={() => act({ t: 'seize' })}>Согласиться на опись</Btn>
+      </details> : <details class="more"><summary>Закрыть ферму</summary>
+        <p class="small muted">{onRetry?'Учебная ферма закроется. После этого можно повторить шаг или вернуться на карту.':s.run?'Вылазка прогорит: домой вернутся работник и карты обоза и одна скромная находка, денег — нет.':s.loc==='chernozem'?'Банк заберёт дом. Можно будет начать заново или уйти на заработки, чтобы отработать долг.':'Партия закончится. Слава, грамоты и питомцы останутся в профиле.'}</p>
         <Btn small tone="danger" onClick={() => act({ t: 'giveUp' })}>Закрыть ферму</Btn>
-      </details>
+      </details>}
     </Sheet>
   );
 }
 
-/** PSV-007 · the closed farm is a real modal: focus inside, Tab cycles its two actions, the farm behind is inert. */
-export function ClosedLayer({ title, children }: { title: string; children: ComponentChildren }) {
-  const ref = useRef<HTMLDivElement>(null);
-  useModal(ref);
-  return (
-    <div class="gameover">
-      <div class="panel" role="dialog" aria-modal="true" aria-labelledby="gameover-title" tabIndex={-1} ref={ref}>
-        <h1 id="gameover-title">{title}</h1>
-        {children}
-      </div>
-    </div>
-  );
-}
+export { ClosedLayer } from './common';
 
 function GameOver({ s, onMap, onRestart }: { s: GameState; onMap: () => void; onRestart: () => void }) {
   return (
@@ -111,8 +104,10 @@ function GameOver({ s, onMap, onRestart }: { s: GameState; onMap: () => void; on
   );
 }
 
-export function FarmScreen({ s, dispatch, profile, fast, onFast, onMap, onRestart, error, onTest, testing=false, onTestTools, suspended=false, tutorial }: {
+export function FarmScreen({ s, dispatch, profile, fast, onFast, onMap, onRestart, error, onTest, testing=false, onTestTools, suspended=false, tutorial, onHome, onWork, onExpedition }: {
   s: GameState; dispatch: Dispatch; profile: Profile; fast: boolean; onFast: () => void; onMap: () => void; onRestart: () => void; error: string | null; onTest?:()=>void; testing?:boolean; onTestTools?:()=>void; suspended?:boolean; tutorial?:TutorialControls;
+  /** v3 · the home farm (from a finished run), going to work off a bankrupt home, a departure from the arrest */
+  onHome?: () => void; onWork?: () => void; onExpedition?: (l: ExpeditionId) => void;
 }) {
   const [tab, setTab] = useState<TabId>('field');
   // PSV-028 · while last week's events play, the top bar shows that week too (the save is already the new one)
@@ -126,6 +121,9 @@ export function FarmScreen({ s, dispatch, profile, fast, onFast, onMap, onRestar
   const villageApi = useRef<VillageApi | null>(null);
   const [fieldMode, setFieldMode] = useState<VillageMode>('field');
   useEffect(() => { setPaymentOpen(s.phase === 'shortfall'); }, [s.phase]);
+  // v3 · a visitor at the camp: the sheet opens by itself once a week, a chip brings it back
+  const visitKey = s.run?.visit ? `${s.run.visit.id}:${s.run.visit.week}` : '';
+  const [visitShut, setVisitShut] = useState('');
   const pager = useRef<HTMLDivElement>(null);
   const tabRef = useRef<TabId>('field');
   const navigationTarget = useRef<TabId|null>(null);
@@ -272,7 +270,15 @@ export function FarmScreen({ s, dispatch, profile, fast, onFast, onMap, onRestar
       {tutorial&&!menu&&!paymentOpen&&s.phase!=='gameover'&&<GuideHint controls={tutorial} tab={tab} village={fieldMode} flyTo={(k)=>{void villageApi.current?.flyTo(k);}}/>}
       {error && !(tutorial && !menu && !paymentOpen && s.phase !== 'gameover' && tutorial.session.hiddenHintStep !== tutorial.session.step) && <div class="toast" role="alert">{error}</div>}
       {s.phase === 'shortfall' && paymentOpen && <ShortfallSheet s={s} act={dispatch} onBarn={() => openBarn()} onOrders={() => { setPaymentOpen(false); go('orders'); }} onClose={() => setPaymentOpen(false)} onRetry={tutorial?.onRetry} />}
-      {s.phase === 'gameover' && (tutorial?<ClosedLayer title="Учебная ферма закрыта"><p>Можно повторить последнее задание. Предыдущие уроки проходить заново не нужно.</p><div class="btn-row"><Btn tone="primary" onClick={tutorial.onRetry}>Повторить этот шаг</Btn><Btn onClick={onMap}>На карту</Btn></div></ClosedLayer>:<GameOver s={s} onMap={onMap} onRestart={onRestart} />)}
+      {s.phase === 'gameover' && (tutorial?<ClosedLayer title="Учебная ферма закрыта"><p>Можно повторить последнее задание. Предыдущие уроки проходить заново не нужно.</p><div class="btn-row"><Btn tone="primary" onClick={tutorial.onRetry}>Повторить этот шаг</Btn><Btn onClick={onMap}>На карту</Btn></div></ClosedLayer>
+        : s.run ? <RunOver s={s} onHome={onHome ?? onMap} onMap={onMap} />
+        : s.over?.work && onWork ? <HomeBankrupt s={s} onRestart={onRestart} onWork={onWork} onMap={onMap} />
+        : <GameOver s={s} onMap={onMap} onRestart={onRestart} />)}
+      {s.phase === 'arrest' && s.arrest && <ArrestLayer s={s} glory={profile.glory} onExpedition={(l) => onExpedition ? onExpedition(l) : onMap()} onMap={onMap} />}
+      {visitKey && s.phase === 'week' && !tutorial && <>
+        {visitShut !== visitKey && !menu && !paymentOpen && tab === 'field' && <VisitSheet s={s} act={dispatch} onClose={() => setVisitShut(visitKey)} />}
+        {visitShut === visitKey && <button type="button" class="guest-chip" onClick={() => setVisitShut('')}><Icon name="hand" size={20} /> Гость у лагеря</button>}
+      </>}
       {menu && (
         <Sheet title={`${loc.name} · ${loc.place}`} icon="map" onClose={() => setMenu(false)}>
           <div class="stack">
@@ -284,6 +290,7 @@ export function FarmScreen({ s, dispatch, profile, fast, onFast, onMap, onRestar
             </div>}
             {!tabs && villageApi.current?.available && <p class="small muted">Те же разделы стоят в деревне: потяните небо вниз или нажмите «Деревня».</p>}
             <Btn tone="primary" onClick={() => { setMenu(false); onMap(); }}><Icon name="map" size={20} /> Карта ферм</Btn>
+            {s.run && <Btn onClick={() => { setMenu(false); openBarn('run'); }}><Icon name="cart" size={20} /> Вылазка: находки и свернуть</Btn>}
             <Btn onClick={onFast}>{fast ? '⏩ Быстрая анимация' : '▶ Обычная анимация'}</Btn>
             {onTest&&<Btn onClick={()=>{setMenu(false);onTest();}}>Режим проверки</Btn>}
             <p class="small muted">{loc.text}</p>

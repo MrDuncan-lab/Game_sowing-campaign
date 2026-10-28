@@ -1,8 +1,10 @@
 import {Tutorial} from './Tutorial';
 import {TestLab} from './TestLab';
 import { useEffect, useRef, useState } from 'preact/hooks';
-import type { LocationId } from '../engine/data';
-import { Action, GameError, GameState, apply, newGame, randomSeed } from '../engine/game';
+import { EXPEDITION_IDS, type ExpeditionId, type LocationId } from '../engine/data';
+import { Action, GameError, GameState, apply, newGame, randomSeed, startArrest } from '../engine/game';
+import { depart as departRun, settleRun, type Cart } from '../engine/meta';
+import type { PlotOffer } from '../engine/run';
 import { FarmScreen } from './FarmScreen';
 import { MapScreen } from './MapScreen';
 import { Profile, allFarms, checkSaveSession, loadFarm, loadProfile, persistenceStatus, profileRecoveryRequired, recordEnd, resetPersistenceSession, saveFarm, saveProfile, subscribePersistence, syncFarm, syncProfile, writeSessionStorage } from './persist';
@@ -53,7 +55,10 @@ function OwnedApp() {
     if (p !== stored) saveProfile(p);
     return p;
   });
-  const [farms, setFarms] = useState(() => allFarms());
+  const [farms, setFarmsState] = useState(() => allFarms());
+  const farmsRef = useRef(farms);
+  const setFarms = (f: typeof farms) => { farmsRef.current = f; setFarmsState(f); };
+  const [departFor, setDepartFor] = useState<{ loc: ExpeditionId; key: number } | null>(null);
   const [s, setS] = useState<GameState | null>(null);
   const [saveStatus, setSaveStatus] = useState(persistenceStatus);
   const [recoverProfile, setRecoverProfile] = useState(false);
@@ -73,9 +78,26 @@ function OwnedApp() {
     }
     return true;
   }
+  /** v3 · a finished expedition hands over to the home it came from (once): the home is saved first, then the run
+   *  is marked settled — an interrupted pair settles again on the next start */
+  function settle(run: GameState): GameState {
+    if (!run.run || run.phase !== 'gameover' || run.run.result?.settled) return run;
+    const home = farmsRef.current.chernozem ?? loadFarm('chernozem');
+    const r = settleRun(home, run);
+    if (!r) return run;
+    if (r.home && r.home !== home) {
+      if (!saveFarm(r.home)) return run;
+      const p = syncProfile(profRef.current, r.home);
+      commitProfile(r.home.phase === 'gameover' ? recordEnd(p, r.home) : p);
+      setFarms({ ...farmsRef.current, chernozem: r.home });
+    }
+    return r.run;
+  }
   function show(next: GameState, saved = false) {
     if (!checkSaveSession()) return null;
     next = syncFarm(profRef.current, next);
+    const settled = settle(next);
+    if (settled !== next) { next = settled; saved = false; }
     sRef.current = next;
     setS(next);
     // ST-05 · the profile follows the stored farm: a week that is not saved hands out no profile rewards yet
@@ -83,9 +105,48 @@ function OwnedApp() {
     if (!saved && !saveFarm(next)) return checkSaveSession() ? next : null;
     if (!checkSaveSession()) return null;
     let p = syncProfile(profRef.current, next);
-    if (next.phase === 'gameover') p = recordEnd(p, next);
+    // a bankrupt home that can still be worked off is not over yet (v3 §3.3)
+    if (next.phase === 'gameover' && !next.over?.work) p = recordEnd(p, next);
     commitProfile(p);
+    if (next.loc === 'chernozem') farmsRef.current = { ...farmsRef.current, chernozem: next };
     return next;
+  }
+  // an expedition that ended while the game was closed between two saves settles on start
+  useEffect(() => {
+    for (const l of EXPEDITION_IDS) {
+      const f = farmsRef.current[l];
+      if (!f?.run || f.phase !== 'gameover' || f.run.result?.settled) continue;
+      const done = settle(f);
+      if (done !== f && saveFarm(done)) setFarms({ ...farmsRef.current, [l]: done });
+    }
+  }, []);
+  /** the cart leaves the home: the home is stored without what it took, the expedition starts */
+  function depart(loc: ExpeditionId, offer: PlotOffer, cart: Cart, seed: string) {
+    if (!checkSaveSession()) return;
+    setDepartFor(null);
+    const home = farmsRef.current.chernozem ?? loadFarm('chernozem');
+    if (!home) return;
+    let pair: { home: GameState; run: GameState };
+    try { pair = departRun(home, loc, offer, cart, seed, profRef.current); }
+    catch (e) { if (e instanceof GameError) { setError(e.message); return; } throw e; }
+    const previous = farmsRef.current[loc] ?? loadFarm(loc);
+    if (previous && !saveFarm(previous)) return;
+    if (previous) {
+      const closed = recordEnd(syncProfile(profRef.current, previous), previous);
+      if (closed !== profRef.current && !saveProfile(closed)) return;
+      profRef.current = closed;
+      setProfile(closed);
+    }
+    if (!saveFarm(pair.home)) return;
+    setFarms({ ...farmsRef.current, chernozem: pair.home });
+    if (!saveFarm(pair.run, true) && previous) return;
+    show(pair.run, true);
+  }
+  /** a bankrupt mortgaged home goes to work off its debt: the house is under arrest */
+  function goWork() {
+    const cur = sRef.current;
+    if (!cur || cur.loc !== 'chernozem') return;
+    try { show(startArrest(cur)); } catch (e) { if (e instanceof GameError) setError(e.message); else throw e; }
   }
   const dispatch = (a: Action): GameState | null => {
     const cur = sRef.current;
@@ -105,13 +166,13 @@ function OwnedApp() {
   };
   function open(l: LocationId) {
     if (!checkSaveSession()) return;
-    const f = farms[l] ?? loadFarm(l);
+    const f = farmsRef.current[l] ?? loadFarm(l);
     if (!f) return startNew(l);
     show(syncFarm(profRef.current, f));
   }
   function startNew(l: LocationId) {
     if (!checkSaveSession()) return;
-    const previous = sRef.current?.loc === l ? sRef.current : farms[l] ?? loadFarm(l);
+    const previous = sRef.current?.loc === l ? sRef.current : farmsRef.current[l] ?? loadFarm(l);
     // Include a unique attempt token in the seed; reward IDs and history now
     // distinguish two otherwise identical restarts without engine changes.
     const seed = `${randomSeed()}-${globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${randomSeed()}`}`;
@@ -133,7 +194,7 @@ function OwnedApp() {
     const current = sRef.current;
     // Keep unsaved progress in memory while the user visits another region.
     // A quota error must not turn map navigation into a rollback.
-    setFarms({ ...allFarms(), ...farms, ...(current ? { [current.loc]: current } : {}) });
+    setFarms({ ...allFarms(), ...farmsRef.current, ...(current ? { [current.loc]: current } : {}) });
     sRef.current = null;
     setS(null);
   }
@@ -158,15 +219,16 @@ function OwnedApp() {
     if (sRef.current && saveFarm(sRef.current)) show(sRef.current, true);
     saveProfile(profRef.current);
     if (!sRef.current) {
-      const existing = { ...allFarms(), ...farms };
+      const existing = { ...allFarms(), ...farmsRef.current };
       for (const farm of Object.values(existing)) if (farm) saveFarm(farm);
       setFarms(existing);
     }
   }
   const screen = !profile.settings.intro
     ? <Intro onDone={(guide) => {commitProfile({ ...profRef.current, settings: { ...profRef.current.settings, intro: true, guide } });if(guide)setTutorial(true);}} />
-    : !s ? <MapScreen onTutorial={()=>setTutorial(true)} profile={profile} farms={farms} onOpen={open} onNew={startNew} onTest={(loc)=>{setTestRegion(loc ?? 'chernozem');setTesting(true);}} /> : (
+    : !s ? <MapScreen onTutorial={()=>setTutorial(true)} profile={profile} farms={farms} onOpen={open} onNew={startNew} onDepart={depart} departFor={departFor} onTest={(loc)=>{setTestRegion(loc ?? 'chernozem');setTesting(true);}} /> : (
       <FarmScreen
+        key={`${s.loc}|${s.seed}`}
         s={s}
         dispatch={dispatch}
         profile={profile}
@@ -174,6 +236,9 @@ function OwnedApp() {
         onFast={() => commitProfile({ ...profRef.current, settings: { ...profRef.current.settings, fast: !profRef.current.settings.fast } })}
         onMap={toMap}
         onRestart={() => startNew(s.loc)}
+        onHome={() => { toMap(); open('chernozem'); }}
+        onWork={goWork}
+        onExpedition={(l) => { toMap(); setDepartFor({ loc: l, key: Date.now() }); }}
         error={error}
         onTest={()=>{setTestRegion(s.loc);setTesting(true);}}
       />

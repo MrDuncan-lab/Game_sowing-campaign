@@ -5,8 +5,11 @@
 //
 //   npx tsx tools/progression-sim.ts            # 12 seeds × Черноземье, 230 weeks
 //   SIM_SEEDS=16 SIM_WEEKS=115 SIM_LOC=kuban npx tsx tools/progression-sim.ts
+//   SIM_LOC=altai SIM_COND=random SIM_FOLD=2 npx tsx tools/progression-sim.ts   # expeditions: a plot from the
+//     departure offers (or a named condition), answers visitors, folds after SIM_FOLD autumns (0 = never)
 import * as G from '../src/engine/game';
 import * as D from '../src/engine/data';
+import { plotOffers, type CondId } from '../src/engine/run';
 
 const seeds = Number(process.env.SIM_SEEDS || 12), horizon = Number(process.env.SIM_WEEKS || 230);
 const loc = (process.env.SIM_LOC || 'chernozem') as D.LocationId;
@@ -16,8 +19,11 @@ const QUEUE: [D.TrackId, number][] = loc === 'chernozem'
   ? [['irrigation', 1], ['compost', 1], ['barn', 1], ['house', 2], ['house', 3], ['lab', 1], ['irrigation', 2], ['house', 4], ['barn', 2], ['greenhouse', 1], ['house', 5], ['lab', 2], ['planning', 1], ['house', 6], ['house', 7], ['barn', 3], ['greenhouse', 2], ['lab', 3]]
   : [['irrigation', 1], ['compost', 1], ['barn', 1], ['house', 2], ['house', 3], ['irrigation', 2], ['barn', 2]];
 
+const COND = process.env.SIM_COND, FOLD = Number(process.env.SIM_FOLD || 0);
 function run(seed: string) {
-  let s = G.newGame({ loc, seed });
+  const offer = COND ? (COND === 'random' ? plotOffers(loc as D.ExpeditionId, seed)[0] : { cond: COND as CondId, relic: plotOffers(loc as D.ExpeditionId, seed)[0].relic }) : null;
+  let s = G.newGame({ loc, seed, ...(offer ? { run: { cond: offer.cond, relics: [offer.relic] } } : {}) });
+  const hits: Record<string, number> = {}, visits: string[] = [];
   const act = (a: G.Action) => { try { s = G.apply(s, a); return true; } catch (e) { if (e instanceof G.GameError) return false; throw e; } };
   const got = { fair: 0, field: 0 }, reached: Record<number, number> = {}, cashByYear: number[] = [], lots = { player: 0, rival: 0, total: 0 };
   const seen = new Set<string>();
@@ -119,6 +125,17 @@ function run(seed: string) {
   }
   while (s.phase !== 'gameover' && weeks < horizon) {
     if (s.phase === 'shortfall') { sell(); if (act({ t: 'pay' }) || act({ t: 'emergency' }) || act({ t: 'restructure' })) continue; act({ t: 'giveUp' }); break; }
+    if (s.run?.visit && s.run.visit.week === s.absWeek) {
+      // a visitor: the first answer the bot can afford (the last one is always «no»)
+      const opts = G.visitOptions(s), i = opts.findIndex((o) => !o.problem);
+      visits.push(`${s.run.visit.id}:${i}`);
+      act({ t: 'answer', choice: i });
+    }
+    if (FOLD && s.run && s.run.autumns >= FOLD && !G.foldProblem(s)) {
+      const offers = G.lootOffers(s), n = Math.min(G.lootCount(s), offers.length);
+      act({ t: 'fold', picks: [...offers].sort((a, b) => b.length - a.length).slice(0, n) });
+      break;
+    }
     sell(); if (FAIR) fair(); if (BUILD) build();
     for (let i = 0; i < 18 && s.days > 0; i++) {
       const before = G.matStock(s, 'logs') + G.matStock(s, 'bricks');
@@ -130,11 +147,13 @@ function run(seed: string) {
     const year = s.year;
     act({ t: 'endWeek' });
     weeks++;
+    for (const l of s.lastReport?.lost ?? []) { const k = l.split(':')[0]; if (['Медведь', 'Кабаны', 'Пожар', 'Засохли без воды', 'Паводок'].includes(k)) hits[k] = (hits[k] ?? 0) + 1; }
     if (s.year !== year) cashByYear.push(Math.round(s.money - G.outstanding(s)));
     const h = G.lvl(s, 'house');
     if (!reached[h]) reached[h] = s.absWeek;
   }
-  return { seed, weeks, alive: s.phase !== 'gameover', house: G.lvl(s, 'house'), reached, cashByYear, got, lots, levels: s.levels, team: s.team.length, mats: s.mats };
+  const folded = s.run?.result && !s.run.result.bankrupt ? s.run.result : null;
+  return { seed, weeks, alive: s.phase !== 'gameover' || !!folded, folded, cond: offer?.cond, relics: s.run?.relics ?? [], hits, visits, house: G.lvl(s, 'house'), reached, cashByYear, got, lots, levels: s.levels, team: s.team.length, mats: s.mats };
 }
 
 const res = Array.from({ length: seeds }, (_, i) => run(`V3SIM-${i}`));
@@ -153,3 +172,11 @@ for (let y = 0; y < years; y++) {
 const sum = (f: (r: typeof res[number]) => number) => res.reduce((n, r) => n + f(r), 0);
 console.log(`materials per run: fair ${Math.round(sum((r) => r.got.fair) / seeds)}, field ${Math.round(sum((r) => r.got.field) / seeds)}; lots seen ${Math.round(sum((r) => r.lots.total) / seeds)}, bought by the bot ${Math.round(sum((r) => r.lots.player) / seeds)}, by Пряхин ${Math.round(sum((r) => r.lots.rival) / seeds)} (${Math.round(100 * sum((r) => r.lots.rival) / Math.max(1, sum((r) => r.lots.total)))}%)`);
 console.log('final levels (first run):', JSON.stringify(res[0].levels), 'team', res[0].team, 'shed', JSON.stringify(res[0].mats));
+if (COND) {
+  const f = res.filter((r) => r.folded);
+  console.log(`folded ${f.length}/${seeds}: cash home median ${f.length ? pct(f.map((r) => r.folded!.cash), 0.5) : '—'}, finds ${f.length ? pct(f.map((r) => r.folded!.loot.length), 0.5) : '—'}`);
+  const hits: Record<string, number> = {};
+  for (const r of res) for (const [k, n] of Object.entries(r.hits)) hits[k] = (hits[k] ?? 0) + n;
+  console.log('hazard blows per run:', Object.entries(hits).map(([k, n]) => `${k} ${(n / seeds).toFixed(1)}`).join(', ') || '—');
+  console.log('visits per run:', (res.reduce((n, r) => n + r.visits.length, 0) / seeds).toFixed(1), '· conditions:', res.map((r) => r.cond).join(' '));
+}

@@ -495,6 +495,9 @@ function calendarPage(s: GameState, offset: number): CalPage {
       if (st.kind === 'beetle') add('beetle', 'жуки');
       if (st.kind === 'locust') add('locust', 'саранча');
       if (st.kind === 'weedsurge') add('weeds', 'сорняки');
+      if (st.kind === 'bear') add('bear', 'медведь');
+      if (st.kind === 'boars') add('boar', 'кабаны');
+      if (st.kind === 'fire') add('fire', 'пожар');
     }
   }
   return page;

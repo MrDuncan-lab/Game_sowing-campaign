@@ -2,13 +2,16 @@
 import * as G from '../src/engine/game';
 import * as D from '../src/engine/data';
 import { writeFileSync } from 'node:fs';
+import { plotOffers, type CondId } from '../src/engine/run';
+// v3 · AUDIT_RUN=random (or a condition id) plays an expedition run: the region's plot, hazards and visitors
+const RUN=process.env.AUDIT_RUN;
 const modes=['market','orders_accept','orders_ready','greenhouse','compost','exchange','jobs','regional','regional_pets','regional_goat','regional_guardpets','regional_soil','forage'] as const;
 type Mode=typeof modes[number];
 const horizon=Number(process.env.AUDIT_WEEKS||46),seeds=Number(process.env.AUDIT_SEEDS||12);
 const selectedModes=(process.env.AUDIT_MODES?process.env.AUDIT_MODES.split(','):modes) as readonly Mode[];
 const results:any[]=[];
 function run(loc:D.LocationId,seed:string,mode:Mode){
- const pets: D.PetId[]=mode==='regional_pets'?['cat','dog','geese','hedgehog','goat']:mode==='regional_goat'?['goat']:mode==='regional_guardpets'?['cat','dog','geese','hedgehog']:[]; let s=G.newGame({loc,seed,pets});const regional=mode.startsWith('regional'); const jobCard=mode==='forage'?'forage':'sidejob'; const jobMode=mode==='jobs'||mode==='forage';const count:Record<string,number>={accepted:0,delivered:0,failed:0,exchange:0,compost:0,claimed:0,emergency:0,restructured:0};
+ const pets: D.PetId[]=mode==='regional_pets'?['cat','dog','geese','hedgehog','goat']:mode==='regional_goat'?['goat']:mode==='regional_guardpets'?['cat','dog','geese','hedgehog']:[]; const offer=RUN&&loc!=='chernozem'?(RUN==='random'?plotOffers(loc as D.ExpeditionId,seed)[0]:{cond:RUN as CondId,relic:plotOffers(loc as D.ExpeditionId,seed)[0].relic}):null;let s=G.newGame({loc,seed,pets,...(offer?{run:{cond:offer.cond,relics:[offer.relic]}}:{})});const regional=mode.startsWith('regional'); const jobCard=mode==='forage'?'forage':'sidejob'; const jobMode=mode==='jobs'||mode==='forage';const count:Record<string,number>={accepted:0,delivered:0,failed:0,exchange:0,compost:0,claimed:0,emergency:0,restructured:0};
  const soilTime=[0,0,0,0,0,0];const log:any[]=[];let weeks=0,maxNet=0,firstHouse4:number|null=null;
  const act=(a:G.Action)=>{try{const n=G.apply(s,a);s=n;return true;}catch(e){if(e instanceof G.GameError)return false;throw e;}};
  const orderMode=mode==='orders_accept'||mode==='orders_ready';
@@ -111,6 +114,7 @@ function run(loc:D.LocationId,seed:string,mode:Mode){
   }
   orders();sell();improvements();for(const[t]of G.ownedTiles(s))soilTime[t.soil]++;
   if((mode==='compost'||mode==='regional_soil')&&s.compostReady&&s.hand.length<G.handMax(s)){if(act({t:'claimCompost'}))count.claimed++;}
+  if(s.run?.visit&&s.run.visit.week===s.absWeek){const i=G.visitOptions(s).findIndex(o=>!o.problem);act({t:'answer',choice:i});}
   for(let i=0;i<18&&s.days>0;i++){
    if(mode==='regional_soil'&&s.compostReady&&s.hand.length<G.handMax(s)&&act({t:'claimCompost'}))count.claimed++;
    const options=choose();let done=false;for(const o of options)if(o.score>0&&act(o.a)){done=true;break;}

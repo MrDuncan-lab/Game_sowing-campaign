@@ -5,9 +5,12 @@ import { P } from './palette';
 import { icons } from './icons';
 import { CarlaFace } from './crows';
 
-export type CustomerPersonId = 'olga' | 'anna' | 'timofey' | 'arseniy' | 'boris' | 'irina' | 'georgiy' | 'ivan' | 'zakhar' | 'svetlana' | 'egor' | 'fedor' | 'lidiya';
+export type CustomerPersonId = 'olga' | 'anna' | 'timofey' | 'arseniy' | 'boris' | 'irina' | 'georgiy' | 'ivan' | 'zakhar' | 'svetlana' | 'egor' | 'fedor' | 'lidiya'
+  | 'varvara' | 'nelli' | 'leva' | 'roza';
 export type ChildPersonId = 'katya' | 'misha';
-export type PersonId = 'vera' | 'marat' | 'palych' | 'zina' | 'buyer' | 'carla' | SpecialistId | CustomerPersonId | ChildPersonId;
+/** v3 · the rival and the visitors at an expedition's camp (docs/CHARACTERS-v3.md) */
+export type VisitorPersonId = 'pryakhin' | 'dasha' | 'yakov' | 'petro' | 'gordey' | 'afanasich' | 'alla' | 'nikolay' | 'kostya' | 'grisha' | 'nyura';
+export type PersonId = 'vera' | 'marat' | 'palych' | 'zina' | 'buyer' | 'carla' | SpecialistId | CustomerPersonId | ChildPersonId | VisitorPersonId;
 
 type HairStyle = 'short' | 'long' | 'bun' | 'bald' | 'braid' | 'curly' | 'bob';
 interface Look {
@@ -35,6 +38,23 @@ const LOOKS: Record<Exclude<PersonId, 'carla' | ChildPersonId>, Look> = {
   egor: {skin:'#d4a17b',hair:'#493c2c',style:'short',shirt:'#68764c',bg:'#d4e0bc',acc:['stubble'],hat:{kind:'cap',color:'#69734d'}},
   fedor: {skin:'#e5b28c',hair:'#ded3b7',style:'bald',shirt:'#998347',bg:'#eae6bc',acc:['beard'],hat:{kind:'straw',color:'#e4ce85'}},
   lidiya: {skin:'#e9bc9d',hair:'#8c8580',style:'bun',shirt:'#e2ebe4',bg:'#d5e8e4',acc:['glasses']},
+  // Заречье
+  varvara: { skin: '#f2c2a0', hair: '#9c9590', style: 'bun', shirt: '#c8553d', bg: '#fbe2cc', hat: { kind: 'scarf', color: '#e0a03a' } },
+  nelli: { skin: '#f3cdb0', hair: '#3b2a22', style: 'braid', shirt: '#4f8a5b', bg: '#dcefd6', acc: ['glasses'] },
+  leva: { skin: '#eec3a0', hair: '#8a6440', style: 'curly', shirt: '#8a7a5a', bg: '#e2e6f2', acc: ['mustache'] },
+  roza: { skin: '#e8b48e', hair: '#221a18', style: 'bun', shirt: '#b0477a', bg: '#f6dbe6' },
+  // the rival and the visitors at the camp
+  pryakhin: { skin: '#e2b08c', hair: '#9a958d', style: 'short', shirt: '#5d6b3a', bg: '#e3e6d0', acc: ['glasses'], emblem: 'contract' },
+  dasha: { skin: '#f3c9a8', hair: '#a0582c', style: 'long', shirt: '#d9b24c', bg: '#f4e6c0', hat: { kind: 'straw', color: '#e8cf86' } },
+  yakov: { skin: '#c98d66', hair: '#3b2f28', style: 'short', shirt: '#5b4a3a', bg: '#e8dcc4', acc: ['stubble'], hat: { kind: 'flatcap', color: '#4a3e33' } },
+  petro: { skin: '#e2a77e', hair: '#d8d2c4', style: 'bald', shirt: '#f1ead4', bg: '#e6f0c8', acc: ['mustache'], hat: { kind: 'straw', color: '#e2c46a' } },
+  gordey: { skin: '#e6b28c', hair: '#5a3a24', style: 'short', shirt: '#2f3e57', bg: '#d9e4ee', acc: ['mustache'], hat: { kind: 'flatcap', color: '#3a3330' } },
+  afanasich: { skin: '#d9a27a', hair: '#e6e2da', style: 'short', shirt: '#6b5a3f', bg: '#dfe6d2', acc: ['beard'], hat: { kind: 'flatcap', color: '#7a6648' } },
+  alla: { skin: '#e8b893', hair: '#8f8a84', style: 'bob', shirt: '#7a8a4a', bg: '#e6e8d0', hat: { kind: 'scarf', color: '#c0563a' } },
+  nikolay: { skin: '#d9a47e', hair: '#4a3324', style: 'short', shirt: '#7f6a54', bg: '#ece0cc', acc: ['stubble'], hat: { kind: 'cap', color: '#5a5a52' } },
+  kostya: { skin: '#e9b590', hair: '#6a4a2e', style: 'short', shirt: '#3d5a80', bg: '#d8e8f5', acc: ['stubble'], hat: { kind: 'cap', color: '#2f3a4a' } },
+  grisha: { skin: '#e4ae88', hair: '#b8b2a8', style: 'short', shirt: '#8a5a3a', bg: '#f2e2c4', acc: ['mustache'], hat: { kind: 'flatcap', color: '#6a5a48' } },
+  nyura: { skin: '#f0c4a0', hair: '#7a4a2a', style: 'bob', shirt: '#2f4f8a', bg: '#dbe4f4' },
   vera: { skin: '#f3c9a5', hair: '#9a4f27', style: 'braid', shirt: '#4f8ad1', bg: '#cbe9b5', hat: { kind: 'cap', color: '#5dad3c' } },
   marat: { skin: '#d9a77c', hair: '#2b2320', style: 'short', shirt: '#5a6b8c', bg: '#f5ddb0', acc: ['glasses'] },
   palych: { skin: '#e8b48f', hair: '#e9e6df', style: 'bald', shirt: '#6b7a3a', bg: '#bfe1f2', hat: { kind: 'flatcap', color: '#6d6a63' }, acc: ['mustache'] },
@@ -243,7 +263,8 @@ export function Portrait({ id, size = 64, ring = true, worried }: { id: PersonId
   );
 }
 
-export const PERSON_NAMES: Record<'vera' | 'marat' | 'palych' | 'zina' | 'buyer' | 'carla', string> = {
+export const PERSON_NAMES: Record<'vera' | 'marat' | 'palych' | 'zina' | 'buyer' | 'carla' | 'pryakhin', string> = {
+  pryakhin: 'Аркадий Семёнович Пряхин',
   carla: 'Карла, ворона',
   vera: 'Вера, агроном',
   marat: 'Марат, из банка',

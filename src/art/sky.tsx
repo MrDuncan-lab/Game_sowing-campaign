@@ -60,6 +60,7 @@ export function SkyPicture({ kind }: { kind: SkyKind }) {
     case 'snow': return <g><Falling kind="snow" /><Cloud fill="#e8f0f6" /></g>;
     case 'frost': return <g><Falling kind="snow" /><Cloud fill="#d8ecfb" /><g transform="translate(22 -18) scale(.42)">{icons.snow()}</g></g>;
     case 'thaw': return <g><g transform="translate(-10 -6)"><Sun r={11} /></g><g transform="translate(12 6) scale(.6)"><Cloud fill="#eef4f8" /></g></g>;
+    case 'wind': return <g><g transform="translate(8 -6)"><Sun hot r={13} /></g><g class="sky-gust" fill="none" stroke="#c4982f" stroke-width={2.6} stroke-linecap="round"><path d="M-30 6 H6 q8 0 8 -6" /><path d="M-26 16 H16 q7 0 7 6" /><path d="M-30 26 H-2" /></g></g>;
   }
 }
 
@@ -93,6 +94,7 @@ const WEATHER_SKY: Partial<Record<SkyKind, [string, string]>> = {
   frost: ['#c3d3e0', '#eef3f6'],
   hot: ['#cfe4ee', '#f6efcf'],
   dry: ['#d6e3e6', '#f4e9c6'],
+  wind: ['#dcdcc6', '#f2dfb2'],
 };
 // the sky's strip of hills over the field: the village's far greens, hazy (tools/village: far1, far2, g1)
 const SEASON_SKY = [
@@ -156,6 +158,21 @@ function FarKids() {
   );
 }
 
+// v3 · smoke rising from the taiga strip: a thin wisp two weeks ahead, a column the week before
+function FarSmoke({ near }: { near: boolean }) {
+  return (
+    <g class="sky-smoke">
+      {[0, 1, 2].map((i) => <circle cx={i * 3} cy={-i * (near ? 9 : 6)} r={(near ? 6 : 4) + i * 2} fill="#9a948c" opacity={0.55 - i * 0.12} style={{ animationDelay: `${-i * 0.9}s` }} />)}
+      {near && <path d="M-4 2 q4 -6 8 0" fill="#f08a24" stroke={INK} stroke-width={1} />}
+    </g>
+  );
+}
+function FarBeast({ kind }: { kind: 'bear' | 'boars' }) {
+  return kind === 'bear'
+    ? <g class="sky-beast"><path d="M-10 2 Q-10 -8 0 -8 Q6 -12 10 -6 Q12 -2 10 2 Z" fill="#6b4426" stroke={INK} stroke-width={1.2} /><circle cx={7} cy={-9} r={2} fill="#6b4426" stroke={INK} stroke-width={1} /></g>
+    : <g class="sky-beast">{[-8, 6].map((x) => <path d={`M${x - 6} 2 Q${x - 6} -5 ${x} -5 Q${x + 6} -5 ${x + 7} 0 L${x + 6} 2 Z`} fill="#6b5a4c" stroke={INK} stroke-width={1.1} />)}</g>;
+}
+
 export interface SkyBandProps {
   W: number; season: number; tokens: SkyToken[]; signs: RaidSign[]; meteoMax: boolean; px: number;
   onToken?: (t: SkyToken) => void; onFog?: () => void; onSign?: (s: RaidSign) => void;
@@ -198,6 +215,9 @@ export function SkyBand({ W, season, tokens, signs, meteoMax, px, onToken, onFog
   const flock = signs.find((x) => x.kind === 'crows');
   const swarm = signs.find((x) => x.kind === 'locust');
   const kidsFar = signs.find((x) => x.kind === 'kids' && x.ahead >= 2);
+  // v3 · smoke over the taiga before a fire, a bear or a herd of boars on the far hill
+  const smoke = signs.find((x) => x.kind === 'fire');
+  const beast = signs.find((x) => x.kind === 'bear' || x.kind === 'boars');
   // raids gather just past the known weeks, clear of the tools in the right corner
   const signX = Math.min(W - (clear ? 120 : 175), Math.max(W * 0.5, fogX + 24));
   const key = (e: JSX.TargetedKeyboardEvent<SVGGElement>, fn: () => void) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fn(); } };
@@ -257,6 +277,18 @@ export function SkyBand({ W, season, tokens, signs, meteoMax, px, onToken, onFog
         {/* the road from the field's gate up through the hills to the village on the horizon: over the fog,
             which hides the weather to come, not the land */}
         <VillageRoad W={W} H={H} winter={season === 3} />
+        {smoke && (
+          <g transform={`translate(${W * 0.76} ${H - 36})`} class="sky-sign" role="button" tabindex={0} aria-label={smoke.text} onClick={(e) => { e.stopPropagation(); onSign?.(smoke); }} onKeyDown={(e) => key(e, () => onSign?.(smoke))}>
+            <rect x={-hit / 2} y={-hit} width={hit} height={hit * 1.4} fill="transparent" />
+            <FarSmoke near={smoke.ahead <= 1} />
+          </g>
+        )}
+        {beast && (
+          <g transform={`translate(${Math.min(W - 150, Math.max(W * 0.42, fogX + 40))} ${H - 31})`} class="sky-sign" role="button" tabindex={0} aria-label={beast.text} onClick={(e) => { e.stopPropagation(); onSign?.(beast); }} onKeyDown={(e) => key(e, () => onSign?.(beast))}>
+            <rect x={-hit / 2} y={-hit / 2} width={hit} height={hit} fill="transparent" />
+            <FarBeast kind={beast.kind as 'bear' | 'boars'} />
+          </g>
+        )}
         {kidsFar && (
           <g transform={`translate(${Math.min(W - 170, Math.max(W * 0.46, fogX + 10))} ${H - 37})`} class="sky-sign" role="button" tabindex={0} aria-label={kidsFar.text} onClick={(e) => { e.stopPropagation(); onSign?.(kidsFar); }} onKeyDown={(e) => key(e, () => onSign?.(kidsFar))}>
             <rect x={-hit / 2} y={-hit / 2} width={hit} height={hit} fill="transparent" />
