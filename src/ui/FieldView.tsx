@@ -598,6 +598,7 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
   const turnNext = useRef<(() => void) | null>(null);
   const turnSkip = useRef(false);
   const seenHand = useRef<Set<number> | null>(null);
+  const flown = useRef(new Set<number>()); // cards of the hand that have already flown in from the deck
   const pace = fast ? 0.45 : 1;
   const clock=useRef(new AnimationClock()).current;
   function storePlayback(){
@@ -1458,15 +1459,22 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
     const before = seenHand.current;
     seenHand.current = now;
     if (!before) return;
-    const add = [...now].filter((u) => !before.has(u));
-    if (add.length) setDealt((f) => [...f.filter((u) => now.has(u)), ...add]);
+    // a card that left the hand (played, exchanged) may come back from the deck one day: then it flies again
+    for (const u of flown.current) if (!now.has(u)) flown.current.delete(u);
+    const add = [...now].filter((u) => !before.has(u) && !flown.current.has(u));
+    if (add.length) setDealt((f) => [...f.filter((u) => now.has(u) && !flown.current.has(u)), ...add]);
   }, [handKey]);
   // The new week's cards wait in the deck while the night and its events play (they are not shown in the fan
   // yet), then each flies once to its place; the cards that stayed in the hand do not move.
   const dealing = night === 'off' && !weekPlaying;
+  // 28.10 · a card flies in from the deck once: the list is cleared by a timer that may be paused (a sheet open)
+  // or cut short (the week ended at once); a card that has flown never waits in the deck again — ending the next
+  // week without playing used to hide last week's new cards in the night and deal them a second time
+  useEffect(() => { if (!dealing) setDealt((f) => (f.some((u) => flown.current.has(u)) ? f.filter((u) => !flown.current.has(u)) : f)); }, [dealing]);
   // a dealt card starts on the deck and flies to its place in the fan
   useLayoutEffect(() => {
     if (!dealt.length || !dealing) return;
+    for (const uid of dealt) flown.current.add(uid);
     const deck = viewRef.current?.querySelector('.dock-top .deck-svg')?.getBoundingClientRect();
     if (!deck) return;
     for (const uid of dealt) {
