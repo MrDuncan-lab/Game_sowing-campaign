@@ -1591,7 +1591,8 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
   const sectionNews = yardUsed(s) > 0 || storageUsed(s) >= storageCap(s) || locOf(s).orgs.some((o) => s.orgs[o]?.active && !deliverProblem(s, o));
 
   // ---- the village above the field
-  const villageOn = hasVillage(s) && !teaching && !sideBySide;
+  // the training farm shows its village from the lesson that leads there (engine/tutorial.ts · AREA_OPENS)
+  const villageOn = hasVillage(s) && (!teaching || !lessonLock('village')) && !sideBySide;
   const skyPx = Math.round(SKY_H * px);
   // the sky goes on past the field to the edges of the screen
   const skyExt = Math.max(0, Math.ceil((wrapW / Math.max(0.05, px) - cam.W) / 2) + 2);

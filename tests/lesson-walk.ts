@@ -39,7 +39,7 @@ export function lessonAction(t:TutorialSession,w:Way={}):G.Action|'next' {
    return{t:'endWeek'};
   }
   case 'weeds':return{t:'weed',x:t.weedAt![0],y:t.weedAt![1]};
-  case 'visit':case 'lens':case 'chapter':return 'next';
+  case 'visit':case 'village':case 'lens':case 'chapter':return 'next';
   case 'compost':return{t:'play',uid:t.compostUid!,tiles:[[1,2]]};
   case 'hire':return{t:'hire',id:'foreman'};
   case 'lab':{const c=G.deckList(s).find(c=>c.def==='seed_radish')!;return{t:'labCell',uid:c.uid,cell:G.upgradeSpots(s,c)[0]};}

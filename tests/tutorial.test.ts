@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../src/engine/game';
-import {applyTutorial,areaOpen,createTutorial,dryBeds,normalizeTutorial,practiceNeed,restartTutorialStep,tutorialAccepted,tutorialNext,tutorialPlant,tutorialProblem,tutorialReserve,wateringProgress,AREA_IDS,AREA_OPENS,FREE_STEPS,HAND_BY_WEEK,PALYCH_BEDS,TUTORIAL_SEED,TUTORIAL_STEPS,TUTORIAL_WEEK,type TutorialSession} from '../src/engine/tutorial';
+import {applyTutorial,areaOpen,createTutorial,dryBeds,normalizeTutorial,practiceNeed,restartTutorialStep,saleProgress,tutorialAccepted,tutorialNext,tutorialPlant,tutorialProblem,tutorialReserve,wateringProgress,AREA_IDS,AREA_OPENS,FREE_STEPS,HAND_BY_WEEK,PALYCH_BEDS,TUTORIAL_SEED,TUTORIAL_STEPS,TUTORIAL_WEEK,type TutorialSession,type TutorialStep} from '../src/engine/tutorial';
 import {cards,play,reload,ORG} from './lesson-walk';
 import {validFarm} from '../src/ui/persist';
 import {CARDS} from '../src/engine/data';
@@ -45,7 +45,7 @@ test('the hand grows week by week and holds what each lesson needs',()=>{
  assert.deepEqual(t.farm.hand.map(c=>c.def),['seed_radish','seed_bean','water']);
  const deck=G.deckCount(t.farm);
  t=play(t,'sale');assert.equal(ordinary(t.farm),HAND_BY_WEEK[2]);assert.ok(t.farm.hand.some(c=>c.def==='water'));
- t=play(t,'visit');assert.equal(ordinary(t.farm),HAND_BY_WEEK[3]);
+ t=play(t,'village');assert.equal(ordinary(t.farm),HAND_BY_WEEK[3]);
  t=play(t,'hail');assert.ok(t.farm.hand.some(c=>c.def==='shelter'),'the hail lesson has its cover in hand');
  t=play(t,'solo');assert.equal(ordinary(t.farm),G.handMax(t.farm),'the full hand from week 4');
  assert.equal(G.deckCount(t.farm),deck,'the lesson never adds cards to the deck');
@@ -87,7 +87,7 @@ test('every legal radish bed and bean placement brings a sale, a deliverable ord
   n=applyTutorial(n,{t:'guide',lesson:'rotate'});
   const bean=n.farm.hand.find(c=>c.def==='seed_bean')!;
   for(const b of G.placements(n.farm,bean)){
-   let m=play(n,'accept',{bed:p.tiles[0],beanTiles:b.tiles});
+   let m=play(n,'deliver',{bed:p.tiles[0],beanTiles:b.tiles});
    const reserve=tutorialReserve(m),stock=G.stockOf(m.farm,'radish');
    assert.ok(stock>=reserve&&reserve>0,`the first order can be delivered (${p.tiles[0]} · ${JSON.stringify(b.tiles)})`);
    m=play(m,'chapter',{bed:p.tiles[0],beanTiles:b.tiles});
@@ -152,8 +152,12 @@ test('lessons reject other actions atomically, and Палыч\'s radish is never
  assert.deepEqual(tutorialPlant({...t,plantedAt:undefined}),[3,3]);
  t=play(t,'sale',{bed:[3,3],beanTiles:[[2,2],[2,3]]});
  assert.throws(()=>applyTutorial(t,{t:'endWeek'}),/урожай Палыча/);
- const changed=applyTutorial(t,{t:'sell',crop:'radish',qty:1});
- assert.equal(changed.step,'water');assert.equal(restartTutorialStep(reload(changed)).step,'water');
+ const all=G.stockOf(t.farm,'radish');
+ // the first sale counts down to the last radish: part of it keeps the lesson where it is
+ const part=applyTutorial(t,{t:'sell',crop:'radish',qty:1});
+ assert.equal(part.step,'sale');assert.deepEqual(saleProgress(part),{done:1,of:all});
+ const changed=applyTutorial(part,{t:'sell',crop:'radish',qty:all-1});
+ assert.equal(changed.step,'visit');assert.equal(restartTutorialStep(reload(changed)).step,'visit');
 });
 
 test('the chapter certificate offers both roads: the map (the step waits) or chapter II',()=>{
@@ -222,7 +226,7 @@ test('selling everything and skipping optional care still gives a concrete recov
 });
 
 test('tutorial construction history agrees with its real one-week project',()=>{
- const t=play(createTutorial(),'play7');
+ const t=play(createTutorial(),'play8');
  assert.equal(t.farm.projects.find(p=>p.kind==='track')?.weeks,1);
  assert.match(t.farm.feed.at(-1)!.text,/Капельный полив, 1 неделя/);
 });
@@ -246,4 +250,30 @@ test('a stored lesson is continued only by its own version; every step of this o
  assert.equal(tutorialAccepted(v3,validFarm),false,'a version-3 lesson starts anew');
  assert.equal(tutorialAccepted({...createTutorial(),farm:{...createTutorial().farm,seed:'other'}},validFarm),false);
  assert.equal(createTutorial().farm.seed,TUTORIAL_SEED);
+});
+
+test('the order comes before its harvest and is taken through the village',()=>{
+ let t=play(createTutorial(),'accept');
+ assert.equal(t.farm.absWeek,2);assert.equal(G.stockOf(t.farm,'radish'),0,'Палыч\'s radish is all sold');
+ const offer=t.farm.orgs[ORG(t)]!.offer!;
+ const [x,y]=tutorialPlant(t);
+ assert.equal(G.tile(t.farm,x,y).crop?.id,'radish');
+ assert.ok(offer.lines[0].qty<=Math.max(1,Math.floor(G.expectedYield(t.farm,x,y))-1),'it asks for less than the growing radish will give');
+ t=applyTutorial(t,{t:'accept',org:ORG(t)});
+ assert.equal(t.step,'water','the sprouts come next, the order waits');
+ t=play(t,'play2');
+ assert.throws(()=>applyTutorial(t,{t:'deliver',org:ORG(t)}),/./,'nothing to deliver before the harvest');
+ t=play(t,'village');
+ assert.equal(t.farm.absWeek,3);assert.ok(G.stockOf(t.farm,'radish')>=offer.lines[0].qty,'the morning brought the radish');
+ assert.equal(areaOpen(t.step,'village'),true);
+ assert.match(tutorialProblem(t,{t:'deliver',org:ORG(t)})!,/деревне/);
+ t=tutorialNext(t);assert.equal(t.step,'deliver');
+ t=applyTutorial(t,{t:'deliver',org:ORG(t)});assert.equal(t.step,'hail');
+});
+
+test('chapter II gives every topic a week of its own',()=>{
+ const weeks:Partial<Record<TutorialStep,number>>={};
+ play(createTutorial(),'done',{},(p)=>{weeks[p.step]??=p.farm.absWeek;});
+ for(const step of ['weeds','hire','lab','upgrade','place','practice'] as const)assert.equal(weeks[step],TUTORIAL_WEEK[step],`${step} in week ${TUTORIAL_WEEK[step]}`);
+ assert.deepEqual(['weeds','hire','lab','upgrade','place','practice'].map(s=>TUTORIAL_WEEK[s as TutorialStep]),[5,6,7,8,9,10]);
 });

@@ -1,32 +1,38 @@
-import { apply, handMax, newGame, tile, stockOf, weekDays, workEffectCells, type Action, type GameState, type Card } from './game';
+import { apply, expectedYield, handMax, newGame, tile, stockOf, weekDays, workEffectCells, type Action, type GameState, type Card } from './game';
 import { CARDS, CROPS, TRACKS, type CropId } from './data';
 
 // The training farm, version 4 (docs/ONBOARDING-v4.md). Written for a newcomer from match-3 games:
 // a reward after the very first «Конец недели», one or two new things a week, everything else locked but
-// visible. Chapter I takes four weeks and is the one Палыч offers everybody; chapter II is optional.
-//   week 1  plant · rotate · bean · night        Палыч's radish ripens tonight; the player sows beside it
-//   week 2  sale · water · play2                 the first money; sprouts ask for water
-//   week 3  visit · accept · deliver · hail · play3   guests and an order; hail announced over the beans
-//   week 4  solo                                 a week on one's own with the full hand, then the first rent
-//   week 5  chapter · weeds · lens · compost · play5  (chapter II, optional) the land
-//   week 6  hire · lab · play6                   a helper and the first selection project
-//   week 7  upgrade · play7                      an improvement
-//   week 8  place · practice · done              a building, then an order grown without hints
+// visible. Chapter I takes four weeks and is the one Палыч offers everybody; chapter II is optional and gives
+// every topic a week of its own.
+//   week 1   plant · rotate · bean · night                Палыч's radish ripens tonight; the player sows beside it
+//   week 2   sale · visit · accept · water · play2         the first money; guests order the radish still growing
+//   week 3   village · deliver · hail · play3             the order is taken through the village; hail announced
+//   week 4   solo                                         a week on one's own with the full hand, then the first rent
+//   week 5   chapter · weeds · lens · compost · play5      (chapter II, optional) the land
+//   week 6   hire · play6                                 a helper
+//   week 7   lab · play7                                  the first selection project
+//   week 8   upgrade · play8                              an improvement
+//   week 9   place · play9                                a building on the field
+//   week 10  practice · done                              an order grown without hints
 // The rules of the game are the real ones; only this lesson decides the hand, the weather and the orders.
-export const TUTORIAL_STEPS = ['plant','rotate','bean','night','sale','water','play2','visit','accept','deliver','hail','play3','solo','chapter','weeds','lens','compost','play5','hire','lab','play6','upgrade','play7','place','practice','done'] as const;
+export const TUTORIAL_STEPS = ['plant','rotate','bean','night','sale','visit','accept','water','play2','village','deliver','hail','play3','solo','chapter','weeds','lens','compost','play5','hire','play6','lab','play7','upgrade','play8','place','play9','practice','done'] as const;
 export type TutorialStep = typeof TUTORIAL_STEPS[number];
-export const FREE_STEPS: readonly TutorialStep[] = ['play2','play3','play5','play6','play7'];
-export const CHAPTER_I_WEEKS = 4;
+export const FREE_STEPS: readonly TutorialStep[] = ['play2','play3','play5','play6','play7','play8','play9'];
+export const CHAPTER_WEEKS = { I: 4, II: 6 } as const;
+export const CHAPTER_I_WEEKS = CHAPTER_WEEKS.I;
 // the week of the lesson each step belongs to (the chapter certificate greets the player on the morning of week 5)
 export const TUTORIAL_WEEK: Record<TutorialStep, number> = {
   plant:1, rotate:1, bean:1, night:1,
-  sale:2, water:2, play2:2,
-  visit:3, accept:3, deliver:3, hail:3, play3:3,
+  sale:2, visit:2, accept:2, water:2, play2:2,
+  village:3, deliver:3, hail:3, play3:3,
   solo:4, chapter:4,
   weeds:5, lens:5, compost:5, play5:5,
-  hire:6, lab:6, play6:6,
-  upgrade:7, play7:7,
-  place:8, practice:8, done:8,
+  hire:6, play6:6,
+  lab:7, play7:7,
+  upgrade:8, play8:8,
+  place:9, play9:9,
+  practice:10, done:10,
 };
 export const tutorialChapter = (step: TutorialStep): 'I' | 'II' => TUTORIAL_STEPS.indexOf(step) > TUTORIAL_STEPS.indexOf('chapter') ? 'II' : 'I';
 // The hand grows with the player: three cards in the first week, the full hand from the fourth.
@@ -34,9 +40,9 @@ export const tutorialChapter = (step: TutorialStep): 'I' | 'II' => TUTORIAL_STEP
 export const HAND_BY_WEEK: Record<number, number> = { 1: 3, 2: 4, 3: 5 };
 // Parts of the farm the lesson keeps closed until it needs them. A closed part stays visible with a lock:
 // the player can peek at it, nothing there can be used yet.
-export type TutorialArea = 'barn' | 'orders' | 'deck' | 'tools' | 'shop' | 'bank' | 'house' | 'lab';
+export type TutorialArea = 'barn' | 'orders' | 'village' | 'deck' | 'tools' | 'shop' | 'bank' | 'house' | 'lab';
 export const AREA_OPENS: Record<TutorialArea, TutorialStep> = {
-  barn: 'sale', orders: 'visit', deck: 'solo', tools: 'lens', shop: 'weeds', bank: 'weeds', house: 'hire', lab: 'lab',
+  barn: 'sale', orders: 'visit', village: 'village', deck: 'solo', tools: 'lens', shop: 'weeds', bank: 'weeds', house: 'hire', lab: 'lab',
 };
 export const AREA_IDS = Object.keys(AREA_OPENS) as TutorialArea[];
 export const areaOpen = (step: TutorialStep, area: TutorialArea) => TUTORIAL_STEPS.indexOf(step) >= TUTORIAL_STEPS.indexOf(AREA_OPENS[area]);
@@ -53,6 +59,8 @@ export interface TutorialSession {
   solo?: SoloGoals;
   /** chapter II: Палыч's compost, given at its start */
   compostUid?: number;
+  /** the first sale's counter: how much of Палыч's radish there was to sell */
+  saleOf?: number;
 }
 export const TUTORIAL_KEY = 'posevnaya.tutorial.atlas.v4';
 export const TUTORIAL_SEED = 'atlas-tutorial-v4';
@@ -96,6 +104,7 @@ function advance(t: TutorialSession, step: TutorialStep): TutorialSession {
     if (!n.thirsty.length) n = { ...n, step: 'play2' };
   }
   if (step === 'solo') n.solo = { planted: false, watered: false, sold: false, sell: storageUnits(n.farm) > 0 };
+  if (step === 'sale') n.saleOf = stockOf(n.farm, 'radish');
   return checkpoint(n);
 }
 const storageUnits = (s: GameState) => s.storage.reduce((a, l) => a + l.qty, 0) + s.yard.reduce((a, l) => a + l.qty, 0);
@@ -112,6 +121,11 @@ export function tutorialReserve(t: TutorialSession): number {
 export function dryBeds(s: GameState): [number, number][] {
   return s.tiles.flatMap((v, i) => v.owned && v.crop && !v.crop.rest && v.moisture === 0 ? [at(i)] : []);
 }
+/** The first sale's counter: how much of Палыч's radish is sold. */
+export function saleProgress(t: TutorialSession): { done: number; of: number } {
+  const of = t.saleOf ?? 0;
+  return { done: Math.max(0, of - stockOf(t.farm, 'radish')), of };
+}
 /** The watering lesson's counter: how many of the beds that were dry are watered now. */
 export function wateringProgress(t: TutorialSession): { done: number; of: number } {
   const beds = t.thirsty ?? [];
@@ -119,9 +133,9 @@ export function wateringProgress(t: TutorialSession): { done: number; of: number
 }
 const stillThirsty = (t: TutorialSession) => (t.thirsty ?? []).filter(([x, y]) => tile(t.farm, x, y).crop && tile(t.farm, x, y).moisture === 0);
 export function tutorialNext(t: TutorialSession): TutorialSession {
-  // UI-only steps: the guests' visit, the lens; the certificate's «Ещё у Палыча» begins chapter II
+  // UI-only steps: the guests' visit, the village, the lens; the certificate's «Ещё у Палыча» begins chapter II
   if (t.step === 'chapter') return startChapterTwo(t);
-  const next: Partial<Record<TutorialStep, TutorialStep>> = { visit: 'accept', lens: 'compost' };
+  const next: Partial<Record<TutorialStep, TutorialStep>> = { visit: 'accept', village: 'deliver', lens: 'compost' };
   return next[t.step] ? advance(t, next[t.step]!) : t;
 }
 // Chapter II begins on the morning of week 5: a weed comes up and Палыч brings a bag of compost
@@ -147,6 +161,7 @@ const AREA_ACTIONS: Partial<Record<Action['t'], TutorialArea>> = {
 const CLOSED: Record<TutorialArea, string> = {
   barn: 'Амбар откроется, когда соберёте первый урожай.',
   orders: 'Заказы откроются, когда к ферме придут первые гости.',
+  village: 'Деревня откроется на третьей неделе.',
   deck: 'Обмен карт откроется на четвёртой неделе, вместе с полной рукой.',
   tools: 'Инструменты откроются во второй главе.',
   shop: 'Лавка семян откроется во второй главе.',
@@ -173,7 +188,7 @@ export function tutorialProblem(t: TutorialSession, a: Action): string | null {
     case 'rotate': return 'Коснитесь выбранной фасоли ещё раз — фигура повернётся.';
     case 'bean': return a.t === 'play' && def === 'seed_bean' ? null : 'Посадите повёрнутую фасоль на свободные грядки.';
     case 'night': return one(['endWeek']);
-    case 'sale': return a.t === 'sell' && a.qty > 0 ? null : 'Сначала продадим урожай Палыча — он в амбаре.';
+    case 'sale': return a.t === 'sell' && a.crop === 'radish' && a.qty > 0 ? null : 'Сначала продадим урожай Палыча — он в амбаре.';
     case 'water': {
       const dry = stillThirsty(t);
       const hits = (cells: [number, number][]) => cells.some((c) => dry.some((d) => same(c, d)));
@@ -181,6 +196,7 @@ export function tutorialProblem(t: TutorialSession, a: Action): string | null {
       return ok ? null : 'Полейте ростки с красной каплей: картой «Полив» или лейкой из меню грядки.';
     }
     case 'visit': return 'К ферме идут гости — встретьте их.';
+    case 'village': return 'Заказ ждут в деревне — откройте её над полем.';
     case 'accept': return one(['accept']);
     case 'deliver': return one(['deliver']);
     case 'hail': {
@@ -253,10 +269,15 @@ function preparePracticeSeed(t: TutorialSession) {
     if (i >= 0) { const [seed] = pile.splice(i, 1); t.farm.draw.push(seed); return; }
   }
 }
-function offer(s: GameState, second = false) {
+// The first order comes before its harvest: it asks for the radish still growing on the player's bed,
+// and leaves something of that harvest to sell — without changing any crop yields or ordinary orders.
+function firstOrderUnits(t: TutorialSession): number {
+  const [x, y] = tutorialPlant(t), p = tile(t.farm, x, y).crop;
+  return Math.max(stockOf(t.farm, 'radish'), p?.id === 'radish' ? expectedYield(t.farm, x, y) : 0);
+}
+function offer(s: GameState, second = false, expect = stockOf(s, 'radish')) {
   const org = Object.keys(s.orgs)[0] as keyof typeof s.orgs;
-  // Leave something to sell and something to deliver, without changing any crop yields or ordinary orders.
-  const qty = second ? 2 : Math.max(1, Math.min(2, Math.floor(stockOf(s, 'radish')) - 1));
+  const qty = second ? 2 : Math.max(1, Math.min(2, Math.floor(expect) - 1));
   const crop = second ? practiceCrop(s) : 'radish';
   s.orgs[org]!.offer = { id: s.nextQuestId++, org, step: s.orgs[org]!.step, title: second ? 'К столу соседей' : 'Первый редис', text: second ? 'Немного урожая к обеду.' : 'Свежий редис к обеду.', lines: [{ crop, qty }], pay: 8, rel: 1, weeks: 5, deadline: s.absWeek + 5, expires: s.absWeek + 5, createdWeek: s.absWeek };
   s.orgs[org]!.idle = 0;
@@ -264,7 +285,7 @@ function offer(s: GameState, second = false) {
 // Only this adapter owns the lesson's orders. Run before the real engine too,
 // so its weekly scheduler cannot create unrelated story offers between steps.
 function lessonOrders(t: TutorialSession) {
-  const first = ['visit', 'accept', 'deliver'].includes(t.step);
+  const first = ['visit', 'accept', 'water', 'play2', 'village', 'deliver'].includes(t.step);
   const second = t.step === 'practice' && !t.delivered;
   const title = first ? 'Первый редис' : second ? 'К столу соседей' : null;
   const org = Object.keys(t.farm.orgs)[0] as keyof typeof t.farm.orgs;
@@ -275,9 +296,9 @@ function lessonOrders(t: TutorialSession) {
   }
   const o = t.farm.orgs[org]!;
   if (title && !o.offer && !o.active) {
-    offer(t.farm, second);
+    offer(t.farm, second, second ? undefined : firstOrderUnits(t));
     if (second) t.orderNotice = 'Срок прошлого заказа вышел. Новый заказ уже в разделе «Заказы».';
-    if (t.step === 'deliver') t.step = 'accept';
+    if (t.step === 'deliver' || t.step === 'village') t.step = 'accept';
   }
 }
 // a weed comes up on a free bed — or on any bed if every one is planted
@@ -326,11 +347,12 @@ export function applyTutorial(t: TutorialSession, a: Action): TutorialSession {
     case 'rotate': if (a.t === 'guide' && a.lesson === 'rotate') n = advance(n, 'bean'); break;
     case 'bean': if (a.t === 'play') n = advance(n, 'night'); break;
     case 'night': if (newWeek) n = advance(n, 'sale'); break;
-    case 'sale': if (a.t === 'sell') n = advance(n, 'water'); break;
+    // all of Палыч's radish sold: the guests come to the field with an order for the radish still growing
+    case 'sale': if (a.t === 'sell' && stockOf(s, 'radish') <= 0) { offer(s, false, firstOrderUnits(n)); n = advance(n, 'visit'); } break;
+    // the order taken: back to the field, the sprouts are thirsty; an order lost and offered again goes on to delivery
+    case 'accept': if (a.t === 'accept') n = advance(n, s.absWeek <= 2 ? 'water' : 'deliver'); break;
     case 'water': if (watering && !stillThirsty(n).length) n = advance(n, 'play2'); break;
-    // the harvest week: the order arrives with the morning — the guests come to the field for it
-    case 'play2': if (newWeek) { offer(s); n = advance(n, 'visit'); } break;
-    case 'accept': if (a.t === 'accept') n = advance(n, 'deliver'); break;
+    case 'play2': if (newWeek) n = advance(n, 'village'); break;
     case 'deliver': if (a.t === 'deliver') {
       // tonight hail is coming for the beans
       const i = s.tiles.findIndex((v) => v.crop?.id === 'bean');
@@ -349,15 +371,17 @@ export function applyTutorial(t: TutorialSession, a: Action): TutorialSession {
       if (newWeek) n = advance(n, 'chapter');
       break;
     }
-    case 'compost': if (a.t === 'play') n = advance(n, 'play5'); break;
     case 'weeds': if (a.t === 'weed') n = advance(n, 'lens'); break;
+    case 'compost': if (a.t === 'play') n = advance(n, 'play5'); break;
     case 'play5': if (newWeek) n = advance(n, 'hire'); break;
-    case 'hire': if (a.t === 'hire') n = advance(n, 'lab'); break;
-    case 'lab': if (a.t === 'labCell') n = advance({ ...n, labUid: a.uid }, 'play6'); break;
-    case 'play6': if (newWeek) n = advance(n, 'upgrade'); break;
-    case 'upgrade': if (a.t === 'track') n = advance(n, 'play7'); break;
-    case 'play7': if (newWeek && !s.projects.some((p) => p.kind === 'track' && p.track === 'irrigation')) n = advance(n, 'place'); break;
-    case 'place': if (a.t === 'build') { offer(s, true); n = advance({ ...n, watered: false, delivered: false }, 'practice'); } break;
+    case 'hire': if (a.t === 'hire') n = advance(n, 'play6'); break;
+    case 'play6': if (newWeek) n = advance(n, 'lab'); break;
+    case 'lab': if (a.t === 'labCell') n = advance({ ...n, labUid: a.uid }, 'play7'); break;
+    case 'play7': if (newWeek) n = advance(n, 'upgrade'); break;
+    case 'upgrade': if (a.t === 'track') n = advance(n, 'play8'); break;
+    case 'play8': if (newWeek && !s.projects.some((p) => p.kind === 'track' && p.track === 'irrigation')) n = advance(n, 'place'); break;
+    case 'place': if (a.t === 'build') n = advance(n, 'play9'); break;
+    case 'play9': if (newWeek) { offer(s, true); n = advance({ ...n, watered: false, delivered: false }, 'practice'); } break;
     case 'practice':
       n = { ...n, watered: n.watered || wetter, delivered: n.delivered || a.t === 'deliver' };
       if (a.t === 'accept' || a.t === 'deliver') n.orderNotice = undefined;
