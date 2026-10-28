@@ -64,12 +64,12 @@ test('every caption stands under a real place; every customer has an order bubbl
   }
 });
 
-test('the house screen has its own self-contained drawing of the same five houses', () => {
+test('the house screen has its own self-contained drawing of the same seven houses', () => {
   for (const d of [ES_SUMMER, ES_WINTER]) {
-    assert.equal(d.houses.length, 5);
+    assert.equal(d.houses.length, 7);
     for (const k of ['hive', 'greenhouse', 'scarecrow', 'barrel', 'meteo', 'compost'] as const) assert.ok(d.items[k].length > 50, k);
     const ids = new Set([...d.defs.matchAll(/id="([^"]+)"/g)].map((m) => m[1]));
-    const used = [...[d.back, d.front, ...d.houses, ...Object.values(d.items)].join('').matchAll(/url\(#([^)]+)\)/g)].map((m) => m[1]);
+    const used = [...[d.back, d.backs.kuban, d.backs.altai, d.front, ...d.houses, ...d.camps, ...Object.values(d.items)].join('').matchAll(/url\(#([^)]+)\)/g)].map((m) => m[1]);
     for (const id of used) { assert.ok(id.startsWith('es-'), id); assert.ok(ids.has(id), `missing def ${id}`); }
   }
 });
