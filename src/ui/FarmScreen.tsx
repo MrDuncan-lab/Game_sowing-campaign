@@ -14,6 +14,7 @@ import type { BuildItem } from '../engine/game';
 import { Icon } from '../art/icons';
 import { Btn, ClosedLayer, Dispatch, Money, Sheet, compactMoney, reducedMotionNow } from './common';
 import { ArrestLayer, HomeBankrupt, RunOver, VisitSheet } from './Run';
+import { BankScene } from '../art/bankScene';
 import { FestivalSheet, RatingSheet, festToShow, markFestSeen } from './Festival';
 import type { ExpeditionId } from '../engine/data';
 import { FieldView } from './FieldView';
@@ -89,6 +90,7 @@ export { ClosedLayer } from './common';
 function GameOver({ s, onMap, onRestart }: { s: GameState; onMap: () => void; onRestart: () => void }) {
   return (
     <ClosedLayer title="Ферма закрыта">
+        {s.loc === 'chernozem' && s.over?.reason?.includes('Пряхин') && <BankScene mode="lost" level={lvl(s, 'house')} season={s.season} />}
         <p>{s.over?.reason}</p>
         <div class="bank-grid">
           <div class="kv"><span>Прожито лет</span><b>{s.yearsCompleted}</b></div>

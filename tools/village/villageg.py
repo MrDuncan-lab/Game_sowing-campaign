@@ -606,7 +606,7 @@ def hill_F(r):
     if r.winter:
         H.woodcutter(r, 84, 1080, 1.2)
     # the player's house at each of its five levels; the game shows the one its level names (root class on-houseN)
-    for lv in range(1, 6):
+    for lv in range(1, 8):
         pop(r, 'F', 'house', 108, 1052, lambda X, Y, lv=lv: Q.homestead(r, X, Y, 1.25, lit=r.winter, level=lv), 'Ваша усадьба', cond=f'house{lv}')
     # the house under construction: scaffolding over whichever house stands, by stage (root class on-buildN); it
     # lets taps through to the house under it

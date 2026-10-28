@@ -1,18 +1,19 @@
 // v3 · the roguelite of expeditions (docs/PROGRESSION-v3.md §3, docs/CHARACTERS-v3.md): the departure with its
 // three plots and the cart, the visitor at the camp, the run's finds, folding the farm and the return home; the
 // home's bankruptcy that can be worked off and its arrest.
+import { BankScene } from '../art/bankScene';
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import type { ComponentChildren } from 'preact';
 import { createPortal } from 'preact/compat';
 import { CARDS, EXPEDITION_IDS, LOCATIONS, MATERIALS, WORKERS, type ExpeditionId, type Terrain } from '../engine/data';
 import {
-  GameState, Card, buyoutPrice, foldProblem, foldValue, infl, lootCount, lootOffers, money, plural, visitOptions, randomSeed, matsList, chainsDone,
+  GameState, Card, buyoutPrice, foldProblem, foldValue, infl, lootCount, lootOffers, money, plural, visitOptions, randomSeed, matsList, chainsDone, lvl,
 } from '../engine/game';
 import { CONDITIONS, LOOT, RELICS, VISITS, runMap, type LootId, type PlotOffer, type RelicId } from '../engine/run';
 import { CART_CARDS, cartCards, cartCashMax, cartWorkers, departProblem, departureOffers, expeditionOpen, type Cart } from '../engine/meta';
 import { Icon } from '../art/icons';
 import { Portrait, PORTRAIT_IMAGES, type PersonId } from '../art/portraits';
-import { Btn, ClosedLayer, Dispatch, Sheet, reducedMotionNow } from './common';
+import { Btn, ClosedLayer, Dispatch, Sheet, compactMoney, reducedMotionNow } from './common';
 import { CardView } from './Card';
 
 const NB = ' ';
@@ -229,7 +230,7 @@ export function RunOver({ s, onHome, onMap }: { s: GameState; onHome: () => void
 export function HomeBankrupt({ s, onRestart, onWork, onMap }: { s: GameState; onRestart: () => void; onWork: () => void; onMap: () => void }) {
   return (
     <ClosedLayer title="За домом приехал банк">
-      <div class="bank-cart" aria-hidden="true"><Portrait id="marat" size={64} /><Icon name="cart" size={56} /></div>
+      <BankScene mode="cart" level={lvl(s, 'house')} season={s.season} amount={compactMoney(s.over!.work!)} />
       <p>{s.over?.reason}. Дом в залоге, и Марат из банка разводит руками.</p>
       <p>Можно <b>начать заново</b> — дом снова в залоге, профиль и слава остаются. Или <b>уйти на заработки</b>: дом под арестом, долг {money(s.over!.work!)} гасится на вылазках, две попытки. Закроете — дом проснётся следующей весной.</p>
       <div class="btn-row"><Btn tone="primary" onClick={onWork}><Icon name="cart" size={20} /> Уйти на заработки</Btn><Btn onClick={onRestart}>Начать заново</Btn><Btn tone="ghost" onClick={onMap}>На карту</Btn></div>
@@ -241,7 +242,7 @@ export function ArrestLayer({ s, glory, onExpedition, onMap, runFarm }: { s: Gam
   const a = s.arrest!;
   return (
     <ClosedLayer title="Дом под арестом">
-      <div class="bank-cart" aria-hidden="true"><Portrait id="marat" size={64} /><Icon name="lock" size={48} /></div>
+      <BankScene mode="arrest" level={lvl(s, 'house')} season={s.season} />
       <p>Долг банку <b>{money(a.debt)}</b>. Вылазок на погашение: <b>{a.runs}</b>. Свёрнутое хозяйство сначала закроет долг, остаток — в кассу дома.</p>
       {s.away ? <p>Обоз уже на вылазке: <b>{LOCATIONS[s.away.loc].name}</b>.</p> : <div class="btn-row">
         {EXPEDITION_IDS.map((l) => <Btn tone={l === 'rent' ? 'primary' : undefined} disabled={expeditionOpen(l, glory) ? null : `Слава ${LOCATIONS[l].glory}`} onClick={() => onExpedition(l)}>{LOCATIONS[l].name}</Btn>)}

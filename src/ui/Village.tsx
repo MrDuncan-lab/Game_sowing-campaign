@@ -42,7 +42,7 @@ function villageClasses(s: GameState): string {
   const on: string[] = [];
   on.push(lvl(s, 'lab') >= 1 ? 'on-lab' : 'on-nolab');
   // the player's house is drawn at its level, the same drawing as on the house screen
-  on.push(`on-house${Math.max(1, Math.min(5, lvl(s, 'house')))}`);
+  on.push(`on-house${Math.max(1, Math.min(7, lvl(s, 'house')))}`);
   // a house under construction stands in scaffolding by the stage of the work
   const stage = buildStage(s, 'house');
   if (stage) on.push(`on-build${stage}`);

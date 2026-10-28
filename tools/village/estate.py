@@ -39,7 +39,104 @@ def mid_crest(x):
 
 
 # ---------------------------------------------------------------- the surroundings
-def back(r):
+def poplar(r, x, y, h):
+    """a Kuban poplar: a tall narrow crown on a short pale trunk"""
+    P = r.P
+    r.shadow([(x - 3, y), (x + h * .3, y - 1), (x + h * .36, y + 3), (x, y + 4)], .6)
+    r.shape([(x - 1.4, y), (x + 1.4, y), (x + 1, y - h * .3), (x - 1, y - h * .3)], P['birch'], .5)
+    if r.winter:
+        r.lines([[(x, y - h * .3), (x + (k - 2) * 2.4, y - h * (.55 + .1 * (k % 3)))] for k in range(5)] + [[(x, y - h * .3), (x, y - h)]], .6, color=P['logs_s'])
+        return
+    r.blob(x + .6, y - h * .64, h * .13, h * .38, P['leaf_d'], 0, n=12, ink=False)
+    r.blob(x, y - h * .65, h * .12, h * .37, P['leaf'], .6, n=12, bumps=6, cls='lf')
+    r.blob(x - h * .03, y - h * .76, h * .05, h * .16, P['leaf_h'], 0, n=8, ink=False, cls='lh')
+
+
+def hata(r, cx, y, s=1.0):
+    """a whitewashed Kuban house (хата) with a thatched or red roof, far off"""
+    P = r.P
+    w, h = 22 * s, 11 * s
+    x = cx - w / 2
+    Q.quad(r, x, y - h, x + w, y, '#f4efe2', .5 * s)
+    r.shape([(x - 3 * s, y - h), (cx, y - h - 9 * s), (x + w + 3 * s, y - h)], '#c9a04a' if int(cx) % 2 else P['iron_r'], .5 * s)
+    for k in (.3, .7):
+        Q.quad(r, x + w * k - 2 * s, y - h * .7, x + w * k + 2 * s, y - h * .3, P['blue'], .3 * s)
+
+
+def _kuban_far(r):
+    """the steppe: a low flat horizon, a grain elevator and a stanitsa far off, rows of poplars, sunflower and
+    melon strips, a river with reeds"""
+    P = r.P
+    w = r.winter
+    flat = lambda x: 118 + 1.6 * math.sin(x * .02 + .4)
+    top = [(x, flat(x)) for x in range(-6, W + 7, 6)]
+    r.add(f'<path d="{D(top + [(W + 6, 220), (-6, 220)])}" fill="{P["far1"]}" class="es-far1"/>')
+    r.line(top, .55, op=.55)
+    # the elevator: tall pale towers
+    ex = 120
+    for k in range(3):
+        Q.quad(r, ex + k * 5, flat(ex) - 22, ex + k * 5 + 4.4, flat(ex) + 1, mix(P['far2'], P['white'], .5), .35, iop=.6)
+    Q.quad(r, ex - 2, flat(ex) - 28, ex + 4, flat(ex) - 20, mix(P['far2'], P['white'], .4), .35)
+    # poplar rows along the horizon
+    for x0, x1 in ((-6, 60), (170, 230), (300, 366)):
+        for x in range(x0, x1, 7):
+            hh = 14 + 3 * math.sin(x * 1.3)
+            r.blob(x, flat(x) - hh * .55, 2.4, hh * .5, P['forest'], .3, n=8, ink=not w, cls='es-forest')
+    mid = [(x, mid_crest(x) + 2) for x in range(-6, W + 7, 6)]
+    r.add(f'<path d="{D(mid + [(W + 6, 220), (-6, 220)])}" fill="{P["far2"]}" class="es-far2"/>')
+    if not w:
+        strips = [(-6, 60, '#e7c34a'), (60, 120, light(P['leaf'], .18)), (120, 186, '#d9c46a'), (186, 250, light(P['leaf'], .05)), (250, 366, '#e7c34a')]
+        for x0, x1, c in strips:
+            pts = [(x, mid_crest(x) + 2) for x in range(x0, x1 + 1, 6)] + [(x1, mid_crest(x1) + 10), (x0, mid_crest(x0) + 10)]
+            r.add(f'<path d="{D(pts)}" fill="{c}" opacity=".85" class="es-strip"/>')
+        # sunflower heads in the yellow strips, striped melons in the green one
+        r.dots([(x, mid_crest(x) + 4 + (k % 2) * 3, .9, .9) for k, x in enumerate(range(-4, 58, 4))] + [(x, mid_crest(x) + 4 + (k % 2) * 3, .9, .9) for k, x in enumerate(range(252, 364, 4))], '#6b4a1f')
+        r.dots([(x, mid_crest(x) + 6 + (k % 2) * 2, 1.6, 1.1) for k, x in enumerate(range(190, 248, 7))], '#3f7a3a', .25)
+    r.line(mid, .5, op=.5)
+    # a river with reeds at the foot of the slope
+    river = [(x, mid_crest(x) + 11 + 1.2 * math.sin(x * .05)) for x in range(-6, W + 7, 8)]
+    r.add(f'<path d="{D([(x, y - 1.6) for x, y in river] + [(x, y + 1.6) for x, y in river[::-1]])}" fill="{P["water"] if not w else P["snow_s"]}" opacity=".85"/>')
+    if not w:
+        r.lines([[(x, y - 1), (x + (k % 3 - 1) * .8, y - 5)] for k, (x, y) in enumerate(river[1::2])], .5, color=dark(P['straw'], .25))
+    for x in (292, 316, 340):
+        hata(r, x, mid_crest(x) + 7, .5)
+
+
+def _altai_far(r):
+    """the mountains: snowy peaks far off, ridges of cedar forest nearer, a river in the valley, rocks"""
+    P = r.P
+    w = r.winter
+    peaks = [(-6, 96), (30, 62), (64, 84), (104, 48), (150, 80), (190, 58), (232, 86), (276, 52), (318, 78), (366, 60)]
+    pts = H.catmull(peaks, 4)
+    far = mix(P['far1'], '#9fb2c8', .55)
+    r.add(f'<path d="{D(pts + [(W + 6, 220), (-6, 220)])}" fill="{far}" class="es-far1"/>')
+    r.line(pts, .5, op=.5)
+    caps = []
+    for (x, y) in peaks[1:-1]:
+        caps.append(D([(x - 9, y + 12), (x - 4, y + 7), (x, y), (x + 4, y + 7), (x + 10, y + 12), (x + 4, y + 10), (x, y + 13), (x - 4, y + 10)]))
+    r.add(f'<path d="{"".join(caps)}" fill="#f6f8fb" opacity=".95"/>')
+    ridge = [(x, 108 + 6 * math.sin(x * .03 + 1) + 3 * math.sin(x * .09)) for x in range(-6, W + 7, 6)]
+    r.add(f'<path d="{D(ridge + [(W + 6, 220), (-6, 220)])}" fill="{mix(P["far1"], P["forest"], .35)}" class="es-far1"/>')
+    trees = []
+    for x in range(-6, W + 8, 4):
+        hh = 10 + 4 * math.sin(x * .9) + 2 * math.sin(x * 2.1)
+        y = 108 + 6 * math.sin(x * .03 + 1) + 3 * math.sin(x * .09) + 5
+        trees.append(D([(x - 3, y), (x - 1, y - hh * .55), (x - 2, y - hh * .55), (x, y - hh), (x + 2, y - hh * .55), (x + 1, y - hh * .55), (x + 3, y)]))
+    r.add(f'<path d="{"".join(trees)}" fill="{P["spruce"]}" class="kf es-forest" stroke-width=".35" stroke-opacity=".5"/>')
+    mid = [(x, mid_crest(x)) for x in range(-6, W + 7, 6)]
+    r.add(f'<path d="{D(mid + [(W + 6, 220), (-6, 220)])}" fill="{P["far2"]}" class="es-far2"/>')
+    r.line(mid, .5, op=.5)
+    river = [(x, mid_crest(x) + 7 + 1.6 * math.sin(x * .04)) for x in range(-6, W + 7, 8)]
+    r.add(f'<path d="{D([(x, y - 2) for x, y in river] + [(x, y + 2) for x, y in river[::-1]])}" fill="{mix(P["water"], "#7fc4d9", .4) if not w else P["snow_s"]}" opacity=".9"/>')
+    if not w:
+        r.lines([[(x - 3, y - .4), (x + 3, y - .6)] for x, y in river[2::3]], .5, color='#e6f3fb')
+    r.dots([(x, mid_crest(x) + 12, 3 + (k % 3), 1.8 + (k % 2)) for k, x in enumerate((24, 70, 128, 240, 300, 344))], mix(P['grey_s'], P['plaster'], .3), .35)
+
+
+FAR = {}
+
+
+def back(r, region='chernozem'):
     P = r.P
     w = r.winter
     r.add(f'<rect width="{W}" height="{HH}" fill="url(#es-sky)"/>')
@@ -53,41 +150,7 @@ def back(r):
         G.cloud(r, cx, cy, sw)
     if not w:
         r.add(''.join(f'<path d="M{x - 4} {y}q2-2 4 0q2-2 4 0" class="k" stroke-width=".55" opacity=".7"/>' for x, y in ((150, 62), (162, 56), (174, 64))))
-    # the far ridge with the forest's edge, a water tower; the nearer slope with field strips and a far roofline
-    top = [(x, far_crest(x)) for x in range(-6, W + 7, 6)]
-    r.add(f'<path d="{D(top + [(W + 6, 220), (-6, 220)])}" fill="{P["far1"]}" class="es-far1"/>')
-    trees = []
-    for x in range(-6, W + 8, 5):
-        if 96 < x < 226:
-            continue
-        hh = 9 + 5 * math.sin(x * .7) + 3 * math.sin(x * 1.9)
-        y = far_crest(x) + 4
-        trees.append(D([(x - 3.6, y), (x - 1.3, y - hh * .6), (x - 2.5, y - hh * .6), (x, y - hh), (x + 2.5, y - hh * .6), (x + 1.3, y - hh * .6), (x + 3.6, y)]))
-    r.add(f'<path d="{"".join(trees)}" fill="{P["forest"]}" class="kf es-forest" stroke-width=".35" stroke-opacity=".5"/>')
-    if w:
-        caps = []
-        for x in range(-6, W + 8, 5):
-            if 96 < x < 226:
-                continue
-            hh = 9 + 5 * math.sin(x * .7) + 3 * math.sin(x * 1.9)
-            y = far_crest(x) + 4
-            caps.append(D([(x - 1.1, y - hh * .62), (x, y - hh + 1), (x + 1.1, y - hh * .62)]))
-        r.add(f'<path d="{"".join(caps)}" fill="{P["snow"]}" opacity=".85"/>')
-    r.line(top, .55, op=.55)
-    H.water_tower(r, 150, far_crest(150) + 5, .7)
-    mid = [(x, mid_crest(x)) for x in range(-6, W + 7, 6)]
-    r.add(f'<path d="{D(mid + [(W + 6, 220), (-6, 220)])}" fill="{P["far2"]}" class="es-far2"/>')
-    if not w:
-        strips = [(-6, 40, P['straw']), (40, 92, light(P['leaf'], .18)), (92, 150, light(P['far2'], .12)), (150, 212, light(P['straw'], .3)), (212, 270, P['soil_l']), (270, 366, light(P['leaf'], .18))]
-        for x0, x1, c in strips:
-            pts = [(x, mid_crest(x) + 2) for x in range(x0, x1 + 1, 6)] + [(x1, mid_crest(x1) + 10), (x0, mid_crest(x0) + 10)]
-            r.add(f'<path d="{D(pts)}" fill="{c}" opacity=".8" class="es-strip"/>')
-    else:
-        r.lines([[(x, mid_crest(x) + 2 + k * 2.6) for x in range(-6, W + 7, 12)] for k in range(1, 4)], .4, color=P['snow_s'], op=.6)
-    r.line(mid, .5, op=.5)
-    # a far roofline on the slope: the village beyond the farm, in the haze
-    for x, roof, fr in ((292, 'tes', 'blue'), (318, 'iron_r', 'white'), (340, 'iron_g', 'green')):
-        Q.izba_c(r, x, mid_crest(x) + 7, .2, roof=roof, frame=P[fr], porch=False, lit=w, chimney=False)
+    FAR[region](r)
     r.add(f'<rect x="-6" y="96" width="{W + 12}" height="50" fill="url(#es-haze)" opacity=".38"/>')
     # the near ground: lit at its crest, deeper toward the foot, an ink line and a sunlit rim along the crest
     near = [(x, crest(x)) for x in range(-6, W + 7, 6)]
@@ -96,9 +159,17 @@ def back(r):
     r.add(f'<path d="{D(near + [(W + 6, 220), (-6, 220)])}" fill="url(#es-ground)"/>')
     r.add(f'<path d="{D(near, False)}" class="kn" stroke="{light(G.hill_fill(P, "F"), .45)}" stroke-width="1.6" opacity=".7" transform="translate(0 1.4)"/>')
     r.line(near[::2], 1.0, op=.85)
-    # two birches: a tall one at the left edge, a smaller one behind the house on the right
-    birch_at(r, 14, 152, 92)
-    birch_at(r, 272, 140, 54, lean=-.02)
+    # two trees: at home a tall birch at the left edge and a smaller one behind the house on the right; on the
+    # Kuban poplars and an apricot, in the Altai a cedar and a larch
+    if region == 'kuban':
+        r.group(lambda: poplar(r, 0, 0, 96), 14, 152, 'es-tree')
+        r.group(lambda: H.apple(r, 0, 0, 40), 272, 140, 'es-tree')
+    elif region == 'altai':
+        r.group(lambda: H.spruce(r, 0, 0, 92), 16, 154, 'es-tree')
+        r.group(lambda: H.spruce(r, 0, 0, 52), 274, 140, 'es-tree')
+    else:
+        birch_at(r, 14, 152, 92)
+        birch_at(r, 272, 140, 54, lean=-.02)
     # the trodden path from the bottom edge up to the house: to the gate of the front garden, and along the front
     # to the porch at the right
     path = [(198, 214), (194, 203), (191, 192), (194, 180), (206, 171), (228, 166), (247, 163)]
@@ -134,6 +205,49 @@ def back(r):
         else:
             tf += [[(x - 1.5, y), (x - 2, y - 3)], [(x, y), (x, y - 3.8)], [(x + 1.6, y), (x + 2.1, y - 2.8)]]
     r.lines(tf, .45, color=P['snow_s'] if w else dark(P['g3'], .35), op=.65)
+
+
+def _home_far(r):
+    P = r.P
+    w = r.winter
+    # the far ridge with the forest's edge, a water tower; the nearer slope with field strips and a far roofline
+    top = [(x, far_crest(x)) for x in range(-6, W + 7, 6)]
+    r.add(f'<path d="{D(top + [(W + 6, 220), (-6, 220)])}" fill="{P["far1"]}" class="es-far1"/>')
+    trees = []
+    for x in range(-6, W + 8, 5):
+        if 96 < x < 226:
+            continue
+        hh = 9 + 5 * math.sin(x * .7) + 3 * math.sin(x * 1.9)
+        y = far_crest(x) + 4
+        trees.append(D([(x - 3.6, y), (x - 1.3, y - hh * .6), (x - 2.5, y - hh * .6), (x, y - hh), (x + 2.5, y - hh * .6), (x + 1.3, y - hh * .6), (x + 3.6, y)]))
+    r.add(f'<path d="{"".join(trees)}" fill="{P["forest"]}" class="kf es-forest" stroke-width=".35" stroke-opacity=".5"/>')
+    if w:
+        caps = []
+        for x in range(-6, W + 8, 5):
+            if 96 < x < 226:
+                continue
+            hh = 9 + 5 * math.sin(x * .7) + 3 * math.sin(x * 1.9)
+            y = far_crest(x) + 4
+            caps.append(D([(x - 1.1, y - hh * .62), (x, y - hh + 1), (x + 1.1, y - hh * .62)]))
+        r.add(f'<path d="{"".join(caps)}" fill="{P["snow"]}" opacity=".85"/>')
+    r.line(top, .55, op=.55)
+    H.water_tower(r, 150, far_crest(150) + 5, .7)
+    mid = [(x, mid_crest(x)) for x in range(-6, W + 7, 6)]
+    r.add(f'<path d="{D(mid + [(W + 6, 220), (-6, 220)])}" fill="{P["far2"]}" class="es-far2"/>')
+    if not w:
+        strips = [(-6, 40, P['straw']), (40, 92, light(P['leaf'], .18)), (92, 150, light(P['far2'], .12)), (150, 212, light(P['straw'], .3)), (212, 270, P['soil_l']), (270, 366, light(P['leaf'], .18))]
+        for x0, x1, c in strips:
+            pts = [(x, mid_crest(x) + 2) for x in range(x0, x1 + 1, 6)] + [(x1, mid_crest(x1) + 10), (x0, mid_crest(x0) + 10)]
+            r.add(f'<path d="{D(pts)}" fill="{c}" opacity=".8" class="es-strip"/>')
+    else:
+        r.lines([[(x, mid_crest(x) + 2 + k * 2.6) for x in range(-6, W + 7, 12)] for k in range(1, 4)], .4, color=P['snow_s'], op=.6)
+    r.line(mid, .5, op=.5)
+    # a far roofline on the slope: the village beyond the farm, in the haze
+    for x, roof, fr in ((292, 'tes', 'blue'), (318, 'iron_r', 'white'), (340, 'iron_g', 'green')):
+        Q.izba_c(r, x, mid_crest(x) + 7, .2, roof=roof, frame=P[fr], porch=False, lit=w, chimney=False)
+
+
+FAR.update(chernozem=_home_far, kuban=_kuban_far, altai=_altai_far)
 
 
 def birch_at(r, x, y, h, lean=0.0):
@@ -404,19 +518,21 @@ def drawing(season):
         r = Hy(season, seed=seed)
         fn(r)
         return tidy(''.join(r.out))
-    houses = [part(lambda r, lv=lv: Q.homestead(r, HX, HY, HS, lit=r.winter, level=lv), 30 + lv) for lv in range(1, 6)]
+    houses = [part(lambda r, lv=lv: Q.homestead(r, HX, HY, HS, lit=r.winter, level=lv), 30 + lv) for lv in range(1, 8)]
     # the camp on an expedition (v3 §3.4): three levels in the same place as the house
     camps = [part(lambda r, lv=lv: Q.camp(r, HX, HY, HS, lit=r.winter, level=lv), 70 + lv) for lv in range(1, 4)]
     items = {k: part(lambda r, k=k: ITEM_FN[k](r, *ITEM_AT[k]), 50 + i) for i, k in enumerate(ITEMS)}
     # the house under construction, stages 1..3 (drawn over the house and the yard items, under the front)
     scaffold = [part(lambda r, st=st: Q.scaffold(r, HX, HY, HS, st), 60 + st) for st in (1, 2, 3)]
-    return dict(defs=tidy(defs(season)), back=part(back, 21), houses=houses, camps=camps, items=items, scaffold=scaffold, front=part(front, 41))
+    # the backdrop by region: home (and Заречье) under birches; the Kuban steppe; the Altai mountains
+    backs = {'kuban': part(lambda r: back(r, 'kuban'), 22), 'altai': part(lambda r: back(r, 'altai'), 23)}
+    return dict(defs=tidy(defs(season)), back=part(back, 21), backs=backs, houses=houses, camps=camps, items=items, scaffold=scaffold, front=part(front, 41))
 
 
 def boxes():
     """The drawn extent of every house level and every item (summer), to check that nothing meets."""
     out = {}
-    for lv in range(1, 6):
+    for lv in range(1, 8):
         r = Hy('summer', seed=30 + lv)
         out[f'house{lv}'] = r.capture(lambda: Q.homestead(r, HX, HY, HS, lit=False, level=lv))[1]
     for k in ITEMS:
@@ -467,12 +583,12 @@ def write(out=OUT, preview=True):
     css = season_css()
     src = ['// The estate for the House screen: the player\'s house at its level in its yard, drawn by the same generator as',
            '// the village (tools/village, python3 estate.py or export.py): edit the generator, not this file.',
-           '// Stack: back, one of houses (level 1..5), the items the farm owns, the scaffold while the house is being built',
+           '// Stack: back (or backs[region] on an expedition), one of houses (level 1..7) or camps (1..3), the items the farm owns, the scaffold while the house is being built',
            '// (stages 1..3), front. Ids in defs start with es-; ink',
            '// classes k, kf, kn want .estate-v { --vk } rules; spring and autumn recolour summer with ES_SEASON_CSS.',
            f'export const ES_VIEW = {json.dumps(VIEW)};',
            "export type ESItem = 'hive' | 'greenhouse' | 'scarecrow' | 'barrel' | 'meteo' | 'compost';",
-           'export interface ESDrawing { defs: string; back: string; houses: string[]; camps: string[]; items: Record<ESItem, string>; scaffold: string[]; front: string }',
+           'export interface ESDrawing { defs: string; back: string; backs: { kuban: string; altai: string }; houses: string[]; camps: string[]; items: Record<ESItem, string>; scaffold: string[]; front: string }',
            f'export const ES_SUMMER: ESDrawing = {json.dumps(dr["summer"], ensure_ascii=False)};',
            f'export const ES_WINTER: ESDrawing = {json.dumps(dr["winter"], ensure_ascii=False)};',
            f'export const ES_SEASON_CSS = {json.dumps(css)};',
@@ -481,7 +597,7 @@ def write(out=OUT, preview=True):
     open(out, 'w', encoding='utf-8').write('\n'.join(src))
     if preview:
         cells = []
-        for lv in range(5):
+        for lv in range(7):
             for sn, d in (('season-1', dr['summer']), ('season-0', dr['summer']), ('season-2', dr['summer']), ('season-3', dr['winter'])):
                 svg = (f'<svg viewBox="{VIEW}" width="360" height="210"><defs>{d["defs"]}</defs>{d["back"]}{d["houses"][lv]}'
                        f'{"".join(d["items"].values())}{d["front"]}</svg>')
@@ -489,7 +605,7 @@ def write(out=OUT, preview=True):
             cells.append('<br>')
         for lv in range(3):
             for sn, d in (('season-1', dr['summer']), ('season-3', dr['winter'])):
-                svg = (f'<svg viewBox="{VIEW}" width="360" height="210"><defs>{d["defs"]}</defs>{d["back"]}{d["camps"][lv]}'
+                svg = (f'<svg viewBox="{VIEW}" width="360" height="210"><defs>{d["defs"]}</defs>{d["backs"]["altai" if lv == 1 else "kuban"]}{d["camps"][lv]}'
                        f'{"".join(d["items"].values())}{d["front"]}</svg>')
                 cells.append(f'<div class="estate-v {sn}" style="display:inline-block;margin:3px;line-height:0">{svg}</div>')
         cells.append('<br>')

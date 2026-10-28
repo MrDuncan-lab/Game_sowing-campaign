@@ -195,7 +195,7 @@ export function HouseView({ s, act, onPlace, onFair }: { s: GameState; act: Disp
       {/* the estate, big: the house at its level with what the farm owns around it, and the ways into the house */}
       <div class="hero house-hero estate-hero">
         <div class="estate-art">
-          <Estate level={house} camp={s.loc !== 'chernozem'} building={buildStage(s, 'house')} season={s.season} owns={{ hive: lvl(s, 'apiary') > 0, greenhouse: lvl(s, 'greenhouse') > 0, scarecrow: lvl(s, 'guard') > 0, irrigation: lvl(s, 'irrigation') > 0, meteo: lvl(s, 'meteo') > 0, compost: lvl(s, 'compost') > 0 }} />
+          <Estate level={house} camp={s.loc !== 'chernozem'} region={s.loc} building={buildStage(s, 'house')} season={s.season} owns={{ hive: lvl(s, 'apiary') > 0, greenhouse: lvl(s, 'greenhouse') > 0, scarecrow: lvl(s, 'guard') > 0, irrigation: lvl(s, 'irrigation') > 0, meteo: lvl(s, 'meteo') > 0, compost: lvl(s, 'compost') > 0 }} />
           <div class="estate-plaque"><h2>{hdef.levels[house - 1].name}</h2><Pips n={house} of={hmax} /></div>
           {houseProj && houseProj.kind === 'track' && <div class="estate-build"><span>Строим «{hdef.levels[houseProj.level - 1].name}» · ещё {weeksShort(houseProj.weeks)}{s.season === 3 ? ' · зимой вдвое медленнее' : ''}</span><Bar value={houseProj.total - houseProj.weeks} max={houseProj.total} tone="good" /></div>}
         </div>

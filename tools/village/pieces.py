@@ -1430,16 +1430,44 @@ def manor_garden(r, cx, y, s, gate, fy):
     manor_fence(r, cx - 86 * s, cx + 52 * s, fy, s, gate)
 
 
-def homestead(r, cx, y, s=1.0, lit=False, level=4):
-    """The player's house at its level 1..5 (see above). Its centre x and ground line stay where they are; from level
-    3 on the yard reaches 92 s to the left of the centre, at level 5 the fence runs 30 s in front of the house."""
+def wing(r, cx, y, s=1.0, lit=False):
+    """The wing (флигель) of the sixth level: a small log house of its own behind the manor on the right, an iron
+    roof, two windows, its chimney smoking, a guest's bench at the door."""
     P = r.P
-    lv = max(1, min(5, int(level)))
+    izba(r, cx - 45 * s * .52, y, s * .52, roof='iron_g', frame=P['blue'], shutters=True, porch=False, lit=lit, smoke_on=True, carved=True, gable_win=False)
+    if not r.winter:
+        flowers(r, cx - 22 * s, cx + 8 * s, y + 1 * s, y + 4 * s, 5)
+
+
+def dovecote(r, x, y, s=1.0):
+    """The seventh level's dovecote (голубятня): a little house on a tall post with a landing board, doves on it."""
+    P = r.P
+    r.line([(x, y), (x, y - 26 * s)], 1.1 * s, color=P['logs_s'], jitter=False)
+    quad(r, x - 5 * s, y - 34 * s, x + 5 * s, y - 25 * s, P['white'], .6 * s)
+    r.shape([(x - 7 * s, y - 34 * s), (x, y - 40 * s), (x + 7 * s, y - 34 * s)], P['iron_g'], .6 * s)
+    quad(r, x - 2 * s, y - 31 * s, x + 2 * s, y - 28 * s, '#3b2b20', .3 * s)
+    r.line([(x - 7 * s, y - 27 * s), (x + 7 * s, y - 27 * s)], .7 * s, color=P['logs'], jitter=False)
+    if not r.winter:
+        r.dots([(x - 4.4 * s, y - 28.6 * s, 1.3 * s, 1 * s), (x + 4.6 * s, y - 28.4 * s, 1.3 * s, 1 * s)], '#eceae4', .3 * s)
+    else:
+        r.shape([(x - 7.2 * s, y - 34.4 * s), (x, y - 40.6 * s), (x + 7.2 * s, y - 34.4 * s), (x, y - 38 * s)], P['snow'], .3 * s)
+
+
+def homestead(r, cx, y, s=1.0, lit=False, level=4):
+    """The player's house at its level 1..7 (see above). Its centre x and ground line stay where they are; from level
+    3 on the yard reaches 92 s to the left of the centre, at level 5 the fence runs 30 s in front of the house; level
+    6 adds the wing behind on the right, level 7 joins it with a covered yard and puts up a dovecote."""
+    P = r.P
+    lv = max(1, min(7, int(level)))
     x = cx - 45 * s
     Wf, Hw = 66 * s, 40 * s
+    if lv >= 6:
+        wing(r, cx + 58 * s, y - 24 * s, s, lit)
+    if lv >= 7:
+        dovecote(r, cx + 92 * s, y - 2 * s, s)
     if lv >= 3:
         workshop(r, x + 2 * s, y, s, lit)
-    izba(r, x, y, s, roof='iron_g' if lv >= 5 else 'tes', frame=P['blue'] if lv >= 4 else light(P['grey'], .12), shutters=False,
+    izba(r, x, y, s, yard=lv >= 7, roof='iron_g' if lv >= 5 else 'tes', frame=P['blue'] if lv >= 4 else light(P['grey'], .12), shutters=False,
          svetelka=lv >= 4, porch=True, lit=lit, smoke_on=True, carved=lv >= 4, gable_win=lv <= 3)
     if lv >= 4:
         gable_balcony(r, x + Wf / 2, y - Hw, 24 * s, s, lit)
