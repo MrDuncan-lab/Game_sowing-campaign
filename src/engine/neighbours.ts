@@ -42,6 +42,8 @@ export interface YardDef {
   /** the person, for the portrait (art/portraits) */
   person: 'zina' | 'savva' | 'efim' | 'matvey' | 'karpova';
   who: string;
+  /** «у кого»: the name in the genitive */
+  gen: string;
   /** how the yard stands before the farm comes, then after each stage */
   looks: [string, string, string, string];
   stages: [YardStage, YardStage, YardStage];
@@ -56,7 +58,7 @@ export interface YardDef {
 
 export const YARDS: Record<YardId, YardDef> = {
   zina: {
-    id: 'zina', name: 'Зина', person: 'zina', who: 'соседка через забор',
+    id: 'zina', name: 'Зина', person: 'zina', who: 'соседка через забор', gen: 'Зины',
     looks: ['Покосившаяся изба: крыша течёт, печь дымит в избу', 'Новая крыша из тёса', 'Печь переложена, в избе тепло', 'У избы — теплица, в теплице помидоры'],
     stages: [
       { name: 'Крыша', text: 'крыша из тёса больше не течёт', cost: 15, mat: { logs: 8 }, crop: potato(10), weeks: 3 },
@@ -74,7 +76,7 @@ export const YARDS: Record<YardId, YardDef> = {
     ],
   },
   savva: {
-    id: 'savva', name: 'Кузнец Савва', person: 'savva', who: 'кузнец, кузня брошена',
+    id: 'savva', name: 'Кузнец Савва', person: 'savva', who: 'кузнец', gen: 'Саввы',
     looks: ['Брошенная кузня: горн холодный, крыша провалилась', 'Горн сложен, в кузне огонь', 'Навес и мехи: Савва куёт с утра до ночи', 'Инструментальная: подмастерье при деле'],
     stages: [
       { name: 'Горн', text: 'горн сложен заново', cost: 20, mat: { bricks: 10 }, weeks: 3 },
@@ -92,7 +94,7 @@ export const YARDS: Record<YardId, YardDef> = {
     ],
   },
   efim: {
-    id: 'efim', name: 'Плотник Ефим', person: 'efim', who: 'плотник, пустой двор',
+    id: 'efim', name: 'Плотник Ефим', person: 'efim', who: 'плотник', gen: 'Ефима',
     looks: ['Пустой двор: пни, бурьян и верстак под открытым небом', 'Сарай с инструментом', 'Пилорама: брёвна в штабелях', 'Столярка: резные наличники на продажу'],
     stages: [
       { name: 'Сарай', text: 'сарай для инструмента', cost: 15, mat: { logs: 10 }, weeks: 3 },
@@ -110,7 +112,7 @@ export const YARDS: Record<YardId, YardDef> = {
     ],
   },
   miller: {
-    id: 'miller', name: 'Мельник Матвей', person: 'matvey', who: 'мельник, мельница без крыльев',
+    id: 'miller', name: 'Мельник Матвей', person: 'matvey', who: 'мельник', gen: 'Матвея',
     looks: ['Мельница на холме стоит без крыльев', 'Крылья машут над холмом', 'Жернова мелют муку', 'Амбар мельницы: мука для всей деревни'],
     stages: [
       { name: 'Крылья', text: 'новые крылья', cost: 20, mat: { logs: 12 }, weeks: 4 },
@@ -128,7 +130,7 @@ export const YARDS: Record<YardId, YardDef> = {
     ],
   },
   karpov: {
-    id: 'karpov', name: 'Карповы', person: 'karpova', who: 'вдова Татьяна и четверо детей',
+    id: 'karpov', name: 'Карповы', person: 'karpova', who: 'вдова Татьяна и четверо детей', gen: 'Карповых',
     looks: ['Бедствуют: забор повален, огород зарос', 'Забор поднят, огород вскопан', 'Пристройка: детям своя комната', 'Новый дом на месте старого'],
     stages: [
       { name: 'Забор и огород', text: 'забор и огород', cost: 10, mat: { logs: 6 }, crop: potato(20), weeks: 2 },

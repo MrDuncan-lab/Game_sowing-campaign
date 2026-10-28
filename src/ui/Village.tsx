@@ -15,7 +15,8 @@ import type { ComponentChildren, RefObject } from 'preact';
 import { useEffect, useRef } from 'preact/hooks';
 import { V_ANCHORS, V_BOTTOM, V_CART, V_SEASON_CSS, V_SPOTS, V_SUMMER, V_VH, V_W, V_WINTER } from '../art/village/chernozem';
 import { ORGS, type OrgId } from '../engine/data';
-import { GameState, buildStage, deliverProblem, friends, locOf, lvl, nextPayment, paymentSchedule, thievesBlocked, yearLen } from '../engine/game';
+import { GameState, buildStage, deliverProblem, friends, hasCommon, locOf, lvl, nextPayment, paymentSchedule, thievesBlocked, yardStage, yearLen } from '../engine/game';
+import { COMMON_IDS, YARD_IDS } from '../engine/neighbours';
 import { CropSprite } from '../art/crops';
 import { ScoutingKids } from '../art/scouts';
 import { Flock } from '../art/sky';
@@ -48,6 +49,11 @@ function villageClasses(s: GameState): string {
   if (lvl(s, 'meteo') >= 1) on.push('on-meteo');
   if (lvl(s, 'apiary') >= 1) on.push('on-hives');
   for (const o of locOf(s).orgs) if (friends(s, o)) on.push(`on-g-${o}`);
+  // v3 §7 · each neighbour's yard at its stage (a stage being built shows the one before it), the shared buildings
+  for (const y of YARD_IDS) on.push(`on-${y}${yardStage(s, y)}`);
+  for (const c of COMMON_IDS) on.push(hasCommon(s, c) ? `on-c-${c}` : `on-no${c}`);
+  // Пряхин stands at the stall while he has his eye on a lot
+  if (s.fair?.eye != null) on.push('on-pryakhin');
   return on.join(' ');
 }
 
@@ -121,6 +127,10 @@ export const VILLAGE_LABELS: { k: string; text: string; cond?: string; x?: numbe
   { k: 'board', text: 'Заказы' }, { k: 'fair', text: 'Рынок' }, { k: 'signpost', text: 'Карта ферм' },
   { k: 'council', text: 'Сельсовет' }, { k: 'college', text: 'Колледж' }, { k: 'orphanage', text: 'Интернат' },
   { k: 'bakery', text: 'Пекарня' }, { k: 'restaurant', text: 'Ресторан' },
+  // v3 §7 · the neighbours and the shared buildings
+  { k: 'n-zina', text: 'Зина' }, { k: 'n-savva', text: 'Кузня' }, { k: 'n-efim', text: 'Плотник', x: 140 }, { k: 'n-miller', text: 'Мельница' },
+  { k: 'n-karpov', text: 'Карповы', x: 70 },
+  { k: 'c-club', text: 'Клуб', cond: 'c-club' }, { k: 'c-pump', text: 'Водокачка', cond: 'c-pump' }, { k: 'c-hostel', text: 'Общежитие', cond: 'c-hostel' },
 ];
 const LABEL_FS = 8.6;
 function PlaceLabel({ k, x, y, text, cond }: { k: string; x: number; y: number; text: string; cond?: string }) {

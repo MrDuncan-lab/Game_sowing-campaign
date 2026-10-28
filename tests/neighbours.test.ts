@@ -55,7 +55,7 @@ test('crops a stage needs must be in the barn; grain is any of wheat, rye, buckw
 });
 
 test('only at home: no neighbours on an expedition', () => {
-  const s = G.newGame({ loc: 'kuban', seed: 'NB', run: { cond: 'plain' } });
+  const s = G.newGame({ loc: 'kuban', seed: 'NB', run: { cond: 'lgota' } });
   assert.match(G.yardProblem(s, 'zina') ?? '', /дома/);
   assert.equal(G.lodging(s), 0);
 });
@@ -150,7 +150,7 @@ test('shared buildings open with three yards at stage two; толока; the hos
 
 test('an older save without neighbours loads and plays', () => {
   const s = home();
-  const old = json(s) as Record<string, unknown>;
+  const old = json(s) as unknown as Record<string, unknown>;
   delete old.yards; delete old.commons; delete old.forge;
   assert.ok(validFarm(old));
   assert.equal(G.yardStage(old as unknown as G.GameState, 'zina'), 0);

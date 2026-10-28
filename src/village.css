@@ -24,6 +24,14 @@
 .village.on-house1 .vc-house1, .village.on-house2 .vc-house2, .village.on-house3 .vc-house3,
 .village.on-house4 .vc-house4, .village.on-house5 .vc-house5 { display: inline; }
 .village.on-build1 .vc-build1, .village.on-build2 .vc-build2, .village.on-build3 .vc-build3 { display: inline; }
+/* v3 §7 · the neighbours' yards at their stages, the shared buildings or their empty places, Пряхин at the stall */
+.village.on-zina0 .vc-zina0, .village.on-zina1 .vc-zina1, .village.on-zina2 .vc-zina2, .village.on-zina3 .vc-zina3,
+.village.on-savva0 .vc-savva0, .village.on-savva1 .vc-savva1, .village.on-savva2 .vc-savva2, .village.on-savva3 .vc-savva3,
+.village.on-efim0 .vc-efim0, .village.on-efim1 .vc-efim1, .village.on-efim2 .vc-efim2, .village.on-efim3 .vc-efim3,
+.village.on-miller0 .vc-miller0, .village.on-miller1 .vc-miller1, .village.on-miller2 .vc-miller2, .village.on-miller3 .vc-miller3,
+.village.on-karpov0 .vc-karpov0, .village.on-karpov1 .vc-karpov1, .village.on-karpov2 .vc-karpov2, .village.on-karpov3 .vc-karpov3,
+.village.on-c-bridge .vc-c-bridge, .village.on-nobridge .vc-nobridge, .village.on-c-club .vc-c-club, .village.on-noclub .vc-noclub, .village.on-c-hostel .vc-c-hostel, .village.on-nohostel .vc-nohostel, .village.on-c-pump .vc-c-pump, .village.on-nopump .vc-nopump,
+.village.on-pryakhin .vc-pryakhin { display: inline; }
 /* captions under the places with a use: a small paper tag, shown once the village stands open */
 .village .v-label { opacity: 0; transition: opacity .3s ease; pointer-events: none; }
 .village:not(.v-asleep) .v-label.shown { opacity: 1; }

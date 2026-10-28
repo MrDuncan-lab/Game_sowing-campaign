@@ -191,8 +191,10 @@ def smoke_top(r, x, y, s=1.0):
 
 
 # ---------------------------------------------------------------- the mill on the far hill
-def windmill(r, cx, y, s=1.0):
-    """A post mill (столбовка): a plank body on a trestle, a tail pole to turn it, four lattice sails."""
+def windmill(r, cx, y, s=1.0, sails=True):
+    """A post mill (столбовка): a plank body on a trestle, a tail pole to turn it, four lattice sails (without them:
+    the bare hub and a broken stub, the miller's yard at its first look)."""
+    bare = sails is False
     P = r.P
     r.shadow([(cx - 6 * s, y), (cx + 30 * s, y - 3 * s), (cx + 40 * s, y + 5 * s), (cx - 2 * s, y + 6 * s)], .8)
     for x0, x1, op in ((-6, -1, .7), (6, 1, .7), (-13, -3, 1), (13, 3, 1)):
@@ -231,6 +233,11 @@ def windmill(r, cx, y, s=1.0):
             r.lines([[p(R0 + (R1 - R0) * k / 6, 0), p(R0 + (R1 - R0) * k / 6, wd)] for k in range(1, 6)] + [[p(R0, wd / 2), p(R1, wd / 2)]], .3 * s, op=.7)
             r.line([(0, 0), p(R1 + 2 * s, 0)], .9 * s, jitter=False)
         r.blob(0, 0, 2.2 * s, 2.2 * s, P['logs_s'], .5 * s, n=7, wob=.03)
+    if bare:
+        r.line([(hx, hy), (hx + 8 * s, hy - 9 * s)], .9 * s, jitter=False)
+        r.line([(hx + 7 * s, hy - 8 * s), (hx + 9.4 * s, hy - 7 * s)], .5 * s, jitter=False)
+        r.blob(hx, hy, 2.2 * s, 2.2 * s, P['logs_s'], .5 * s, n=7, wob=.03)
+        return
     r.group(sails, hx, hy, 'sails')
 
 

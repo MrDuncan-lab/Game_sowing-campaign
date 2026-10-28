@@ -311,7 +311,9 @@ export const trackDef = (s: Pick<GameState, 'loc' | 'levels'>, t: TrackId): Trac
   (t === 'house' && !isHome(s) && (s.levels.house ?? 1) <= CAMP.levels.length ? CAMP : TRACKS[t]);
 export const trackLevels = (s: Pick<GameState, 'loc' | 'levels'>, t: TrackId): TrackLevel[] => trackDef(s, t).levels;
 export const deckLimit = (s: GameState) => DECK_LIMIT[Math.min(DECK_LIMIT.length - 1, lvl(s, 'house') - 1)];
-export const workerSlots = (s: GameState) => HOUSE_BEDS[Math.max(0, Math.min(HOUSE_BEDS.length - 1, lvl(s, 'house') - 1))] + lodging(s);
+/** beds in the farm's own house (or camp) */
+export const houseBeds = (s: GameState) => HOUSE_BEDS[Math.max(0, Math.min(HOUSE_BEDS.length - 1, lvl(s, 'house') - 1))];
+export const workerSlots = (s: GameState) => houseBeds(s) + lodging(s);
 // ---------- v3 §7 · the neighbours ----------
 /** the stage a neighbour's yard stands at (0..3); there are neighbours only at home */
 export const yardStage = (s: GameState, y: YardId) => (isHome(s) ? s.yards?.[y]?.stage ?? 0 : 0);

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { COMMON_TRACKS, PETS, TRACKS, WORKERS, TrackId, WorkerId, DECK_MIN } from '../engine/data';
 import {
   GameState, deckCount, deckLimit, deckList, hirePrice, lvl, money, trackAvailable, trackCost, trackProblem, trackWeeks, trainPrice, trainWeeks,
-  workerSlots, workshopBusy, workshopSlots, locOf, buildStock, buildSpots, buildStage, trackDef, trackLevels, trackMats, matsList, helpProblem,
+  workerSlots, workshopBusy, workshopSlots, locOf, houseBeds, lodging, isHome, yardHelpProblem, buildStock, buildSpots, buildStage, trackDef, trackLevels, trackMats, matsList, helpProblem,
 } from '../engine/game';
 import { HOUSE_BEDS } from '../engine/data';
 import { ShedChips } from './Fair';
@@ -16,6 +16,8 @@ import { Bar, Btn, Dispatch, Pips, Section, Sheet, scrollBehavior, weeksShort } 
 import { levelText } from '../content/rules';
 import { CardView, cardDescription } from './Card';
 import { useLessonWeeks } from './lesson';
+import { NeighbourRow, NeighbourSheet, COMMON_ICON, type NeighbourKey } from './Neighbours';
+import { COMMONS, YARDS, YARD_IDS } from '../engine/neighbours';
 
 const PLACE: Partial<Record<TrackId, BuildItem>> = { greenhouse: 'greenhouse', apiary: 'hive', irrigation: 'drip', guard: 'scarecrow', canal: 'canal', fires: 'fire' };
 
@@ -76,8 +78,11 @@ function WorkerSheet({ s, id, act, onClose }: { s: GameState; id: WorkerId; act:
 }
 
 function Interior({ s, onWorker, onHire }: { s: GameState; onWorker: (id: WorkerId) => void; onHire: () => void }) {
-  const slots = workerSlots(s);
+  // the room has the house's own beds; those who sleep at the neighbours' (v3 §7 · постой) are listed under it
+  const slots = houseBeds(s);
   const seats: RoomSeat[] = [];
+  const lodgers = s.team.slice(slots);
+  const lodgeFree = Math.max(0, lodging(s) - lodgers.length);
   for (let i = 0; i < slots; i++) {
     const w = s.team[i];
     if (w && w.away > 0) seats.push({ kind: 'away', id: w.id, title: WORKERS[w.id].title, weeks: w.away, label: `${WORKERS[w.id].name}, ${WORKERS[w.id].title}: на учёбе ещё ${w.away} нед.`, onOpen: () => onWorker(w.id) });
@@ -92,6 +97,13 @@ function Interior({ s, onWorker, onHire }: { s: GameState; onWorker: (id: Worker
     <div class="room">
       <Room seats={seats} certs={s.certs.length} cat={s.pets.includes('cat')} dog={s.pets.includes('dog')} winter={s.season === 3} />
       {more >= 0 && <p class="room-next">Ещё одна кровать — с уровнем «{levels[more].name}»</p>}
+      {lodging(s) > 0 && (
+        <p class="room-lodge">
+          <Icon name="village" size={18} /> На постое у соседей:{' '}
+          {lodgers.map((w) => <button type="button" class="link" onClick={() => onWorker(w.id)}>{WORKERS[w.id].name}</button>)}
+          {lodgeFree > 0 && <button type="button" class="link" onClick={onHire}>{lodgeFree} {lodgeFree === 1 ? 'свободная кровать' : 'свободных кровати'}</button>}
+        </p>
+      )}
     </div>
   );
 }
@@ -174,6 +186,9 @@ export function HouseView({ s, act, onPlace, onFair }: { s: GameState; act: Disp
   const rearranging = winter && editingDeck;
   const jump = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: scrollBehavior(), block: 'start' });
   const buildingNow = s.projects.filter((p) => p.kind === 'track' && p.track !== 'house');
+  const villageNow = s.projects.filter((p) => p.kind === 'yard' || p.kind === 'common');
+  const [neighbour, setNeighbour] = useState<NeighbourKey | null>(null);
+  const helpers = isHome(s) ? YARD_IDS.filter((y) => !yardHelpProblem(s, y)) : [];
   const toPlace = ownedTracks.flatMap((t) => { const item = PLACE[t]; const st = item ? buildStock(s)[item] : null; const n = st ? Math.max(0, st.have - st.used) : 0; return item && n > 0 ? [[t, item, n] as const] : []; });
   return (
     <div class="pane-inner house-pane">
@@ -196,6 +211,14 @@ export function HouseView({ s, act, onPlace, onFair }: { s: GameState; act: Disp
               <span class="small"><Icon name={TRACKS[p.track].icon} size={16} /> Строим «{trackLevels(s, p.track)[p.level - 1].name}» · ещё {weeksShort(p.weeks)}</span>
               <Bar value={p.total - p.weeks} max={p.total} tone="good" />
               {!helpProblem(s, p.track) && <Btn small tone="ghost" onClick={() => act({ t: 'helpBuild', track: p.track })}>Помочь на стройке · 1 день</Btn>}
+            </div>
+          ))}
+          {villageNow.map((p) => (p.kind === 'yard' || p.kind === 'common') && (
+            <div class="stack tight now-line">
+              <button type="button" class="link small" onClick={() => setNeighbour(p.kind === 'yard' ? p.yard : 'commons')}>
+                <Icon name={p.kind === 'yard' ? 'village' : COMMON_ICON[p.id]} size={16} /> {p.kind === 'yard' ? `${YARDS[p.yard].name}: «${YARDS[p.yard].stages[p.stage - 1].name}»` : `Толока: «${COMMONS[p.id].name}»`} · ещё {weeksShort(p.weeks)}
+              </button>
+              <Bar value={p.total - p.weeks} max={p.total} tone="good" />
             </div>
           ))}
           {toPlace.length > 0 && <div class="place-chips" role="group" aria-label="Ждут места на поле">
@@ -233,8 +256,15 @@ export function HouseView({ s, act, onPlace, onFair }: { s: GameState; act: Disp
         {newTracks.length > 0 && <Btn onClick={() => setCatalogue(true)}><Icon name="build" size={20} /> Новая постройка</Btn>}
       </Section>
 
+      {isHome(s) && (
+        <Section id="neighbours" title="Соседи" icon="village" extra={helpers.length ? <span class="slots up">подмога: {helpers.length}</span> : undefined}>
+          <p class="small muted">Пять дворов деревни. Каждую стадию строит ваша бригада — за деньги, материалы и урожай; сосед отвечает обменом, кроватью для работника и подмогой. Три двора на ногах — и деревня возьмётся за общее.</p>
+          <NeighbourRow s={s} onOpen={setNeighbour} />
+        </Section>
+      )}
+
       <Section title="Команда" icon="team" id="hire" extra={<span class="slots">{s.team.length}/{workerSlots(s)}</span>}>
-        <p class="small muted">Работники приходят с ярмарки и за заказы. Нанять можно только на свободную кровать: кроватей прибавляется с домом.</p>
+        <p class="small muted">Работники приходят с ярмарки и за заказы. Нанять можно только на свободную кровать: кроватей прибавляется с домом и у соседей на постое.</p>
         <div class="candidates">
           {s.candidates.map((id) => (
             <button type="button" class="candidate" onClick={() => setWorker(id)}>
@@ -283,6 +313,7 @@ export function HouseView({ s, act, onPlace, onFair }: { s: GameState; act: Disp
         </div>
       </Section>
       {worker && <WorkerSheet s={s} id={worker} act={act} onClose={() => setWorker(null)} />}
+      {neighbour && <NeighbourSheet s={s} who={neighbour} act={act} onClose={() => setNeighbour(null)} onFair={() => { setNeighbour(null); onFair(); }} />}
       {catalogue && <Sheet title="Новая постройка" onClose={() => setCatalogue(false)}>
         <p class="small muted">Одновременно строится: {workshopSlots(s)}.</p>
         <div class="shed-row"><span>В сарае</span><ShedChips s={s} /></div>

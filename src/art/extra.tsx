@@ -323,6 +323,72 @@ export const moreIcons: Record<string, () => JSX.Element> = {
       <path d="M3 40 H45" {...S} />
     </g>
   ),
+  // v3 §7 · the village and its shared buildings
+  village: () => (
+    <g>
+      <path d="M4 40 V24 L13 16 L22 24 V40z" fill={P.woodLight} {...S} />
+      <path d="M2 25 L13 14 L24 25" fill="none" {...S} stroke={P.red} />
+      <path d="M22 40 V20 L33 10 L44 20 V40z" fill="#f2e3b3" {...S} />
+      <path d="M20 21 L33 8 L46 21" fill="none" {...S} stroke="#3f7fbf" />
+      <rect x={9} y={28} width={7} height={6} fill="#fff4dc" {...S} stroke-width={1.4} />
+      <rect x={29} y={24} width={8} height={7} fill="#fff4dc" {...S} stroke-width={1.4} />
+      <path d="M30 40 V33 H36 V40" fill={P.wood} {...S} stroke-width={1.4} />
+      <path d="M1 41 H47" {...S} />
+    </g>
+  ),
+  bridge: () => (
+    <g>
+      <path d="M2 34 Q24 40 46 34 V44 H2z" fill="#7fb6d9" {...S} stroke-width={1.6} />
+      <path d="M4 30 Q24 14 44 30" fill="none" {...S} stroke={P.woodDark} stroke-width={4} />
+      <path d="M4 30 Q24 18 44 30" fill="none" {...S} stroke={P.woodLight} stroke-width={1.6} />
+      <path d="M10 25 V19 M17 21 V15 M24 20 V14 M31 21 V15 M38 25 V19" {...S} stroke-width={1.8} />
+      <path d="M8 20 Q24 9 40 20" fill="none" {...S} stroke-width={1.8} />
+    </g>
+  ),
+  club: () => (
+    <g>
+      <path d="M6 40 V18 H42 V40z" fill="#f2e3b3" {...S} />
+      <path d="M3 19 L24 6 L45 19z" fill={P.red} {...S} />
+      <path d="M14 40 V24 H20 V40 M28 40 V24 H34 V40" fill="#fff4dc" {...S} stroke-width={1.6} />
+      <path d="M24 6 V1 L31 3 L24 5" fill={P.gold} {...S} stroke-width={1.4} />
+      <circle cx={24} cy={14} r={2.6} fill="#fff4dc" {...S} stroke-width={1.2} />
+    </g>
+  ),
+  pump: () => (
+    <g>
+      <path d="M14 42 L18 20 H30 L34 42" fill="none" {...S} />
+      <path d="M16 32 H32 M17 26 H31" {...S} stroke-width={1.4} />
+      <path d="M12 8 H36 V20 H12z" fill="#8fb5c9" {...S} />
+      <path d="M10 8 Q24 0 38 8" fill={P.woodDark} {...S} />
+      <path d="M24 12 Q20 17 24 18 Q28 17 24 12z" fill="#e6f3fb" {...S} stroke-width={1.2} />
+    </g>
+  ),
+  anvil: () => (
+    <g>
+      <path d="M6 14 H38 Q44 14 44 18 Q36 20 32 22 V26 H16 V22 Q8 20 6 14z" fill="#5d6670" {...S} />
+      <path d="M18 26 L14 36 H34 L30 26" fill="#454c54" {...S} />
+      <path d="M10 40 H38" {...S} />
+      <path d="M22 4 L30 12" {...S} stroke={P.woodDark} stroke-width={3} />
+      <path d="M26 2 L34 8 L31 11 L23 5z" fill="#454c54" {...S} stroke-width={1.6} />
+    </g>
+  ),
+  saw: () => (
+    <g>
+      <path d="M6 30 L36 12 L40 18 L10 36z" fill="#c9d2d9" {...S} />
+      <path d="M10 36 l2 2 l2 -3 l2 2 l2 -3 l2 2 l2 -3 l2 2 l2 -3 l2 2 l2 -3 l2 2 l2 -3" fill="none" {...S} stroke-width={1.2} />
+      <path d="M36 12 L44 8 L46 14 L40 18" fill={P.wood} {...S} />
+    </g>
+  ),
+  mill: () => (
+    <g>
+      <path d="M17 42 L20 22 H28 L31 42z" fill={P.woodLight} {...S} />
+      <path d="M18 22 L24 15 L30 22z" fill={P.woodDark} {...S} />
+      <g transform="translate(24 17)">
+        {[0, 90, 180, 270].map((r) => <path transform={`rotate(${r + 20})`} d="M0 0 L2 -15 H7 L6 -3z" fill="#f2e3b3" {...S} stroke-width={1.4} />)}
+      </g>
+      <circle cx={24} cy={17} r={2} fill={P.ink} />
+    </g>
+  ),
 };
 
 // ---------- new crops (100×100 tile, stem base at 50,80) ----------

@@ -11,7 +11,7 @@ import {readWeekResume,saveWeekResume,clearWeekResume,type WeekResume} from './w
 import { PrecisionLoupe } from './PrecisionLoupe';
 import { greenhouseYieldReady, hiveYieldReady, neighbors8, inGrid, wlvl } from '../engine/game';
 
-import { exchangeProblem, compostProblem, compostWeeks, growthMoisture, frostKills, wetCanals, idx, thievesBlocked, handMax as maxHand, exchangesUsed, exchangesPerWeek, nextDraw, exchangeDays, yardUsed, storageUsed, storageCap, deliverProblem } from '../engine/game';
+import { lotName, exchangeProblem, compostProblem, compostWeeks, growthMoisture, frostKills, wetCanals, idx, thievesBlocked, handMax as maxHand, exchangesUsed, exchangesPerWeek, nextDraw, exchangeDays, yardUsed, storageUsed, storageCap, deliverProblem } from '../engine/game';
 import type { JSX } from 'preact';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { CARDS, CROPS, GRID, ORGS, SEASON_NAMES, TRACKS, TRAITS } from '../engine/data';
@@ -40,6 +40,7 @@ import { Btn, Dispatch, Sheet, weeksShort } from './common';
 import { SeasonFx } from './SeasonFx';
 import { FieldVoice } from './FieldVoice';
 import {OrderVisit} from './OrderVisit';
+import { NeighbourSheet, PLACE_NEIGHBOUR, type NeighbourKey } from './Neighbours';
 import { BedPopover } from './BedPopover';
 import { morningCellDelay, type MorningStep } from './Morning';
 import { kidsScouting, kidsAhead } from './foresight';
@@ -527,6 +528,7 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
   const [overCompost,setOverCompost]=useState(false);
   const [compostAt,setCompostAt]=useState<{top:number;right:number;tip:number}|null>(null);
   const [meetingOpen,setMeetingOpen]=useState(false);
+  const [neighbour,setNeighbour]=useState<NeighbourKey|null>(null);
   const [pestHits,setPestHits]=useState<PestHit[]>([]);
   const [weekPlaying,setWeekPlaying]=useState(!!resume);
   const [weekCue,setWeekCue]=useState<SceneCue|null>(null);
@@ -1695,6 +1697,7 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
   };
   const onVillagePlace = (k: string) => {
     if ((locOf(s).orgs as string[]).includes(k)) { (onOrder ?? (() => onGo('orders')))(k as OrgId); return; }
+    if (PLACE_NEIGHBOUR[k]) { setNeighbour(PLACE_NEIGHBOUR[k]); return; }
     if (k.startsWith('g-')) { const o = k.slice(2) as OrgId; villageSay(`${ORGS[o].short} дружит с вами: ${ORGS[o].perk.charAt(0).toLowerCase()}${ORGS[o].perk.slice(1)}.`); return; }
     const next = weatherOf(s, 1);
     const say: Record<string, string> = {
@@ -1703,8 +1706,7 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
       mill: 'Мельница на дальнем холме мелет зерно со всей округи.',
       hay: 'Стог сена на зиму.',
       farhouse: 'Дальние дома: там живут соседи с хуторов.', farhouse2: 'Дальние дома: там живут соседи с хуторов.', farhouse3: 'Дальние дома: там живут соседи с хуторов.',
-      izba1: 'Дом соседей.', izba2: 'Дом соседей.', izba3: 'Дом соседей: бельё сохнет на верёвке.',
-      lot: 'Участок на вырост: со временем здесь поселятся новые соседи.', 'lot-school': 'Участок на вырост: со временем здесь поселятся новые соседи.', 'lot-tower': 'Участок на вырост: со временем здесь поселятся новые соседи.',
+      pryakhin: (() => { const l = s.fair?.lots.find((x) => x.id === s.fair?.eye); return l ? `Пряхин приглядывается: «${lotName(l)}». Не опередите — купит в конце недели.` : 'Пряхин ходит по рынку с тетрадкой.'; })(),
     };
     switch (k) {
       case 'house': case 'meteo': case 'hives': onGo('house'); return;
@@ -1721,6 +1723,7 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
   return (
     <div style={{['--arn' as string]:String(cam.W/cam.H)}} data-week-event={trialNight?`trial-${trialNight.n.kind}`:weekCue?.kind??morning?.kind??(pestHits.length?'pests':'')} data-busy={night!=='off'||weekPlaying||!!morning||!!pestHits.length||farmer.walking||farmer.action!=='idle'} data-drag-active={drag?.active ? 'true' : 'false'} data-peek-uid={peek ?? ''} data-building={!!build} data-build-item={build??''} data-build-moving={!!moveFrom} data-bed-menu={info?.join(',')??''} data-water-cells={watering?.map(p=>p.join(',')).join(';')??''} data-card-rotation={rot} ref={viewRef} class={`field-view${!active||!pageVisible||!!sheet||meetingOpen?' scene-paused':''}${drag ? ' dragging' : ''}${card ? ' picking' : ''}${villageOn ? ` has-village v-${vmode}` : ''}`}>
       {villageOn && <Village s={s} rootRef={villageRoot} onPlace={onVillagePlace} />}
+      {neighbour && <NeighbourSheet s={s} who={neighbour} act={dispatch} onClose={() => setNeighbour(null)} onFair={() => { setNeighbour(null); onGo('fair'); }} />}
       <div class={`field-wrap${!active||!pageVisible||!!sheet||meetingOpen?' scene-paused':''}${room.fanMin ? ' balanced' : ''}${rails ? ' rails' : ''}`} style={{ ['--sky-h' as string]: `${skyPx}px`, ['--vpeek' as string]: `${vpeek}px`, ...(rails ? { ['--rail' as string]: `${rails}px`, ['--rail2' as string]: `${rails * 2}px` } : {}) }} ref={fieldRef}>
         {/* the sky with the forecast stays on top; the field slides down under it when the village opens */}
         {/* the sky in four stacked pictures: its fade over the village is the compositor's (see Village's pager) */}
