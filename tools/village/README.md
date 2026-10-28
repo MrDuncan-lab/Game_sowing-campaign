@@ -6,12 +6,15 @@ The hills, houses, roads and fields of the Chernozem village are drawn by these 
     python3 export.py        # rewrite src/art/village/chernozem.ts and src/art/village/estate.ts
     python3 estate.py        # only the estate: src/art/village/estate.ts and preview-estate.html
     python3 yard.py          # rewrite src/art/yard.ts (the farmyard over the field)
-    python3 preview.py [all|none] [1-5]   # the whole village: preview-summer.html, preview-winter.html (house level)
+    python3 preview.py [all|none] [1-5]   # the whole village: preview-summer/-winter/-spring/-autumn.html (house level)
 
 Style: the hybrid chosen on 26.10 (project doc `claude/village-style-brief.md`): the book's ink line and hatching
 with the game vector's light, haze and colour; a low sun on the left, shadows to the lower right; winter at dusk
-with lit windows. Two drawings are exported: summer (spring and autumn recolour it through `V_SEASON_CSS`) and
-winter; `src/ui/Village.tsx` picks one by the season.
+with lit windows. Two drawings are exported: summer and winter; `src/ui/Village.tsx` picks one by the season.
+Spring and autumn are the summer drawing under their season class: `V_SEASON_CSS` recolours the hills, the trees
+(classes `tl th tb` birch, `al ah ad fr` apple, `lt ld lb` lilac), the gardens and the far fields (`f-wheat`, …),
+and shows the season's own pieces (groups `vs vs-sp` / `vs-su` / `vs-au`): apple blossom, ploughland, puddles,
+rooks and a man digging in spring; golden birches, stooks, pumpkins, geese, a smouldering leaf pile in autumn.
 
 - `hy.py` — the drawing kit: palettes, the ink renderer (`Hy`), and the shared pieces (izba, long house, shop,
   council, banya, trees, fences, gardens, people, animals, haystack…).
@@ -33,6 +36,11 @@ winter; `src/ui/Village.tsx` picks one by the season.
 - `estate.py` — the House screen's picture (`ES_VIEW` 360×210): `back`, `houses[0..4]` (the same homestead, larger),
   the yard `items` (hive, greenhouse, scarecrow, barrel, meteo, compost — placed clear of the house at every level),
   `front`; ids in `defs` start with `es-`; `ES_SEASON_CSS` recolours summer under `.estate-v.season-0/2`.
+- `life.py` — what moves about: a train on the far ridge, a tractor on the far fields, a boy with a kite, the
+  baker and the waiter, a kid on a bicycle, an old man on the street, the yard dog, butterflies, falling leaves and
+  petals; in winter snowfall, a sledge and a skier. Everything moving carries `lv` (paused with the village,
+  stopped for reduced motion; fallers `lvf` hidden then). Movers' keyframes are generated into `V_SEASON_CSS`,
+  the shared ones (fall, flutter, dig, kite…) are in `src/village.css`.
 - `roads5.py` — reading SVG path data into points along it.
 - `yard.py` — the farmyard over the field in the same style (barrel, fence, gate, crane well, hens, sunflowers):
   `python3 yard.py` rewrites `src/art/yard.ts`; `YardDecor` in `src/art/meadow.tsx` places the pieces.

@@ -102,14 +102,35 @@
 @keyframes v-stroll { 0% { transform: translate(138px, 707px); } 46% { transform: translate(234px, 713px); } 52% { transform: translate(234px, 713px); } 96% { transform: translate(138px, 707px); } 100% { transform: translate(138px, 707px); } }
 .village .stroll-face { animation: v-face 28s step-end infinite; }
 @keyframes v-face { 0% { transform: scaleX(1); } 49% { transform: scaleX(-1); } 99% { transform: scaleX(1); } }
+/* 28.10 · more life (tools/village/life.py, class lv): who walks or rides to and fro has its own keyframes in
+   V_SEASON_CSS; these are the shared ones. Fallers (lvf) start unseen and fade in. */
+.village .spin { transform-box: fill-box; transform-origin: 50% 50%; animation: v-spin .9s linear infinite; }
+.village .puff { opacity: 0; animation: v-puff 2.2s ease-out infinite; }
+@keyframes v-puff { 0% { opacity: 0; transform: translate(0, 0) scale(.6); } 20% { opacity: .9; } 100% { opacity: 0; transform: translate(-4px, -9px) scale(1.7); } }
+.village .flap { transform-box: fill-box; transform-origin: 50% 100%; animation: v-flap .7s ease-in-out infinite alternate; }
+@keyframes v-flap { from { transform: scaleY(1); } to { transform: scaleY(-.45); } }
+.village .kite { transform-box: view-box; transform-origin: 0 0; animation: v-kite 4.6s ease-in-out infinite alternate; }
+@keyframes v-kite { from { transform: rotate(-6deg); } to { transform: rotate(7deg); } }
+.village .bfly { animation: v-bfly 8s ease-in-out infinite; }
+@keyframes v-bfly { 0%, 100% { transform: translate(0, 0); } 25% { transform: translate(7px, -6px); } 50% { transform: translate(13px, 1px); } 75% { transform: translate(5px, 5px); } }
+.village .flut { transform-box: fill-box; transform-origin: 50% 50%; animation: v-flut .2s ease-in-out infinite alternate; }
+@keyframes v-flut { from { transform: scaleX(1); } to { transform: scaleX(.2); } }
+.village .leaf-fall, .village .petal-fall { opacity: 0; transform-box: fill-box; transform-origin: 50% 50%; animation: v-fall 8s linear infinite; }
+@keyframes v-fall { 0% { opacity: 0; transform: translate(0, 0) rotate(0); } 8% { opacity: 1; } 35% { transform: translate(7px, 14px) rotate(140deg); }
+  65% { transform: translate(-3px, 28px) rotate(250deg); } 88% { opacity: 1; } 100% { opacity: 0; transform: translate(4px, 42px) rotate(380deg); } }
+.village .flake { opacity: 0; animation: v-flake 9s linear infinite; }
+@keyframes v-flake { 0% { opacity: 0; transform: translate(0, 0); } 12% { opacity: .95; } 50% { transform: translate(5px, 34px); } 85% { opacity: .9; } 100% { opacity: 0; transform: translate(-2px, 72px); } }
+.village .dig { transform-box: fill-box; transform-origin: 50% 100%; animation: v-dig 1.9s ease-in-out infinite; }
+@keyframes v-dig { 0%, 100% { transform: rotate(0); } 45% { transform: rotate(12deg); } 60% { transform: rotate(10deg); } }
 /* on the field the village is behind it, and while it moves it is a picture: its life waits. The list names the
    moving parts, so switching it restyles those few and not the whole drawing */
 .village.v-asleep :is(.drift, .wheel-bird, .pf, .sails, .cups, .vane, .flagw, .sway, .swing, .fire, .bubbling circle, .bee, .nod,
-  .peck, .wash, .walk, .rays, .bob, .stroll, .stroll-face) { animation-play-state: paused !important; }
+  .peck, .wash, .walk, .rays, .bob, .stroll, .stroll-face, .lv) { animation-play-state: paused !important; }
 /* up in the village the field is out of sight: its life waits too (switched when the village stands, not on the way) */
 .field-view .field-move.v-away * { animation-play-state: paused !important; }
 
-/* seasons: winter has its own drawing; spring and autumn recolour the summer one (V_SEASON_CSS, generated) */
+/* seasons: winter has its own drawing; spring and autumn recolour the summer one and show their own pieces
+   (V_SEASON_CSS, generated: groups vs-sp / vs-su / vs-au) */
 .village.season-3 { background: #e0e5f2; }
 
 /* ---------- the field view around it ---------- */
@@ -152,6 +173,8 @@
   .village .flagw, .village .sway, .village .swing, .village .wash, .village .bob, .village .cups, .village .sails, .village .rays, .village .vane, .village .nod,
   .village .bubbling circle, .village .walk, .village .peck, .village .bee, .village .fire, .village .drift, .village .wheel-bird, .village .stroll, .village .stroll-face,
   .village.cart-rolling .v-wheel, .village .spot-g.ping .pop { animation: none; }
+  .village .lv { animation: none !important; }
+  .village .lvf { display: none; }
   .village .stroll { transform: translate(150px, 708px); }
   .field-view .v-back { transition: none; }
 }
@@ -184,3 +207,8 @@
   .estate-v .smoke .pf { animation: none; opacity: .8; }
   .estate-v .bee, .estate-v .cups, .estate-v .vane { animation: none; }
 }
+
+/* 28.10 · the village and the sky over it are pictures, not text to select (a drag over a caption scrolls) */
+.field-view.has-village .village, .field-view.has-village .sky-strip { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+/* the field's sky has faded over the open village: its forecast cannot be tapped there */
+.field-view.has-village .sky-strip.v-open .sb-front { pointer-events: none; }

@@ -587,7 +587,7 @@ def birch(r, x, y, h, lean=0.0):
             cx = top[0] + math.cos(a) * h * rr * 1.1 + r.rng.uniform(-1.5, 1.5)
             cy = top[1] + h * .26 + math.sin(a) * h * rr * .9 + abs(i - nb / 2) * h * .3 / nb
             k = r.rng.uniform(.75, 1.1) * (1 if h < 90 else .62)
-            r.blob(cx + 1.6, cy + 2.4, h * .085 * k, h * .17 * k, P['leaf_s'], .55, n=10, wob=.08, bumps=5, rot=-.2 * (i - nb / 2) / nb, ink=False)
+            r.blob(cx + 1.6, cy + 2.4, h * .085 * k, h * .17 * k, P['leaf_s'], .55, n=10, wob=.08, bumps=5, rot=-.2 * (i - nb / 2) / nb, ink=False, cls='tb')
         r.shape(trunk, P['birch'], .8)
         r.rim([(x - tw, y), (top[0] - tw * .4, top[1] + h * .1)], .8)
         for i in range(9):
@@ -607,7 +607,7 @@ def birch(r, x, y, h, lean=0.0):
             cy = top[1] + h * .22 + math.sin(a) * h * rr * .85 + abs(i - nf / 2) * h * .3 / nf
             k = r.rng.uniform(.75, 1.1) * (1 if h < 90 else .6)
             col = P['leaf_h'] if cx < top[0] - h * .05 and i % 2 == 0 else P['leaf']
-            r.blob(cx, cy, h * .075 * k, h * .15 * k, col, .5, n=11, wob=.08, bumps=5, rot=-.2 * (i - nf / 2) / nf, shade=cx > top[0] + h * .08)
+            r.blob(cx, cy, h * .075 * k, h * .15 * k, col, .5, n=11, wob=.08, bumps=5, rot=-.2 * (i - nf / 2) / nf, shade=cx > top[0] + h * .08, cls='th' if col == P['leaf_h'] else 'tl')
     else:
         r.shape(trunk, P['birch'], .8)
         for i in range(9):
@@ -642,15 +642,15 @@ def apple(r, x, y, h):
         return
     for i in range(9):
         a = 2 * math.pi * i / 9
-        r.blob(x + math.cos(a) * h * .22 + 1.8, y - h * .72 + math.sin(a) * h * .15 + 2, h * .17, h * .14, P['leaf_d'], .55, n=10, wob=.08, bumps=5, ink=False)
+        r.blob(x + math.cos(a) * h * .22 + 1.8, y - h * .72 + math.sin(a) * h * .15 + 2, h * .17, h * .14, P['leaf_d'], .55, n=10, wob=.08, bumps=5, ink=False, cls='ad')
     for i in range(9):
         a = 2 * math.pi * i / 9 + .3
         cx, cy = x + math.cos(a) * h * .2, y - h * .74 + math.sin(a) * h * .14
-        r.blob(cx, cy, h * .16, h * .13, P['leaf_h'] if cx < x - h * .08 else P['leaf'], .55, n=10, wob=.08, bumps=5, shade=cx > x + h * .1)
+        r.blob(cx, cy, h * .16, h * .13, P['leaf_h'] if cx < x - h * .08 else P['leaf'], .55, n=10, wob=.08, bumps=5, shade=cx > x + h * .1, cls='ah' if cx < x - h * .08 else 'al')
     for i in range(9):
         a = r.rng.uniform(0, 2 * math.pi)
         rr = r.rng.uniform(.06, .3)
-        r.blob(x + math.cos(a) * h * rr, y - h * .74 + math.sin(a) * h * rr * .7, 1.5, 1.5, P['apple'], .3, n=7, wob=.02)
+        r.blob(x + math.cos(a) * h * rr, y - h * .74 + math.sin(a) * h * rr * .7, 1.5, 1.5, P['apple'], .3, n=7, wob=.02, cls='fr')
 
 
 def spruce(r, x, y, h):
@@ -681,12 +681,12 @@ def lilac(r, x, y, w):
     for i in range(7):
         a = math.pi + i * math.pi / 6
         cx, cy = x + math.cos(a) * w * .35, y - w * .35 + math.sin(a) * w * .25
-        r.blob(cx + 1, cy + 1.5, w * .3, w * .24, P['leaf_d'], .5, n=10, bumps=4, ink=False)
-        r.blob(cx, cy, w * .28, w * .22, P['leaf'], .5, n=10, bumps=4)
+        r.blob(cx + 1, cy + 1.5, w * .3, w * .24, P['leaf_d'], .5, n=10, bumps=4, ink=False, cls='ld')
+        r.blob(cx, cy, w * .28, w * .22, P['leaf'], .5, n=10, bumps=4, cls='lt')
     for i in range(6):
         a = math.pi + (i + .5) * math.pi / 6
         cx, cy = x + math.cos(a) * w * .3, y - w * .42 + math.sin(a) * w * .25
-        r.blob(cx, cy, 2.2, 3.4, P['lilac'] if i % 2 else P['lilac_s'], .35, n=8, wob=.1)
+        r.blob(cx, cy, 2.2, 3.4, P['lilac'] if i % 2 else P['lilac_s'], .35, n=8, wob=.1, cls='lb')
 
 
 # ---------------------------------------------------------------- fences, props

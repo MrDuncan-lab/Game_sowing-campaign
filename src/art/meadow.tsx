@@ -259,8 +259,10 @@ export function GrassPattern({ winter }: { winter: boolean }) {
 
 /** The yard strip: a trodden path the farmer walks, a rain barrel by his spot and a couple of fence posts. */
 /** Where the village road leaves the yard path, and where it meets the hill crest (fractions of the width);
- *  the sky draws the rest of it up to the village on the horizon (see SkyBand). */
-export const ROAD_AT = 0.6, ROAD_CREST = 0.66;
+ *  the sky draws the rest of it up to the village on the horizon (see SkyBand). 28.10 · the crest end stands where
+ *  the village's own main road runs from hill F's crest down to its gate (tools/village: x 186-191 of 362) and is as
+ *  wide as it there, so whatever stretch of the village shows over the field's crest, the two meet as one road. */
+export const ROAD_AT = 0.56, ROAD_CREST = 188 / 362, ROAD_HALF = 0.039;
 
 /** A cubic Bézier's point at t. */
 function bez(p0: number[], c1: number[], c2: number[], p1: number[], t: number): [number, number] {
@@ -286,13 +288,13 @@ export function YardDecor({ W, yard, season }: { W: number; yard: number; season
   const winter = season === 3;
   const y = yard - 3;
   const top = yard - 66; // the crest of the field's hill, where the sky's land meets it
-  const rx = W * ROAD_AT, cx = W * ROAD_CREST;
+  const rx = W * ROAD_AT, cx = W * ROAD_CREST, hw = W * ROAD_HALF;
   const ink = winter ? '#33283a' : '#3a2a1f';
   const road = winter ? '#e1e3ef' : '#dfc794', worn = winter ? '#aab6da' : '#bfb27c', rut = winter ? '#a3a6c4' : '#b99d6b';
   const grass = winter ? '#aab6da' : '#5e7a3c';
   // the road's two edges and its outline
-  const L: [number[], number[], number[], number[]] = [[rx - 15, y + 2], [rx - 10, y - 24], [cx - 12, top + 22], [cx - 7, top - 2]];
-  const R: [number[], number[], number[], number[]] = [[rx + 17, y + 2], [rx + 14, y - 24], [cx + 12, top + 22], [cx + 7, top - 2]];
+  const L: [number[], number[], number[], number[]] = [[rx - 20, y + 2], [rx - 16, y - 24], [cx - hw - 2, top + 22], [cx - hw, top - 2]];
+  const R: [number[], number[], number[], number[]] = [[rx + 22, y + 2], [rx + 18, y - 24], [cx + hw + 2, top + 22], [cx + hw, top - 2]];
   const roadD = `M${L[0][0]} ${L[0][1]} C${L[1][0]} ${L[1][1]} ${L[2][0]} ${L[2][1]} ${L[3][0]} ${L[3][1]} H${R[3][0]} C${R[2][0]} ${R[2][1]} ${R[1][0]} ${R[1][1]} ${R[0][0]} ${R[0][1]} Z`;
   const path = `M14 ${y} Q${W * .3} ${y - 3} ${W * .55} ${y} T${W - 14} ${y}`;
   const along = (e: typeof L, n: number) => Array.from({ length: n }, (_, i) => bez(e[0], e[1], e[2], e[3], (i + .5) / n));
@@ -305,8 +307,8 @@ export function YardDecor({ W, yard, season }: { W: number; yard: number; season
       <path d={roadD} fill="none" stroke={worn} stroke-width={5} stroke-opacity={winter ? .35 : .4} stroke-linejoin="round" />
       <path d={roadD} fill={road} />
       {!winter && <path d={roadD} fill="none" stroke={ink} stroke-width={1.2} stroke-dasharray="9 5 3 7 14 6" stroke-opacity={.45} stroke-linejoin="round" />}
-      <path d={`M${rx - 6} ${y} C${rx - 4} ${y - 24} ${cx - 6} ${top + 22} ${cx - 3} ${top}`} stroke={rut} stroke-width={1.1} fill="none" stroke-linecap="round" />
-      <path d={`M${rx + 8} ${y} C${rx + 8} ${y - 24} ${cx + 5} ${top + 22} ${cx + 3} ${top}`} stroke={rut} stroke-width={1.1} fill="none" stroke-linecap="round" />
+      <path d={`M${rx - 7} ${y} C${rx - 6} ${y - 24} ${cx - hw * .45} ${top + 22} ${cx - hw * .4} ${top}`} stroke={rut} stroke-width={1.1} fill="none" stroke-linecap="round" />
+      <path d={`M${rx + 9} ${y} C${rx + 9} ${y - 24} ${cx + hw * .45} ${top + 22} ${cx + hw * .4} ${top}`} stroke={rut} stroke-width={1.1} fill="none" stroke-linecap="round" />
       {/* the trodden path along the yard */}
       <path d={path} stroke={worn} stroke-width={13} stroke-linecap="round" fill="none" stroke-opacity={.3} />
       <path d={path} stroke={road} stroke-width={9} stroke-linecap="round" fill="none" stroke-opacity={winter ? .95 : .85} />
@@ -323,7 +325,7 @@ export function YardDecor({ W, yard, season }: { W: number; yard: number; season
         <g class="well-sweep" {...html('sweep')} />
       </g>
       {!winter && [0, 1].map((k) => (
-        <g transform={`translate(${W * (k ? .5 : .45)} ${y + (k ? 2 : -1)})${k ? ' scale(-1 1)' : ''}`}>
+        <g transform={`translate(${W * (k ? .43 : .395)} ${y + (k ? 2 : -1)})${k ? ' scale(-1 1)' : ''}`}>
           <g class={`yard-hen h${k}`}><g {...html('legs')} /><g class="hen-body" {...html(k ? 'hen1' : 'hen0')} /></g>
         </g>
       ))}

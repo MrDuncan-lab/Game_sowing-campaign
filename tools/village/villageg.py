@@ -11,6 +11,7 @@ sys.path.insert(0, HERE)
 import hy as H
 import pieces as Q
 import roads5
+import life as LV
 from hy import Hy, PAL, D, SD, fmt, mix, dark, light
 
 W = 362
@@ -73,14 +74,16 @@ def hill_path(key):
 
 
 # ---------------------------------------------------------------- the roads (village coordinates)
-MAIN = ('M181 1290 L181 1240 C181 1214 188 1192 206 1166 C222 1142 220 1116 204 1094 C190 1074 190 1050 200 1026 '
-        'C210 1002 214 976 208 950 C202 924 200 904 204 878 C207 856 198 836 194 812 C190 788 192 762 190 732 '
+# 28.10 · from the gate to hill F's crest the road runs nearly straight up (x 186-191, about 0.52 of the width):
+# whatever stretch of it shows over the field's crest, the field's own road meets it there (src/art/meadow.tsx ROAD_CREST), so while the field slides away the two read as one road
+MAIN = ('M186 1290 L186 1236 C186 1206 189 1180 190 1150 C191 1120 187 1098 187 1072 C187 1044 191 1018 191 990 '
+        'C191 962 187 944 188 920 C189 902 196 890 202 878 C207 856 198 836 194 812 C190 788 192 762 190 732 '
         'C188 710 184 698 182 686 C180 664 180 640 178 616 C176 594 178 574 176 552 C174 530 174 506 172 482 '
         'C170 458 174 436 176 412 C178 394 182 384 186 376')
 BRANCHES = [
-    'M200 1040 C192 1036 186 1030 172 1022',          # to the porch
-    'M206 1110 C232 1100 262 1080 286 1056',          # to the barn
-    'M206 1170 C170 1176 120 1176 82 1164',           # to the lab
+    'M188 1040 C181 1036 175 1030 164 1022',          # to the porch
+    'M189 1112 C226 1102 260 1080 286 1056',          # to the barn
+    'M190 1172 C160 1178 120 1176 82 1164',           # to the lab
     'M194 846 C160 850 120 852 96 858',               # the street: to the left yard
     'M196 840 C250 836 310 826 390 812',              # the road out of the village, to the map
     'M182 694 C150 698 112 704 76 712',               # round the square: the bakery
@@ -347,7 +350,7 @@ def flowers_hill(r, key, n, seed):
         if y1 > y0:
             es[cols[i % 4]].append((x, rng.uniform(y0, y1), 1.2, 1.0))
     for c, e in es.items():
-        r.dots(e, c, .2)
+        r.dots(e, c, .2, cls='fl')
 
 
 def haze(r, y0, y1, op):
@@ -386,7 +389,7 @@ def far_fields(r):
             ci += 1
             if not w:
                 fc = col[crop]
-                cls = ' class="fld"' if crop in ('young', 'meadow') else ''
+                cls = f' class="f-{crop}"'
                 r.add(f'<path d="{D(top + bot)}" fill="{fc}"{cls}/>')
                 if crop in ('wheat', 'young', 'stubble', 'fallow'):
                     m = 5 if k < 2 else 7
@@ -450,6 +453,7 @@ def hill_A(r):
             H.palisade(r, X - 18, X + 18, Y + 4, .4)), 'Дом на дальнем холме')
     pop(r, 'A', 'lot-tower', 306, 246, lambda X, Y: Q.lot(r, X, Y, 40, 18), 'Участок на вырост')
     anchor('flock', 'A', 290, 182)
+    LV.hill_A(r, crest_at)
     haze(r, 96, 262, .32)
 
 
@@ -474,6 +478,7 @@ def hill_B(r):
         H.bicycle(r, 262, 410, .9)
     else:
         H.person(r, 116, 405, 1.0, coat=P['coat2'], kind='woman', scarf=P['coat4'])
+    LV.hill_B(r, crest_at)
     haze(r, 250, 420, .1)
 
 
@@ -502,6 +507,7 @@ def hill_C(r):
     else:
         H.person(r, 186, 540, 1.0, coat=P['coat3'], kind='man', pose='walk')
     lilac(r, 150, 552, 14)
+    LV.hill_C(r, crest_at)
 
 
 def hill_D(r):
@@ -532,6 +538,7 @@ def hill_D(r):
     stroll = r.capture(lambda: (H.person(r, 0, 0, 1.3, coat=P['coat2'], kind='woman', pose='walk', scarf=P['coat4']),
                                 r.blob(4.6, -6.5, 2.6, 1.8, P['straw'], .4, n=8, wob=.04)))[0]
     r.add(f'<g class="stroll"><g class="stroll-face">{stroll}</g></g>')
+    LV.hill_D(r, crest_at)
 
 
 def hill_E(r):
@@ -558,6 +565,8 @@ def hill_E(r):
     else:
         H.snowman(r, 134, 872, 1.1)
         H.dog(r, 150, 874, 1.0)
+    # the life of the hill first: the kid on the bicycle rides out behind the signpost
+    LV.hill_E(r, crest_at)
     pop(r, 'E', 'signpost', 324, 852, lambda X, Y: Q.signpost(r, X, Y, 1.0), 'Указатель: карта ферм')
 
 
@@ -574,13 +583,13 @@ def hill_F(r):
         H.woodcutter(r, 84, 1080, 1.2)
     # the player's house at each of its five levels; the game shows the one its level names (root class on-houseN)
     for lv in range(1, 6):
-        pop(r, 'F', 'house', 116, 1052, lambda X, Y, lv=lv: Q.homestead(r, X, Y, 1.25, lit=r.winter, level=lv), 'Ваша усадьба', cond=f'house{lv}')
+        pop(r, 'F', 'house', 108, 1052, lambda X, Y, lv=lv: Q.homestead(r, X, Y, 1.25, lit=r.winter, level=lv), 'Ваша усадьба', cond=f'house{lv}')
     pop(r, 'F', 'barn', 294, 1046, lambda X, Y: Q.barn(r, X, Y, 1.05), 'Амбар')
     if not r.winter:
         Q.chick(r, 330, 1084, 1.25, 1, 0)
         Q.chick(r, 340, 1088, 1.25, -1, .8)
         Q.chick(r, 348, 1082, 1.25, 1, 1.5)
-        H.cat(r, 182, 1060, 1.2)
+        H.cat(r, 214, 1054, 1.2)
     H.dog(r, 236, 1066, 1.1)
     pop(r, 'F', 'lab', 66, 1158, lambda X, Y: Q.lab(r, X, Y, 1.0, lit=r.winter), 'Лаборатория', cond='lab')
     pop(r, 'F', 'lot-lab', 64, 1150, lambda X, Y: Q.lot(r, X, Y, 46, 22), 'Место под лабораторию', cond='nolab')
@@ -598,13 +607,14 @@ def hill_F(r):
     pop(r, 'F', 'g-orphanage', 142, 1196, lambda X, Y: Q.swing(r, X, Y, 1.2), 'Качели: подарок интерната', cond='g-orphanage')
     pop(r, 'F', 'g-college', 296, 1194, lambda X, Y: Q.desk(r, X, Y, 1.0), 'Учебный стол: подарок колледжа', cond='g-college')
     # the fence with the gate down to the field; sunflowers along it; a bush the kids hide in
-    H.palisade(r, -6, 368, 1216, .9, gate=(162, 200))
-    pop(r, 'F', 'gate', 181, 1218, lambda X, Y: (r.add(f'<rect x="{X - 22}" y="{Y - 18}" width="44" height="20" fill="#fff" fill-opacity="0"/>'), r.see([(X - 22, Y - 18), (X + 22, Y + 2)])), 'Калитка: вниз, к полю', 'gate')
+    H.palisade(r, -6, 368, 1216, .9, gate=(167, 205))
+    pop(r, 'F', 'gate', 186, 1218, lambda X, Y: (r.add(f'<rect x="{X - 22}" y="{Y - 18}" width="44" height="20" fill="#fff" fill-opacity="0"/>'), r.see([(X - 22, Y - 18), (X + 22, Y + 2)])), 'Калитка: вниз, к полю', 'gate')
     lilac(r, 236, 1214, 15)
     anchor('kids', 'F', 236, 1210)
     if not r.winter:
-        for x in (14, 50, 116, 262, 352):
-            Q.sunflower(r, x, 1219, 22 + (x % 3) * 3)
+        # sunflowers bloom from July: none in spring
+        LV.seasons(r, ['su', 'au'], lambda: [Q.sunflower(r, x, 1219, 22 + (x % 3) * 3) for x in (14, 50, 116, 262, 352)])
+    LV.hill_F(r, crest_at)
 
 
 # ---------------------------------------------------------------- the sky and the far forest
@@ -664,6 +674,7 @@ def sky_layer(r):
         r.add(f'<path d="{"".join(caps)}" fill="{P["snow"]}" opacity=".85"/>')
     r.line(top, .6, op=.6)
     H.water_tower(r, 312, far_crest(312) + 6, .9)
+    LV.sky(r, far_crest)
 
 
 # ---------------------------------------------------------------- the whole village, one season
@@ -699,18 +710,31 @@ def layers(season='summer'):
 
 
 def season_css():
-    """Spring and autumn are the summer drawing recoloured: the hills' gradients and the leaves."""
+    """Spring and autumn are the summer drawing recoloured (the hills' gradients, the leaves of the trees and the
+    gardens, the far fields) with their own pieces shown (life.py: groups vs-sp, vs-su, vs-au); then the keyframes
+    of what walks and rides about."""
     P = PAL['summer']
-    o = []
+    o = ['.village .vs{display:none}.village.season-0 .vs-sp,.village.season-1 .vs-su,.village.season-2 .vs-au{display:inline}']
     for k in ORDER:
         f = hill_fill(P, k)
-        for sn, tint, t in (('0', '#b4d07c', .2), ('2', '#c9b062', .45)):
+        for sn, tint, t in (('0', '#a6d462', .3), ('2', '#d0b05a', .42)):
             g = mix(f, tint, t)
             o.append(f'.village.season-{sn} .v-lay[data-k="{k}"] .hg0{{stop-color:{light(g, .14)}}}'
                      f'.village.season-{sn} .v-lay[data-k="{k}"] .hg1{{stop-color:{dark(g, .14)}}}')
-    o.append('.village.season-2 .lf{fill:#d9a845}.village.season-2 .lh{fill:#ecc965}.village.season-2 .lf2{fill:#a7823e}.village.season-2 .fld{fill:#d8c27c}')
-    o.append('.village.season-0 .lf{fill:#9cc45e}.village.season-0 .lh{fill:#cfe58f}')
-    return ''.join(o)
+    def rules(sn, fills):
+        return ''.join(f'.village.season-{sn} .{c}{{fill:{v}}}' for c, v in fills.items())
+    # spring: young leaves, the apple trees in blossom (their light side and their fruit turn pink-white), green
+    # winter wheat, fresh ploughland
+    o.append(rules(0, {'lf': '#9cc45e', 'lh': '#cfe58f', 'tl': '#a3cd5f', 'th': '#d6ee9c', 'tb': '#77a64a',
+                       'al': '#a2c968', 'ah': '#f6e2e8', 'ad': '#5e8c46', 'fr': '#fdf1f4',
+                       'f-wheat': '#a8c96a', 'f-young': '#bdd780', 'f-meadow': '#b9d58a', 'f-stubble': '#8b6b4d', 'f-sun': '#94714f'}))
+    # autumn: birches gold, apples and lilac turning, the gardens yellowed, the fields reaped and ploughed, no
+    # flowers in the grass
+    o.append(rules(2, {'lf': '#d9a845', 'lh': '#ecc965', 'lf2': '#a7823e', 'tl': '#e2b33a', 'th': '#f2d36b', 'tb': '#bb8329',
+                       'al': '#bfa44a', 'ah': '#e0c46a', 'ad': '#8a6a32', 'lt': '#aaa04c', 'ld': '#7d7438', 'lb': '#b59a48',
+                       'f-wheat': '#ead293', 'f-young': '#cdb469', 'f-meadow': '#c8b977', 'f-stubble': '#6e5340', 'f-sun': '#5f4b36'}))
+    o.append('.village.season-2 .fl{display:none}')
+    return ''.join(o) + LV.css()
 
 
 def cart_path():

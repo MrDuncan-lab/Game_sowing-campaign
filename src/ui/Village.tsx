@@ -188,7 +188,7 @@ export function Village({ s, rootRef, onPlace }: { s: GameState; rootRef: RefObj
 interface Pop { g: SVGGElement; l: string; b: number; h: number; f: [string, number][]; up: boolean | null }
 interface Lay { el: HTMLElement; k: string; r: number; sink: number; start: number; len: number }
 interface Run { t0: number; T: number; from: number; to: number; m0: number; anims: Animation[]; done?: () => void }
-interface Sky { strip: HTMLElement; solid: SVGSVGElement | null; land: SVGSVGElement | null; veil: SVGSVGElement | null }
+interface Sky { strip: HTMLElement; solid: SVGSVGElement | null; land: SVGSVGElement | null; veil: SVGSVGElement | null; front: SVGSVGElement | null }
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 /** a hill settling into its place: quick to start, no overshoot */
 const settle = (t: number) => 1 - Math.pow(1 - t, 3);
@@ -215,7 +215,7 @@ export function useVillagePager(o: {
   const st = useRef({ s: 0, u: 1, HS: 600, S1: 400, S2: 600, T: 1000, band: 60, fc: 100, mode: 'field' as VillageMode, ready: false,
     pops: [] as Pop[], lays: [] as Lay[], carts: [] as SVGGElement[], cartTf: [] as string[], bubbles: [] as SVGGElement[],
     sky: null as Sky | null, dockH: 0, still: null as boolean | null, moving: false, run: null as Run | null,
-    cartRun: -1, cartAnim: 0, cartDir: 1, wheelLock: 0, wheelAcc: 0, wheelT: 0, noClick: 0, queued: false,
+    cartRun: -1, cartAnim: 0, cartDir: 1, wheelLock: 0, wheelAcc: 0, wheelT: 0, wheelEnd: 0, noClick: 0, queued: false,
     drag: null as null | { id: number; x: number; y: number; s0: number; from: number; dir: number; lastY: number; lastT: number; v: number; resume?: number } });
   const opts = useRef(o);
   opts.current = o;
@@ -275,6 +275,9 @@ export function useVillagePager(o: {
       set(S.sky.land, 'opacity', k.land.toFixed(3));
       set(S.sky.land, 'transform', tfLand(fieldY(s)));
       set(S.sky.veil, 'opacity', (1 - k.solid).toFixed(3));
+      // the forecast, the far road and its little church belong to the field's sky: they go with it, so nothing of
+      // the field's sky hangs over the village's green (28.10)
+      set(S.sky.front, 'opacity', k.solid.toFixed(3));
       // the fog past the forecast thins to a haze once the field starts to go
       S.sky.strip.classList.toggle('v-open', phiOf(s) < 0.96);
     }
@@ -291,9 +294,15 @@ export function useVillagePager(o: {
   function beginMove(to: number) {
     const S = st.current, O = opts.current;
     if (!S.moving) { S.moving = true; O.viewRef.current?.classList.add('v-moving'); }
-    if (S.still !== true) { S.still = true; O.rootRef.current?.classList.add('v-asleep'); }
+    // the village sleeps only while its hills rise or sink (the way to the field); scrolling the open village
+    // over its map keeps its life and its captions
+    if (Math.max(to, S.s) > S.S2 + 1) sleep();
     // the cart stands on its hill before the hill comes up
     if (to < S.T - 2) placeCart(0);
+  }
+  function sleep() {
+    const S = st.current;
+    if (S.still !== true) { S.still = true; opts.current.rootRef.current?.classList.add('v-asleep'); }
   }
   /** The way has ended: what can be tapped, the mode, the cart, the village's life. */
   function endMove() {
@@ -416,6 +425,7 @@ export function useVillagePager(o: {
       go(S.sky.solid, k.map((x) => ({ opacity: x.solid })));
       go(S.sky.land, k.map((x, i) => ({ opacity: x.land, transform: tfLand(fieldY(ss[i])) })));
       go(S.sky.veil, k.map((x) => ({ opacity: 1 - x.solid })));
+      go(S.sky.front, k.map((x) => ({ opacity: x.solid })));
       S.sky.strip.classList.toggle('v-open', phiOf(to) < 0.96);
     }
     const run: Run = { t0: performance.now(), T, from, to, m0, anims, done };
@@ -445,7 +455,7 @@ export function useVillagePager(o: {
       return { el, k, r: Number(el.dataset.r) || 0, ...rise };
     });
     const strip = view.querySelector<HTMLElement>('.sky-strip');
-    S.sky = strip ? { strip, solid: strip.querySelector('.sb-solid'), land: strip.querySelector('.sb-land'), veil: strip.querySelector('.sb-veil') } : null;
+    S.sky = strip ? { strip, solid: strip.querySelector('.sb-solid'), land: strip.querySelector('.sb-land'), veil: strip.querySelector('.sb-veil'), front: strip.querySelector('.sb-front') } : null;
     S.dockH = O.dockRef.current?.offsetHeight ?? 0;
     S.still = null;
     S.pops = [...root.querySelectorAll<SVGGElement>('.pop')].map((el) => ({
@@ -509,6 +519,7 @@ export function useVillagePager(o: {
       }
       const now = performance.now();
       S.s = clamp(d.s0 - dy / S.u, 0, S.T);
+      if (S.s > S.S2 + 1) sleep();
       const dt = Math.max(now - d.lastT, 1);
       d.v = 0.7 * ((d.lastY - e.clientY) / S.u / dt) + 0.3 * d.v;
       d.lastY = e.clientY; d.lastT = now;
@@ -522,6 +533,14 @@ export function useVillagePager(o: {
       if (!d.dir) { if (d.resume !== undefined) goTo(d.resume); return; }
       S.noClick = performance.now() + 350;
       const ds = S.s - d.from, fling = performance.now() - d.lastT < 90 ? d.v : 0;
+      // The open village is a map: let go anywhere over it and it coasts on a little and stays (every house can be
+      // reached). Only the way between the village and the field snaps, to one end or the other.
+      if (S.s <= S.S2 + 1 && d.from <= S.S2 + 1) {
+        const to = clamp(S.s + fling * 320, 0, S.S2);
+        if (Math.abs(to - S.s) < 2) { S.s = clamp(S.s, 0, S.S2); put(S.s); endMove(); return; }
+        goTo(to, fling);
+        return;
+      }
       let to = d.from;
       if (e.type !== 'pointercancel' && (Math.abs(ds) > 28 || Math.abs(fling) > 0.3)) to = stopFrom(d.from, Math.abs(ds) > 28 ? Math.sign(ds) : Math.sign(fling)) ?? d.from;
       // the glide carries on at the speed the finger let go (V-01)
@@ -537,6 +556,20 @@ export function useVillagePager(o: {
       if (!S.run && (dir > 0 ? S.s >= S.T - 2 : S.s <= 2)) return;
       e.preventDefault();
       const now = performance.now();
+      // over the open village the wheel scrolls its map like a page; at its foot the next turn goes to the field
+      const at = S.run ? S.run.to : S.s;
+      if (now >= S.wheelLock && at <= S.S2 + 1 && !(dir > 0 && at >= S.S2 - 1)) {
+        S.wheelAcc = 0;
+        const to = clamp(at + dy / S.u, 0, S.S2);
+        if (Math.abs(dy) < 40 && !S.run) {
+          // a trackpad's small steps follow the fingers directly
+          S.s = to; queue();
+          clearTimeout(S.wheelEnd); S.wheelEnd = window.setTimeout(() => endMove(), 140);
+        } else glide(to, 240);
+        // a page's worth of a swipe does not run on into the field in the same gesture
+        if (to >= S.S2 - 1) S.wheelLock = now + 360;
+        return;
+      }
       if (now < S.wheelLock) { S.wheelLock = Math.max(S.wheelLock, now + 120); return; }
       if (now - S.wheelT > 220) S.wheelAcc = 0;
       S.wheelT = now; S.wheelAcc += dy;
