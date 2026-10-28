@@ -5,7 +5,7 @@
 #
 # Everything that depends on the game is either a class the game switches on (the lab, the gifts, the empty lots)
 # or an anchor the game draws at (order bubbles, the payment cart, the kids at the gate, the flock).
-import json, math, os, random, sys
+import json, math, os, random, re, sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import hy as H
@@ -254,17 +254,18 @@ def fronts(layer, x):
 
 
 def pop(r, layer, key, x, base, draw, label, cls='', cond=None):
-    """A building that stands up (scaleY) once it is out from behind the hill in front and under the sky strip.
-    draw() paints it at the origin (its base at y = 0); `cond` names a class of the village root that must be on
-    for it to show at all. Returns the height it stands to."""
-    svg, b = r.capture(draw)
-    h = max(8.0, -b[1])
+    """A place the player can tap (a building, a plot, the gate): it can be tapped once it is out from behind the
+    hills in front and under the sky strip (src/ui/Village.tsx). draw(x, base) paints it where it stands: no group
+    transform, so the browser keeps the hill as few painted pieces. `cond` names a class of the village root that
+    must be on for it to show at all. Returns the height it stands to."""
+    svg, b = r.capture(lambda: draw(x, base))
+    h = max(8.0, base - b[1])
     fr = fronts(layer, x)
     if r.season == 'summer':
         POPS.append((layer, key, x, base, h))
     f = ';'.join(f'{kk}:{y:.1f}' for kk, y in fr)
     c = ' '.join(filter(None, ['spot-g', cls, f'vc vc-{cond}' if cond else '']))
-    r.add(f'<g class="{c}" data-k="{key}" role="button" tabindex="-1" aria-label="{label}" transform="translate({fmt(x)} {fmt(base)})">'
+    r.add(f'<g class="{c}" data-k="{key}" role="button" tabindex="-1" aria-label="{label}">'
           f'<g class="pop" data-l="{layer}" data-b="{fmt(base)}" data-h="{fmt(h)}" data-f="{f}">{svg}</g></g>')
     return h
 
@@ -273,25 +274,8 @@ def anchor(name, layer, x, y):
     ANCHORS[name] = {'l': layer, 'x': round(x, 1), 'y': round(y, 1)}
 
 
-def tree(r, x, y, draw):
-    """A tree that springs up from its foot (the game finds it by .tree and its parent's translate)."""
-    r.group(draw, x, y, 'tree')
-
-
-def birch(r, x, y, h, lean=0.0):
-    tree(r, x, y, lambda: H.birch(r, 0, 0, h, lean))
-
-
-def apple(r, x, y, h):
-    tree(r, x, y, lambda: H.apple(r, 0, 0, h))
-
-
-def spruce(r, x, y, h):
-    tree(r, x, y, lambda: H.spruce(r, 0, 0, h))
-
-
-def lilac(r, x, y, w):
-    tree(r, x, y, lambda: H.lilac(r, 0, 0, w))
+# trees stand on their hills as they are drawn: no group of their own
+birch, apple, spruce, lilac = H.birch, H.apple, H.spruce, H.lilac
 
 
 def ground(r, key):
@@ -444,13 +428,13 @@ def hill_A(r):
     far_fields(r)
     for x, hgt in ((112, 22), (124, 26), (276, 24), (290, 20)):
         birch(r, x, crest_at('A', x) + 74, hgt)
-    pop(r, 'A', 'mill', 74, 240, lambda: Q.windmill(r, 0, 0, 1.0), 'Мельница на дальнем холме')
+    pop(r, 'A', 'mill', 74, 240, lambda X, Y: Q.windmill(r, X, Y, 1.0), 'Мельница на дальнем холме')
     for key, x, base, roof, frame in (('farhouse', 150, 236, 'tes', 'blue'), ('farhouse2', 198, 232, 'iron_r', 'white'), ('farhouse3', 246, 240, 'iron_g', 'green')):
         H.garden(r, [(x - 30, base - 26), (x - 2, base - 27), (x, base - 19), (x - 31, base - 18)], rows=3)
-        pop(r, 'A', key, x, base, lambda roof=roof, frame=frame, x=x: (
-            Q.izba_c(r, 0, 0, .36, roof=roof, frame=P[frame], porch=False, lit=r.winter, smoke_on=(x == 198) or None),
-            H.palisade(r, -18, 18, 4, .4)), 'Дом на дальнем холме')
-    pop(r, 'A', 'lot-tower', 306, 246, lambda: Q.lot(r, 0, 0, 40, 18), 'Участок на вырост')
+        pop(r, 'A', key, x, base, lambda X, Y, roof=roof, frame=frame: (
+            Q.izba_c(r, X, Y, .36, roof=roof, frame=P[frame], porch=False, lit=r.winter, smoke_on=(X == 198) or None),
+            H.palisade(r, X - 18, X + 18, Y + 4, .4)), 'Дом на дальнем холме')
+    pop(r, 'A', 'lot-tower', 306, 246, lambda X, Y: Q.lot(r, X, Y, 40, 18), 'Участок на вырост')
     anchor('flock', 'A', 290, 182)
     haze(r, 96, 262, .32)
 
@@ -463,11 +447,11 @@ def hill_B(r):
     birch(r, 102, 380, 40)
     spruce(r, 352, 356, 46)
     spruce(r, 338, 352, 30)
-    h = pop(r, 'B', 'lot-school', 60, 392, lambda: Q.lot(r, 0, 0, 50, 22), 'Участок на вырост')
-    h = pop(r, 'B', 'council', 186, 394, lambda: Q.council_c(r, 0, 0, 1.0, lit=r.winter), 'Сельсовет')
+    h = pop(r, 'B', 'lot-school', 60, 392, lambda X, Y: Q.lot(r, X, Y, 50, 22), 'Участок на вырост')
+    h = pop(r, 'B', 'council', 186, 394, lambda X, Y: Q.council_c(r, X, Y, 1.0, lit=r.winter), 'Сельсовет')
     anchor('bubble-council', 'B', 214, 394 - h - 2)
     birch(r, 258, 400, 38)
-    h = pop(r, 'B', 'college', 312, 398, lambda: Q.college(r, 0, 0, .74, lit=r.winter), 'Агроколледж')
+    h = pop(r, 'B', 'college', 312, 398, lambda X, Y: Q.college(r, X, Y, .74, lit=r.winter), 'Агроколледж')
     anchor('bubble-college', 'B', 318, 398 - h - 4)
     lilac(r, 132, 404, 13)
     lilac(r, 244, 408, 12)
@@ -490,12 +474,12 @@ def hill_C(r):
     H.garden(r, [(272, 470), (362, 466), (364, 494), (270, 498)], rows=4)
     H.garden(r, [(146, 508), (204, 506), (208, 532), (144, 534)], rows=4, crop='cabbage')
     H.palisade(r, 144, 210, 538, .5)
-    h = pop(r, 'C', 'orphanage', 86, 542, lambda: Q.orphanage(r, 0, 0, .78, lit=r.winter), 'Интернат «Солнышко»')
+    h = pop(r, 'C', 'orphanage', 86, 542, lambda X, Y: Q.orphanage(r, X, Y, .78, lit=r.winter), 'Интернат «Солнышко»')
     anchor('bubble-orphanage', 'C', 66, 542 - h - 2)
-    pop(r, 'C', 'izba1', 250, 536, lambda: (Q.izba_c(r, 0, 0, .78, roof='tes', frame=P['blue'], lit=r.winter, smoke_on=True),
-                                            H.palisade(r, -38, 40, 7, .5, gate=(14, 24))), 'Дом соседей')
-    pop(r, 'C', 'izba2', 334, 548, lambda: (Q.izba_c(r, 0, 0, .7, roof='iron_r', frame=P['white'], shutters=True, lit=r.winter),
-                                            H.palisade(r, -34, 34, 6, .46)), 'Дом соседей')
+    pop(r, 'C', 'izba1', 250, 536, lambda X, Y: (Q.izba_c(r, X, Y, .78, roof='tes', frame=P['blue'], lit=r.winter, smoke_on=True),
+                                                  H.palisade(r, X - 38, X + 40, Y + 7, .5, gate=(X + 14, X + 24))), 'Дом соседей')
+    pop(r, 'C', 'izba2', 334, 548, lambda X, Y: (Q.izba_c(r, X, Y, .7, roof='iron_r', frame=P['white'], shutters=True, lit=r.winter),
+                                                  H.palisade(r, X - 34, X + 34, Y + 6, .46)), 'Дом соседей')
     if not r.winter:
         Q.chick(r, 206, 552, 1.0, 1, 0)
         Q.chick(r, 214, 555, 1.0, -1, .7)
@@ -516,12 +500,12 @@ def hill_D(r):
     birch(r, 22, 640, 54)
     birch(r, 344, 636, 50, lean=-.02)
     spruce(r, 364, 668, 58)
-    h = pop(r, 'D', 'bakery', 58, 714, lambda: Q.bakery(r, 0, 0, .85, lit=r.winter), 'Пекарня «Колосок»')
+    h = pop(r, 'D', 'bakery', 58, 714, lambda X, Y: Q.bakery(r, X, Y, .85, lit=r.winter), 'Пекарня «Колосок»')
     anchor('bubble-bakery', 'D', 44, 714 - h + 2)
-    pop(r, 'D', 'board', 128, 692, lambda: Q.board_c(r, 0, 0, 1.35), 'Доска объявлений: заказы деревни')
-    pop(r, 'D', 'well', 184, 698, lambda: Q.well_c(r, 0, 0, .95), 'Колодец')
-    pop(r, 'D', 'palych', 236, 698, lambda: Q.palych(r, 0, 0, 1.5), 'Палыч на лавке')
-    h = pop(r, 'D', 'restaurant', 312, 712, lambda: Q.restaurant(r, 0, 0, .8, lit=r.winter), 'Ресторан «Печь»')
+    pop(r, 'D', 'board', 128, 692, lambda X, Y: Q.board_c(r, X, Y, 1.35), 'Доска объявлений: заказы деревни')
+    pop(r, 'D', 'well', 184, 698, lambda X, Y: Q.well_c(r, X, Y, .95), 'Колодец')
+    pop(r, 'D', 'palych', 236, 698, lambda X, Y: Q.palych(r, X, Y, 1.5), 'Палыч на лавке')
+    h = pop(r, 'D', 'restaurant', 312, 712, lambda X, Y: Q.restaurant(r, X, Y, .8, lit=r.winter), 'Ресторан «Печь»')
     anchor('bubble-restaurant', 'D', 318, 712 - h - 2)
     if not r.winter:
         H.yoke(r, 158, 708, 1.1)
@@ -531,7 +515,7 @@ def hill_D(r):
     else:
         H.person(r, 206, 708, 1.1, coat=P['coat2'], scarf=P['coat4'])
         H.sled(r, 112, 718, 1.0)
-    pop(r, 'D', 'fair', 250, 722, lambda: Q.fair_stall(r, 0, 0, 1.1), 'Рынок')
+    pop(r, 'D', 'fair', 250, 722, lambda X, Y: Q.fair_stall(r, X, Y, 1.1), 'Рынок')
     # a woman with a basket crosses the square and back
     stroll = r.capture(lambda: (H.person(r, 0, 0, 1.3, coat=P['coat2'], kind='woman', pose='walk', scarf=P['coat4']),
                                 r.blob(4.6, -6.5, 2.6, 1.8, P['straw'], .4, n=8, wob=.04)))[0]
@@ -549,12 +533,12 @@ def hill_E(r):
     H.garden(r, [(214, 786), (262, 784), (266, 808), (212, 810)], rows=4)
     if not r.winter:
         H.scarecrow(r, 240, 806, .9)
-    pop(r, 'E', 'lot', 146, 790, lambda: Q.lot(r, 0, 0, 50, 24), 'Участок на вырост')
-    pop(r, 'E', 'hay', 286, 800, lambda: H.haystack(r, 0, 0, 1.1), 'Стог')
+    pop(r, 'E', 'lot', 146, 790, lambda X, Y: Q.lot(r, X, Y, 50, 24), 'Участок на вырост')
+    pop(r, 'E', 'hay', 286, 800, lambda X, Y: H.haystack(r, X, Y, 1.1), 'Стог')
     if not r.winter:
         Q.laundry(r, 108, 140, 846, 26)
-    pop(r, 'E', 'izba3', 62, 860, lambda: (Q.izba_c(r, 0, 0, 1.0, roof='iron_g', frame=P['green'], shutters=False, lit=r.winter, smoke_on=True),
-                                           H.palisade(r, -54, 58, 9, .75, gate=(34, 50))), 'Дом соседей')
+    pop(r, 'E', 'izba3', 62, 860, lambda X, Y: (Q.izba_c(r, X, Y, 1.0, roof='iron_g', frame=P['green'], shutters=False, lit=r.winter, smoke_on=True),
+                                                 H.palisade(r, X - 54, X + 58, Y + 9, .75, gate=(X + 34, X + 50))), 'Дом соседей')
     if not r.winter:
         Q.chick(r, 124, 870, 1.1, 1, .2)
         Q.chick(r, 132, 873, 1.1, -1, 1.0)
@@ -562,7 +546,7 @@ def hill_E(r):
     else:
         H.snowman(r, 134, 872, 1.1)
         H.dog(r, 150, 874, 1.0)
-    pop(r, 'E', 'signpost', 324, 852, lambda: Q.signpost(r, 0, 0, 1.0), 'Указатель: карта ферм')
+    pop(r, 'E', 'signpost', 324, 852, lambda X, Y: Q.signpost(r, X, Y, 1.0), 'Указатель: карта ферм')
 
 
 def hill_F(r):
@@ -573,10 +557,10 @@ def hill_F(r):
         birch(r, x, crest_at('F', x) + 26, 50 + (i % 3) * 5)
     lilac(r, 150, 930, 16)
     lilac(r, 250, 934, 14)
-    pop(r, 'F', 'meteo', 346, 976, lambda: Q.meteo(r, 0, 0, 1.05), 'Метеостанция', cond='meteo')
+    pop(r, 'F', 'meteo', 346, 976, lambda X, Y: Q.meteo(r, X, Y, 1.05), 'Метеостанция', cond='meteo')
     H.woodpile(r, 14, 1062, 1.3)
-    pop(r, 'F', 'house', 116, 1052, lambda: Q.homestead(r, 0, 0, 1.25, lit=r.winter), 'Ваша усадьба')
-    pop(r, 'F', 'barn', 294, 1046, lambda: Q.barn(r, 0, 0, 1.05), 'Амбар')
+    pop(r, 'F', 'house', 116, 1052, lambda X, Y: Q.homestead(r, X, Y, 1.25, lit=r.winter), 'Ваша усадьба')
+    pop(r, 'F', 'barn', 294, 1046, lambda X, Y: Q.barn(r, X, Y, 1.05), 'Амбар')
     if not r.winter:
         Q.chick(r, 330, 1084, 1.25, 1, 0)
         Q.chick(r, 340, 1088, 1.25, -1, .8)
@@ -585,24 +569,24 @@ def hill_F(r):
     else:
         H.woodcutter(r, 56, 1070, 1.2)
     H.dog(r, 236, 1066, 1.1)
-    pop(r, 'F', 'lab', 66, 1158, lambda: Q.lab(r, 0, 0, 1.0, lit=r.winter), 'Лаборатория', cond='lab')
-    pop(r, 'F', 'lot-lab', 64, 1150, lambda: Q.lot(r, 0, 0, 46, 22), 'Место под лабораторию', cond='nolab')
-    pop(r, 'F', 'hives', 298, 1118, lambda: Q.hives_c(r, 0, 0, 3), 'Пасека', cond='hives')
+    pop(r, 'F', 'lab', 66, 1158, lambda X, Y: Q.lab(r, X, Y, 1.0, lit=r.winter), 'Лаборатория', cond='lab')
+    pop(r, 'F', 'lot-lab', 64, 1150, lambda X, Y: Q.lot(r, X, Y, 46, 22), 'Место под лабораторию', cond='nolab')
+    pop(r, 'F', 'hives', 298, 1118, lambda X, Y: Q.hives_c(r, X, Y, 3), 'Пасека', cond='hives')
     # the neighbours' gifts in the front yard: each stands once the neighbour is a friend
-    pop(r, 'F', 'g-council', 242, 1112, lambda: Q.honor_board(r, 0, 0, .9), 'Доска почёта: подарок сельсовета', cond='g-council')
-    pop(r, 'F', 'g-restaurant', 152, 1130, lambda: Q.gazebo(r, 0, 0, .85), 'Беседка с самоваром: подарок ресторана', cond='g-restaurant')
-    pop(r, 'F', 'g-bakery', 336, 1158, lambda: Q.oven(r, 0, 0, 1.15), 'Печь во дворе: подарок пекарни', cond='g-bakery')
+    pop(r, 'F', 'g-council', 242, 1112, lambda X, Y: Q.honor_board(r, X, Y, .9), 'Доска почёта: подарок сельсовета', cond='g-council')
+    pop(r, 'F', 'g-restaurant', 152, 1130, lambda X, Y: Q.gazebo(r, X, Y, .85), 'Беседка с самоваром: подарок ресторана', cond='g-restaurant')
+    pop(r, 'F', 'g-bakery', 336, 1158, lambda X, Y: Q.oven(r, X, Y, 1.15), 'Печь во дворе: подарок пекарни', cond='g-bakery')
     if not r.winter:
         H.flowers(r, 200, 232, 1128, 1136, 6)
         H.flowers(r, 90, 124, 1200, 1208, 6)
     else:
         H.sled(r, 236, 1178, 1.1)
         H.person(r, 230, 1176, 1.1, coat=P['coat1'], kind='kid', scarf=P['coat4'])
-    pop(r, 'F', 'g-orphanage', 142, 1196, lambda: Q.swing(r, 0, 0, 1.2), 'Качели: подарок интерната', cond='g-orphanage')
-    pop(r, 'F', 'g-college', 296, 1194, lambda: Q.desk(r, 0, 0, 1.0), 'Учебный стол: подарок колледжа', cond='g-college')
+    pop(r, 'F', 'g-orphanage', 142, 1196, lambda X, Y: Q.swing(r, X, Y, 1.2), 'Качели: подарок интерната', cond='g-orphanage')
+    pop(r, 'F', 'g-college', 296, 1194, lambda X, Y: Q.desk(r, X, Y, 1.0), 'Учебный стол: подарок колледжа', cond='g-college')
     # the fence with the gate down to the field; sunflowers along it; a bush the kids hide in
     H.palisade(r, -6, 368, 1216, .9, gate=(162, 200))
-    pop(r, 'F', 'gate', 181, 1218, lambda: (r.add('<rect x="-22" y="-18" width="44" height="20" fill="#fff" fill-opacity="0"/>'), r.see([(-22, -18), (22, 2)])), 'Калитка: вниз, к полю', 'gate')
+    pop(r, 'F', 'gate', 181, 1218, lambda X, Y: (r.add(f'<rect x="{X - 22}" y="{Y - 18}" width="44" height="20" fill="#fff" fill-opacity="0"/>'), r.see([(X - 22, Y - 18), (X + 22, Y + 2)])), 'Калитка: вниз, к полю', 'gate')
     lilac(r, 236, 1214, 15)
     anchor('kids', 'F', 236, 1210)
     if not r.winter:
@@ -735,3 +719,26 @@ STYLE = ('.village{--vk:#3a2a1f}.village.season-3{--vk:#33283a}'
          '.village .k{fill:none;stroke:var(--vk);stroke-linecap:round;stroke-linejoin:round}'
          '.village .kn{fill:none;stroke-linecap:round;stroke-linejoin:round}'
          '.village .kf{stroke:var(--vk);stroke-linejoin:round}')
+
+
+# ---------------------------------------------------------------- lighter for the browser
+_TAG = re.compile(r'<(path|ellipse|circle|rect)\b([^>]*?)(/?)>')
+
+
+def flat_opacity(svg):
+    """An element's own `opacity` makes the browser paint it as a separate effect; for a shape that has only a
+    fill or only a line the same look comes from fill-opacity or stroke-opacity, which costs nothing extra."""
+    def fix(m):
+        tag, attrs, close = m.groups()
+        if ' opacity="' not in attrs:
+            return m.group(0)
+        cm = re.search(r'class="([^"]*)"', attrs)
+        cl = cm.group(1).split() if cm else []
+        line_only = 'k' in cl or 'kn' in cl or 'fill="none"' in attrs
+        has_line = ('stroke="' in attrs and 'stroke="none"' not in attrs) or 'kf' in cl
+        if line_only and 'stroke-opacity' not in attrs:
+            attrs = attrs.replace(' opacity="', ' stroke-opacity="')
+        elif not has_line and 'fill-opacity' not in attrs:
+            attrs = attrs.replace(' opacity="', ' fill-opacity="')
+        return f'<{tag}{attrs}{close}>'
+    return _TAG.sub(fix, svg)

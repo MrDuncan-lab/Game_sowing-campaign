@@ -5,6 +5,7 @@
 // clickable and nothing changes the game.
 import type { JSX } from 'preact';
 import { P } from './palette';
+import { YARD, type YardPiece } from './yard';
 
 const INK = P.ink;
 export type Season = 0 | 1 | 2 | 3;
@@ -261,98 +262,76 @@ export function GrassPattern({ winter }: { winter: boolean }) {
  *  the sky draws the rest of it up to the village on the horizon (see SkyBand). */
 export const ROAD_AT = 0.6, ROAD_CREST = 0.66;
 
-/** A crane well («журавль»): a log frame, the post with its fork, the long sweep and the bucket on its pole. */
-function CraneWell({ winter }: { winter: boolean }) {
-  return (
-    <g>
-      <ellipse cx={0} cy={1} rx={20} ry={3.2} fill="rgba(0,0,0,0.14)" />
-      <path d="M-13 0 V-15 H13 V0 Z" fill="#a8733f" stroke={INK} stroke-width={1.5} stroke-linejoin="round" />
-      <path d="M-13 -5 H13 M-13 -10 H13" stroke="#7a4c28" stroke-width={1.3} />
-      <path d="M-15 -15 H15" stroke={INK} stroke-width={3.4} stroke-linecap="round" />
-      <path d="M-15 -15 H15" stroke="#c99062" stroke-width={1.8} stroke-linecap="round" />
-      {winter && <path d="M-15 -16.5 q15 -4 30 0" stroke="#fbfdff" stroke-width={2.6} fill="none" stroke-linecap="round" />}
-      {/* the post and its fork, then the sweep: heavy end down on the left, the pole and the bucket over the well */}
-      <path d="M26 2 V-48 M26 -48 l-4 -6 M26 -48 l4 -6" stroke={INK} stroke-width={3.6} stroke-linecap="round" />
-      <path d="M26 2 V-48" stroke="#8a5a33" stroke-width={2} stroke-linecap="round" />
-      <g class="well-sweep">
-        <path d="M58 -30 L-8 -62" stroke={INK} stroke-width={3.4} stroke-linecap="round" />
-        <path d="M58 -30 L-8 -62" stroke="#b27947" stroke-width={1.8} stroke-linecap="round" />
-        <path d="M54 -33 l7 3 l-2 5 l-7 -3 Z" fill="#7a5a3a" stroke={INK} stroke-width={1} />
-        <path d="M-6 -61 V-24" stroke={INK} stroke-width={1.2} />
-        <path d="M-10 -24 h8 l-1 7 h-6 Z" fill="#8f98a0" stroke={INK} stroke-width={1.1} stroke-linejoin="round" />
-      </g>
-    </g>
-  );
+/** A cubic Bézier's point at t. */
+function bez(p0: number[], c1: number[], c2: number[], p1: number[], t: number): [number, number] {
+  const u = 1 - t;
+  return [u * u * u * p0[0] + 3 * u * u * t * c1[0] + 3 * u * t * t * c2[0] + t * t * t * p1[0],
+    u * u * u * p0[1] + 3 * u * u * t * c1[1] + 3 * u * t * t * c2[1] + t * t * t * p1[1]];
 }
-function Hen({ k }: { k: number }) {
-  return (
-    <g class={`yard-hen h${k}`}>
-      <ellipse cx={0} cy={1} rx={6} ry={1.5} fill="rgba(0,0,0,0.12)" />
-      <g class="hen-body">
-        <path d="M-6 -2 q-1 -6 4 -8 q4 -1 6 2 l3 -3 q2 3 -1 5 q1 5 -5 6 q-5 1 -7 -2 Z" fill={k % 2 ? '#f6efe0' : '#c98a4a'} stroke={INK} stroke-width={1} stroke-linejoin="round" />
-        <path d="M4 -8 l1.6 -2.2 l1 2 Z" fill="#d0503c" />
-        <path d="M6.8 -6.4 l2.2 .8 l-2.2 .8 Z" fill="#e8b23c" />
-        <circle cx={5} cy={-6.6} r={.6} fill={INK} />
-      </g>
-      <path d="M-1 1 v2 M2 1 v2" stroke="#d08a2a" stroke-width={.9} stroke-linecap="round" />
-    </g>
-  );
+/** Grass creeping over a path's edge: three blades every few units along the given points (one path). */
+function edgeTufts(pts: [number, number][], seed: number): string {
+  let d = '';
+  pts.forEach(([x, y], i) => {
+    const h = 2.6 + hash2(i, seed) * 2.4;
+    d += `M${(x - 1.4).toFixed(1)} ${(y + .6).toFixed(1)}l-.8 ${(-h * .75).toFixed(1)}M${x.toFixed(1)} ${(y + .6).toFixed(1)}l.3 ${(-h).toFixed(1)}M${(x + 1.5).toFixed(1)} ${(y + .6).toFixed(1)}l1 ${(-h * .7).toFixed(1)}`;
+  });
+  return d;
 }
-function Sunflower({ h, r }: { h: number; r: number }) {
-  return (
-    <g class="yard-sunflower" style={{ ['--sd' as string]: `${-r * 3}s` }}>
-      <path d={`M0 0 Q${r * 3 - 1.5} ${-h / 2} 0 ${-h}`} stroke="#4f8a2f" stroke-width={2} fill="none" />
-      <path d={`M0 ${-h * .45} q-7 -2 -8 -7 q6 0 8 7 Z M0 ${-h * .6} q7 -2 8 -7 q-6 0 -8 7 Z`} fill="#6aa843" stroke={INK} stroke-width={.8} />
-      <g transform={`translate(0 ${-h})`}>
-        {Array.from({ length: 10 }, (_, i) => <ellipse rx={2.2} ry={5} cy={-6} fill="#f2c13f" stroke="#b8861a" stroke-width={.6} transform={`rotate(${i * 36})`} />)}
-        <circle r={4.6} fill="#6a4426" stroke={INK} stroke-width={.9} />
-      </g>
-    </g>
-  );
-}
+const piece = (season: Season, k: YardPiece) => YARD[season === 3 ? 'winter' : 'summer'][k];
 
+/** The yard in the village's hybrid style (tools/village/yard.py draws the pieces): the trodden path the farmer
+ *  walks, the road up to the village with its worn edges, the rain barrel, the fence, the gate, the crane well
+ *  whose sweep dips, the hens, the sunflowers. */
 export function YardDecor({ W, yard, season }: { W: number; yard: number; season: Season }) {
   const winter = season === 3;
   const y = yard - 3;
   const top = yard - 66; // the crest of the field's hill, where the sky's land meets it
   const rx = W * ROAD_AT, cx = W * ROAD_CREST;
+  const ink = winter ? '#33283a' : '#3a2a1f';
+  const road = winter ? '#e1e3ef' : '#dfc794', worn = winter ? '#aab6da' : '#bfb27c', rut = winter ? '#a3a6c4' : '#b99d6b';
+  const grass = winter ? '#aab6da' : '#5e7a3c';
+  // the road's two edges and its outline
+  const L: [number[], number[], number[], number[]] = [[rx - 15, y + 2], [rx - 10, y - 24], [cx - 12, top + 22], [cx - 7, top - 2]];
+  const R: [number[], number[], number[], number[]] = [[rx + 17, y + 2], [rx + 14, y - 24], [cx + 12, top + 22], [cx + 7, top - 2]];
+  const roadD = `M${L[0][0]} ${L[0][1]} C${L[1][0]} ${L[1][1]} ${L[2][0]} ${L[2][1]} ${L[3][0]} ${L[3][1]} H${R[3][0]} C${R[2][0]} ${R[2][1]} ${R[1][0]} ${R[1][1]} ${R[0][0]} ${R[0][1]} Z`;
+  const path = `M14 ${y} Q${W * .3} ${y - 3} ${W * .55} ${y} T${W - 14} ${y}`;
+  const along = (e: typeof L, n: number) => Array.from({ length: n }, (_, i) => bez(e[0], e[1], e[2], e[3], (i + .5) / n));
+  const tufts = winter ? '' : edgeTufts([...along(L, 9), ...along(R, 9), ...Array.from({ length: Math.round(W / 18) }, (_, i) => [14 + (i + .5) * ((W - 28) / Math.round(W / 18)), y - 4.6 + (hash2(i, 41) - .5) * 1.4] as [number, number])], 7);
+  const html = (k: YardPiece) => ({ dangerouslySetInnerHTML: { __html: piece(season, k) } });
   return (
     <g class="yard-decor" pointer-events="none">
-      {/* the road to the village: off the yard path, up to the crest and on through the sky's hills */}
-      <path d={`M${rx - 15} ${y + 2} C${rx - 10} ${y - 24} ${cx - 12} ${top + 22} ${cx - 7} ${top - 2} H${cx + 7} C${cx + 12} ${top + 22} ${rx + 14} ${y - 24} ${rx + 17} ${y + 2} Z`}
-        fill={winter ? '#e6eef3' : '#d2b884'} opacity={winter ? .95 : .9} />
-      <path d={`M${rx - 6} ${y} C${rx - 4} ${y - 24} ${cx - 6} ${top + 22} ${cx - 3} ${top}`} stroke={winter ? '#c3d3dd' : '#b0925c'} stroke-width={1.2} stroke-dasharray="3 5" fill="none" />
-      <path d={`M${rx + 8} ${y} C${rx + 8} ${y - 24} ${cx + 5} ${top + 22} ${cx + 3} ${top}`} stroke={winter ? '#c3d3dd' : '#b0925c'} stroke-width={1.2} stroke-dasharray="3 5" fill="none" />
-      <path d={`M14 ${y} Q${W * .3} ${y - 3} ${W * .55} ${y} T${W - 14} ${y}`} stroke={winter ? '#dfe8ee' : '#c9b07e'} stroke-width={9} stroke-linecap="round" fill="none" opacity={winter ? .9 : .7} />
-      <path d={`M14 ${y} Q${W * .3} ${y - 3} ${W * .55} ${y} T${W - 14} ${y}`} stroke={winter ? '#c3d3dd' : '#a88d5c'} stroke-width={1} stroke-dasharray="1 9" stroke-linecap="round" fill="none" opacity={.8} />
-      {/* rain barrel left of the farmer's spot */}
-      <g transform={`translate(18 ${y - 3})`}>
-        <ellipse cx={0} cy={2} rx={10} ry={2.6} fill="rgba(0,0,0,0.15)" />
-        <path d="M-8 0 Q-9.4 -10 -8 -20 H8 Q9.4 -10 8 0 Z" fill="#a8733f" stroke={INK} stroke-width={1.4} stroke-linejoin="round" />
-        <path d="M-8.8 -5 H8.8 M-8.8 -15 H8.8" stroke="#5e6066" stroke-width={1.8} />
-        <path d="M-3 -19 V0 M3 -19 V0" stroke="#8a5a33" stroke-width={.8} />
-        <ellipse cx={0} cy={-20} rx={8} ry={2.2} fill={winter ? '#f4f8fb' : '#5f9fc4'} stroke={INK} stroke-width={1.2} />
-        {!winter && <path d="M-4 -20.4 q2 -.8 4 0" stroke="#bfe3f7" stroke-width={.8} fill="none" />}
-      </g>
-      {/* two fence posts with a rail at the far end of the yard */}
-      <g transform={`translate(88 ${y - 2})`} opacity={.95}>
-        <path d="M0 0 V-16 M22 0 V-16" stroke={INK} stroke-width={4} stroke-linecap="round" />
-        <path d="M0 0 V-16 M22 0 V-16" stroke="#b27947" stroke-width={2.4} stroke-linecap="round" />
-        <path d="M-4 -11 H26 M-4 -5 H26" stroke={INK} stroke-width={3} stroke-linecap="round" />
-        <path d="M-4 -11 H26 M-4 -5 H26" stroke="#c99062" stroke-width={1.6} stroke-linecap="round" />
+      {/* the road to the village: off the yard path, up to the crest and on through the sky's hills — a worn halo,
+          the fill, a broken ink edge half hidden, the ruts, grass over the verges */}
+      <path d={roadD} fill="none" stroke={worn} stroke-width={5} stroke-opacity={winter ? .35 : .4} stroke-linejoin="round" />
+      <path d={roadD} fill={road} />
+      {!winter && <path d={roadD} fill="none" stroke={ink} stroke-width={1.2} stroke-dasharray="9 5 3 7 14 6" stroke-opacity={.45} stroke-linejoin="round" />}
+      <path d={`M${rx - 6} ${y} C${rx - 4} ${y - 24} ${cx - 6} ${top + 22} ${cx - 3} ${top}`} stroke={rut} stroke-width={1.1} fill="none" stroke-linecap="round" />
+      <path d={`M${rx + 8} ${y} C${rx + 8} ${y - 24} ${cx + 5} ${top + 22} ${cx + 3} ${top}`} stroke={rut} stroke-width={1.1} fill="none" stroke-linecap="round" />
+      {/* the trodden path along the yard */}
+      <path d={path} stroke={worn} stroke-width={13} stroke-linecap="round" fill="none" stroke-opacity={.3} />
+      <path d={path} stroke={road} stroke-width={9} stroke-linecap="round" fill="none" stroke-opacity={winter ? .95 : .85} />
+      <path d={path} stroke={rut} stroke-width={.9} stroke-dasharray="1 9" stroke-linecap="round" fill="none" stroke-opacity={.8} />
+      {tufts && <path d={tufts} stroke={grass} stroke-width={.9} stroke-linecap="round" fill="none" stroke-opacity={.75} />}
+      <g transform={`translate(18 ${y - 3})`} {...html('barrel')} />
+      <g transform={`translate(88 ${y - 2})`}>
+        <g {...html('fence')} />
         {season === 0 && <g transform="translate(34 -2) scale(.7)"><Dandelions k={1} /></g>}
       </g>
-      {/* the gate where the road leaves the yard: two posts and the leaf swung open */}
-      <g transform={`translate(${rx} ${y - 1})`}>
-        <path d="M-20 0 V-22 M20 0 V-22" stroke={INK} stroke-width={4} stroke-linecap="round" />
-        <path d="M-20 0 V-22 M20 0 V-22" stroke="#b27947" stroke-width={2.4} stroke-linecap="round" />
-        <path d="M20 -18 L34 -14 V-2 L20 -5 Z" fill="none" stroke={INK} stroke-width={2.6} stroke-linejoin="round" />
-        <path d="M20 -18 L34 -14 V-2 L20 -5 Z M20 -11 L34 -8" fill="none" stroke="#c99062" stroke-width={1.2} stroke-linejoin="round" />
-        {winter && <path d="M-22 -23 h5 M18 -23 h5" stroke="#fbfdff" stroke-width={3} stroke-linecap="round" />}
+      <g transform={`translate(${rx} ${y - 1})`} {...html('gate')} />
+      <g transform={`translate(${W * .33} ${y + 1})`}>
+        <g {...html('well')} />
+        <g class="well-sweep" {...html('sweep')} />
       </g>
-      <g transform={`translate(${W * .33} ${y + 1})`}><CraneWell winter={winter} /></g>
-      {!winter && <><g transform={`translate(${W * .45} ${y - 1})`}><Hen k={0} /></g><g transform={`translate(${W * .5} ${y + 2}) scale(-1 1)`}><Hen k={1} /></g></>}
-      {season < 2 && [0, 1, 2].map((i) => <g transform={`translate(${W * (.73 + i * .035)} ${y - 2})`}><Sunflower h={26 + (i % 2) * 6} r={hash2(i, 5)} /></g>)}
+      {!winter && [0, 1].map((k) => (
+        <g transform={`translate(${W * (k ? .5 : .45)} ${y + (k ? 2 : -1)})${k ? ' scale(-1 1)' : ''}`}>
+          <g class={`yard-hen h${k}`}><g {...html('legs')} /><g class="hen-body" {...html(k ? 'hen1' : 'hen0')} /></g>
+        </g>
+      ))}
+      {season < 2 && [0, 1, 2].map((i) => (
+        <g transform={`translate(${W * (.73 + i * .035)} ${y - 2})`}>
+          <g class="yard-sunflower" style={{ ['--sd' as string]: `${-hash2(i, 5) * 3}s` }} {...html(i % 2 ? 'sun32' : 'sun26')} />
+        </g>
+      ))}
       {season === 2 && <g transform={`translate(${W * .76} ${y - 4}) scale(.8)`}><Leaves k={3} /></g>}
     </g>
   );

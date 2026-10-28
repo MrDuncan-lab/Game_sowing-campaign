@@ -245,3 +245,7 @@
 
 @media (max-width: 379px) { .farm .field-view .dock-say .lens-name { display: none; } .farm .field-view .dock-say .say-two small { display: none; } }
 .farm .field-view .dock-say:has(+ .dock-card-tools) { margin-right: 0; }
+
+/* a section out of view keeps still: its loops (the clock, the stove, the hens, the leaves) would otherwise run and
+   be composited behind the one on screen */
+.pane[inert] * { animation-play-state: paused !important; }

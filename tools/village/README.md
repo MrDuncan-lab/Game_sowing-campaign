@@ -4,6 +4,7 @@ The hills, houses, roads and fields of the Chernozem village are drawn by these 
 `src/art/village/chernozem.ts` as plain SVG strings, anchors and the payment cart's road.
 
     python3 export.py        # rewrite src/art/village/chernozem.ts
+    python3 yard.py          # rewrite src/art/yard.ts (the farmyard over the field)
     python3 preview.py       # still pictures of the whole village: preview-summer.html, preview-winter.html
 
 Style: the hybrid chosen on 26.10 (project doc `claude/village-style-brief.md`): the book's ink line and hatching
@@ -19,6 +20,8 @@ winter; `src/ui/Village.tsx` picks one by the season.
 - `villageg.py` — the six hills, what stands on each, the roads, the sky; the anchors the game draws at (order
   bubbles, kids, flock) and the cart's road.
 - `roads5.py` — reading SVG path data into points along it.
+- `yard.py` — the farmyard over the field in the same style (barrel, fence, gate, crane well, hens, sunflowers):
+  `python3 yard.py` rewrites `src/art/yard.ts`; `YardDecor` in `src/art/meadow.tsx` places the pieces.
 
 Python 3, no packages. Markup is kept light: ink is a class (`k`, `kf`, `kn`) coloured by the CSS variable `--vk`
 (`src/village.css`), smooth shapes are Béziers, shadows and glows are patterns and gradients, not blur filters.

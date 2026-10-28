@@ -43,7 +43,7 @@
 .farm .field-view:not(.has-village) .field-wrap { background: linear-gradient(var(--sk1) 0, var(--sk2) calc(var(--sky-h, 60px) + var(--vpeek, 0px)), var(--sk3) calc(var(--sky-h, 60px) + var(--vpeek, 0px) + 40px)); }
 .farm .field-view .field-row { width: 100% !important; max-width: 100%; padding: 0 !important; grid-template-columns: minmax(0, 1fr); justify-items: center;
   --fh: min(calc(100cqh - var(--vpeek, 0px)), calc((100cqw - var(--side) - var(--gap)) / var(--arn)));
-  background: linear-gradient(transparent calc(var(--sky-h, 60px) - 5px), var(--mg, #7dbb4f) calc(var(--sky-h, 60px) - 5px)); }
+  background: linear-gradient(transparent calc(var(--sky-h, 60px) - 5px), var(--mg, #88a456) calc(var(--sky-h, 60px) - 5px)); }
 .farm .field-view .field-stage { width: auto; height: 100%; aspect-ratio: var(--arn); border-radius: 0; box-shadow: none; }
 .farm .field-view .field-stage > .fx { border-radius: 0; }
 .farm.season-0 { --sk1: #c4e6f6; --sk2: #eef7e0; --sk3: #d9ebc0; }

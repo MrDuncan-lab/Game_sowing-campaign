@@ -169,7 +169,7 @@ function Meadow({ x, y, buyable, price, signOnly, season = 0, prop }: { x: numbe
     );
   return (
     <g>
-      <rect x={2} y={2} width={96} height={96} rx={10} fill={season === 3 ? '#eef4f8' : buyable ? '#86c25a' : P.grass} opacity={0.9} />
+      <rect x={2} y={2} width={96} height={96} rx={10} fill={season === 3 ? '#eef4f8' : buyable ? '#97b267' : P.grass} opacity={0.9} />
       <MeadowDecor x={x} y={y} season={season} prop={prop} />
       {buyable && (
         <g class="sale-sign">
@@ -681,6 +681,15 @@ function crestPts(W: number, top: number): string {
   return d;
 }
 export const crestLine = (W: number, top: number) => crestPts(W, top);
+/** The soft shade the field throws on the land just behind its crest, as each hill of the village does on the one
+ *  behind it: a band from `h` over the crest down to it. */
+function crestShade(W: number, top: number, h: number): string {
+  const y = (f: number) => top - 4 - 6 * Math.sin(f * Math.PI * 2 + .6) * .5 - 3 * Math.sin(f * Math.PI * 5) * .4;
+  let d = `M0 ${(y(0) - h).toFixed(1)}`;
+  for (let k = 1; k <= 24; k++) d += ` L${(W * k / 24).toFixed(1)} ${(y(k / 24) - h).toFixed(1)}`;
+  for (let k = 24; k >= 0; k--) d += ` L${(W * k / 24).toFixed(1)} ${(y(k / 24) + 1).toFixed(1)}`;
+  return d + ' Z';
+}
 export const fieldCrest = (W: number, H: number, top: number) => `${crestPts(W, top)} L${W} ${H - 18} Q${W} ${H} ${W - 18} ${H} H18 Q0 ${H} 0 ${H - 18} Z`;
 const openRule = (W: number, H: number, i: number, r: number, top: number) => `M${i} ${top} V${H - i - r} Q${i} ${H - i} ${i + r} ${H - i} H${W - i - r} Q${W - i} ${H - i} ${W - i} ${H - i - r} V${top}`;
 
@@ -790,17 +799,36 @@ export function Scene({
     <svg viewBox={`0 0 ${cam.W} ${cam.H}`} class={`scene-svg wind-${wind}${winter ? ' winter' : ''}${lens ? ` lens-on` : ''}${build ? ' build-on' : ''}${highlight.preview || highlight.area.size || highlight.block || highlight.tiles.size ? ' previewing' : ''}`} role="group" aria-label="Поле">
       <defs>
         <GrassPattern winter={winter} />
+        {/* the low sun on the field as on the village's hills: lit at the crest, deeper towards the hand; hatching
+            (fyH) and cast shadows (fyS) for the yard drawn in the village's style */}
+        <linearGradient id="field-light" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0" stop-color={winter ? '#ffe9dc' : '#f6efc4'} stop-opacity={winter ? .4 : .42} /><stop offset=".35" stop-color={winter ? '#ffe9dc' : '#f6efc4'} stop-opacity="0" />
+          <stop offset=".75" stop-color={winter ? '#33467e' : '#2f4a1e'} stop-opacity="0" /><stop offset="1" stop-color={winter ? '#33467e' : '#2f4a1e'} stop-opacity={winter ? .16 : .22} />
+        </linearGradient>
+        <pattern id="fyH" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><path d="M0 0V5" stroke={winter ? '#5b6a9a' : '#3a2a1f'} stroke-width=".8" /></pattern>
+        <pattern id="fyS" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="5" height="5" fill={winter ? '#33467e' : '#2f4a1e'} opacity=".42" /><path d="M0 0V5" stroke={winter ? '#5b6a9a' : '#3a2a1f'} stroke-width=".8" /></pattern>
+        {skyOutside && <linearGradient id="field-shade" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color={winter ? '#3d4f8f' : '#2c4a2a'} stop-opacity="0" /><stop offset="1" stop-color={winter ? '#3d4f8f' : '#2c4a2a'} stop-opacity=".24" /></linearGradient>}
         <clipPath id="field-land"><path d={`M0 ${yard} H${cam.W} V${cam.H - 18} Q${cam.W} ${cam.H} ${cam.W - 18} ${cam.H} H18 Q0 ${cam.H} 0 ${cam.H - 18} Z`} /></clipPath>
       </defs>
+      {skyOutside && <path d={crestShade(cam.W, SKY_H, 14)} fill="url(#field-shade)" pointer-events="none" />}
       {skyOutside
         ? <path d={fieldCrest(cam.W, cam.H, SKY_H)} fill="url(#grass-tex)" />
         : <rect x={0} y={0} width={cam.W} height={cam.H} rx={18} fill="url(#grass-tex)" />}
+      {skyOutside
+        ? <path d={fieldCrest(cam.W, cam.H, SKY_H)} fill="url(#field-light)" pointer-events="none" />
+        : <rect x={0} y={0} width={cam.W} height={cam.H} rx={18} fill="url(#field-light)" pointer-events="none" />}
+      {/* light hatching gathers towards the foot of the field, in three soft steps (no mask: the field repaints often) */}
+      <g clip-path="url(#field-land)" pointer-events="none">
+        {[[.76, .05], [.84, .09], [.92, .13]].map(([f, o]) => <rect x={0} y={cam.H * f} width={cam.W} height={cam.H * (1 - f)} fill="url(#fyH)" fill-opacity={o} />)}
+      </g>
       {/* the yard strip: a path, the fence, the pets and the crates that did not fit the barn */}
       {sky && !skyOutside && <SkyBand W={cam.W} season={s.season} tokens={sky.tokens} signs={sky.signs} meteoMax={sky.meteoMax} px={px} onToken={sky.onToken} onFog={sky.onFog} onSign={sky.onSign} clear={sky.clear} />}
       {skyOutside
-        ? <path d={`${crestLine(cam.W, SKY_H)} L${cam.W} ${yard} H0 Z`} fill={winter ? '#f4f8fb' : '#a9d27f'} opacity={0.45} />
-        : <rect x={0} y={yardTop} width={cam.W} height={yard - yardTop} rx={sky ? 0 : 18} fill={winter ? '#f4f8fb' : '#a9d27f'} opacity={sky ? 0.45 : 0.6} />}
-      {skyOutside && <path d={crestLine(cam.W, SKY_H)} fill="none" stroke={winter ? '#9fb6c4' : '#6fae45'} stroke-width={2.4} opacity={0.75} />}
+        ? <path d={`${crestLine(cam.W, SKY_H)} L${cam.W} ${yard} H0 Z`} fill={winter ? '#f4f8fb' : '#bccb92'} opacity={0.45} />
+        : <rect x={0} y={yardTop} width={cam.W} height={yard - yardTop} rx={sky ? 0 : 18} fill={winter ? '#f4f8fb' : '#bccb92'} opacity={sky ? 0.45 : 0.6} />}
+      {/* the field is the nearest hill: its crest is inked, with the low sun catching its edge, like the village's */}
+      {skyOutside && <path d={crestLine(cam.W, SKY_H)} fill="none" stroke={winter ? '#ffe3d2' : '#f4f7c8'} stroke-width={1.8} stroke-opacity={0.7} transform="translate(0 1.6)" />}
+      {skyOutside && <path d={crestLine(cam.W, SKY_H)} fill="none" stroke={winter ? '#33283a' : '#3a2a1f'} stroke-width={1.2} stroke-opacity={0.82} stroke-linejoin="round" />}
       <YardDecor W={cam.W} yard={yard} season={s.season as Season} />
       <EdgeDecor W={cam.W} H={cam.H} yard={yard} season={s.season as Season} />
       {yardCrates > 0 && (
@@ -1087,12 +1115,12 @@ export function Scene({
       {/* an engraver's double rule round the plot, like the plates of the atlas */}
       <g class="board-rule" pointer-events="none" fill="none">
         {skyOutside ? <>
-          <path d={openRule(cam.W, cam.H, .8, 17.4, SKY_H + 4)} stroke={winter ? '#7f98a8' : '#3f6526'} stroke-width={1.6} opacity={.55} />
-          <path d={openRule(cam.W, cam.H, 5, 13.5, SKY_H + 8)} stroke={winter ? '#9fb6c4' : '#4a7a2c'} stroke-width={1} opacity={.55} />
+          <path d={openRule(cam.W, cam.H, .8, 17.4, SKY_H + 4)} stroke={winter ? '#7f98a8' : '#4a5a2c'} stroke-width={1.6} opacity={.55} />
+          <path d={openRule(cam.W, cam.H, 5, 13.5, SKY_H + 8)} stroke={winter ? '#9fb6c4' : '#5e6f3a'} stroke-width={1} opacity={.55} />
         </> : <>
-          <rect x={.8} y={.8} width={cam.W - 1.6} height={cam.H - 1.6} rx={17.4} stroke={winter ? '#7f98a8' : '#3f6526'} stroke-width={1.6} opacity={.55} />
-          <rect x={5} y={5} width={cam.W - 10} height={cam.H - 10} rx={13.5} stroke={winter ? '#9fb6c4' : '#4a7a2c'} stroke-width={1} opacity={.55} />
-          <rect x={8} y={8} width={cam.W - 16} height={cam.H - 16} rx={11} stroke={winter ? '#b7c9d4' : '#5f9a3a'} stroke-width={.6} opacity={.35} stroke-dasharray="2 3" />
+          <rect x={.8} y={.8} width={cam.W - 1.6} height={cam.H - 1.6} rx={17.4} stroke={winter ? '#7f98a8' : '#4a5a2c'} stroke-width={1.6} opacity={.55} />
+          <rect x={5} y={5} width={cam.W - 10} height={cam.H - 10} rx={13.5} stroke={winter ? '#9fb6c4' : '#5e6f3a'} stroke-width={1} opacity={.55} />
+          <rect x={8} y={8} width={cam.W - 16} height={cam.H - 16} rx={11} stroke={winter ? '#b7c9d4' : P.grassDark} stroke-width={.6} opacity={.35} stroke-dasharray="2 3" />
         </>}
       </g>
 
