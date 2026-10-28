@@ -286,6 +286,8 @@ export function weekInfo(s: GameState, offset: number): WeekInfo {
   return { year, week, season, weekInSeason: w, absWeek: s.absWeek + offset, offset, temp: temps[week - 1] ?? 0 };
 }
 export const airTemp = (s: GameState, offset = 0) => weekInfo(s, offset).temp;
+/** air temperature from which the earth dries faster (the sky shows "hot" earlier, from 26°) */
+export const HOT_AIR = 28;
 /** PSV-019 · a copy whose whole calendar (week, season, week in season, absolute week) stands at the start of
  *  `season` of this year. Previews use it instead of overwriting only `season`, so every season check agrees. */
 export function seasonView(s: GameState, season: 0 | 1 | 2 | 3): GameState {
@@ -1056,7 +1058,7 @@ export function newGame(o: GameOptions): GameState {
   s.demand = genDemand(s);
   newYearPlan(s);
   s.candidates = pickCandidates(s);
-  feed(s, `Новая ферма: ${loc.name}. Начинается первая весна.`);
+  feed(s, `Новая ферма: ${loc.name}.`);
   startWeek(s);
   return s;
 }
@@ -1366,9 +1368,9 @@ function resolveStrikes(s: GameState, diagnostic?: Pick<WeekOutlook, 'threats'>)
       const paid=round2(Math.min(lossValue*0.6, nextPayment(s).amount));
       s.money=round2(s.money+paid);
       r.insurancePaid=round2((r.insurancePaid??0)+paid);
-      feed(s,`Страховка: +${money(paid)} за ${name.toLowerCase()}. Посевы не восстановлены.`,'info');
+      feed(s,`Страховка: +${money(paid)} (${name.toLowerCase()}). Урожай это не вернёт.`,'info');
     }
-    const what = destroy ? `погибло ${o.hit.length} ${plural(o.hit.length, 'растение', 'растения', 'растений')}` : `урожай на ${o.hit.length} грядках уменьшился ${factor === 0.5 ? 'вдвое' : 'на четверть'}`;
+    const what = destroy ? `погибло ${o.hit.length} ${plural(o.hit.length, 'растение', 'растения', 'растений')}` : `урожай на ${o.hit.length} ${plural(o.hit.length, 'грядке', 'грядках', 'грядках')} уменьшился ${factor === 0.5 ? 'вдвое' : 'на четверть'}`;
     r.lost.push(`${name}: ${what} (−${lost} ед.)`);
     feed(s, `${name}: ${what}.`, 'bad');
   }
@@ -1410,7 +1412,7 @@ function crowMorning(s: GameState) {
     if (!p || rand(world(s, 'crows', e.start)) >= p) continue;
     s.crowWarn.push(e.start);
     s.raids += 1;
-    feed(s, `Над лесом кружит стая ворон. ${e.start - s.absWeek === 1 ? 'На следующей неделе' : `Через ${e.start - s.absWeek} нед.`} сядет на поле.`, 'bad');
+    feed(s, `Над лесом кружит стая ворон. ${e.start - s.absWeek === 1 ? 'На следующей неделе' : `Через ${e.start - s.absWeek} ${plural(e.start - s.absWeek, 'неделю', 'недели', 'недель')}`} сядет на поле.`, 'bad');
   }
 }
 function landFlock(s: GameState) {
@@ -1457,7 +1459,7 @@ function resolveCrows(s: GameState): Set<string> {
       pecked++;
     }
   }
-  const parts = [delayed ? `${delayed} ${plural(delayed, 'росток не вырос', 'ростка не выросли', 'ростков не выросли')}` : '', pecked ? `поклевали ${pecked} ${plural(pecked, 'грядку', 'грядки', 'грядок')} (−${lost} ед.)` : ''].filter(Boolean);
+  const parts = [delayed ? `${delayed} ${plural(delayed, 'росток задержался', 'ростка задержались', 'ростков задержались')} на неделю` : '', pecked ? `поклевали ${pecked} ${plural(pecked, 'грядку', 'грядки', 'грядок')} (−${lost} ед.)` : ''].filter(Boolean);
   if (parts.length) {
     s.report.lost.push(`Вороны: ${parts.join(', ')}`);
     feed(s, `Вороны: ${parts.join(', ')}.`, 'bad');
@@ -1497,8 +1499,8 @@ function thievesMorning(s: GameState) {
   s.thieves = { week: s.absWeek, targets: ripe.slice(0, 2).map(([t, x, y]) => ({ x, y, pid: t.crop!.pid })), talked: false };
   if(thievesBlocked(s)) {
     scene(s,hasPet(s,'dog')?'dogThieves':'watchman');
-    feed(s,hasPet(s,'dog')?'Пёс заметил воров и прогнал их от грядок. Урожай цел.':'Сторож прогнал воров от грядок. Урожай цел.','good');
-  } else feed(s, 'У забора чужие следы. Урожай нужно защитить.', 'bad');
+    feed(s,hasPet(s,'dog')?'Пёс заметил ребят и прогнал их от грядок. Урожай цел.':'Сторож прогнал ребят от грядок. Урожай цел.','good');
+  } else feed(s, 'У забора чужие следы. Ночью придут за урожаем: можно поговорить с ребятами.', 'bad');
 }
 function resolveThieves(s: GameState) {
   const th = s.thieves;
@@ -1627,7 +1629,7 @@ function resolveWeek(s: GameState, diagnostic?: Pick<WeekOutlook, 'threats'>) {
     if (!winterCareTarget(s, x, y)) continue;
     const shade = nearTerrain(s, x, y, 'forest');
     if (!(t.mulch > 0) && !t.drip && (!shade || t.structure === 'greenhouse')) t.moisture = Math.max(0, t.moisture - 1);
-    const hotWeek = s.flags.dry || air >= 28;
+    const hotWeek = s.flags.dry || air >= HOT_AIR;
     if (hotWeek && t.structure !== 'greenhouse' && t.crop?.id !== 'sunflower' && !t.crop?.traits?.includes('drought')) {
       const extra = (s.flags.dry && t.terrain === 'sand' ? 2 : 1) - (wlvl(s, 'irrigator') >= 2 ? 1 : 0);
       t.moisture = Math.max(0, t.moisture - extra);
@@ -1687,7 +1689,7 @@ function resolveWeek(s: GameState, diagnostic?: Pick<WeekOutlook, 'threats'>) {
     w.away -= 1;
     if (w.away === 0) {
       w.level = Math.min(3, w.level + 1);
-      const msg = `${WORKERS[w.id].name} вернулся с учёбы: ${WORKERS[w.id].title.toLowerCase()} ${w.level}-го уровня`;
+      const msg = `${WORKERS[w.id].name} ${WORKERS[w.id].gender === 'f' ? 'вернулась' : 'вернулся'} с учёбы: теперь ${WORKERS[w.id].title.toLowerCase()} ${w.level}-го уровня`;
       r.done.push(msg);
       feed(s, `${msg}.`, 'good');
     }
@@ -1723,8 +1725,8 @@ function resolveWeek(s: GameState, diagnostic?: Pick<WeekOutlook, 'threats'>) {
   borrowed = round2(borrowed);
   if (borrowed > 0) {
     r.borrowed = borrowed;
-    r.lost.push(`Не хватило денег на расходы: ${money(borrowed)} добавлено к долгу банку`);
-    feed(s, `Не хватило денег на расходы недели: ${money(borrowed)} добавлено к долгу банку.`, 'bad');
+    r.lost.push(`Не хватило денег на расходы: ${money(borrowed)} добавлено к долгу перед банком`);
+    feed(s, `Не хватило денег на расходы недели: ${money(borrowed)} добавлено к долгу перед банком.`, 'bad');
   }
   for (const e of s.effects) e.weeks -= 1;
   s.effects = s.effects.filter((e) => e.weeks > 0);
@@ -1977,7 +1979,7 @@ function tickProjects(s: GameState) {
     if (p.kind === 'track') {
       s.levels[p.track] = p.level;
       const L = TRACKS[p.track].levels[p.level - 1];
-      msg = `${TRACKS[p.track].name}: готово «${L.name}» — ${L.text}`;
+      msg = `${TRACKS[p.track].name}: готово «${L.name}»`;
       if (p.track === 'house') addGlory(s, 5, `house-${p.level}`);
     } else if (p.kind === 'cell') {
       p.card.extra = [...(p.card.extra ?? []), p.cell];
@@ -1988,15 +1990,15 @@ function tickProjects(s: GameState) {
       p.card.traits = [...(p.card.traits ?? []), p.trait];
       if (p.origin === 'spare' || deckCount(s) >= deckLimit(s)) s.spare.push(p.card);
       else s.discard.push(p.card);
-      msg = `Лаборатория: «${CARDS[p.card.def].name}» — ${TRAITS[p.trait].short}`;
+      msg = `Лаборатория: у карты «${CARDS[p.card.def].name}» новый признак — ${TRAITS[p.trait].short}`;
     } else if (p.kind === 'variety') {
       if (!s.unlocked.includes(p.crop)) s.unlocked.push(p.crop);
-      addCard(s, `seed_${p.crop}`);
-      msg = `Лаборатория вывела сорт: ${CROPS[p.crop].name}. Семена в колоде и в лавке`;
+      const variety = addCard(s, `seed_${p.crop}`);
+      msg = `Лаборатория вывела сорт: ${CROPS[p.crop].name}. Семена ${s.spare.includes(variety) ? 'в запасе (колода полна)' : 'в колоде'} и в лавке`;
     } else if (p.kind === 'bio') {
       deliverTemporary(s, 'bio');
       deliverTemporary(s, 'bio');
-      msg = 'Лаборатория: 2 карты «Биопрепарат» доставлены в руку; при полной руке — в сброс';
+      msg = 'Лаборатория: 2 карты «Биопрепарат» уже в руке (а если рука полна — в сбросе)';
     } else if (p.kind === 'train') {
       // training ends with the worker's away counter
     }
@@ -2108,7 +2110,7 @@ function tickOrgs(s: GameState) {
       st.idle += 1;
       if (offerDeadline(s,st.offer)<=s.absWeek || (st.offer.createdWeek===undefined && st.offer.expires===undefined && st.idle>IGNORED_OFFER_WEEKS)) {
         st.offer=null; st.idle=0; st.wait=2;
-        feed(s,`${ORGS[o].short}: предложение истекло. Отношения не изменились.`,'info');
+        feed(s,`${ORGS[o].short}: срок предложения вышел — заказ снят. Отношения не изменились.`,'info');
         continue;
       }
       if (ORGS[o].mischief === 'silence' && mischiefOn(s, o)) {
@@ -2159,7 +2161,7 @@ function grant(s: GameState, rw: Reward, src: string): number {
     s.certs.push(rw.cert);
     s.rewardsOut.push({ id: `${src}|cert`, kind: 'cert', value: rw.cert });
     addGlory(s, 15, `${src}|certglory`);
-    feed(s, `Грамота: «${rw.cert}».`, 'good');
+    feed(s, `Получена грамота: «${rw.cert}».`, 'good');
   }
   if (rw.seeds) {
     if (!s.unlocked.includes(rw.seeds)) s.unlocked.push(rw.seeds);
@@ -2172,7 +2174,7 @@ function grant(s: GameState, rw: Reward, src: string): number {
     if (!s.freeHire.includes(rw.worker) && !hired) s.freeHire.push(rw.worker);
     // ORG-04 · someone already on the team is not offered for hire a second time
     if (!hired && !s.candidates.includes(rw.worker)) s.candidates.push(rw.worker);
-    if (!hired) feed(s, `${WORKERS[rw.worker].name} (${WORKERS[rw.worker].title.toLowerCase()}) — можно нанять без платы за наём. Зарплата сохраняется — условия в доме.`, 'good');
+    if (!hired) feed(s, `${WORKERS[rw.worker].name} (${WORKERS[rw.worker].title.toLowerCase()}) — наём бесплатный, зарплата остаётся. Условия смотрите в доме.`, 'good');
   }
   // ORG-04 · a one-off card takes no deck place, so it never lands among the spare cards
   if (rw.card) s.discard.push({ uid: s.nextUid++, def: rw.card, temp: true });
@@ -2264,7 +2266,7 @@ function learn(before: GameState, after: GameState, a: Action) {
   if(after.stats.harvested>before.stats.harvested)mark('harvest');if(after.stats.payments>before.stats.payments)mark('payment');
 }
 function markLateBorrow(s: GameState) {
-  if(!s.shortfallBorrowed) { s.rating=Math.max(0,s.rating-1); s.cleanSeasons=0; s.incident=true; s.shortfallBorrowed=true; feed(s,'Кредит после срока платежа: рейтинг −1.','bad'); }
+  if(!s.shortfallBorrowed) { s.rating=Math.max(0,s.rating-1); s.cleanSeasons=0; s.incident=true; s.shortfallBorrowed=true; feed(s,'Кредит взят, когда на платёж уже не хватало: рейтинг −1.','bad'); }
 }
 export function apply(state: GameState, a: Action): GameState {
   if (!a || typeof a !== 'object') fail('Неизвестное действие');
@@ -2384,7 +2386,7 @@ export function apply(state: GameState, a: Action): GameState {
       s.thieves.talked = true;
       const o = locOf(s).orgs.find((x) => ORGS[x].mischief === 'thieves');
       if (o && s.orgs[o]) s.orgs[o]!.rel = relClamp(s.orgs[o]!.rel + 8);
-      feed(s, 'Поговорил с ребятами и угостил их — сегодня в огород не полезут.', 'good');
+      feed(s, 'Поговорили с ребятами, угостили их — на этой неделе в огород не полезут.', 'good');
       break;
     }
     case 'plow': {
@@ -2477,7 +2479,7 @@ export function apply(state: GameState, a: Action): GameState {
       if (!findDeckCard(s, a.uid)?.temp && deckCount(s) <= DECK_MIN) fail(`В колоде должно остаться хотя бы ${DECK_MIN} карт`);
       const c = removeCard(s, a.uid);
       if (c.temp) {
-        feed(s, `«${CARDS[c.def].name}» убрана из колоды.`, 'info');
+        feed(s, `Разовая карта «${CARDS[c.def].name}» убрана из колоды насовсем.`, 'info');
         break;
       }
       s.spare.push(c);
@@ -2507,7 +2509,7 @@ export function apply(state: GameState, a: Action): GameState {
       const why = labProblem(s);
       if (why) fail(why);
       const c = findDeckCard(s, a.uid);
-      if (!c || !isSeed(c.def)) fail('Выбери карту семян');
+      if (!c || !isSeed(c.def)) fail('Выберите карту семян');
       // Selecting a hand card explicitly transfers that UID into the project.
       if (!Array.isArray(a.cell) || !upgradeSpots(s, c!).some(([x, y]) => x === a.cell[0] && y === a.cell[1])) fail('Сюда клетку не добавить');
       // PSV-018 · never charge for a shape that has no possible place in this region
@@ -2523,7 +2525,7 @@ export function apply(state: GameState, a: Action): GameState {
       const why = labProblem(s);
       if (why) fail(why);
       const c = findDeckCard(s, a.uid);
-      if (!c || !isSeed(c.def)) fail('Выбери карту семян');
+      if (!c || !isSeed(c.def)) fail('Выберите карту семян');
       // Selecting a hand card explicitly transfers that UID into the project.
       if (!Object.prototype.hasOwnProperty.call(TRAITS, a.trait)) fail('Нет такого признака');
       if ((c!.traits ?? []).includes(a.trait)) fail('Этот признак уже есть');
@@ -2576,7 +2578,7 @@ export function apply(state: GameState, a: Action): GameState {
       if (w!.away > 0) fail('Уже на учёбе');
       spend(s, trainPrice(s, a.id), 'build');
       w!.away = trainWeeks(s, a.id);
-      feed(s, `${WORKERS[a.id].name} уехал на учёбу на ${w!.away} ${plural(w!.away, 'неделю', 'недели', 'недель')}.`, 'info');
+      feed(s, `${WORKERS[a.id].name} уезжает на учёбу на ${w!.away} ${plural(w!.away, 'неделю', 'недели', 'недель')}.`, 'info');
       break;
     }
     case 'accept': {
@@ -2654,7 +2656,7 @@ export function apply(state: GameState, a: Action): GameState {
       markLateBorrow(s);
       const d = s.due;
       s.due = null;
-      feed(s, `Экстренный кредит ${money(deficit)}. Рейтинг снижен.`, 'bad');
+      feed(s, `Экстренный кредит ${money(deficit)}.`, 'bad');
       resolvePayment(s, d.amount, d.name, d.seasonEnd ?? (paymentNow(s)?.part === paymentNow(s)?.parts));
       break;
     }

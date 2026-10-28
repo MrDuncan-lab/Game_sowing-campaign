@@ -269,18 +269,18 @@ export const BARN_CAP = [40, 60, 90, 130, 180];
 
 // ---------- workers ----------
 export type WorkerId = 'foreman' | 'agronomist' | 'irrigator' | 'beekeeper' | 'marketer' | 'mechanic' | 'breeder' | 'soilsci' | 'watchman' | 'greenhouser';
-export interface WorkerDef { id: WorkerId; name: string; title: string; price: number; salary: number; levels: [string, string, string]; portrait: string; color: string }
+export interface WorkerDef { id: WorkerId; name: string; gender: 'm' | 'f'; title: string; price: number; salary: number; levels: [string, string, string]; portrait: string; color: string }
 export const WORKERS: Record<WorkerId, WorkerDef> = {
-  foreman: { id: 'foreman', name: 'Степан', title: 'Бригадир', price: 18, salary: 2, portrait: 'foreman', color: '#d9822b', levels: ['+1 рабочий день', '+1 день и +1 обмен в неделю', '+2 рабочих дня и +1 обмен'] },
-  agronomist: { id: 'agronomist', name: 'Нина', title: 'Агроном', price: 20, salary: 2, portrait: 'agronomist', color: '#7cae4a', levels: ['+1 ед. с каждой собранной грядки', 'повтор культуры не портит почву', '+2 ед. с грядки'] },
-  irrigator: { id: 'irrigator', name: 'Айдар', title: 'Поливальщик', price: 22, salary: 1, portrait: 'irrigator', color: '#3f8fbf', levels: ['полив — весь ряд и столбец', 'засуха сушит на 1 меньше', 'каждую неделю сам поливает 3 самые сухие посадки'] },
-  beekeeper: { id: 'beekeeper', name: 'Пётр', title: 'Пчеловод', price: 22, salary: 1, portrait: 'beekeeper', color: '#e9c45c', levels: ['улей действует на 8 соседей', 'мёда вдвое больше', 'бонус улья ещё ×1,2'] },
-  marketer: { id: 'marketer', name: 'Ксения', title: 'Продавец', price: 24, salary: 2, portrait: 'marketer', color: '#e0607a', levels: ['рынок +10%', 'рынок +15%', 'рынок +20%, награды заказов +10%'] },
-  mechanic: { id: 'mechanic', name: 'Руслан', title: 'Механик', price: 28, salary: 2, portrait: 'mechanic', color: '#56616b', levels: ['стройки на неделю быстрее', 'стройки дешевле на 15%', 'ещё один слот мастерской'] },
-  breeder: { id: 'breeder', name: 'Мария', title: 'Селекционер', price: 30, salary: 2, portrait: 'breeder', color: '#9fb86b', levels: ['проекты лаборатории на неделю быстрее', 'ещё один слот лаборатории', '+1 признак на карту'] },
-  soilsci: { id: 'soilsci', name: 'Олег', title: 'Почвовед', price: 26, salary: 1, portrait: 'soilsci', color: '#8c6a43', levels: ['фасоль оживляет почву на 2', 'компост и биопрепарат +2', 'подсолнечник не истощает почву'] },
-  watchman: { id: 'watchman', name: 'Михалыч', title: 'Сторож', price: 16, salary: 1, portrait: 'logist', color: '#3a6b4a', levels: ['воры обходят ферму стороной', 'отгоняет одну стаю ворон за лето', 'каждую неделю сам защищает 2 грядки под ударом'] },
-  greenhouser: { id: 'greenhouser', name: 'Лиза', title: 'Тепличница', price: 28, salary: 1, portrait: 'greenhouser', color: '#3fa37a', levels: ['урожай в теплицах ×1,5', 'в теплицах +4°', 'скоропорт хранится на 2 недели дольше'] },
+  foreman: { id: 'foreman', name: 'Степан', gender: 'm', title: 'Бригадир', price: 18, salary: 2, portrait: 'foreman', color: '#d9822b', levels: ['+1 рабочий день', '+1 день и +1 обмен в неделю', '+2 рабочих дня и +1 обмен'] },
+  agronomist: { id: 'agronomist', name: 'Нина', gender: 'f', title: 'Агроном', price: 20, salary: 2, portrait: 'agronomist', color: '#7cae4a', levels: ['+1 ед. с каждой собранной грядки', 'повтор культуры не портит почву', '+2 ед. с грядки'] },
+  irrigator: { id: 'irrigator', name: 'Айдар', gender: 'm', title: 'Поливальщик', price: 22, salary: 1, portrait: 'irrigator', color: '#3f8fbf', levels: ['полив — весь ряд и столбец', 'засуха сушит на 1 меньше', 'каждую неделю сам поливает 3 самые сухие посадки'] },
+  beekeeper: { id: 'beekeeper', name: 'Пётр', gender: 'm', title: 'Пчеловод', price: 22, salary: 1, portrait: 'beekeeper', color: '#e9c45c', levels: ['улей действует на 8 соседей', 'мёда вдвое больше', 'бонус улья ещё ×1,2'] },
+  marketer: { id: 'marketer', name: 'Ксения', gender: 'f', title: 'Продавец', price: 24, salary: 2, portrait: 'marketer', color: '#e0607a', levels: ['рынок +10%', 'рынок +15%', 'рынок +20%, награды заказов +10%'] },
+  mechanic: { id: 'mechanic', name: 'Руслан', gender: 'm', title: 'Механик', price: 28, salary: 2, portrait: 'mechanic', color: '#56616b', levels: ['стройки на неделю быстрее', 'стройки дешевле на 15%', 'ещё один слот мастерской'] },
+  breeder: { id: 'breeder', name: 'Мария', gender: 'f', title: 'Селекционер', price: 30, salary: 2, portrait: 'breeder', color: '#9fb86b', levels: ['проекты лаборатории на неделю быстрее', 'ещё один слот лаборатории', '+1 признак на карту'] },
+  soilsci: { id: 'soilsci', name: 'Олег', gender: 'm', title: 'Почвовед', price: 26, salary: 1, portrait: 'soilsci', color: '#8c6a43', levels: ['фасоль оживляет почву на 2', 'компост и биопрепарат +2', 'подсолнечник не истощает почву'] },
+  watchman: { id: 'watchman', name: 'Михалыч', gender: 'm', title: 'Сторож', price: 16, salary: 1, portrait: 'logist', color: '#3a6b4a', levels: ['воры обходят ферму стороной', 'отгоняет одну стаю ворон за лето', 'каждую неделю сам защищает 2 грядки под ударом'] },
+  greenhouser: { id: 'greenhouser', name: 'Лиза', gender: 'f', title: 'Тепличница', price: 28, salary: 1, portrait: 'greenhouser', color: '#3fa37a', levels: ['урожай в теплицах ×1,5', 'в теплицах +4°', 'скоропорт хранится на 2 недели дольше'] },
 };
 export const WORKER_IDS = Object.keys(WORKERS) as WorkerId[];
 
@@ -316,11 +316,11 @@ export const ORGS: Record<OrgId, OrgDef> = {
     wants: ['radish', 'carrot', 'potato', 'cabbage', 'strawberry', 'pumpkin'],
     steps: [
       { title: 'Витамины к обеду', crops: ['radish', 'carrot', 'onion'], qty: 6, weeks: 4, pay: 0.9, text: 'Ребятам не хватает свежих овощей. Поможете?' },
-      { title: 'Картошка на месяц', crops: ['potato', 'cabbage'], qty: 14, weeks: 5, pay: 1, reward: { cert: 'Благодарность интерната' }, text: 'Столовая просит запас на месяц.' },
+      { title: 'Овощи на месяц', crops: ['potato', 'cabbage'], qty: 14, weeks: 5, pay: 1, reward: { cert: 'Благодарность интерната' }, text: 'Столовая просит запас на месяц.' },
       { title: 'Экскурсия на ферму', crops: ['carrot', 'radish', 'pumpkin'], qty: 8, lines: 2, weeks: 5, pay: 1, reward: { pet: 'dog' }, text: 'Ребята хотят увидеть, где растёт еда, и привезут вам щенка из приюта.' },
       { title: 'Праздник урожая', crops: ['pumpkin', 'strawberry', 'potato', 'cabbage'], qty: 12, lines: 2, weeks: 6, pay: 1.2, reward: { cert: 'Шеф интерната «Солнышко»', glory: 20 }, text: 'Большой праздник — и вы почётный гость.' },
     ],
-    perk: 'Ребята летом помогают: +1 рабочий день в неделю',
+    perk: 'Ребята летом помогают — +1 рабочий день в неделю',
     mischief: 'thieves', mischiefText: 'Голодные ребята лазают в огород и таскают урожай',
   },
   council: {
@@ -330,10 +330,10 @@ export const ORGS: Record<OrgId, OrgDef> = {
       { title: 'Ярмарка выходного дня', crops: ['onion', 'carrot', 'radish', 'potato'], qty: 6, lines: 2, weeks: 4, pay: 1.1, text: 'Поселению нужна витрина: привезите два вида овощей.' },
       { title: 'Запас для ветеранов', crops: ['potato', 'cabbage', 'onion'], qty: 12, weeks: 5, pay: 1, reward: { cert: 'Почётная грамота сельсовета' }, text: 'Наборы для ветеранов к празднику.' },
       { title: 'Хлеб для района', crops: ['wheat', 'rye'], qty: 20, weeks: 6, pay: 1.1, reward: { money: 40 }, text: 'Районная мельница простаивает.' },
-      { title: 'Конкурс «Лучший садовод района»', crops: ['pumpkin', 'cabbage', 'tomato', 'watermelon'], qty: 10, lines: 3, weeks: 7, pay: 1.3, reward: { cert: 'Лучший садовод района', glory: 40 }, text: 'Покажите на выставке три разные культуры.' },
+      { title: 'Районная выставка', crops: ['pumpkin', 'cabbage', 'tomato', 'watermelon'], qty: 10, lines: 3, weeks: 7, pay: 1.3, reward: { cert: 'Лучший садовод района', glory: 40 }, text: 'Покажите на выставке три разные культуры.' },
     ],
     perk: 'Земля на 30% дешевле',
-    mischief: 'fine', mischiefText: 'Проверка из района: штраф за непорядок',
+    mischief: 'fine', mischiefText: 'Проверка из района штрафует за непорядок',
   },
   bakery: {
     id: 'bakery', name: 'Пекарня «Колосок»', short: 'Пекарня', who: 'Пекарь Тимофей', emblem: 'bread', color: '#c4982f',
@@ -341,8 +341,8 @@ export const ORGS: Record<OrgId, OrgDef> = {
     steps: [
       { title: 'Мука для батонов', crops: ['wheat'], qty: 12, weeks: 7, pay: 1.2, text: 'Свежее зерно — свежий хлеб.' },
       { title: 'Гречневые блины', crops: ['buckwheat'], qty: 8, weeks: 5, pay: 1.2, reward: { pet: 'cat' }, text: 'У нашей кошки котята — одного отдадим вам.' },
-      { title: 'Ржаной хлеб', crops: ['rye', 'wheat'], qty: 16, weeks: 8, pay: 1.2, reward: { money: 30 }, text: 'Нужен ржаной хлеб к Масленице.' },
-      { title: 'Свой сорт хлеба', crops: ['wheat', 'sunflower', 'buckwheat'], qty: 14, lines: 2, weeks: 7, pay: 1.3, reward: { cert: 'Поставщик пекарни «Колосок»', glory: 15 }, text: 'Хлеб с вашим именем на витрине.' },
+      { title: 'Хлеб на прилавок', crops: ['rye', 'wheat'], qty: 16, weeks: 8, pay: 1.2, reward: { money: 30 }, text: 'Нужен ржаной хлеб к Масленице.' },
+      { title: 'Хлеб из вашей партии', crops: ['wheat', 'sunflower', 'buckwheat'], qty: 14, lines: 2, weeks: 7, pay: 1.3, reward: { cert: 'Поставщик пекарни «Колосок»', glory: 15 }, text: 'Хлеб с вашим именем на витрине.' },
     ],
     perk: 'Пшеница, рожь и гречка на рынке +10%',
     mischief: 'silence', mischiefText: 'Пекарня обиделась и не присылает заказов',
@@ -353,11 +353,11 @@ export const ORGS: Record<OrgId, OrgDef> = {
     steps: [
       { title: 'Зелёный сезон', crops: ['radish', 'onion', 'carrot'], qty: 6, weeks: 3, pay: 1.5, text: 'Шефу нужна свежесть, и он хорошо платит.' },
       { title: 'Тыквенный суп', crops: ['pumpkin'], qty: 10, weeks: 7, pay: 1.4, reward: { seeds: 'strawberry' }, text: 'Шеф поделится саженцами клубники «Виктория».' },
-      { title: 'Ферментация', crops: ['cabbage', 'garlic'], qty: 10, weeks: 8, pay: 1.4, reward: { money: 40 }, text: 'Квашеная капуста с чесноком — хит сезона.' },
+      { title: 'Овощи на квашение', crops: ['cabbage', 'garlic'], qty: 10, weeks: 8, pay: 1.4, reward: { money: 40 }, text: 'Квашеная капуста с чесноком — хит сезона.' },
       { title: 'Ужин от фермера', crops: ['tomato', 'strawberry', 'pumpkin', 'garlic'], qty: 8, lines: 3, weeks: 8, pay: 1.6, reward: { cert: 'Поставщик ресторана «Печь»', glory: 20 }, text: 'Сет из ваших продуктов в меню.' },
     ],
     perk: 'Томаты, тыква и клубника на рынке +15%',
-    mischief: 'review', mischiefText: 'Плохой отзыв шефа: рынок 3 недели платит на 10% меньше',
+    mischief: 'review', mischiefText: 'Шеф оставил плохой отзыв — рынок 3 недели платит на 10% меньше',
   },
   college: {
     id: 'college', name: 'Агроколледж', short: 'Колледж', who: 'Преподаватель Борис Ильич', emblem: 'cap', color: '#3f6fb0',
@@ -366,10 +366,10 @@ export const ORGS: Record<OrgId, OrgDef> = {
       { title: 'Образцы для практикума', crops: ['bean', 'buckwheat', 'potato'], qty: 4, lines: 2, weeks: 5, pay: 1.2, text: 'Студентам нужны образцы двух культур.' },
       { title: 'Опытная делянка', crops: ['corn', 'sunflower', 'bean'], qty: 8, weeks: 7, pay: 1.2, reward: { worker: 'agronomist' }, text: 'Выпускница Нина ищет работу — возьмёте?' },
       { title: 'Семенной фонд', crops: ['garlic', 'rye', 'wheat'], qty: 10, weeks: 8, pay: 1.2, reward: { card: 'bio' }, text: 'Обменяемся семенами и препаратами.' },
-      { title: 'Защита диплома', crops: ['corn', 'sunflower', 'buckwheat', 'bean'], qty: 8, lines: 3, weeks: 8, pay: 1.3, reward: { cert: 'Почётный наставник колледжа', glory: 20 }, text: 'Ваша ферма — тема дипломной работы.' },
+      { title: 'Образцы для диплома', crops: ['corn', 'sunflower', 'buckwheat', 'bean'], qty: 8, lines: 3, weeks: 8, pay: 1.3, reward: { cert: 'Почётный наставник колледжа', glory: 20 }, text: 'Ваша ферма — тема дипломной работы.' },
     ],
     perk: 'Учёба работников на 30% дешевле',
-    mischief: 'training', mischiefText: 'Колледж не принимает ваших работников: учёба вдвое дороже',
+    mischief: 'training', mischiefText: 'Колледж обиделся: учёба работников вдвое дороже',
   },
   // ---- Кубань
   cannery: {
@@ -381,7 +381,7 @@ export const ORGS: Record<OrgId, OrgDef> = {
       { title: 'Арбузный мёд', crops: ['watermelon'], qty: 16, weeks: 8, pay: 1.3, reward: { cert: 'Поставщик «Кубанских даров»', glory: 15 }, text: 'Нардек — кубанская классика.' },
       { title: 'Ассорти', crops: ['tomato', 'corn', 'pumpkin', 'watermelon'], qty: 12, lines: 3, weeks: 9, pay: 1.4, reward: { glory: 25, money: 80 }, text: 'Большой контракт на ассорти.' },
     ],
-    perk: 'Тыква и арбузы на рынке +15%', mischief: 'silence', mischiefText: 'Завод нашёл другого поставщика',
+    perk: 'Тыква и арбузы на рынке +15%', mischief: 'silence', mischiefText: 'Завод пока работает с другим поставщиком',
   },
   ricemill: {
     id: 'ricemill', name: 'Рисовый комбинат', short: 'Рисовый', who: 'Мастер Георгий', emblem: 'rice', color: '#9aa05a',
@@ -389,10 +389,10 @@ export const ORGS: Record<OrgId, OrgDef> = {
     steps: [
       { title: 'Первая партия риса', crops: ['rice'], qty: 10, weeks: 7, pay: 1.2, text: 'Посмотрим, какой рис даёт пойма.' },
       { title: 'Зерно для круп', crops: ['rice', 'wheat'], qty: 20, weeks: 8, pay: 1.2, reward: { pet: 'geese' }, text: 'Гуси с комбината — лучшие полольщики.' },
-      { title: 'Элитный сорт', crops: ['rice'], qty: 24, weeks: 9, pay: 1.3, reward: { cert: 'Рисовод Кубани', glory: 20 }, text: 'Рис на экспорт.' },
-      { title: 'Годовой контракт', crops: ['rice', 'wheat'], qty: 30, weeks: 10, pay: 1.3, reward: { money: 120, glory: 20 }, text: 'Надёжный партнёр на годы.' },
+      { title: 'Большая партия риса', crops: ['rice'], qty: 24, weeks: 9, pay: 1.3, reward: { cert: 'Рисовод Кубани', glory: 20 }, text: 'Рис на экспорт.' },
+      { title: 'Постоянные поставки', crops: ['rice', 'wheat'], qty: 30, weeks: 10, pay: 1.3, reward: { money: 120, glory: 20 }, text: 'Надёжный партнёр на годы.' },
     ],
-    perk: 'Рис и пшеница на рынке +10%', mischief: 'silence', mischiefText: 'Комбинат больше не звонит',
+    perk: 'Рис и пшеница на рынке +10%', mischief: 'silence', mischiefText: 'Комбинат пока не звонит',
   },
   stanitsa: {
     id: 'stanitsa', name: 'Станичный рынок', short: 'Станица', who: 'Атаман Иван Савельич', emblem: 'flag', color: '#2d6a8f',
@@ -414,7 +414,7 @@ export const ORGS: Record<OrgId, OrgDef> = {
       { title: 'Подсолнечный мёд', crops: ['honey', 'sunflower'], qty: 12, weeks: 9, pay: 1.3, reward: { cert: 'Друг пчёл', glory: 20 }, text: 'Особый мёд.' },
       { title: 'Медовый спас', crops: ['honey', 'buckwheat', 'sunflower'], qty: 12, lines: 2, weeks: 10, pay: 1.4, reward: { money: 100, glory: 20 }, text: 'Праздник на хуторе.' },
     ],
-    perk: 'Мёд на рынке +20%', mischief: 'silence', mischiefText: 'Пасечники обиделись',
+    perk: 'Мёд на рынке +20%', mischief: 'silence', mischiefText: 'Пасечники обиделись и не присылают заказов',
   },
   // ---- Алтай
   camp: {
@@ -426,14 +426,14 @@ export const ORGS: Record<OrgId, OrgDef> = {
       { title: 'Ягодный десерт', crops: ['strawberry', 'seabuckthorn', 'cranberry', 'honey'], qty: 6, weeks: 8, pay: 1.4, reward: { money: 60 }, text: 'Таёжный десерт.' },
       { title: 'Гастрофестиваль', crops: ['mushrooms', 'honey', 'potato', 'seabuckthorn'], qty: 10, lines: 3, weeks: 9, pay: 1.5, reward: { cert: 'Вкус Алтая', glory: 30 }, text: 'Фестиваль таёжной кухни.' },
     ],
-    perk: 'Грибы и ягоды на рынке +15%', mischief: 'review', mischiefText: 'Плохой отзыв на турбазе: рынок дешевеет',
+    perk: 'Грибы и ягоды на рынке +15%', mischief: 'review', mischiefText: 'Хозяйка оставила плохой отзыв — рынок 3 недели платит на 10% меньше',
   },
   forestry: {
     id: 'forestry', name: 'Лесхоз', short: 'Лесхоз', who: 'Лесничий Егор', emblem: 'tree', color: '#4a6b2f',
     wants: ['potato', 'cabbage', 'onion', 'rye'],
     steps: [
       { title: 'Обед лесорубам', crops: ['potato', 'onion'], qty: 10, weeks: 5, pay: 1.1, text: 'Бригада на делянке.' },
-      { title: 'Сидераты для питомника', crops: ['rye', 'bean', 'buckwheat'], qty: 10, weeks: 8, pay: 1.2, reward: { money: 40 }, text: 'Питомнику нужен ваш опыт с почвой.' },
+      { title: 'Урожай для питомника', crops: ['rye', 'bean', 'buckwheat'], qty: 10, weeks: 8, pay: 1.2, reward: { money: 40 }, text: 'Питомнику нужен ваш опыт с почвой.' },
       { title: 'Разрешение на расчистку', crops: ['cabbage', 'potato', 'carrot'], qty: 16, lines: 2, weeks: 7, pay: 1.1, reward: { cert: 'Разрешение лесхоза', glory: 10 }, text: 'Поможете — выдадим разрешение лесхоза и отметим вашу помощь.' },
       { title: 'Обед лесной бригаде', crops: ['seabuckthorn', 'rye', 'cabbage'], qty: 12, weeks: 9, pay: 1.3, reward: { cert: 'Хранитель тайги', glory: 25 }, text: 'Бригада восстанавливает лес. Привезите продукты для её кухни.' },
     ],
@@ -448,7 +448,7 @@ export const ORGS: Record<OrgId, OrgDef> = {
       { title: 'Алтайский мёд', crops: ['honey'], qty: 12, weeks: 9, pay: 1.3, reward: { pet: 'goat', cert: 'Пасечник Алтая' }, text: 'Мёд на всероссийскую выставку.' },
       { title: 'Медовуха к празднику', crops: ['honey', 'seabuckthorn', 'buckwheat'], qty: 10, lines: 2, weeks: 10, pay: 1.4, reward: { money: 100, glory: 25 }, text: 'Большой праздник товарищества.' },
     ],
-    perk: 'Мёд и гречка на рынке +15%', mischief: 'silence', mischiefText: 'Товарищество обиделось',
+    perk: 'Мёд и гречка на рынке +15%', mischief: 'silence', mischiefText: 'Товарищество обиделось и не присылает заказов',
   },
   sanatorium: {
     id: 'sanatorium', name: 'Санаторий «Сосны»', short: 'Санаторий', who: 'Главврач Лидия Андреевна', emblem: 'cross', color: '#5aa0a8',
@@ -459,7 +459,7 @@ export const ORGS: Record<OrgId, OrgDef> = {
       { title: 'Витаминный курс', crops: ['cranberry', 'seabuckthorn', 'honey'], qty: 8, weeks: 9, pay: 1.4, reward: { cert: 'Здоровье Алтая', glory: 15 }, text: 'Таёжные витамины.' },
       { title: 'Зимний запас', crops: ['cabbage', 'carrot', 'potato', 'cranberry'], qty: 14, lines: 3, weeks: 10, pay: 1.3, reward: { money: 120, glory: 25 }, text: 'Санаторий работает и зимой.' },
     ],
-    perk: 'Клюква, облепиха и капуста на рынке +10%', mischief: 'review', mischiefText: 'Санаторий жалуется в район: рынок дешевеет',
+    perk: 'Клюква, облепиха и капуста на рынке +10%', mischief: 'review', mischiefText: 'Главврач пожаловалась в район — рынок 3 недели платит на 10% меньше',
   },
 };
 export const ORG_IDS = Object.keys(ORGS) as OrgId[];
@@ -507,7 +507,7 @@ export const LOCATIONS: Record<LocationId, LocationDef> = {
   kuban: {
     id: 'kuban', name: 'Кубанская пойма', place: 'Хутор у реки', tagline: 'Жара, река и арыки',
     text: 'Длинное жаркое лето. Без воды здесь ничего не растёт, зато каналы от реки заливают рис, а на песке зреют арбузы.',
-    unique: ['каналы от реки: копай арыки, заливай рис', 'бахча на песке', 'в жару редис и капуста стоят'],
+    unique: ['каналы от реки: арыки заливают соседние грядки', 'бахча на песке', 'в жару редис и капуста стоят'],
     map: ['....~.', '....~.', '....~.', '....~~', 'ss...~', 'sss..~'],
     soil: 2, seasons: [3, 14, 4, 2],
     temp: { spring: [10, 19], summer: [20, 30], autumn: [17, 7], winter: [-1, -5] },

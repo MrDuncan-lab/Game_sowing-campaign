@@ -5,7 +5,7 @@ import { useSceneQueue, chooseScene, finishScenes, completed, type SceneCue } fr
 import { buildWeekPlayback, CALENDAR_MS, theftStagger, eventKinds, pendingKinds, type WeekEvent } from './weekPlayback';
 import {readWeekResume,saveWeekResume,clearWeekResume,type WeekResume} from './weekResume';
 import { PrecisionLoupe } from './PrecisionLoupe';
-import { greenhouseYieldReady, hiveYieldReady, neighbors8, inGrid, wlvl } from '../engine/game';
+import { greenhouseYieldReady, hiveYieldReady, neighbors8, inGrid, wlvl, weeklyCosts, HOT_AIR } from '../engine/game';
 
 import { exchangeProblem, compostProblem, compostWeeks, growthMoisture, frostKills, wetCanals, idx, thievesBlocked, handMax as maxHand, exchangesUsed, exchangesPerWeek, nextDraw, exchangeDays, yardUsed, storageUsed, storageCap, deliverProblem } from '../engine/game';
 import type { JSX } from 'preact';
@@ -246,8 +246,8 @@ function JournalNow(c: JournalCtx & {compact?:boolean}) {
       {s.weekInSeason === seasonLen(s) && <p class="ink-line">После этой недели сменится сезон. Несыгранные карты останутся в руке.</p>}
       {crowsOpen(s) && <div class="book-note"><Icon name="crow" size={30} /><div class="grow"><b>Вороны на поле</b><p>Задержат рост молодых всходов или поклюют созревающий урожай. Теплицы и пугала защищают.</p></div><div class="book-acts"><Btn small disabled={s.days < 1 ? 'Нужен рабочий день' : null} onClick={() => act({ t: 'shoo' })}>Отогнать · 1 д.</Btn>{sortiesPerSeason(s) > s.dronesUsed && <Btn small onClick={() => act({ t: 'droneCrows' })}>Дрон</Btn>}</div></div>}
       {risky && outlook && <div class="book-note"><Icon name="thermo" size={28} /><div class="grow"><b>К концу этой недели</b>{outlook.frost > 0 && <p class="bad">Мороз угрожает {outlook.frost} грядкам. Проверьте укрытия.</p>}{outlook.dying > 0 && <p class="bad">Без полива погибнет {outlook.dying} грядок.</p>}{outlook.threats.map(t => <p class={t.guard === 'дрон' ? 'up' : 'bad'}>{t.name}: {t.beds} гр. · {t.guard === 'дрон' ? 'защитит дрон' : t.guard ? 'урожай пострадает; страховка выплатит деньги' : 'нужна защита'}.</p>)}</div><div class="book-acts"><Btn small onClick={onClose}>На поле</Btn></div></div>}
-      {scouting && <div class="book-note"><Icon name="kids" size={28} /><div class="grow"><b>У поля крутятся дети</b><p>{thievesBlocked(s) ? 'Ребята из интерната приглядываются к спелым грядкам, но пёс и сторож их не подпустят.' : 'Ребята из интерната приглядываются к спелым грядкам. На следующей неделе могут прийти за урожаем — укройте грядки или заведите пса либо сторожа.'}</p></div></div>}
-      {thievesNow && <div class="book-note"><Icon name="kids" size={28} /><div class="grow"><b>У поля чужие следы</b><p>Кто-то присматривается к урожаю. Можно поговорить заранее.</p></div><div class="book-acts"><Btn small disabled={s.days < 1 ? 'Нужен рабочий день' : null} onClick={() => act({ t: 'talkKids' })}>Поговорить · 1 д.</Btn></div></div>}
+      {scouting && <div class="book-note"><Icon name="kids" size={28} /><div class="grow"><b>У поля крутятся дети</b><p>{thievesBlocked(s) ? 'Ребята из интерната приглядываются к спелым грядкам, но ферму охраняют — урожай не тронут.' : 'Ребята из интерната приглядываются к спелым грядкам. На следующей неделе могут прийти за урожаем. Защитят пёс, сторож или «Сторожка», а если придут — с ними можно поговорить.'}</p></div></div>}
+      {thievesNow && <div class="book-note"><Icon name="kids" size={28} /><div class="grow"><b>У поля чужие следы</b><p>Это ребята из интерната: присматриваются к урожаю. Можно поговорить с ними заранее.</p></div><div class="book-acts"><Btn small disabled={s.days < 1 ? 'Нужен рабочий день' : null} onClick={() => act({ t: 'talkKids' })}>Поговорить · 1 д.</Btn></div></div>}
       {s.yard.length > 0 && <div class="book-note"><Icon name="barn" size={28} /><div class="grow"><b>Урожай во дворе</b><p>{s.yard.reduce((a, l) => a + l.qty, 0)} ед. ждут места в амбаре.</p></div><div class="book-acts"><Btn small onClick={() => { onClose(); onGo('barn'); }}>В амбар</Btn></div></div>}
       {!c.compact&&<><h4 class="page-sub">В хозяйстве</h4>
       <dl class="book-ledger">
@@ -257,7 +257,7 @@ function JournalNow(c: JournalCtx & {compact?:boolean}) {
         <div><dt>Засеяно грядок</dt><dd>{s.tiles.filter(t => t.owned && t.crop).length} из {s.tiles.filter(t => t.owned && !t.canal).length}</dd></div>
         <div><dt>Карт в руке</dt><dd>{s.hand.length} из {handMax(s)}</dd></div>
       </dl></>}
-      {s.season === 3 && <p class="ink-line muted">До весны: {seasonLen(s) - s.weekInSeason + 1} нед.{s.projects.length ? ` Ближайший проект завершится через ${Math.min(...s.projects.map(p => p.weeks))} нед.` : ''} Зарплаты и проценты продолжают начисляться.</p>}
+      {s.season === 3 && <p class="ink-line muted">До весны: {seasonLen(s) - s.weekInSeason + 1} нед.{s.projects.length ? ` Ближайший проект завершится через ${Math.min(...s.projects.map(p => p.weeks))} нед.` : ''}{weeklyCosts(s).interest > 0 || weeklyCosts(s).salaries > 0 ? ' Зарплаты и проценты платятся и зимой.' : ''}</p>}
     </section>
   );
 }
@@ -1576,8 +1576,8 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
       if(card.def==='care')return {text:`Урожай ряда ${pv.before} → ${pv.after} ед. · ${pv.days} дн.`,tone:'up'};
       if(card.def==='early')return {text:`Сейчас ${Math.round(pv.before*(lvl(s,'machinery')>=3?1:.7))} ед. вместо ${pv.before}`,tone:'up'};
     }
-    const hint: Record<string, string> = { row: 'Выбери ряд', line: `Прополка: весь ${rot % 2 ? 'столбец' : 'ряд'} · ещё касание — ${rot % 2 ? 'ряд' : 'столбец'}`, none: 'Нажми «Сыграть»', block: 'Квадрат 2×2: выбери его левую верхнюю грядку' };
-    return { text: hint[def.target] ?? 'Перетащи на поле или коснись грядки', tone: 'instr' };
+    const hint: Record<string, string> = { row: 'Выберите ряд', line: `Прополка: весь ${rot % 2 ? 'столбец' : 'ряд'} · ещё касание — ${rot % 2 ? 'ряд' : 'столбец'}`, none: 'Нажмите «Сыграть»', block: 'Квадрат 2×2: выберите его левую верхнюю грядку' };
+    return { text: hint[def.target] ?? 'Перетащите на поле или коснитесь грядки', tone: 'instr' };
   }
   const previewOk = !!highlight.preview && highlight.preview.why.every((w) => !w);
   useEffect(() => {
@@ -1591,7 +1591,7 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
     if (outlook.dying) parts.push(`засохнет ${outlook.dying}`);
     const open = outlook.threats.filter((t) => t.guard!=='дрон');
     if (open.length) parts.push(`⚠ ${open.map((t) => t.name.toLowerCase()).join(', ')}`);
-    if (outlook.thieves) parts.push(`воры: ${outlook.thieves}`);
+    if (outlook.thieves) parts.push(`ребята: ${outlook.thieves}`);
     if (outlook.ripe) parts.push(`созреет ${outlook.ripe}`);
     if (outlook.payment) parts.push(outlook.payment.short > 0 ? `платёж: −${money(outlook.payment.short)}` : 'платёж');
     return parts.slice(0, 2).join(' · ');
@@ -1619,6 +1619,7 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
     drawing: villageDrawing(s),
   });
   if (villageApi) villageApi.current = village;
+  const palychTaps = useRef(0);
   const villageSay = (text: string) => {
     setVsay(text);
     if (vsayTimer.current) clearTimeout(vsayTimer.current);
@@ -1628,14 +1629,22 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
     if ((locOf(s).orgs as string[]).includes(k)) { (onOrder ?? (() => onGo('orders')))(k as OrgId); return; }
     if (k.startsWith('g-')) { const o = k.slice(2) as OrgId; villageSay(`${ORGS[o].short} дружит с вами: ${ORGS[o].perk.charAt(0).toLowerCase()}${ORGS[o].perk.slice(1)}.`); return; }
     const next = weatherOf(s, 1);
+    const now = weatherOf(s, 0);
+    const weeksLeft = seasonLen(s) - s.weekInSeason + 1;
+    const palychLines = [
+      `На следующей неделе будет ${tStr(next.temp)}, ${next.name.toLowerCase()}.`,
+      `Сейчас ${tStr(now.temp)}, ${now.name.toLowerCase()}.`,
+      `Идёт ${SEASON_NAMES[s.season].toLowerCase()}: ${s.weekInSeason}-я неделя из ${seasonLen(s)}.`,
+      `До ${['лета', 'осени', 'зимы', 'весны'][s.season]} — ${weeksLeft} ${plural(weeksLeft, 'неделя', 'недели', 'недель')}.`,
+    ];
     const say: Record<string, string> = {
-      palych: `Палыч: «На той неделе ${tStr(next.temp)}, ${next.name.toLowerCase()}. ${s.season === 3 ? 'Зимой земля отдыхает — и мы с ней.' : 'Землю слушай — она подскажет.'}»`,
+      palych: k === 'palych' ? `Палыч: «${palychLines[palychTaps.current++ % palychLines.length]}»` : '',
       well: 'Колодец на площади: вода тут на всю деревню.',
       mill: 'Мельница на дальнем холме мелет зерно со всей округи.',
       hay: 'Стог сена на зиму.',
       farhouse: 'Дальние дома: там живут соседи с хуторов.', farhouse2: 'Дальние дома: там живут соседи с хуторов.', farhouse3: 'Дальние дома: там живут соседи с хуторов.',
-      izba1: 'Дом соседей.', izba2: 'Дом соседей.', izba3: 'Дом соседей: бельё сохнет на верёвке.',
-      lot: 'Участок на вырост: со временем здесь поселятся новые соседи.', 'lot-school': 'Участок на вырост: со временем здесь поселятся новые соседи.', 'lot-tower': 'Участок на вырост: со временем здесь поселятся новые соседи.',
+      izba1: 'Дом соседей.', izba2: 'Дом соседей.', izba3: s.season === 3 ? 'Дом соседей: во дворе снеговик.' : 'Дом соседей: бельё сохнет на верёвке.',
+      lot: 'Свободный участок: пока здесь никто не живёт.', 'lot-school': 'Свободный участок: пока здесь никто не живёт.', 'lot-tower': 'Свободный участок: пока здесь никто не живёт.',
     };
     switch (k) {
       case 'house': case 'meteo': case 'hives': onGo('house'); return;
@@ -1691,11 +1700,11 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
               sceneCue={sceneCue}
               pestHits={pestHits} morning={morning}
               scouts={scouting && kidsAhead(s) <= 1}
-              onScouts={() => say(thievesBlocked(s) ? 'Дети из интерната что-то высматривают у спелых грядок. Пёс и сторож их приметили — на набег не решатся.' : `Дети из интерната высматривают спелые грядки. ${kidsAhead(s) >= 2 ? 'Через две недели' : 'На следующей неделе'} полезут за урожаем: укройте грядки, заведите пса или сторожа.`)}
+              onScouts={() => say(thievesBlocked(s) ? 'Дети высматривают спелые грядки, но ферма под охраной.' : `Дети высматривают грядки: ${kidsAhead(s) >= 2 ? 'через две недели' : 'на следующей неделе'} могут прийти за урожаем.`)}
               sky={skyView} skyOutside
               compost={{built:compostBuilt,building:!!compostProject,ready:!!s.compostReady,fill:compostBuilt?s.compostTick/Math.max(1,compostWeeks(s)):0,selected:!!card&&!compostProblem(s,card.uid),open:compostOpen,over:overCompost,pulse:compostPulse,onClick:()=>setCompostOpen(v=>!v)}}
             />
-            {!weekPlaying&&night==='off'&&<SeasonFx kind={(['spring', 'summer', 'autumn', 'winter'] as const)[s.season]} rain={!winter && s.flags.rain} heat={!winter && (s.flags.dry || airTemp(s) >= 28)} />}
+            {!weekPlaying&&night==='off'&&<SeasonFx kind={(['spring', 'summer', 'autumn', 'winter'] as const)[s.season]} rain={!winter && s.flags.rain} heat={!winter && (s.flags.dry || airTemp(s) >= HOT_AIR)} />}
           </div>
         </div>
         </div>
@@ -1857,7 +1866,7 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
             </div>
             <div class="wt-caption">
               {night === 'hold' ? `Неделя ${pages[1].num}` : 'Неделя прошла'}
-              <small>{night === 'hold' ? `${pages[1].season.split(' · ')[0].toLowerCase()}, ${pages[1].num}-я из ${pages[1].of}${pages[1].bad.length ? ` · впереди: ${pages[1].bad.join(', ')}` : ''}` : 'всё подросло, созревшее собрано'}</small>
+              <small>{night === 'hold' ? `${pages[1].season.split(' · ')[0].toLowerCase()}, ${pages[1].num}-я из ${pages[1].of}${pages[1].bad.length ? ` · впереди: ${pages[1].bad.join(', ')}` : ''}` : 'созревшее собрано, итоги — в журнале'}</small>
             </div>
             <div class="wt-skip">пропустить ›</div>
           </div>

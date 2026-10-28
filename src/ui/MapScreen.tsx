@@ -144,7 +144,7 @@ export function MapScreen({ profile, farms, onOpen, onNew, onTest, onTutorial }:
         <div class="atlas-title">
           <small class="atlas-kicker">атлас хозяйств</small>
           <h1>Посевная</h1>
-          <p>карточная ферма: сажай фигурами, следи за погодой, дружи с соседями</p>
+          <p>карточная ферма: сажайте фигурами, следите за погодой, дружите с соседями</p>
         </div>
       </header>
       <div class="atlas-grid">

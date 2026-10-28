@@ -48,7 +48,7 @@ function OrgCard({ s, o, act, teaching=false }: { s: GameState; o: OrgId; act: D
         </div>
         <span class={`rel-chip t-${tier.tone}`} title="Отношения">{tier.name}</span>
       </header>
-      {angry && <p class="org-warn"><Icon name={d.mischief === 'thieves' ? 'kids' : 'down'} size={18} /> {d.mischiefText}{d.mischief === 'thieves' && thievesBlocked(s) ? ' — но пёс и сторож не пускают' : ''}</p>}
+      {angry && <p class="org-warn"><Icon name={d.mischief === 'thieves' ? 'kids' : 'down'} size={18} /> {d.mischiefText}{d.mischief === 'thieves' && thievesBlocked(s) ? ' — но ферму охраняют' : ''}</p>}
       {q ? (
         <div class={`quest2${st.active ? ' active' : ''}`}>
           <div class="quest2-title">
@@ -68,11 +68,11 @@ function OrgCard({ s, o, act, teaching=false }: { s: GameState; o: OrgId; act: D
           ) : (
             <Btn tone={dWhy ? undefined : 'good'} disabled={dWhy} onClick={() => act({ t: 'deliver', org: o })}>{dWhy ?? `Сдать · +${money(q.pay)}`}</Btn>
           )}
-          {accepting && <small class="quest2-note">Можно пропустить без штрафа — предложение ещё {Math.max(0,(q.expires??s.absWeek+IGNORED_OFFER_WEEKS-st.idle)-s.absWeek)} нед.</small>}
-          {st.active && left!==null && left<=1 && <small class="quest2-note bad">Сдайте кнопкой до конца недели: урожай этой ночи уже опоздает.</small>}
+          {accepting && <small class="quest2-note">Можно пропустить без штрафа — предложение действует ещё {Math.max(0,(q.expires??s.absWeek+IGNORED_OFFER_WEEKS-st.idle)-s.absWeek)} нед.</small>}
+          {st.active && left!==null && left<=0 && <small class="quest2-note bad">Последняя неделя. Сдайте заказ до её конца: урожай, который созреет этой ночью, уже опоздает.</small>}
         </div>
       ) : (
-        <p class="quest-empty">{teaching?'Учебный заказ появится, когда он понадобится в уроке.':s.season === 3 ? 'Зимой новых заказов нет.' : angry && d.mischief === 'silence' ? 'Обиделись и молчат. Со временем остынут.' : st.wait > 0 ? `Новый заказ через ${st.wait} нед.` : 'Новый заказ скоро.'}</p>
+        <p class="quest-empty">{teaching?'Заказ появится по ходу урока.':s.season === 3 ? 'Зимой новых заказов нет.' : angry && d.mischief === 'silence' ? 'Со временем остынут.' : st.wait > 0 ? `Новый заказ через ${st.wait} нед.` : 'Новый заказ скоро.'}</p>
       )}
       <OrgRelations s={s} o={o} />
     </article>
@@ -97,9 +97,9 @@ function OrgRelations({ s, o, open }: { s: GameState; o: OrgId; open?: boolean }
         <span class="rel-meter" aria-label={`Отношения: ${tier.name}`}><i style={{ left: `${(st.rel + 100) / 2}%` }} /></span>
         <span class={`rel-name t-${tier.tone}`}>{tier.name}</span>
       </div>
-      {st.rel >= 25 ? <p class="org-perk"><Icon name="star" size={16} /> {d.perk}</p> : <p class="org-perk muted">С дружбы: {d.perk.toLowerCase()}</p>}
+      {st.rel >= 25 ? <p class="org-perk"><Icon name="star" size={16} /> {d.perk}</p> : <p class="org-perk muted">Если подружитесь: {d.perk.toLowerCase()}</p>}
       {!done && finalReward && <p class="org-goal">В конце цепочки: <RewardLine r={finalReward.pet || finalReward.cert ? { pet: finalReward.pet, cert: finalReward.cert } : finalReward} /></p>}
-      {done && <p class="org-goal up">Цепочка пройдена · постоянные заказы</p>}
+      {done && <p class="org-goal up">Цепочка пройдена. Дальше — постоянные заказы.</p>}
       {q && st.active && <p class="org-goal">За сдачу: отношения +{q.rel}</p>}
       {dialogue.length > 0 && <div class="order-dialogue" aria-label={`Слова заказчика: ${buyer.name}`}>
         {dialogue.map((line,i)=><div class={`order-line${i?' child-line':''}`} key={line.who}>
@@ -118,7 +118,7 @@ function OrgRow({ s, o, teaching }: { s: GameState; o: OrgId; teaching?: boolean
   const tier = relTier(st.rel);
   const angry = mischiefOn(s, o);
   const buyer = BUYERS[o];
-  const status = teaching ? 'Учебный заказ появится, когда он понадобится в уроке.' : s.season === 3 ? 'Зимой новых заказов нет.' : angry && d.mischief === 'silence' ? 'Обиделись и молчат.' : st.wait > 0 ? `Новый заказ через ${st.wait} нед.` : 'Новый заказ скоро.';
+  const status = teaching ? 'Заказ появится по ходу урока.' : s.season === 3 ? 'Зимой новых заказов нет.' : angry && d.mischief === 'silence' ? 'Обиделись и молчат.' : st.wait > 0 ? `Новый заказ через ${st.wait} нед.` : 'Новый заказ скоро.';
   return (
     <details data-org={o} class={`org-row tone-${tier.tone}${angry ? ' angry' : ''}`}>
       <summary>
@@ -126,7 +126,7 @@ function OrgRow({ s, o, teaching }: { s: GameState; o: OrgId; teaching?: boolean
         <span class="grow"><b>{d.name}</b><small>{status}</small></span>
         <span class={`rel-chip t-${tier.tone}`} title="Отношения">{tier.name}</span>
       </summary>
-      {angry && <p class="org-warn"><Icon name={d.mischief === 'thieves' ? 'kids' : 'down'} size={18} /> {d.mischiefText}{d.mischief === 'thieves' && thievesBlocked(s) ? ' — но пёс и сторож не пускают' : ''}</p>}
+      {angry && <p class="org-warn"><Icon name={d.mischief === 'thieves' ? 'kids' : 'down'} size={18} /> {d.mischiefText}{d.mischief === 'thieves' && thievesBlocked(s) ? ' — но ферму охраняют' : ''}</p>}
       <p class="small muted org-who">{buyer.name} · {buyer.role.toLowerCase()}</p>
       <OrgRelations s={s} o={o} open />
     </details>
@@ -164,14 +164,14 @@ function HallView({ s, profile, onBack }: { s: GameState; profile: Profile; onBa
             </div>
           ))}
         </div>
-      ) : <p class="small muted">Грамоты дают организации в конце цепочек заказов.</p>}
+      ) : <p class="small muted">Организации выдают грамоты за некоторые заказы из цепочек.</p>}
       <h4>Питомцы</h4>
       {profile.pets.length ? <div class="chips">{profile.pets.map((p) => <span class="chip"><Pet id={p} size={28} /> {PETS[p].kind} {PETS[p].name}</span>)}</div> : <p class="small muted">Пока нет. Питомцы переезжают с вами на любую ферму.</p>}
       <h4>Семенной фонд</h4>
       {profile.seedBank.length ? <div class="chips">{profile.seedBank.map((c) => <span class="chip"><CropIcon id={c} size={24} /> {CROPS[c].name}</span>)}</div> : <p class="small muted">Редкие семена из наград доступны потом на всех подходящих фермах.</p>}
       <h4>Цель региона</h4>
       <p class="small">Завершите цепочки местных покупателей: {locOf(s).orgs.filter(o=>(s.orgs[o]?.step??0)>=ORGS[o].steps.length).length}/{locOf(s).orgs.length}. После этого можно продолжать на рекорд или освоить другую ферму.</p>
-      <h4>Личные рекорды</h4><p class="small muted">Здесь учитываются ваши питомцы и открытые семена. Это результаты обычных ферм, без равного соревновательного старта.</p>
+      <h4>Личные рекорды</h4><p class="small muted">Здесь рекорды ваших обычных ферм. Питомцы и семена из прошлых игр помогают на старте, поэтому условия у ферм разные.</p>
       <div class="bank-grid">
         <div class="kv"><span>Лет на одной ферме</span><b>{profile.best.years}</b></div>
         <div class="kv"><span>Больше всего денег</span><b>{money(profile.best.money)}</b></div>
@@ -219,7 +219,7 @@ export function OrdersView({ s, act, profile, target, teaching=false }: { s: Gam
       <div class="orgs">
         {/* PSV-035 · stable keys: an open «details» and focus stay with their organisation when the list re-sorts */}
         {busyOrgs.map((o) => <OrgCard key={o} s={s} o={o} act={act} teaching={teaching} />)}
-        {!busyOrgs.length && <p class="quest-empty orders-none">{teaching ? 'Учебный заказ появится, когда он понадобится в уроке.' : s.season === 3 ? 'Зимой новых заказов нет.' : 'Сейчас заказов нет — покупатели ниже скажут, когда придут.'}</p>}
+        {!busyOrgs.length && <p class="quest-empty orders-none">{teaching ? 'Заказ появится по ходу урока.' : s.season === 3 ? 'Зимой новых заказов нет.' : 'Сейчас заказов нет. Когда ждать новые — ниже, у каждого покупателя.'}</p>}
       </div>
       {quietOrgs.length > 0 && <section class="org-list" aria-label="Знакомые покупатели">
         <h3>Знакомые покупатели</h3>

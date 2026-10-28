@@ -216,7 +216,7 @@ export function tutorialProblem(t: TutorialSession, a: Action): string | null {
   const one = (types: Action['t'][]) => types.includes(a.t) ? null : 'Сначала — то, что показывает Палыч. Свободное время будет в конце недели.';
   if (FREE_STEPS.includes(t.step) || t.step === 'solo') {
     // free time: anything a farmer does in a normal week; what a later lesson explains waits for it
-    if (!FREE_ACTIONS.includes(a.t)) return 'На учебной ферме это Палыч показывает в своё время. На своей ферме — когда угодно.';
+    if (!FREE_ACTIONS.includes(a.t)) return 'На учебной ферме Палыч покажет это в своё время. На своей — когда угодно.';
     // the money the next paid lessons need is kept (T01)
     const spend = a.t === 'buyCard' ? cardShopPrice(t.farm, a.def) : 0;
     const reserve = lessonReserve(t);

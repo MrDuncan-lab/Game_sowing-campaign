@@ -8,9 +8,9 @@ import {readVoices,recordVoice,rememberOrder,heardOrder} from './voiceMemory';
 import {pendingOrderVoices} from '../content/orderDialogue';
 type Remark={key:string;who:PersonId;text:string;critical?:boolean;name?:string;org?:OrgId};
 const sceneLines:Record<SceneCue['kind'],Omit<Remark,'key'>>={
- dogThieves:{who:'palych',text:'Пёс гонит воров от грядок. Урожай под защитой.',critical:true},
+ dogThieves:{who:'palych',text:'Гляньте, пёс ребят от грядок гонит! Урожай под защитой.',critical:true},
  watchman:{who:'marat',text:'Сторож гонит чужаков. Урожай под защитой.',critical:true},
- thieves:{who:'zina',text:'Воры тащат урожай! Пёс или сторож защитят грядки.',critical:true},
+ thieves:{who:'zina',text:'Ребята урожай тащат! Вам бы пса или сторожа — они грядки защитят.',critical:true},
  drone:{who:'vera',text:'Дрон отгоняет вредителей от грядок.'},
  geese:{who:'zina',text:'Гуси щиплют сорняки.'},
 };
@@ -35,9 +35,9 @@ export function FieldVoice({s,active,onOpen,onOrder,cue=null,fallback,quiet=fals
    const options:Remark[]=[];
    if(!quiet){
    if(crowsOpen(s))options.push({key:'crows',who:'zina',text:'Вороны уже на грядках. Надо прогнать.'});
-   if(s.yard.length)options.push({key:'yard',who:'buyer',text:'Ящики остались во дворе. Освободите место или продайте урожай.'});
+   if(s.yard.length)options.push({key:'yard',who:'buyer',text:'Ящики во дворе так и стоят. Освободите место или продайте урожай.'});
    if(s.lastReport?.dried)options.push({key:'dry',who:'vera',text:'Часть посадок засохла. Остальным ещё можно помочь.'});
-   if(s.lastReport?.done.length)options.push({key:'done',who:'marat',text:'Работа закончена. Загляните в мастерскую.'});
+   if(s.lastReport?.done.length)options.push({key:'done',who:'marat',text:'В мастерской закончили работу — загляните.'});
    if(s.lastReport?.harvests.length)options.push({key:'harvest',who:'palych',text:'Урожай в амбаре. Можно приберечь для заказа.'});
    }
    next=options.find(x=>!seen.includes(x.key));
