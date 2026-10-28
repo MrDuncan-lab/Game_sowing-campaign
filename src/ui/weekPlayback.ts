@@ -1,4 +1,5 @@
-import type { GameState, PestHit } from '../engine/game';
+import type { GameState, PestHit, TrialNight } from '../engine/game';
+import { TRIAL_MS } from './TrialNight';
 import { buildMorning, morningCellDelay, morningStep, type MorningStep } from './Morning';
 import type { SceneCue } from './useSceneQueue';
 import { bugBeds, crowMisses, kidDelay, kidMisses, pestMisses, sceneDuration } from './collisions';
@@ -18,6 +19,9 @@ export interface WeekEvent {
   morning?: MorningStep;
   cue?: SceneCue;
   pests?: PestHit[];
+  /** the night of the year's ordeal: the whole field's drama, before the week's other events */
+  trial?: TrialNight;
+  rate?: number;
 }
 
 /** The warnings a week event answers on the field (W-05): the kids at the yard and their footprints end when the
@@ -33,6 +37,7 @@ export function eventKinds(e: WeekEvent): string[] {
     else out.push(m.kind);
   }
   e.pests?.forEach(h => out.push(h.kind));
+  if (e.trial) out.push(e.trial.kind === 'drought' ? 'dry' : e.trial.kind);
   const c = e.cue;
   if (c) {
     if (c.kind === 'thieves' || c.kind === 'dogThieves' || c.kind === 'watchman') out.push('thieves');
@@ -51,7 +56,12 @@ export function buildWeekPlayback(prev: GameState, next: GameState, rate = 1.6, 
   const old = new Set((prev.scenes ?? []).map(s => s.id));
   const cues:SceneCue[] = [...carried, ...(next.scenes ?? []).filter(s => !old.has(s.id))];
   const used = new Set<string>();
-  const mornings = buildMorning(prev, next);
+  const night = next.lastReport?.trial;
+  // the ordeal's own beds are told by its night, not again by the frost or drought mornings
+  const own = new Set((night?.cells ?? []).map(c => `${c.x},${c.y}`));
+  const ownKind = night?.kind === 'frost' ? 'frost' : night?.kind === 'drought' ? 'dry' : null;
+  const mornings = buildMorning(prev, next).map(m => m.kind === ownKind ? { ...m, cells: m.cells.filter(c => !own.has(`${c.x},${c.y}`)) } : m).filter(m => m.cells.length);
+  if (night) events.push({ id: `trial:${night.id}:${next.absWeek}`, duration: TRIAL_MS[night.kind] / rate, trial: night, rate });
   // Meetings of the week's troubles on one bed (see collisions.ts).
   const bugs = bugBeds(next);
   const kids = kidMisses(prev, next);
@@ -88,7 +98,7 @@ export function buildWeekPlayback(prev: GameState, next: GameState, rate = 1.6, 
   // Match the engine's order: weather → pests → children → birds → farm work.
   mornings.filter(m => !['crows','thieves'].includes(m.kind)).forEach(addMorning);
   addCues(['drone']);
-  const hits = next.lastReport?.pestHits ?? [];
+  const hits = (next.lastReport?.pestHits ?? []).filter(h => !h.trial);
   // Repeated attacks on a bed keep their own before/after snapshots.
   let batch: PestHit[] = [];
   const flush = () => {

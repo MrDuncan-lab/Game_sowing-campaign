@@ -19,8 +19,11 @@ import { CROPS, GRID } from '../engine/data';
 import type { CropId, PetId } from '../engine/data';
 import {
   GameState, Tile, canBuyLand, landPrice, tile, ripenIn, growNote, strikeVictims, isGuarded, frostVictims, soilTemp, airTemp, cropMinT, canClear,
-  underScarecrow, targetGrow, thievesBlocked,
+  underScarecrow, targetGrow, thievesBlocked, firePits, firesLit, lvl,
 } from '../engine/game';
+import type { TrialNight } from '../engine/game';
+import { FirePit } from '../art/fire';
+import { TrialTop, TrialVeil, trialPlantClass, trialPlantTime } from './TrialNight';
 import type { StrikeKind } from '../engine/game';
 import { icons } from '../art/icons';
 import { Crow, CrowFlying, Scarecrow, Wither } from '../art/crows';
@@ -725,8 +728,10 @@ function Walker({ x, y, ms, paused, cycle, children }: { x: number; y: number; m
 
 export function Scene({
   scenePaused = false, menuTile = null,
-  s, highlight, onTile, onCorner, hoverTile, onHover, farmer, floaters, hidden, effects = [], yard = YARD, px = 1, queue, flock = 'off', lens = null, build = null, pets = [], lifeActive = true, showWarnings = true, pending = null, sceneCue = null, pestHits = [], pestPaused=false, morning = null, compost, scouts = false, onScouts, aftermath, spentDry, sky = null, skyOutside = false,
+  s, highlight, onTile, onCorner, hoverTile, onHover, farmer, floaters, hidden, effects = [], yard = YARD, px = 1, queue, flock = 'off', lens = null, build = null, pets = [], lifeActive = true, showWarnings = true, pending = null, sceneCue = null, pestHits = [], pestPaused=false, morning = null, compost, scouts = false, onScouts, aftermath, spentDry, sky = null, skyOutside = false, trial = null,
 }: {
+  /** the night of the year's ordeal while it plays: its length and how much of it has already gone */
+  trial?: { n: TrialNight; D: number; E: number } | null;
   /** W-05 · while the week plays: the troubles whose events are still to come. Their warnings (kids at the yard,
    *  footprints, beetles on the plants, frost, hail) stay on the field until their own event starts. */
   pending?: Set<string> | null;
@@ -791,6 +796,9 @@ export function Scene({
   const thieves = new Set(s.thieves && s.thieves.week === s.absWeek && !s.thieves.talked && !thievesBlocked(s) ? s.thieves.targets.filter((g) => tile(s, g.x, g.y).structure !== 'greenhouse' && tile(s, g.x, g.y).crop?.pid === g.pid && !isGuarded(s, g.x, g.y)).map((g) => `${g.x},${g.y}`) : []);
   const yardCrates = s.yard.reduce((a, l) => a + l.qty, 0);
   const mPlant = morningPlantClass(morning);
+  const tPlant = trialPlantClass(s, trial?.n ?? null);
+  for (const [key, cls] of tPlant) mPlant.set(key, `${mPlant.get(key) ?? ''} ${cls}`.trim());
+  const pits = firePits(s), pitsLit = firesLit(s), pitLevel = Math.max(1, lvl(s, 'fires'));
   // a warning about this week's trouble: shown until the trouble itself plays (future signs are always shown)
   const live = (kind: string) => showWarnings && (!pending || !PLAYED_WARNINGS.has(kind) || pending.has(kind));
   const wind = windFor(sky?.tokens[0]?.kind, winter);
@@ -857,9 +865,15 @@ export function Scene({
       )}
 
       {/* the plots: the cut edge plots stay under the yard line and inside the rounded board */}
-      <g clip-path="url(#field-land)">
+      <g clip-path="url(#field-land)" style={trial ? { ['--D' as string]: `${trial.D}ms`, ['--E' as string]: `${-trial.E}ms` } : undefined}>
       <g transform={`translate(${-cam.vx * CELL} ${yard - cam.vy * CELL})`}>
         <RiverLayer s={s} cam={cam} />
+        {pitsLit && !trial && !hidePlants && pits.map(([x, y]) => (
+          <g transform={`translate(${PAD + (x + 1) * CELL} ${PAD + (y + 1) * CELL})`} class="fire-aura-at" pointer-events="none" aria-hidden="true">
+            <rect class="fire-aura ring" x={-196} y={-196} width={392} height={392} rx={44} />
+            <rect class="fire-aura core" x={-96} y={-96} width={192} height={192} rx={26} />
+          </g>
+        ))}
         {rows.map((y) =>
           Array.from({ length: GRID }, (_, x) => {
             if (!vis(x, y)) return null;
@@ -877,7 +891,8 @@ export function Scene({
             const missIndex = sceneCue?.kind === 'thieves' ? (sceneCue.misses?.findIndex(m=>m.x===x&&m.y===y)??-1) : -1;
             const childIndex = (sceneCue?.visit?.outcome==='empty'?0:sceneCue?.targets?.length??2)+missIndex;
             const impactIndex = morning?.cells.findIndex(c=>c.x===x&&c.y===y)??-1;
-            const plantTiming = impactIndex<0 ? undefined : morning?.kind==='thieves'
+            const trialAt = trial ? trialPlantTime(s, trial.n, x, y) : undefined;
+            const plantTiming = trialAt !== undefined ? { '--t': trialAt.toFixed(3) } : impactIndex<0 ? undefined : morning?.kind==='thieves'
               ? {'--pull-time':`${(THEFT_IMPACT_MS-THEFT_ARRIVAL_MS)/(sceneCue?.rate??1)}ms`,'--pull-delay':`${(THEFT_ARRIVAL_MS+theftDelay(sceneCue)+theftStagger(impactIndex))/(sceneCue?.rate??1)}ms`}
               : {'--weather-impact':`${morning!.reveal}ms`,'--weather-delay':`${morningCellDelay(impactIndex)}ms`};
             const stage = crop ? (crop.rest ? 1 : cropStage(crop.grown, targetGrow(s, crop))) : 0;
@@ -1085,6 +1100,24 @@ export function Scene({
             )}
           </g>
         ))}
+        {!trial && pits.map(([x, y], i) => (
+          <g transform={`translate(${PAD + (x + 1) * CELL} ${PAD + (y + 1) * CELL + 8})`} class="fire-spot"
+            data-corner={`${x},${y}`} data-fire={`${x},${y}`}
+            role={build ? 'button' : undefined} tabindex={build ? 0 : undefined}
+            aria-label={build ? `Переместить кострище: угол ${x + 1}:${y + 1}` : pitsLit ? 'Кострище: горит' : 'Кострище'}
+            aria-pressed={build ? build.removable.has(`${x},${y}`) : undefined}
+            onClick={(e) => { if (build) { e.stopPropagation(); onCorner?.(x, y); } }}
+            onKeyDown={(e) => { if (build && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); e.stopPropagation(); onCorner?.(x, y); } }}
+            pointer-events={build ? 'auto' : 'none'}>
+            <rect x={-26} y={-50} width={52} height={62} fill="transparent" />
+            <FirePit lit={pitsLit} level={pitLevel} uid={`p${i}`} />
+            {build?.removable.has(`${x},${y}`) && (
+              <g pointer-events="none" class="move-mark">
+                <rect x={-26} y={-50} width={52} height={62} rx={12} fill="none" stroke="#395928" stroke-width={3} stroke-dasharray="7 4" />
+              </g>
+            )}
+          </g>
+        ))}
         {highlight.block && (() => {
           const [bx, by] = highlight.block!;
           return (
@@ -1111,6 +1144,10 @@ export function Scene({
             <rect x={PAD - 6 + cam.vx * CELL} y={PAD + y * CELL + 2} width={cam.span * CELL + 12} height={CELL - 4} rx={14} class={`row-target${hoverTile?.endsWith(`,${y}`) ? ' on' : ''}`} pointer-events="none" />
           ))}
       </g>
+      {trial && !hidePlants && <g class="trial-night" style={{ ['--D' as string]: `${trial.D}ms`, ['--E' as string]: `${-trial.E}ms` }} key={`${trial.n.id}:${trial.n.wave ?? 0}`}>
+        <TrialVeil n={trial.n} W={cam.W} H={cam.H} ox={-cam.vx * CELL} oy={yard - cam.vy * CELL} />
+        <g transform={`translate(${-cam.vx * CELL} ${yard - cam.vy * CELL})`} class="tn-anchor"><TrialTop s={s} n={trial.n} level={pitLevel} /></g>
+      </g>}
       </g>
       {/* an engraver's double rule round the plot, like the plates of the atlas */}
       <g class="board-rule" pointer-events="none" fill="none">

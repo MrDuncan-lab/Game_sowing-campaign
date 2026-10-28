@@ -15,7 +15,7 @@ import { levelText } from '../content/rules';
 import { CardView, cardDescription } from './Card';
 import { useLessonWeeks } from './lesson';
 
-const PLACE: Partial<Record<TrackId, BuildItem>> = { greenhouse: 'greenhouse', apiary: 'hive', irrigation: 'drip', guard: 'scarecrow', canal: 'canal' };
+const PLACE: Partial<Record<TrackId, BuildItem>> = { greenhouse: 'greenhouse', apiary: 'hive', irrigation: 'drip', guard: 'scarecrow', canal: 'canal', fires: 'fire' };
 
 function WorkerSheet({ s, id, act, onClose }: { s: GameState; id: WorkerId; act: Dispatch; onClose: () => void }) {
   const d = WORKERS[id];

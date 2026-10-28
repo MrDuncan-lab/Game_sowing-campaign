@@ -23,6 +23,8 @@ import './contrast.css';
 // the field's motion language goes last: it owns growth, wind, the troubles in three acts and the animals' breath
 import './motion.css';
 import './main-screen.css';
+// the year's ordeal and the fire pits
+import './trials.css';
 
 // favicon is set from code so the single-file build keeps it inlined
 if (!document.querySelector('link[rel="icon"]')) {

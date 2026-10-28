@@ -6,6 +6,7 @@ import {
 } from './data';
 import { EPISODES, Episode, EpisodeKind, YearPlan, covers, episodeEnd, marketMult, planYear, seasonOf, baseTemp } from './calendar';
 import { gauss, hashSeed, rand, randInt, shuffle } from './rng';
+import { FIRE_HEAT, FIRE_WOOD, TRIALS, TRIAL_FIRST_YEAR, TRIAL_GLORY, TRIAL_POOL, TrialGrade, TrialKind, fireCore, fireRing, firesAllowed, trialDroughtLen, trialFrostTemp, trialGrade, trialPower, trialWaves } from './trials';
 
 // ---------- state ----------
 export interface Plant {
@@ -37,11 +38,32 @@ export type Project =
   | { kind: 'bio'; weeks: number; total: number }
   | { kind: 'train'; worker: WorkerId; weeks: number; total: number };
 export type StrikeKind = 'hail' | 'flood' | 'beetle' | 'locust' | 'weedsurge';
-export interface Strike { kind: StrikeKind; ep: number; week: number; cells: [number, number, number][]; zone: boolean; wave?: number }
+export interface Strike { kind: StrikeKind; ep: number; week: number; cells: [number, number, number][]; zone: boolean; wave?: number; /** a wave of the year's ordeal: no drone turns it back */ trial?: boolean }
+// ---------- the ordeal of the year ----------
+export type TrialDir = 'w' | 'e' | 'n' | 's';
+export type TrialOutcome = 'killed' | 'bitten' | 'held' | 'eaten' | 'smoke' | 'guarded' | 'dried';
+export interface TrialResult { grade: TrialGrade; saved: number; beds: number; risk: number; lostValue: number; lostUnits: number; glory: number; cert?: string }
+export interface Trial {
+  id: string; kind: TrialKind; year: number; power: number;
+  /** absolute weeks: the first and the last week the ordeal may begin (announced), and the week it does */
+  from: number; to: number; week: number;
+  /** weeks it lasts: waves of the swarm, weeks of drought (frost: one night) */
+  len: number;
+  temp?: number; dir?: TrialDir;
+  beds?: number; risk?: number; lostValue?: number; lostUnits?: number;
+  result?: TrialResult;
+}
+/** what the ordeal did this week, for the field to play it back */
+export interface TrialNight {
+  id: string; kind: TrialKind; temp?: number; wave?: number; waves?: number; dir?: TrialDir;
+  band?: [number, number][]; fires: [number, number][]; lit: boolean;
+  cells: { x: number; y: number; out: TrialOutcome; before?: Plant; after?: Plant | null; lost?: number }[];
+  result?: TrialResult;
+}
 export interface CrowRaid { week: number; targets: { x: number; y: number; pid: number; type: 'young' | 'ripe' }[]; shoo: boolean; drone: boolean }
 export interface Thieves { week: number; targets: { x: number; y: number; pid: number }[]; talked: boolean }
 export interface FeedItem { week: number; text: string; tone: 'good' | 'bad' | 'info' }
-export interface PestHit { kind:'locust'|'beetle'; x:number; y:number; plant:Plant; lost:number; after?:Plant|null }
+export interface PestHit { kind:'locust'|'beetle'; x:number; y:number; plant:Plant; lost:number; after?:Plant|null; trial?:boolean }
 export type FieldDamageKind = "frost" | "dry" | "hail" | "flood" | "crows" | "thieves";
 export interface FieldDamage { kind: FieldDamageKind; x: number; y: number; before: Plant; after: Plant | null; lost: number; note?: string }
 export interface WeekReport {
@@ -54,6 +76,7 @@ export interface WeekReport {
   soilUp: number; soilDown: number; honey: number; mice: number; insurancePaid?: number;
   milk?: number; // ECO-04 · the goat's milk money of the week
   borrowed?: number; // ECO-05 · bills the cash could not cover, added to the bank debt
+  trial?: TrialNight;
 }
 export interface Effect { kind: 'review'; mult: number; weeks: number }
 export interface Stats { sales: number; orders: number; seeds: number; work: number; land: number; build: number; salaries: number; interest: number; payments: number; lostUnits: number; harvested: number }
@@ -118,6 +141,9 @@ export interface GameState {
   effects: Effect[];
   compostTick: number;
   compostReady?: boolean; exchangeWeek?: number; exchanges?: number; shortfallBorrowed?: boolean;
+  trial?: Trial;
+  /** fire pits on the corners of four beds, and the absolute week they were last lit */
+  fires?: [number, number][]; firesLit?: number;
   scenes?: { id: string; kind: 'dogThieves' | 'thieves' | 'watchman' | 'drone' | 'geese'; week: number; at?: [number,number]; visit?: { outcome: 'stolen' | 'empty'; targets: [number,number][]; crows: [number,number][] } }[];
   report: WeekReport;
   lastReport: WeekReport | null;
@@ -223,8 +249,36 @@ export const questSlots = (s: GameState) => 3 + (lvl(s, 'house') >= 4 ? 1 : 0);
 export const countStructure = (s: GameState, k: 'greenhouse' | 'hive') => s.tiles.filter((t) => t.structure === k).length;
 export const dripRows = (s: GameState) => new Set(s.tiles.map((t, i) => (t.drip ? Math.floor(i / GRID) : -1)).filter((r) => r >= 0)).size;
 export const canalCount = (s: GameState) => s.tiles.filter((t) => t.canal).length;
-const placed = (s: GameState) => ({ greenhouse: countStructure(s, 'greenhouse'), hive: countStructure(s, 'hive'), drip: dripRows(s), scarecrow: s.scarecrows.length, canal: canalCount(s) });
-export type BuildItem = 'greenhouse' | 'hive' | 'drip' | 'scarecrow' | 'canal';
+const placed = (s: GameState) => ({ greenhouse: countStructure(s, 'greenhouse'), hive: countStructure(s, 'hive'), drip: dripRows(s), scarecrow: s.scarecrows.length, canal: canalCount(s), fire: s.fires?.length ?? 0 });
+export type BuildItem = 'greenhouse' | 'hive' | 'drip' | 'scarecrow' | 'canal' | 'fire';
+// ---------- fires ----------
+export const firePits = (s: GameState): [number, number][] => s.fires ?? [];
+export const firesLit = (s: GameState) => s.firesLit === s.absWeek && firePits(s).length > 0;
+/** firewood for one night, all pits together */
+export const firewoodCost = (s: GameState) => Math.round(FIRE_WOOD[Math.min(3, lvl(s, 'fires'))] * infl(s.year)) * firePits(s).length;
+export const fireLightDays = (s: GameState) => (lvl(s, 'fires') >= 3 ? 0 : 1);
+/** degrees a lit fire adds against frost on this bed (the strongest fire counts, they do not add up) */
+export function fireHeat(s: GameState, x: number, y: number, lit = firesLit(s)): number {
+  if (!lit) return 0;
+  const [core, ring] = FIRE_HEAT[Math.min(3, lvl(s, 'fires'))];
+  let best = 0;
+  for (const [a, b] of firePits(s)) {
+    if (fireCore(a, b).some(([p, q]) => p === x && q === y)) best = Math.max(best, core);
+    else if (fireRing(a, b).some(([p, q]) => p === x && q === y)) best = Math.max(best, ring);
+  }
+  return best;
+}
+/** a lit fire's smoke keeps the swarm off its 2×2 */
+export const inSmoke = (s: GameState, x: number, y: number) => firesLit(s) && firePits(s).some(([a, b]) => fireCore(a, b).some(([p, q]) => p === x && q === y));
+export function lightFiresProblem(s: GameState): string | null {
+  if (s.phase !== 'week') return 'Сначала решите вопрос с платежом';
+  if (!firePits(s).length) return lvl(s, 'fires') ? 'Поставьте кострища на поле' : 'Кострищ ещё нет: их строят в мастерской';
+  if (s.season === 3) return 'Зимой в поле греть нечего';
+  if (firesLit(s)) return 'Костры уже горят';
+  if (s.money < firewoodCost(s)) return `Нужно ${money(firewoodCost(s))} на дрова`;
+  if (s.days < fireLightDays(s)) return 'Нужен рабочий день';
+  return null;
+}
 export function buildStock(s: GameState): Record<BuildItem, { have: number; used: number }> {
   const p = placed(s);
   return {
@@ -233,6 +287,7 @@ export function buildStock(s: GameState): Record<BuildItem, { have: number; used
     drip: { have: dripAllowed(s), used: p.drip },
     scarecrow: { have: scarecrowsAllowed(s), used: p.scarecrow },
     canal: { have: canalsAllowed(s), used: p.canal },
+    fire: { have: firesAllowed(lvl(s, 'fires')), used: p.fire },
   };
 }
 
@@ -438,7 +493,9 @@ export function frostLimit(p: Plant): number {
 // how much a bed shields its plant from frost, in degrees
 export function frostShield(s: GameState, t: Tile): number {
   if (t.structure === 'greenhouse') return heated(s) ? 60 : 8;
-  return (t.shelter > 0 ? 5 : 0) + (t.mulch > 0 ? 1 : 0);
+  const i = s.tiles.indexOf(t);
+  const fire = i >= 0 ? fireHeat(s, i % GRID, Math.floor(i / GRID)) : 0;
+  return (t.shelter > 0 ? 5 : 0) + (t.mulch > 0 ? 1 : 0) + fire;
 }
 export function frostKills(s: GameState, x: number, y: number, air = airTemp(s)): boolean {
   const t = tile(s, x, y);
@@ -1091,6 +1148,7 @@ function startWeek(s: GameState) {
     newYearPlan(s);
     addGlory(s, 10, `year-${s.year}`);
     feed(s, `Начался ${s.year}-й год. Платежи выросли.`, 'info');
+    planTrial(s);
   }
   const { season, w } = seasonOf(locOf(s), s.week);
   const newSeason = season !== s.season || s.weekInSeason === 0;
@@ -1106,6 +1164,7 @@ function startWeek(s: GameState) {
     if (e.kind === 'rain') s.flags.rain = true;
     if (e.kind === 'dry') s.flags.dry = true;
   }
+  if (droughtTrialOn(s)) { s.flags.dry = true; s.flags.rain = false; }
   if (newSeason) seasonStart(s);
   s.days = weekDays(s);
   // Cards kept by the player survive every season and year boundary.
@@ -1115,6 +1174,7 @@ function startWeek(s: GameState) {
   for (const c of CROP_IDS) s.noise[c] = sigma * gauss(nw);
   // threats of the week, and with a scout drone those of the next one
   morningThreats(s);
+  trialMorning(s);
   crowMorning(s);
   thievesMorning(s);
   mischiefMorning(s);
@@ -1170,6 +1230,115 @@ function seasonStart(s: GameState) {
   }
   const names = ['Весна', 'Лето', 'Осень', 'Зима'];
   feed(s, `${names[s.season]}, ${s.year}-й год.`, 'info');
+}
+
+// ---------- the ordeal of the year ----------
+/** the ordeal announced for this year, while it is still to come or under way */
+export const trialAhead = (s: GameState) => (s.trial && s.trial.year === s.year && !s.trial.result ? s.trial : null);
+/** the last week the ordeal does damage in: a drought's last dry deaths come a week after its heat */
+export const trialEnd = (t: Trial) => t.week + t.len - 1 + (t.kind === 'drought' ? 1 : 0);
+/** weeks before it that the exact date of an ordeal is known */
+export const trialLead = (s: GameState, t: Trial) => (t.kind === 'locust' ? raidLead(s) + 1 : Math.max(2, lookahead(s)));
+export const trialKnown = (s: GameState, t: Trial) => t.week - s.absWeek <= trialLead(s, t);
+export const droughtTrialOn = (s: GameState) => { const t = trialAhead(s); return !!t && t.kind === 'drought' && s.absWeek >= t.week && s.absWeek < t.week + t.len; };
+export const trialWeekNow = (s: GameState) => { const t = trialAhead(s); return !!t && s.absWeek >= t.week && s.absWeek <= trialEnd(t); };
+
+/** Called when a year begins (and by the test fixtures): picks the ordeal, its window and its week. */
+export function planTrial(s: GameState, forced?: TrialKind, at?: number) {
+  if (s.year < TRIAL_FIRST_YEAR && !forced) return;
+  const [sp, su, au] = locOf(s).seasons;
+  const w = world(s, 'trial', s.year);
+  const prev = s.trial?.kind;
+  const pool = TRIAL_POOL[s.loc].filter((k) => k !== prev);
+  const kind = forced ?? pool[randInt(w, pool.length)];
+  const power = trialPower(s.year);
+  const S0 = sp + 1, S1 = sp + su, A0 = S1 + 1, A1 = S1 + au;
+  let from: number, to: number, len = 1;
+  if (kind === 'frost') { from = S1 - 1; to = Math.min(A1, A0 + 1); }
+  else if (kind === 'locust') { len = trialWaves(power); from = S0 + 3; to = Math.max(from, S1 - 2 - len); }
+  else { len = trialDroughtLen(power); from = S0 + 2; to = Math.max(from, S1 - 1 - len); }
+  const wk = at !== undefined ? at - s.yearStart + 1 : from + randInt(w, to - from + 1);
+  const abs = (k: number) => s.yearStart + k - 1;
+  const t: Trial = { id: `${s.year}-${kind}`, kind, year: s.year, power, from: abs(Math.min(from, wk)), to: abs(Math.max(to, wk)), week: abs(wk), len };
+  // the weather of those weeks is the ordeal's own; the year plan is a copy, never the cached original
+  s.temps = [...s.temps];
+  const span = (e: Episode, a: number, b: number) => e.start <= b && episodeEnd(e) >= a;
+  if (kind === 'frost') {
+    t.temp = trialFrostTemp(power);
+    s.temps[wk - 1] = t.temp;
+    s.plan = s.plan.filter((e) => !(EPISODES[e.kind].row === 'climate' && span(e, t.week, t.week)));
+  } else if (kind === 'locust') {
+    t.dir = (['w', 'e', 'n', 's'] as TrialDir[])[randInt(w, 4)];
+    s.plan = s.plan.filter((e) => !(EPISODES[e.kind].row === 'threat' && span(e, t.week - 2, t.week + len)));
+  } else {
+    for (let k = wk; k < wk + len; k++) s.temps[k - 1] = Math.max(s.temps[k - 1] + 6, 28);
+    s.plan = s.plan.filter((e) => !((e.kind === 'rain' || e.kind === 'frost') && span(e, t.week - 1, t.week + len)));
+  }
+  s.trial = t;
+  feed(s, `Испытание года: «${TRIALS[kind].name}». Ждите его ${TRIALS[kind].window}.`, 'bad');
+}
+
+/** the beds a wave of the swarm sweeps: a band of columns or rows of the farm, from the side it comes from */
+export function locustBand(s: GameState, t: Trial, wave: number): [number, number][] {
+  const own = ownedTiles(s);
+  if (!own.length) return [];
+  const horiz = t.dir === 'w' || t.dir === 'e';
+  const coord = ([, x, y]: [Tile, number, number]) => (horiz ? x : y);
+  const lo = Math.min(...own.map(coord)), hi = Math.max(...own.map(coord));
+  const width = hi - lo + 1;
+  const a = Math.floor((wave * width) / t.len), b = Math.max(a, Math.floor(((wave + 1) * width) / t.len) - 1);
+  const lines = new Set<number>();
+  for (let k = a; k <= b; k++) lines.add(Math.min(hi, lo + k));
+  const rev = t.dir === 'e' || t.dir === 's';
+  return own.filter((o) => lines.has(rev ? hi - (coord(o) - lo) : coord(o))).map(([, x, y]) => [x, y]);
+}
+export function trialMorning(s: GameState) {
+  const t = trialAhead(s);
+  if (!t) return;
+  if (s.absWeek === t.week - trialLead(s, t)) feed(s, `${TRIALS[t.kind].name}: ${t.kind === 'locust' ? 'туча уже видна на горизонте' : 'точный срок известен'} — через ${trialLead(s, t)} нед.`, 'bad');
+  if (t.kind !== 'locust') return;
+  for (let i = 0; i < t.len; i++) {
+    const wk = t.week + i, ahead = wk - s.absWeek;
+    const st = s.strikes.find((x) => x.trial && x.week === wk);
+    if (st && !st.cells.length && ahead >= 0) s.strikes = s.strikes.filter((x) => x !== st);
+    else if (st) continue;
+    if (ahead >= 0 && ahead <= trialLead(s, t))
+      s.strikes.push({ kind: 'locust', ep: -t.year, week: wk, cells: locustBand(s, t, i).map(([x, y]) => [x, y, 0]), zone: true, wave: i + 1, trial: true });
+  }
+}
+function trialNight(s: GameState, t: Trial): TrialNight {
+  if (!s.report.trial) s.report.trial = { id: t.id, kind: t.kind, fires: firePits(s).map(([x, y]) => [x, y]), lit: firesLit(s), cells: [], ...(t.temp !== undefined ? { temp: t.temp } : {}), ...(t.dir ? { dir: t.dir } : {}), waves: t.len };
+  return s.report.trial;
+}
+/** the stake of the ordeal, taken on the morning it begins */
+function beginTrial(s: GameState, t: Trial) {
+  if (t.beds !== undefined) return;
+  let beds = 0, risk = 0;
+  for (const [tl, x, y] of ownedTiles(s)) {
+    if (!tl.crop || tl.crop.rest || CROPS[tl.crop.id].product) continue;
+    beds++;
+    risk += expectedYield(s, x, y) * priceOf(s, tl.crop.id);
+  }
+  t.beds = beds; t.risk = round2(risk); t.lostValue = 0; t.lostUnits = 0;
+}
+function trialLoss(t: Trial, units: number, value: number) {
+  t.lostUnits = (t.lostUnits ?? 0) + units;
+  t.lostValue = round2((t.lostValue ?? 0) + value);
+}
+function settleTrial(s: GameState, t: Trial) {
+  const risk = t.risk ?? 0;
+  const saved = risk > 0 ? Math.max(0, Math.min(1, 1 - (t.lostValue ?? 0) / risk)) : 1;
+  const grade = trialGrade(t.beds ?? 0, saved);
+  const glory = TRIAL_GLORY[grade];
+  const def = TRIALS[t.kind];
+  const result: TrialResult = { grade, saved: Math.round(saved * 1000) / 1000, beds: t.beds ?? 0, risk, lostValue: t.lostValue ?? 0, lostUnits: t.lostUnits ?? 0, glory };
+  if (glory) addGlory(s, glory, `trial-${t.id}`);
+  if (grade === 3 && !s.certs.includes(def.cert)) { grant(s, { cert: def.cert }, `trial-${t.id}`); result.cert = def.cert; }
+  t.result = result;
+  trialNight(s, t).result = result;
+  const pct = Math.round(saved * 100);
+  feed(s, grade === 0 ? `${def.name}: поле почти пустое — испытание переждали. Слава +${glory}.`
+    : `${def.name}: ${grade === 3 ? 'выстояли' : grade === 2 ? 'устояли' : 'хозяйство потрепало'} — спасено ${pct}% урожая${glory ? `, слава +${glory}` : ''}.`, grade >= 2 ? 'good' : 'bad');
 }
 
 // ---------- declared threats ----------
@@ -1294,6 +1463,7 @@ export function strikeVictims(s: GameState, st: Strike): [number, number][] {
     if (st.kind === 'hail' && t.shelter > 0) continue;
     if (!st.zone && t.crop.pid !== pid) continue;
     if (PESTS.includes(st.kind) && (t.crop.traits?.includes('tough') || garlicNear(s, x, y))) continue;
+    if (st.trial && inSmoke(s, x, y)) continue;
     out.push([x, y]);
   }
   return out;
@@ -1307,7 +1477,7 @@ function strikeOutcome(s: GameState, st: Strike, sorties: number, insurance: num
   const hit = st.kind === 'weedsurge' ? all : all.filter(([x, y]) => !isGuarded(s, x, y));
   let guard: 'drone' | 'insurance' | null = null;
   if (hit.length && st.kind !== 'weedsurge') {
-    if (PESTS.includes(st.kind) && sorties > 0) guard = 'drone';
+    if (PESTS.includes(st.kind) && sorties > 0 && !st.trial) guard = 'drone';
     else if (insurance > 0) guard = 'insurance';
   }
   return { all, hit, guard, guarded: all.length - hit.length };
@@ -1333,6 +1503,16 @@ function resolveStrikes(s: GameState, diagnostic?: Pick<WeekOutlook, 'threats'>)
     const name = STRIKE_NAME[st.kind];
     const o = strikeOutcome(s, st, sortiesPerSeason(s) - s.dronesUsed, s.insurance);
     if (o.guarded) feed(s, `${name}: ${o.guarded} ${plural(o.guarded, 'защищённая грядка уцелела', 'защищённые грядки уцелели', 'защищённых грядок уцелело')}.`, 'good');
+    const ord = st.trial ? trialAhead(s) : null;
+    if (ord) {
+      const n = trialNight(s, ord);
+      n.wave = st.wave; n.band = st.cells.map(([x, y]) => [x, y]);
+      for (const [x, y] of n.band) {
+        const t = tile(s, x, y);
+        if (!t.crop || o.hit.some(([a, b]) => a === x && b === y)) continue;
+        n.cells.push({ x, y, out: inSmoke(s, x, y) ? 'smoke' : isGuarded(s, x, y) ? 'guarded' : 'held' });
+      }
+    }
     if (!o.hit.length) continue;
     diagnostic?.threats.push({ name, beds: o.hit.length, guard: o.guard === 'drone' ? 'дрон' : o.guard === 'insurance' ? 'денежная компенсация'  : null });
     if (o.guard === 'drone') {
@@ -1354,15 +1534,17 @@ function resolveStrikes(s: GameState, diagnostic?: Pick<WeekOutlook, 'threats'>)
     }
     let lost = 0, lossValue = 0;
     const destroy = st.kind === 'locust';
+    const ordeal = st.trial ? trialAhead(s) : null;
     const factor = st.kind === 'beetle' && hasPet(s, 'hedgehog') ? 0.75 : 0.5;
     for (const [x,y] of o.hit) {
       const beforePlant={...tile(s,x,y).crop!};
       const crop=beforePlant.id;
       const units=destroy ? noteLoss(s,x,y) : noteLoss(s,x,y,()=>tile(s,x,y).crop!.mult*=factor, st.kind === 'hail' || st.kind === 'flood' ? st.kind : undefined);
       lost+=units; lossValue+=units*priceOf(s,crop);
+      if(ordeal){trialLoss(ordeal,units,units*priceOf(s,crop));trialNight(s,ordeal).cells.push({x,y,out:'eaten',before:beforePlant,after:null,lost:units});}
       if(st.kind==='locust'||st.kind==='beetle'){
         if(st.kind==='beetle'&&tile(s,x,y).crop)tile(s,x,y).crop!.chewed=true;
-        (r.pestHits??=[]).push({kind:st.kind,x,y,plant:beforePlant,lost:units,after:tile(s,x,y).crop?{...tile(s,x,y).crop!}:null});
+        (r.pestHits??=[]).push({kind:st.kind,x,y,plant:beforePlant,lost:units,after:tile(s,x,y).crop?{...tile(s,x,y).crop!}:null,...(st.trial?{trial:true}:{})});
       }
     }
     if(o.guard==='insurance' && lossValue>0) {
@@ -1580,9 +1762,33 @@ function resolveWeek(s: GameState, diagnostic?: Pick<WeekOutlook, 'threats'>) {
   // 1. Water arrives before drought/growth; identical to the visible forecast.
   const watered=growthMoisture(s);
   s.tiles.forEach((t,i)=>t.moisture=watered[i]);
-  // 2. frost
+  const ordeal = trialAhead(s);
+  const ordealOn = !!ordeal && s.absWeek >= ordeal.week && s.absWeek <= trialEnd(ordeal);
+  if (ordeal && ordealOn) { beginTrial(s, ordeal); trialNight(s, ordeal); }
+  // 2. frost. The ordeal's black frost grades its blow: a bed within 1° of its limit is only nipped (half the crop)
+  const blackFrost = ordealOn && ordeal!.kind === 'frost' && s.absWeek === ordeal!.week ? ordeal! : null;
   for (const [t, x, y] of ownedTiles(s)) {
-    if (!t.crop || !frostKills(s, x, y, air)) continue;
+    if (!t.crop) continue;
+    if (blackFrost) {
+      const margin = air + frostShield(s, t) - frostLimit(t.crop);
+      const n = trialNight(s, blackFrost);
+      const before = clone(t.crop);
+      const price = priceOf(s, t.crop.id);
+      if (margin <= 0) {
+        const lost = noteLoss(s, x, y, undefined, 'frost');
+        trialLoss(blackFrost, lost, lost * price);
+        n.cells.push({ x, y, out: 'killed', before, after: null, lost });
+        r.frost++;
+      } else if (margin <= 1 && !t.crop.rest) {
+        const c = t.crop;
+        const lost = noteLoss(s, x, y, () => { c.mult *= 0.5; }, 'frost');
+        s.report.fieldDamage!.at(-1)!.note = 'прихватило';
+        trialLoss(blackFrost, lost, lost * price);
+        n.cells.push({ x, y, out: 'bitten', before, after: clone(c), lost });
+      } else n.cells.push({ x, y, out: 'held' });
+      continue;
+    }
+    if (!frostKills(s, x, y, air)) continue;
     noteLoss(s, x, y, undefined, 'frost');
     r.frost++;
   }
@@ -1599,10 +1805,18 @@ function resolveWeek(s: GameState, diagnostic?: Pick<WeekOutlook, 'threats'>) {
       continue;
     }
     t.crop.dry = (t.crop.dry ?? 0) + 1;
-    if (t.crop.dry >= (t.crop.traits?.includes('drought') ? 3 : 2)) {
-      noteLoss(s, x, y, undefined, 'dry');
+    // in the great drought one dry week is enough (two for a drought-hardy variety)
+    const drySpan = droughtTrialOn(s) ? 1 : 2;
+    if (t.crop.dry >= (t.crop.traits?.includes('drought') ? drySpan + 1 : drySpan)) {
+      const before = clone(t.crop), price = priceOf(s, t.crop.id);
+      const lost = noteLoss(s, x, y, undefined, 'dry');
+      if (ordealOn && ordeal!.kind === 'drought') { trialLoss(ordeal!, lost, lost * price); trialNight(s, ordeal!).cells.push({ x, y, out: 'dried', before, after: null, lost }); }
       r.dried++;
     }
+  }
+  if (ordealOn && ordeal!.kind === 'drought') {
+    const n = trialNight(s, ordeal!);
+    for (const [t, x, y] of ownedTiles(s)) if (t.crop && !t.crop.rest && !n.cells.some((c) => c.x === x && c.y === y)) n.cells.push({ x, y, out: 'held' });
   }
   if (r.dried) {
     r.lost.push(`Засохли без воды: ${r.dried} ${plural(r.dried, 'растение', 'растения', 'растений')}`);
@@ -1636,6 +1850,8 @@ function resolveWeek(s: GameState, diagnostic?: Pick<WeekOutlook, 'threats'>) {
       const extra = (s.flags.dry && t.terrain === 'sand' ? 2 : 1) - (wlvl(s, 'irrigator') >= 2 ? 1 : 0);
       t.moisture = Math.max(0, t.moisture - extra);
     }
+    // the great drought takes one more from every open bed; mulch and drip lines keep it in
+    if (droughtTrialOn(s) && t.structure !== 'greenhouse' && !(t.mulch > 0) && !t.drip && t.crop?.id !== 'sunflower' && !t.crop?.traits?.includes('drought')) t.moisture = Math.max(0, t.moisture - 1);
   }
   for (const [t] of ownedTiles(s)) { if (t.mulch > 0) t.mulch--; if (t.shelter > 0) t.shelter--; }
   // 10. weeds
@@ -1734,6 +1950,7 @@ function resolveWeek(s: GameState, diagnostic?: Pick<WeekOutlook, 'threats'>) {
   s.effects = s.effects.filter((e) => e.weeks > 0);
   s.strikes = s.strikes.filter((x) => x.week > s.absWeek);
   s.guards = [];
+  if (ordeal && ordealOn && s.absWeek === trialEnd(ordeal)) settleTrial(s, ordeal);
   settle(s);
   s.lastReport = r;
 }
@@ -2224,6 +2441,7 @@ export type Action =
   | { t: 'pay' }
   | { t: 'emergency' }
   | { t: 'restructure' }
+  | { t: 'lightFires' }
   | { t: 'giveUp' };
 
 const ANY_PHASE: Action['t'][] = ['guide', 'pay', 'emergency', 'restructure', 'giveUp', 'sell', 'borrow', 'repay', 'deliver'];
@@ -2450,6 +2668,16 @@ export function apply(state: GameState, a: Action): GameState {
     case 'build':
       build(s, a.item, a.x, a.y);
       break;
+    case 'lightFires': {
+      const why = lightFiresProblem(s);
+      if (why) fail(why);
+      const cost = firewoodCost(s);
+      needDay(s, fireLightDays(s));
+      spend(s, cost, 'work');
+      s.firesLit = s.absWeek;
+      feed(s, `Разожгли костры на ночь: ${firePits(s).length} ${plural(firePits(s).length, 'кострище', 'кострища', 'кострищ')}, дрова ${money(cost)}.`, 'info');
+      break;
+    }
     case 'unbuild':
       unbuild(s, a.item, a.x, a.y);
       break;
@@ -2711,10 +2939,11 @@ export function buildSpots(s: GameState, item: BuildItem): [number, number][] {
     for (let y = 0; y < GRID; y++) if (ownedTiles(s).some(([t, , ty]) => ty === y && !t.drip)) out.push([0, y]);
     return out;
   }
-  if (item === 'scarecrow') {
+  if (item === 'scarecrow' || item === 'fire') {
+    // a scarecrow and a fire pit both stand on a corner of four beds; one thing per corner
     for (let y = 0; y < GRID - 1; y++)
       for (let x = 0; x < GRID - 1; x++)
-        if (scarecrowCells(x, y).some(([a, b]) => tile(s, a, b).owned) && !s.scarecrows.some(([a, b]) => a === x && b === y)) out.push([x, y]);
+        if (scarecrowCells(x, y).some(([a, b]) => tile(s, a, b).owned) && !s.scarecrows.some(([a, b]) => a === x && b === y) && !firePits(s).some(([a, b]) => a === x && b === y)) out.push([x, y]);
     return out;
   }
   for (const [t, x, y] of ownedTiles(s)) {
@@ -2728,6 +2957,7 @@ export function buildSpots(s: GameState, item: BuildItem): [number, number][] {
 export function buildMoveSpots(s: GameState, item: BuildItem, from?: [number, number]): [number, number][] {
   if (!from) {
     if (item === 'scarecrow') return s.scarecrows.map(([x, y]) => [x, y]);
+    if (item === 'fire') return firePits(s).map(([x, y]) => [x, y]);
     if (item === 'drip') return [...new Set(s.tiles.flatMap((t, i) => t.drip ? [Math.floor(i / GRID)] : []))].map((y) => [0, y]);
     return ownedTiles(s).filter(([t]) => item === 'canal' ? t.canal : t.structure === item).map(([, x, y]) => [x, y]);
   }
@@ -2746,6 +2976,7 @@ function build(s: GameState, item: BuildItem, x: number, y: number) {
   if (!buildSpots(s, item).some(([a, b]) => (item === 'drip' ? b === y : a === x && b === y))) fail('Сюда не поставить');
   if (item === 'drip') for (let k = 0; k < GRID; k++) tile(s, k, y).drip = true;
   else if (item === 'scarecrow') s.scarecrows.push([x, y]);
+  else if (item === 'fire') s.fires = [...firePits(s), [x, y]];
   else if (item === 'canal') {
     const t = tile(s, x, y);
     t.canal = true;
@@ -2761,6 +2992,9 @@ function unbuild(s: GameState, item: BuildItem, x: number, y: number) {
     const i = s.scarecrows.findIndex(([a, b]) => a === x && b === y);
     if (i < 0) fail('Здесь нет пугала');
     s.scarecrows.splice(i, 1);
+  } else if (item === 'fire') {
+    if (!firePits(s).some(([a, b]) => a === x && b === y)) fail('Здесь нет кострища');
+    s.fires = firePits(s).filter(([a, b]) => a !== x || b !== y);
   } else if (item === 'canal') {
     if (!tile(s, x, y).canal) fail('Здесь нет канала');
     tile(s, x, y).canal = false;

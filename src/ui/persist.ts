@@ -5,6 +5,7 @@ import { CARDS, CROPS, LOCATION_IDS, ORGS, PETS, SEED_BANK_OK, TERRAIN, TRACKS, 
 import type { GameState } from '../engine/game';
 import { newGame } from '../engine/game';
 import { EPISODES } from '../engine/calendar';
+import { TRIALS } from '../engine/trials';
 import { canWriteSession, managedSaveSession, saveSession } from './saveSession';
 
 const PROFILE = 'posevnaya.v4.profile';
@@ -194,6 +195,10 @@ export function validFarm(v: unknown): v is GameState {
   if(v.guide!==undefined && !arr(v.guide,x=>typeof x==='string' && ['plant','rotate','water','harvest','sale','payment','order','delivery','soil'].includes(x))) return false;
   if(['compostReady','shortfallBorrowed'].some(k=>v[k]!==undefined && typeof v[k]!=='boolean')) return false;
   if(v.exchangeWeek!==undefined && (!Number.isInteger(v.exchangeWeek) || v.exchangeWeek<0)) return false;
+  // the ordeal of the year and the fire pits (absent in older saves)
+  if(v.fires!==undefined && !coords(v.fires)) return false;
+  if(v.firesLit!==undefined && (!Number.isInteger(v.firesLit) || v.firesLit<0)) return false;
+  if(v.trial!==undefined && !(obj(v.trial) && typeof v.trial.id==='string' && member(TRIALS,v.trial.kind) && ['year','power','from','to','week','len'].every(k=>Number.isInteger(v.trial[k])) && (v.trial.dir===undefined || ['w','e','n','s'].includes(v.trial.dir)) && ['temp','beds','risk','lostValue','lostUnits'].every(k=>v.trial[k]===undefined || num(v.trial[k])) && (v.trial.result===undefined || obj(v.trial.result) && [0,1,2,3].includes(v.trial.result.grade) && ['saved','beds','risk','lostValue','lostUnits','glory'].every(k=>num(v.trial.result[k]))))) return false;
   if(v.scenes!==undefined && !arr(v.scenes,e=>obj(e) && typeof e.id==='string' && Number.isInteger(e.week) && e.week>=0 && (e.at===undefined||coords([e.at])) && (e.visit===undefined || obj(e.visit) && ['stolen','empty'].includes(e.visit.outcome) && coords(e.visit.targets) && coords(e.visit.crows)) && ['dogThieves','thieves','watchman','drone','geese'].includes(e.kind))) return false;
 
   if (!shape(v, base) || !Number.isInteger(v.season) || v.season < 0 || v.season > 3 || v.year < 1 || v.week < 0 || v.week > base.temps.length || v.absWeek < 0) return false;
@@ -211,7 +216,7 @@ export function validFarm(v: unknown): v is GameState {
   if (new Set(uids).size !== uids.length) return false;
   if (!arr(v.plan, (x) => obj(x) && member(EPISODES, x.kind) && ['id', 'start', 'len'].every((k) => num(x[k]))) || !arr(v.temps, num) || v.temps.length !== base.temps.length) return false;
   if (!arr(v.loans, (x) => obj(x) && ['id', 'principal', 'rate'].every((k) => num(x[k]))) || !arr(v.effects, (x) => obj(x) && x.kind === 'review' && num(x.mult) && num(x.weeks))) return false;
-  if (!arr(v.strikes, (x) => obj(x) && ['hail', 'flood', 'beetle', 'locust', 'weedsurge'].includes(x.kind) && num(x.ep) && num(x.week) && typeof x.zone === 'boolean' && arr(x.cells, (c) => Array.isArray(c) && c.length === 3 && c.every(num) && cell(c[0], c[1])))) return false;
+  if (!arr(v.strikes, (x) => obj(x) && (x.trial===undefined || typeof x.trial==='boolean') && ['hail', 'flood', 'beetle', 'locust', 'weedsurge'].includes(x.kind) && num(x.ep) && num(x.week) && typeof x.zone === 'boolean' && arr(x.cells, (c) => Array.isArray(c) && c.length === 3 && c.every(num) && cell(c[0], c[1])))) return false;
   if (!(v.crows === null || obj(v.crows) && num(v.crows.week) && typeof v.crows.shoo === 'boolean' && typeof v.crows.drone === 'boolean' && arr(v.crows.targets, (x) => obj(x) && ['x', 'y', 'pid'].every((k) => num(x[k])) && cell(x.x, x.y) && ['young', 'ripe'].includes(x.type)))) return false;
   if (!['crowWarn', 'crowRolled', 'kidsWarn', 'kidsRolled'].every((k) => v[k] === undefined || arr(v[k], num))) return false;
   if (!(v.thieves === null || obj(v.thieves) && num(v.thieves.week) && typeof v.thieves.talked === 'boolean' && arr(v.thieves.targets, (x) => obj(x) && ['x', 'y', 'pid'].every((k) => num(x[k])) && cell(x.x, x.y)))) return false;
