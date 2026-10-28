@@ -10,7 +10,7 @@ import { canWriteSession, managedSaveSession, saveSession } from './saveSession'
 const PROFILE = 'posevnaya.v4.profile';
 const FARM = (loc: LocationId) => `posevnaya.v4.farm.${loc}`;
 const observed = new Map<string, string | null>();
-const liveKeys = [PROFILE, ...LOCATION_IDS.map(FARM), 'posevnaya.tutorial.atlas.v3', 'posevnaya.tutorial.active'];
+const liveKeys = [PROFILE, ...LOCATION_IDS.map(FARM), 'posevnaya.tutorial.atlas.v4', 'posevnaya.tutorial.active'];
 
 // Called only after acquiring exclusive ownership, before loading any UI state.
 export function resetPersistenceSession() {

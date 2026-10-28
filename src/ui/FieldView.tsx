@@ -1,5 +1,6 @@
 import { AnimationClock } from './animationClock';
 import type {PestHit} from '../engine/game';
+import { useLessonLock } from './lesson';
 import { useSceneQueue, chooseScene, finishScenes, completed, type SceneCue } from './useSceneQueue';
 import { buildWeekPlayback, CALENDAR_MS, theftStagger, eventKinds, pendingKinds, type WeekEvent } from './weekPlayback';
 import {readWeekResume,saveWeekResume,clearWeekResume,type WeekResume} from './weekResume';
@@ -658,6 +659,17 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
       for (const k of keys) m.delete(k);
       return m;
     });
+  };
+  // the training farm keeps the deck's exchange and the toolbox closed until their lessons
+  const lessonLock = useLessonLock();
+  const deckLock = lessonLock('deck'), toolsLock = lessonLock('tools');
+  // what a closed control says when touched: right above the dock, where the finger is
+  const [lockNote, setLockNote] = useState<string | null>(null);
+  const lockTimer = useRef<number | null>(null);
+  const sayLocked = (text: string) => {
+    setLockNote(text);
+    if (lockTimer.current) clearTimeout(lockTimer.current);
+    lockTimer.current = window.setTimeout(() => setLockNote(null), 2800);
   };
   const say = (text: string) => {
     setFlash(text);
@@ -1711,14 +1723,16 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
       </div>
 
       <footer ref={dockRef} class={`dock${card ? ' picking' : ''}${shown ? ' reading' : ''}${room.read ? ' roomy' : ''}${room.read > 40 ? ' roomy-2' : ''}${build || lens ? ' viewing' : ''}`}>
+        {lockNote && <div class="lock-say" role="status"><Icon name="lock" size={14} /><span>{lockNote}</span></div>}
         <div class="dock-top">
-          <button type="button" class={`deck-pile dock exchange-deck${exchanging?' choosing':''}`} disabled={weekPlaying} aria-pressed={exchanging==='card'} onClick={()=>{
+          <button type="button" class={`deck-pile dock exchange-deck${exchanging?' choosing':''}${deckLock?' locked':''}`} disabled={weekPlaying} aria-pressed={exchanging==='card'} onClick={()=>{
+            if(deckLock)return sayLocked(deckLock);
             const why=exchangeProblem(s,card?.uid); if(why)return say(why);
             if(card) {if(act({t:'exchangeCard',uid:card.uid}))setSelected(null);}
             else {closeContext();setBuild(null);setLens(null);setTools(false);setExchanging(exchanging==='card'?false:'card');}
           }} title="Колода. Обменять одну карту за 1 день · раз в неделю" aria-label={`Колода: ${deckCount(s)} карт. Обменять карту за 1 день`}>
             <DeckPile n={deckCount(s)} />
-            <small>{exchangesUsed(s)>=exchangesPerWeek(s)?'обменено':<>обмен<br/>1 д.</>}</small>
+            <small>{deckLock?<><Icon name="lock" size={11}/> обмен</>:exchangesUsed(s)>=exchangesPerWeek(s)?'обменено':<>обмен<br/>1 д.</>}</small>
           </button>
           {/* the toolbox: one round button; the journal, the lenses and the buildings unfold from it */}
           <div class={`toolbox${tools ? ' open' : ''}${lensMenu ? ' lenses' : ''}`} role="toolbar" aria-label="Инструменты поля">
@@ -1735,9 +1749,10 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
                 </button>
               ))}
             </div>
-            <button type="button" class={`tool-btn toolbox-btn${lens || build ? ' on' : ''}${urgent && !tools ? ' urgent' : ''}`} aria-expanded={tools}
-              aria-label={lens ? 'Выключить линзу' : build ? 'Завершить постройки' : tools ? 'Свернуть инструменты' : 'Инструменты: журнал, линзы, постройки'}
+            <button type="button" class={`tool-btn toolbox-btn${lens || build ? ' on' : ''}${urgent && !tools && !toolsLock ? ' urgent' : ''}${toolsLock && !lens && !build ? ' locked' : ''}`} aria-expanded={tools}
+              aria-label={lens ? 'Выключить линзу' : build ? 'Завершить постройки' : tools ? 'Свернуть инструменты' : toolsLock ? 'Инструменты — закрыто' : 'Инструменты: журнал, линзы, постройки'}
               onClick={() => {
+                if (toolsLock && !lens && !build && !tools) { sayLocked(toolsLock); return; }
                 if (lens) { setLens(null); setLensMenu(false); return; }
                 if (build) { setBuild(null); setMoveFrom(null); return; }
                 if (tools) { setTools(false); setLensMenu(false); return; }
@@ -1747,7 +1762,8 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
                 : build ? <Icon name="build" size={24} />
                 : tools ? <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6 L18 18 M18 6 L6 18" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" /></svg>
                 : <ToolboxGlyph />}
-              {urgent && !tools && <i aria-hidden="true" />}
+              {urgent && !tools && !toolsLock && <i aria-hidden="true" />}
+              {toolsLock && !lens && !build && !tools && <span class="tool-lock" aria-hidden="true"><Icon name="lock" size={12} /></span>}
             </button>
           </div>
           <div class="dock-say" role="status">

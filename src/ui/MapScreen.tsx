@@ -96,12 +96,12 @@ function LessonButton({ onClick }: { onClick: () => void }) {
   let step: string | null = null;
   try { step = JSON.parse(localStorage.getItem(TUTORIAL_KEY) || 'null')?.step ?? null; } catch {}
   const i = step ? TUTORIAL_STEPS.indexOf(step as never) : -1, of = TUTORIAL_STEPS.length - 1;
-  const done = step === 'done', started = i > 0;
+  const done = step === 'done', started = i > 0, firstDone = step === 'chapter';
   const chapter = i > TUTORIAL_STEPS.indexOf('chapter') ? 'II' : 'I';
   return (
     <button class={`atlas-lesson${started ? ' started' : ''}${done ? ' done' : ''}`} onClick={onClick}>
       <span class="al-face"><img src={PORTRAIT_IMAGES.palych} alt="" /></span>
-      <span class="al-text"><b>Учебная ферма</b><small>{done ? 'Пройдена — можно заглянуть ещё раз' : started ? `Продолжить · глава ${chapter}` : 'Палыч покажет, как вести хозяйство · 15 минут'}</small>
+      <span class="al-text"><b>Учебная ферма</b><small>{done ? 'Пройдена — можно заглянуть ещё раз' : firstDone ? 'Глава I пройдена · глава II по желанию' : started ? `Продолжить · глава ${chapter}` : 'Первый урожай за пять минут — Палыч покажет'}</small>
         {started && <span class="al-bar" aria-hidden="true"><i style={{ width: `${Math.round((i / of) * 100)}%` }} /></span>}</span>
       <span class="al-go" aria-hidden="true"><svg viewBox="0 0 16 16" width="16" height="16"><path d={done ? 'M3.5 8.5 L6.8 11.5 L12.5 4.8' : 'M6 3.5 L10.5 8 L6 12.5'} fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg></span>
     </button>

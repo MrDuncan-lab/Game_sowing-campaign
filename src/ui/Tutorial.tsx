@@ -1,12 +1,13 @@
 import {useEffect,useRef,useState} from 'preact/hooks';
 import {type Action} from '../engine/game';
-import {applyTutorial,createTutorial,normalizeTutorial,readTutorialChapter,restartTutorialStep,tutorialNext,tutorialProblem,TUTORIAL_KEY,TUTORIAL_SEED,TUTORIAL_STEPS,type TutorialSession} from '../engine/tutorial';
+import {applyTutorial,createTutorial,normalizeTutorial,restartTutorialStep,tutorialAccepted,tutorialNext,tutorialProblem,TUTORIAL_KEY,type TutorialSession} from '../engine/tutorial';
 import {FarmScreen} from './FarmScreen';
 import {validFarm,checkSaveSession,writeSessionStorage,type Profile} from './persist';
 import {Sheet,Btn} from './common';
 function load():TutorialSession {
+  // A lesson stored by an older build (version 3, its own key) is not continued: the training farm starts anew.
   try {const v=JSON.parse(localStorage.getItem(TUTORIAL_KEY)||'null');
-    if(v?.version===3&&TUTORIAL_STEPS.includes(v.step)&&v.farm?.seed===TUTORIAL_SEED&&validFarm(v.farm)&&Number.isInteger(v.heldUid)&&Number.isInteger(v.labUid)&&(!v.checkpoint||validFarm(v.checkpoint.farm)&&TUTORIAL_STEPS.includes(v.checkpoint.step)))return normalizeTutorial(v);
+    if(tutorialAccepted(v,validFarm))return normalizeTutorial(v);
   }catch{}return createTutorial();
 }
 export function Tutorial({profile,onExit}:{profile:Profile;onExit:()=>void}) {
@@ -22,7 +23,7 @@ export function Tutorial({profile,onExit}:{profile:Profile;onExit:()=>void}) {
   const dispatch=(a:Action)=>{if(!checkSaveSession())return null;try{const n=applyTutorial(ref.current,a);if(!save(n))return null;setError(null);return n.farm;}catch(e){setError(e instanceof Error?e.message:String(e));return null;}};
   const restart=()=>{if(save(restartTutorialStep(ref.current))){setError(null);setReset(n=>n+1);}};
   return <><FarmScreen key={reset} s={session.farm} profile={profile} dispatch={dispatch} fast={fast} onFast={()=>setFast(v=>!v)} onMap={onExit} onRestart={restart} error={error}
-    tutorial={{session,error,precheck:a=>tutorialProblem(ref.current,a),onHideHint:hidden=>{save({...ref.current,hiddenHintStep:hidden?ref.current.step:undefined});},onNext:()=>{save(tutorialNext(ref.current));},onChapterRead:()=>{save(readTutorialChapter(ref.current));},onExit,onRetry:restart,onReset:()=>setConfirmReset(true)}}/>
+    tutorial={{session,error,precheck:a=>tutorialProblem(ref.current,a),onHideHint:hidden=>{save({...ref.current,hiddenHintStep:hidden?ref.current.step:undefined});},onNext:()=>{save(tutorialNext(ref.current));},onExit,onRetry:restart,onReset:()=>setConfirmReset(true)}}/>
     {confirmReset&&<Sheet title="Начать обучение заново?" icon="journal" variant="info" onClose={()=>setConfirmReset(false)} footer={<div class="btn-row"><Btn onClick={()=>setConfirmReset(false)}>Продолжить обучение</Btn><Btn tone="danger" onClick={()=>{if(save(createTutorial())){setError(null);setConfirmReset(false);setReset(n=>n+1);}}}>Начать с первой недели</Btn></div>}>
       <p>Пройденные учебные задания будут сброшены. Обычные фермы сохранятся.</p>
     </Sheet>}

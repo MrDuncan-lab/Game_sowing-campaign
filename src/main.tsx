@@ -23,6 +23,8 @@ import './contrast.css';
 // the field's motion language goes last: it owns growth, wind, the troubles in three acts and the animals' breath
 import './motion.css';
 import './main-screen.css';
+// the training farm's locks, openings and goal counter sit on top of every section's look
+import './lesson-locks.css';
 
 // favicon is set from code so the single-file build keeps it inlined
 if (!document.querySelector('link[rel="icon"]')) {

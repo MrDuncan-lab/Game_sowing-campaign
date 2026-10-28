@@ -11,6 +11,7 @@ import * as G from '../src/engine/game';
 import * as D from '../src/engine/data';
 import { testFixture } from '../src/engine/testLab';
 import * as TUT from '../src/engine/tutorial';
+import { play } from './lesson-walk';
 import { emptyProfile, loadFarm, saveFarm, saveProfile, loadProfile, syncProfile, validFarm } from '../src/ui/persist';
 
 // ---------- a Map-backed localStorage / sessionStorage (no window: managedSaveSession is false here) ----------
@@ -149,10 +150,9 @@ async function oldSaves(): Promise<Record<string, any>> {
   return json(out);
 }
 // HEAD's own load check for a tutorial session (src/ui/Tutorial.tsx · load)
-const tutorialAccepted = (v: any) => v?.version === 3 && TUT.TUTORIAL_STEPS.includes(v.step) && v.farm?.seed === TUT.TUTORIAL_SEED && validFarm(v.farm)
-  && Number.isInteger(v.heldUid) && Number.isInteger(v.labUid) && (!v.checkpoint || validFarm(v.checkpoint.farm) && TUT.TUTORIAL_STEPS.includes(v.checkpoint.step));
-// the action a careful learner takes at each lesson step
-function lessonAction(E: any, T: any, t: any): any {
+const tutorialAccepted = (v: any) => TUT.tutorialAccepted(v, validFarm);
+// the action a careful learner takes at each step of the OLD build's lesson (version 3)
+function oldLessonAction(E: any, T: any, t: any): any {
   const s = t.farm, org = Object.keys(s.orgs)[0];
   switch (t.step) {
     case 'plant': return { t: 'play', uid: s.hand.find((c: any) => c.def === 'seed_radish').uid, tiles: [[2, 2]] };
@@ -179,13 +179,6 @@ function lessonAction(E: any, T: any, t: any): any {
     }
     default: { const dry = T.dryBeds(s); return dry.length && s.days > 0 ? { t: 'waterHand', tiles: dry.slice(0, E.handWaterMax(s)) } : { t: 'endWeek' }; }
   }
-}
-function finishLesson(E: any, T: any, t: any): string {
-  for (let i = 0; i < 120 && t.step !== 'done'; i++) {
-    const a = lessonAction(E, T, t);
-    t = json(a === 'next' ? T.tutorialNext(t) : T.applyTutorial(t, a));
-  }
-  return t.step;
 }
 
 // ---------- the real App (show/startNew/toMap, Web Locks fence) in a child process, screens stubbed ----------
@@ -704,7 +697,7 @@ test(`ST-09 · a hive from a ${OLD} save (no hivePlacedWeek) pollinates at once;
   assert.equal(G.tile(moved, 2, 2).hivePlacedWeek, moved.absWeek);
   assert.ok(!G.yieldParts(moved, 2, 1, 'buckwheat').some((p) => p.label === 'улей рядом'), 'set down this week');
 });
-test(`FIX ST-09 · a lesson saved by ${OLD} at any step is accepted and can still be finished on HEAD`, async (t) => {
+test(`FIX ST-09 · a lesson saved by ${OLD} at any step is not continued: the training farm starts anew and can be finished`, async (t) => {
   const o = await old();
   if (!o) return t.skip(`${OLD} not available`);
   // the old build's lesson, saved after every step a learner can reach
@@ -712,18 +705,12 @@ test(`FIX ST-09 · a lesson saved by ${OLD} at any step is accepted and can stil
   let s = o.T.createTutorial();
   for (let i = 0; i < 120 && s.step !== 'done'; i++) {
     saved[s.step] ??= json(s);
-    const a = lessonAction(o.G, o.T, s);
+    const a = oldLessonAction(o.G, o.T, s);
     s = json(a === 'next' ? o.T.tutorialNext(s) : o.T.applyTutorial(s, a));
   }
-  assert.equal(Object.keys(saved).length, TUT.TUTORIAL_STEPS.length - 1);
-  const stuck: string[] = [];
-  for (const [step, v] of Object.entries(saved)) {
-    assert.equal(tutorialAccepted(v), true, `${step} rejected`);
-    let end: string;
-    try { end = finishLesson(G, TUT, TUT.normalizeTutorial(v)); } catch (e) { end = `throws «${(e as Error).message}»`; }
-    if (end !== 'done') stuck.push(`${step}: ${end}`);
-  }
-  assert.deepEqual(stuck, [], 'the lesson compost (heldUid) has no Card.keep and is discarded by the new weekly deal');
+  assert.ok(Object.keys(saved).length > 20);
+  for (const [step, v] of Object.entries(saved)) assert.equal(tutorialAccepted(v), false, `${step}: an old lesson is replaced, not continued`);
+  assert.equal(play(TUT.createTutorial(), 'done').step, 'done');
 });
 
 // ============================== ST-10 ==============================

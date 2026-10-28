@@ -7,38 +7,61 @@
 // The lesson logic lives in engine/tutorial.ts: this file only reads the screen and points.
 import {useEffect,useLayoutEffect,useRef,useState} from 'preact/hooks';
 
-import {dryBeds,tutorialPlant,tutorialReserve,practiceNeed,FREE_STEPS,TUTORIAL_STEPS,type TutorialSession,type TutorialStep} from '../engine/tutorial';
+import {AREA_IDS,areaOpen,dryBeds,tutorialChapter,tutorialPlant,tutorialReserve,practiceNeed,wateringProgress,FREE_STEPS,TUTORIAL_STEPS,TUTORIAL_WEEK,CHAPTER_I_WEEKS,type TutorialArea,type TutorialSession,type TutorialStep} from '../engine/tutorial';
 import type {TabId} from './FarmScreen';
-import {workEffectCells,shapeTiles,plantBlock,type Action} from '../engine/game';
+import {workEffectCells,shapeTiles,plantBlock,nextPayment,money,type Action} from '../engine/game';
 import {CROPS} from '../engine/data';
 import {PORTRAIT_IMAGES} from '../art/portraits';
 import {BUYERS} from '../content/orderDialogue';
 import {weekDate} from '../content/rules';
 import {visibleCardFocus} from './coachGeometry';
 import {useModal} from './common';
-export interface TutorialControls {session:TutorialSession;onNext:()=>void;onChapterRead:()=>void;onExit:()=>void;onRetry:()=>void;onReset:()=>void;onHideHint:(hidden:boolean)=>void;error?:string|null;precheck?:(a:Action)=>string|null}
+export interface TutorialControls {session:TutorialSession;onNext:()=>void;onExit:()=>void;onRetry:()=>void;onReset:()=>void;onHideHint:(hidden:boolean)=>void;error?:string|null;precheck?:(a:Action)=>string|null}
 const visible=(e:Element)=>{const r=e.getBoundingClientRect();return r.width>0&&r.height>0&&r.right>0&&r.left<innerWidth&&r.bottom>75&&r.top<innerHeight;};
 const located=(e:Element)=>{const r=e.getBoundingClientRect();return r.width>0&&r.height>0&&r.right>0&&r.left<innerWidth;};
 const q=(s:string)=>{const es=Array.from(document.querySelectorAll(s));return es.find(visible)??es.find(located)??null;};
 const button=(text:string)=>Array.from(document.querySelectorAll('button,[role="button"]')).find(e=>located(e)&&((e.getAttribute('aria-label')??e.textContent??'').includes(text)))??null;
 const nav=(tab:TabId)=>q(`[data-tab="${tab}"]`);
 type Gesture='tap'|'double'|'drag'|'slide';
-type Hint={text:string;target:Element|null;next?:boolean;nextLabel?:string;more?:string;hello?:string;area?:Element[];gesture?:Gesture;drop?:Element|null;check?:[string,boolean][];free?:boolean};
+/** a level-style goal with its counter: «Полить ростки 1/3» */
+interface Goal {label:string;done:number;of:number}
+type Hint={text:string;target:Element|null;next?:boolean;nextLabel?:string;more?:string;hello?:string;area?:Element[];gesture?:Gesture;drop?:Element|null;check?:[string,boolean][];free?:boolean;goal?:Goal};
 
-// what each step is called on the note
-const LESSON:Record<TutorialStep,string>={plant:'Первая посадка',rotate:'Фигуры',bean:'Фигуры',night:'Рабочая неделя',water:'Полив',hail:'Погода',play2:'Свободное время',visit:'Гости',accept:'Заказ',deliver:'Заказ',sale:'Продажа',play3:'Свободное время',weeds:'Сорняки',lens:'Плодородие',compost:'Плодородие',chapter:'Итоги главы',play4:'Свободное время',hire:'Помощник',lab:'Селекция',play5:'Свободное время',upgrade:'Улучшения',play6:'Свободное время',place:'Постройка',practice:'Сами',done:'Итоги'};
-const chapterOf=(step:TutorialStep)=>TUTORIAL_STEPS.indexOf(step)>TUTORIAL_STEPS.indexOf('chapter')?'II':'I';
-const weekOf=(step:TutorialStep)=>{const i=TUTORIAL_STEPS.indexOf(step);return i<=TUTORIAL_STEPS.indexOf('night')?1:i<=TUTORIAL_STEPS.indexOf('play2')?2:i<=TUTORIAL_STEPS.indexOf('play3')?3:i<=TUTORIAL_STEPS.indexOf('play4')?4:i<=TUTORIAL_STEPS.indexOf('play5')?5:i<=TUTORIAL_STEPS.indexOf('play6')?6:7;};
+// every week of the lesson is a level with one goal (docs/ONBOARDING-v4.md)
+const WEEK_GOAL:Record<number,string>={1:'Огород Палыча',2:'Первые деньги',3:'Заказ и погода',4:'Сами',5:'Земля',6:'Помощники',7:'Улучшение',8:'Своё хозяйство'};
+const weekLabel=(step:TutorialStep)=>{const w=TUTORIAL_WEEK[step],ch=tutorialChapter(step);return `Неделя ${ch==='I'?w:w-CHAPTER_I_WEEKS} из 4 · ${WEEK_GOAL[w]}`;};
+// the note's bar: how far into the current chapter
+const chapterProgress=(step:TutorialStep)=>{
+  const i=TUTORIAL_STEPS.indexOf(step),c=TUTORIAL_STEPS.indexOf('chapter');
+  return tutorialChapter(step)==='I'?i/c:(i-c-1)/(TUTORIAL_STEPS.length-c-2);
+};
 const PRAISE=['Получилось!','Отлично!','Верно!','Хорошо!'];
-const CH1=['Посадка и поворот фигуры','Рабочие дни и неделя','Полив','Защита от града','Гости и заказ','Продажа урожая','Прополка','Плодородие и компост'];
-const CH2=['Помощник на ферме','Селекция семян','Улучшения','Постройки на поле','Хозяйство без подсказок'];
+const CH1=['Посадка и поворот фигуры','Неделя и рабочие дни','Продажа урожая','Полив','Гости и заказ','Защита от града','Неделя без подсказок'];
+const CH2=['Сорняки и плодородие','Помощник на ферме','Селекция семян','Улучшения и постройки','Заказ без подсказок'];
+// what opens, said where it opens (shop and bank open with chapter II and are named in its first line)
+const OPENED:Partial<Record<TutorialArea,{text:string;at:string}>>={
+  barn:{text:'Амбар открыт!',at:'[data-tab="barn"]'},orders:{text:'Заказы открыты!',at:'[data-tab="orders"]'},
+  deck:{text:'Обмен открыт!',at:'.exchange-deck'},tools:{text:'Инструменты!',at:'.toolbox-btn'},
+  house:{text:'Дом открыт!',at:'[data-tab="house"]'},lab:{text:'Лаборатория!',at:'[data-tab="lab"]'},
+};
 // free time: a quiet tip each week, never an instruction
 const TIP:Partial<Record<TutorialStep,string>>={
-  play2:'Можно посадить что-нибудь ещё — или сразу завершить неделю.',
-  play3:'Не та рука? Колода рядом с днями меняет одну карту на новую за 1 день.',
-  play4:'Прибор погоды справа показывает и следующую неделю — заморозки, жару, град.',
-  play5:'У помощника свои дни: их стало больше. Журнал (книга справа) расскажет, что было за ночь.',
-  play6:'Улучшение будет готово к утру. А пока — ваша ферма.',
+  play2:'Можно посадить ещё что-нибудь — или сразу завершить неделю.',
+  play3:'Прибор погоды справа показывает и следующую неделю — заморозки, жару, град.',
+  play5:'Журнал в инструментах расскажет, что было за ночь.',
+  play6:'У помощника свои дни: их в неделе стало больше.',
+  play7:'Улучшение будет готово к утру. А пока — ваша ферма.',
+};
+// Палыч's line when the lesson moves to another section
+const TO_SECTION:Partial<Record<TutorialStep,string>>={
+  sale:'Утро! Редис Палыча собран — ящики уже в амбаре.',
+  water:'Монеты в кошельке! Теперь на поле: ростки хотят пить.',
+  hail:'Заказ сдан! А теперь посмотрим на погоду.',
+  visit:'К ферме идут гости.',
+  weeds:'Глава II. На поле — сорняк.',
+  hire:'Дом открыт — пора звать помощника.',
+  lab:'Лаборатория открыта — улучшим семена.',
+  upgrade:'Селекция готова: улучшенный редис вернулся в колоду.',
 };
 
 function hint(t:TutorialSession,tab:TabId,visitLate=false):Hint{
@@ -50,7 +73,6 @@ function hint(t:TutorialSession,tab:TabId,visitLate=false):Hint{
   const bed=(x:number,y:number)=>q(`[data-tile="${x},${y}"]`);
   const selected=(el:Element|null)=>el?.classList.contains('selected');
   const cancelCard=():Hint=>({text:'Сначала снимите выбор карты.',target:button('Отменить выбор'),gesture:'tap',more:'Потом нажмите на грядку — откроется её меню.'});
-  const [px,py]=tutorialPlant(t);
   const menuAt=q('.field-view')?.getAttribute('data-bed-menu');
   const waterCells=(q('.field-view')?.getAttribute('data-water-cells')??'').split(';');
   if(s.phase==='shortfall')return{text:'Сначала решим вопрос с платежом.',target:button('Решить платёж'),gesture:'tap',more:'В помощи (?) можно повторить учебный шаг.'};
@@ -61,36 +83,45 @@ function hint(t:TutorialSession,tab:TabId,visitLate=false):Hint{
     return{text:'Свободное время.',target:null,free:true,more:TIP[step],hello:thirsty?`${thirsty} просит пить — полейте, если хотите урожай.`:undefined};
   }
   const need:TabId=step==='sale'?'barn':['accept','deliver'].includes(step)?'orders':step==='lab'?'lab':['hire','upgrade'].includes(step)?'house':'field';
-  if(step!=='practice'&&step!=='place'&&tab!==need)return goto(need,step==='visit'?'К ферме идут гости.':step==='sale'?'Остаток редиса — в амбаре.':step==='hire'?'Глава II. Хозяйство растёт — пора звать помощника.':step==='upgrade'?'Селекция готова: улучшенный редис вернулся в колоду.':undefined);
+  if(step!=='practice'&&step!=='place'&&step!=='solo'&&tab!==need)return goto(need,TO_SECTION[step]);
   if(step==='sale'&&q('.barn-links [role="tab"]:first-child[aria-selected="false"]'))return{text:'В амбаре откройте «Урожай».',target:q('.barn-links [role="tab"]:first-child'),gesture:'tap'};
   if(step==='lab'&&q('.lab-pane .seg button:first-child:not(.on)'))return{text:'Откройте раздел «Селекция».',target:q('.lab-pane .seg button:first-child'),gesture:'tap'};
   if(['accept','deliver'].includes(step)&&q('.orders-pane .hall'))return{text:'Вернитесь из зала славы к заказам.',target:q('.orders-pane .back-link'),gesture:'tap'};
   const building=q('.field-view')?.getAttribute('data-build-item');
-  if(tab==='field'&&building&&step!=='place'&&step!=='practice')return{text:'Закончите перемещение построек.',target:button('Завершить перемещение построек'),gesture:'tap'};
-  if(tab==='field'&&q('.exchange-cancel')&&step!=='practice')return{text:'Отмените обмен — продолжим урок.',target:q('.exchange-cancel'),gesture:'tap'};
+  if(tab==='field'&&building&&step!=='place'&&step!=='practice'&&step!=='solo')return{text:'Закончите перемещение построек.',target:button('Завершить перемещение построек'),gesture:'tap'};
+  if(tab==='field'&&q('.exchange-cancel')&&step!=='practice'&&step!=='solo')return{text:'Отмените обмен — продолжим урок.',target:q('.exchange-cancel'),gesture:'tap'};
   switch(step){
     case 'plant':{
       const e=card('seed_radish'),other=q('.fan-slot .card.selected');
-      const hello=t.plantedAt?undefined:'Здравствуйте! Я Палыч, здешний старожил. Начнём с простого — посадим редис.';
+      const hello=t.plantedAt?undefined:'Здравствуйте! Я Палыч. Мой редис к утру поспеет — а вы посадите свой.';
       if(other&&!selected(e))return{text:'Эта карта пригодится позже. Начнём с редиса.',target:e,gesture:'tap',hello};
       return selected(e)?{text:'Теперь нажмите на свободную грядку.',target:bed(2,2),gesture:'tap',more:'Подойдёт любая пустая грядка.'}
         :{text:'Перетащите редис на грядку.',target:e,drop:bed(2,2),gesture:'drag',more:'Или нажмите карту, а потом грядку.',hello};
     }
-    case 'rotate':{const e=card('seed_bean');return selected(e)?{text:'Нажмите на фасоль ещё раз — фигура повернётся.',target:e,gesture:'double',more:'Каждое касание поворачивает посадку.'}:{text:'Фасоль сажают фигурой. Выберите её карту.',target:e,gesture:'tap',more:'Рисунок на карте — какие клетки займёт посадка.'};}
+    case 'rotate':{const e=card('seed_bean');return selected(e)?{text:'Нажмите на фасоль ещё раз — фигура повернётся.',target:e,gesture:'double',more:'Каждое касание поворачивает посадку.'}:{text:'Фасоль сажают фигурой. Выберите её карту.',target:e,gesture:'tap',more:'Рисунок на карте — какие клетки займёт посадка.',hello:'Взошло! А теперь — фигура посложнее.'};}
     case 'bean':{
       const c=s.hand.find(c=>c.def==='seed_bean'),e=card('seed_bean');
       if(!selected(e))return{text:'Снова выберите фасоль.',target:e,gesture:'tap'};
       const rot=Number(q('.field-view')?.getAttribute('data-card-rotation')??1);
-      const anchors:[[number,number],...Array<[number,number]>]=[[3,2],[1,1],[2,1],[3,1],[1,2],[1,3],[2,3]];
+      const anchors:[[number,number],...Array<[number,number]>]=[[3,2],[3,1],[2,2],[1,2],[1,3],[2,3]];
       const at=anchors.find(([x,y])=>c&&!plantBlock(s,c,shapeTiles(c,x,y,rot)))??[3,2];
       return{text:'Посадите фасоль на подсвеченные грядки.',target:bed(at[0],at[1]),gesture:'tap',more:'Нажмите на первую клетку фигуры.',area:c?shapeTiles(c,...at,rot).map(([x,y])=>bed(x,y)).filter((e):e is Element=>!!e):[]};
     }
-    case 'night':return{text:'На сегодня хватит. Завершите неделю.',target:q('.end-week'),gesture:'tap',more:'Каждое дело стоит рабочих дней — их цена в жёлтом кружке карты. За ночь всё подрастёт.'};
+    case 'night':return{text:'На сегодня хватит. Завершите неделю.',target:q('.end-week'),gesture:'tap',hello:'Утром соберём мой редис — увидите, как это бывает.',more:'Каждая карта стоит рабочий день — жёлтый кружок на карте. За ночь всё подрастёт, а спелое соберётся само.'};
+    case 'sale':{
+      const range=q('.sale-row input[type="range"]') as HTMLInputElement|null,all=!!range&&range.value===range.max;
+      return all?{text:'Теперь — зелёная кнопка «Продать».',target:q('.sale-row .sale-go'),gesture:'tap',more:'Деньги придут сразу. Стрелка у цены — дорожает редис или дешевеет.'}
+        :{text:'Продайте весь редис: ползунок — до конца вправо.',target:range??q('.sale-row'),gesture:'slide',more:'Ползунок — сколько продать, зелёная кнопка — продать. Можно и часть: решать вам.',hello:'Это урожай Палыча — продавайте смело.'};
+    }
     case 'water':{
-      const e=card('water'),hello='Взошло! Цифра на грядке — сколько недель до урожая.';
-      if(q('.water-confirm'))return waterCells.includes(`${px},${py}`)?{text:'Нажмите лейку — польём редис.',target:q('.water-confirm'),gesture:'tap'}:{text:'Редис не выбран. Отмените полив и нажмите на его грядку.',target:button('Отменить полив'),gesture:'tap'};
-      if(q('.bed-popover'))return menuAt===`${px},${py}`?{text:'Нажмите лейку и выберите грядки.',target:button('Выбрать грядки'),gesture:'tap'}:{text:'Откройте меню грядки с редисом.',target:bed(px,py),gesture:'tap'};
-      return selected(e)?{text:'Нажмите на грядку с редисом.',target:bed(px,py),gesture:'tap',more:'Карта польёт и соседние грядки крестом.'}:{text:'Земля высохла — красная капля. Выберите «Полив».',target:e??bed(px,py),gesture:'tap',more:'Можно и лейкой: нажмите на грядку и выберите её в меню.',hello};
+      const prog=wateringProgress(t),goal={label:'Полить ростки',done:prog.done,of:prog.of};
+      const dry=(t.thirsty??[]).filter(([x,y])=>{const v=s.tiles[y*6+x];return !!v.crop&&v.moisture===0;});
+      const first=dry[0]??tutorialPlant(t),isDry=(k:string|null|undefined)=>dry.some(([x,y])=>k===`${x},${y}`);
+      const e=card('water');
+      if(q('.water-confirm'))return waterCells.some(isDry)?{text:'Нажмите лейку — польём.',target:q('.water-confirm'),gesture:'tap',goal}:{text:'Сухая грядка не выбрана. Отмените полив и нажмите на неё.',target:button('Отменить полив'),gesture:'tap',goal};
+      if(q('.bed-popover'))return isDry(menuAt)?{text:'Нажмите лейку и выберите грядки.',target:button('Выбрать грядки'),gesture:'tap',more:'Лейка польёт до трёх грядок подряд в одну линию.',goal}:{text:'Откройте меню сухой грядки.',target:bed(...first),gesture:'tap',goal};
+      return selected(e)?{text:'Нажмите на сухую грядку.',target:bed(...first),gesture:'tap',more:'Карта польёт и соседние грядки крестом.',goal}
+        :{text:'Ростки просят пить — красная капля. Выберите «Полив».',target:e??bed(...first),gesture:'tap',more:'Можно и лейкой: нажмите на грядку и выберите её в меню.',hello:'Цифра на грядке — сколько недель до урожая. Без воды рост встанет.',goal};
     }
     case 'hail':{
       const st=s.strikes[0]?.cells[0],e=card('shelter');
@@ -100,27 +131,37 @@ function hint(t:TutorialSession,tab:TabId,visitLate=false):Hint{
         const at=anchors.find(([x,y])=>x>=1&&x<=2&&y>=1&&y<=2&&workEffectCells(s,'shelter',x,y).some(([a,b])=>a===st[0]&&b===st[1]))??[st[0],st[1]];
         return{text:'Накройте подсвеченный квадрат.',target:bed(at[0],at[1]),gesture:'tap',more:'Нажмите на его верхнюю левую грядку. Укрытие держится 3 недели.',area:workEffectCells(s,'shelter',...at).map(([x,y])=>bed(x,y)).filter((e):e is Element=>!!e)};
       }
-      return{text:'Ночью град — фасоль под угрозой. Выберите «Укрытие».',target:e??(st?bed(st[0],st[1]):q('.weather-instrument')),gesture:'tap',more:'Угроза видна на грядке и на приборе погоды справа.'};
+      return{text:'Ночью град — фасоль под угрозой. Выберите «Укрытие».',target:e??(st?bed(st[0],st[1]):q('.weather-instrument')),gesture:'tap',more:'Угроза видна на грядке и на приборе погоды справа.',hello:'Фасоль жалко — накроем?'};
     }
-    case 'visit':return{text:'К ферме идут гости…',target:null,more:'Свежий редис пахнет на всю деревню.',...(visitLate?{next:true,nextLabel:'К заказам'}:{})};
-    case 'sale':return{text:'Продайте оставшийся редис.',target:q('.sale-row[data-crop="radish"] input[type="range"]')??q('.sale-row[data-crop="radish"]'),gesture:'slide',more:'Ползунок — сколько продать, зелёная кнопка — продать. Стрелка у цены — дорожает или дешевеет.',hello:'Заказ сдан — остаток редиса ждёт в амбаре.'};
+    case 'visit':return{text:'К ферме идут гости…',target:null,hello:'Утро! Ваш редис созрел и уже в амбаре.',more:'Свежий редис пахнет на всю деревню.',...(visitLate?{next:true,nextLabel:'К заказам'}:{})};
     case 'accept':{
       // B-14а: a concrete date, not «the term starts at once» — the term runs from the offer itself
       const o=Object.values(s.orgs).map(o=>o?.offer).find(Boolean);
       return{text:`${guest} просит ${tutorialReserve(t)} ед. редиса. Возьмите заказ.`,target:button('Взять')??q('.org2'),gesture:'tap',more:o?.deadline!==undefined?`Сдать до: ${weekDate(s,o.deadline)}. Взяли — заказ за вами; не взяли — штрафа нет.`:'Взяли — заказ за вами; не взяли — штрафа нет.'};
     }
     case 'deliver':return{text:'Сдайте заказ — дети ждут.',target:button('Сдать'),gesture:'tap',more:'Урожай сам к покупателю не уходит.'};
+    case 'solo':{
+      const g=t.solo??{planted:false,watered:false,sold:false,sell:false};
+      const check:[string,boolean][]=[['Посадить',g.planted],['Полить',g.watered],...(g.sell?[['Продать урожай',g.sold] as [string,boolean]]:[])];
+      const left=check.filter(([,ok])=>!ok).map(([l])=>l);
+      const pay=nextPayment(s);
+      const rent=`В конце весны — аренда ${money(pay.amount)}: сумма вверху, деньги спишутся сами.`;
+      const stuck=s.days<1&&left.every(l=>l!=='Продать урожай');
+      if(!left.length||stuck)return tab!=='field'?{...goto('field'),check}
+        :{text:stuck?'Дни закончились. Завершите неделю.':'Всё сделано. Завершите неделю.',target:q('.end-week'),gesture:'tap',check,more:rent,area:[q('.tb-pay')].filter((e):e is Element=>!!e)};
+      return{text:'Неделя ваша: посадите, полейте, продайте.',target:null,free:true,check,hello:g.planted||g.watered||g.sold?undefined:'Дальше — сами. Рука теперь полная: 7 карт, а дней по-прежнему 3. И обмен открыт.',more:'Я рядом: если застряли, нажмите «?».'};
+    }
     case 'weeds':{
       const [wx,wy]=t.weedAt??[1,1];
       if(q('.fan-slot .card.selected'))return cancelCard();
-      return{text:button('Прополоть')?'Прополите грядку.':'Выросли сорняки — на заросшей грядке нельзя сеять.',target:button('Прополоть')??bed(wx,wy),gesture:'tap',more:button('Прополоть')?undefined:'Нажмите на грядку с сорняками — в её меню есть прополка.',hello:'Новая неделя. Посмотрите — на грядке гости.'};
+      return{text:button('Прополоть')?'Прополите грядку.':'Вырос сорняк — на заросшей грядке нельзя сеять.',target:button('Прополоть')??bed(wx,wy),gesture:'tap',more:button('Прополоть')?undefined:'Нажмите на грядку с сорняком — в её меню есть прополка.',hello:'Глава II. Лавка и касса в амбаре тоже открыты.'};
     }
     case 'lens':{
       // the lenses live in the toolbox under the field: open it, take «Линзы», then «Плодородие»
       const open=q('.toolbox.open'),soil=open&&q('.toolbox.lenses')?button('Плодородие'):null,lens=open&&!q('.toolbox.lenses')?button('Линзы'):null;
-      return{text:soil?'Выберите линзу «Плодородие».':lens?'Нажмите «Линзы».':'Земля везде разная. Откройте инструменты — чемоданчик под полем.',target:soil??lens??q('.toolbox-btn'),gesture:'tap',more:'Бедная почва даёт меньше урожая: ×0,6 при 1/5, ×1,2 при 3/5. Посмотрели — нажмите «Готово».'};
+      return{text:soil?'Выберите линзу «Плодородие».':lens?'Нажмите «Линзы».':'Земля везде разная. Откройте инструменты — чемоданчик под полем.',target:soil??lens??q('.toolbox-btn'),gesture:'tap',more:'Бедная почва даёт меньше урожая: ×0,6 при 1/5, ×1,2 при 3/5. Посмотрели — нажмите «Готово».',hello:open?undefined:'Инструменты открыты: журнал, линзы и постройки.'};
     }
-    case 'compost':{const e=hand(t.heldUid);return{text:selected(e)?'Высыпьте компост на бедную грядку.':'Помните компост? Улучшим бедную землю.',target:selected(e)?bed(1,2):e,gesture:'tap',more:'Компост: +1 плодородия здесь и у соседей.'};}
+    case 'compost':{const e=hand(t.compostUid??-1);return{text:selected(e)?'Высыпьте компост на бедную грядку.':'Я принёс мешок компоста. Улучшим бедную землю.',target:selected(e)?bed(1,2):e,gesture:'tap',more:'Компост: +1 плодородия здесь и у соседей.'};}
     case 'hire':return{text:'Наймите помощника.',target:button('Нанять ·')??q('.candidate'),gesture:'tap',more:'Бригадир даст лишний рабочий день в неделю. Зарплата — каждую неделю.'};
     case 'lab':return{text:q('.breed-col:first-child .project-preview')?'Сравните расход и урожай — и начните проект.':q('.shape-editor')?'Добавьте к фигуре одну клетку.':'Выберите семена для селекции.',target:q('.breed-col:first-child .project-preview')?q('.breed-col:first-child button'):q('.shape-editor .spot')??q(`.lab-pane [data-card-uid="${t.labUid}"]`)??q('.lab-pane .card'),gesture:'tap',more:'Проект займёт неделю: карта уйдёт на стол лаборатории и вернётся улучшенной.'};
     case 'upgrade':return{text:'Улучшите бочку до капельного полива.',target:q('[data-track="irrigation"] .track2-foot button'),gesture:'tap',more:'Работы займут неделю.'};
@@ -201,7 +242,7 @@ function Certificate({chapter,onPrimary,primary,onSecondary,secondary}:{chapter:
       <h2 id="coach-cert-title">{chapter==='I'?'Первый урожай':'Своё хозяйство'}</h2>
       <p class="cc-lead">{chapter==='I'?'Четыре недели позади: первый урожай собран, сдан и продан. Вот чему вы научились:':'Вы прошли всё обучение. Теперь вы умеете:'}</p>
       <ul class="cc-list">{items.map((it,i)=><li style={{['--i' as string]:String(i)}}><i aria-hidden="true">✓</i>{it}</li>)}</ul>
-      <div class="cc-palych"><img src={PORTRAIT_IMAGES.palych} alt=""/><p>{chapter==='I'?'«Хорошее начало! Дальше — помощник, селекция и улучшения. Можно уйти на карту и вернуться позже.»':'«Дальше в настоящей игре — вороны и воры, зима, ярмарки и новые регионы. Журнал всегда подскажет.»'}</p></div>
+      <div class="cc-palych"><img src={PORTRAIT_IMAGES.palych} alt=""/><p>{chapter==='I'?'«Хозяйство ваше — можно на свою ферму. А хотите — покажу землю, помощников и селекцию. Вернуться можно в любой момент с карты ферм.»':'«Дальше в настоящей игре — вороны и воры, зима, ярмарки и новые регионы. Журнал всегда подскажет.»'}</p></div>
       <div class="cc-actions"><button type="button" class="guide-next primary" onClick={onPrimary}>{primary}</button>{secondary&&<button type="button" class="guide-next" onClick={onSecondary}>{secondary}</button>}</div>
     </div>
   </div>;
@@ -218,9 +259,10 @@ const pressPoint=(r:DOMRect):[number,number]=>[r.width>130?r.left+r.width*.72:r.
 const handInteracting=()=>!!document.querySelector('.field-view[data-drag-active="true"], .field-view[data-peek-uid]:not([data-peek-uid=""])');
 
 export function GuideHint({controls,tab}:{controls:TutorialControls;tab:TabId}){
-  const {session:t,onNext,onChapterRead,onExit,onRetry,onReset,onHideHint,error}=controls;
-  const [,tick]=useState(0),[help,setHelp]=useState(false),certDone=!!t.chapterRead;
+  const {session:t,onNext,onExit,onRetry,onReset,onHideHint,error}=controls;
+  const [,tick]=useState(0),[help,setHelp]=useState(false);
   const [cheer,setCheer]=useState<{text:string;x:number;y:number;key:number}|null>(null);
+  const opening=useRef<TutorialArea[]>([]),openTimer=useRef(0);
   const ref=useRef<HTMLDivElement>(null),lastRect=useRef<DOMRect|null>(null),prevStep=useRef(t.step);
   const dimRef=useRef<SVGSVGElement>(null),spotRef=useRef<HTMLDivElement>(null),dropRef=useRef<HTMLDivElement>(null),gestRef=useRef<HTMLDivElement>(null),areaRef=useRef<HTMLDivElement>(null);
   const live=useRef<{target:Element|null;area:Element[];drop:Element|null;gesture?:Gesture;card:boolean;on:boolean;equivalent:number[]}>({target:null,area:[],drop:null,card:false,on:false,equivalent:[]});
@@ -263,6 +305,8 @@ export function GuideHint({controls,tab}:{controls:TutorialControls;tab:TabId}){
     setHelp(false);setExpanded(false);
     const was=prevStep.current,now=t.step;prevStep.current=now;
     const wi=TUTORIAL_STEPS.indexOf(was),ni=TUTORIAL_STEPS.indexOf(now);
+    // what this step opens is celebrated where it opens, once the night and the morning have played
+    if(ni>wi)opening.current.push(...AREA_IDS.filter(a=>OPENED[a]&&areaOpen(now,a)&&!areaOpen(was,a)));
     // Success is shown by the bed itself (a sprout, wet soil, no weeds). The stamp is kept for the end of a
     // week's lessons only — when free time begins — so it marks a finished lesson, not every small step.
     if(ni>wi&&FREE_STEPS.includes(now)&&!FREE_STEPS.includes(was)){
@@ -277,10 +321,22 @@ export function GuideHint({controls,tab}:{controls:TutorialControls;tab:TabId}){
     };document.addEventListener('click',listener);return()=>document.removeEventListener('click',listener);
   },[t.step,onNext]);
   const base=hint(t,tab,visitLate),busy=!!(q('.field-view[data-busy="true"]')||q('.visit-sheet'));
+  useEffect(()=>{
+    if(busy||paging||!opening.current.length)return;
+    const a=opening.current[0],o=OPENED[a]!,el=q(o.at);
+    if(!el)return;
+    opening.current.shift();
+    // the stamp is about 170 px wide: kept clear of the screen's edges
+    const r=el.getBoundingClientRect(),y=r.top<140?r.bottom+30:r.top-14,x=Math.max(96,Math.min(innerWidth-96,r.left+r.width/2));
+    setCheer({text:o.text,x,y,key:Date.now()});
+    el.classList.add('just-opened');
+    window.clearTimeout(openTimer.current);
+    openTimer.current=window.setTimeout(()=>{el.classList.remove('just-opened');setCheer(null);},1700);
+  });
+  useEffect(()=>()=>window.clearTimeout(openTimer.current),[]);
   let h:Hint=base;
-  if(t.step==='chapter'&&certDone)h={text:'Не забывайте о платежах.',target:q('.tb-pay'),more:'Раз в несколько недель — аренда. Здесь срок и сумма, полоса — хватает ли денег. Не хватит — продайте урожай или возьмите кредит в кассе амбара.',next:true};
   const card=!!h.target?.matches('.card');
-  const showSpot=!!h.target&&!busy&&!handInteracting()&&!collapsed&&!help&&!(t.step==='chapter'&&!certDone)&&t.step!=='done';
+  const showSpot=!!h.target&&!busy&&!handInteracting()&&!collapsed&&!help&&t.step!=='chapter'&&t.step!=='done';
   const targetDef=card?t.farm.hand.find(c=>String(c.uid)===h.target?.getAttribute('data-card-uid'))?.def:undefined;
   live.current={target:h.target,area:h.area??[],drop:h.gesture==='drag'?h.drop??null:null,gesture:h.gesture,card,on:showSpot,equivalent:targetDef?t.farm.hand.filter(c=>c.def===targetDef).map(c=>c.uid):[]};
   // the spotlight and the hand follow their target every frame, straight in the DOM
@@ -327,7 +383,7 @@ export function GuideHint({controls,tab}:{controls:TutorialControls;tab:TabId}){
     raf=requestAnimationFrame(frame);
     return()=>{cancelAnimationFrame(raf);mark(null);};
   },[]);
-  useLayoutEffect(()=>{tick(n=>n+1);},[h.text,h.more,help,collapsed,busy,certDone,error,expanded]);
+  useLayoutEffect(()=>{tick(n=>n+1);},[h.text,h.more,help,collapsed,busy,error,expanded,h.goal?.done]);
   // remember the real sizes for the next placement
   useLayoutEffect(()=>{
     if(stripRef.current?.isConnected)stripH_.current=stripRef.current.offsetHeight||stripH_.current;
@@ -358,12 +414,11 @@ export function GuideHint({controls,tab}:{controls:TutorialControls;tab:TabId}){
     const pos=tab==='field'&&stage?{left:`${stage.left+8}px`,top:`${stage.top+8}px`}:{left:`${(farm?.left??0)+10}px`,bottom:'calc(12px + env(safe-area-inset-bottom, 0px))'};
     return <>{layers}<button class="guide-restore" style={pos} onClick={()=>onHideHint(false)}><img src={PORTRAIT_IMAGES.palych} alt=""/>Показать подсказку</button></>;
   }
-  if(t.step==='chapter'&&!certDone)return <>{layers}<Certificate chapter="I" primary="Дальше" onPrimary={onChapterRead}/>{cheer&&<Cheer c={cheer}/>}</>;
+  if(t.step==='chapter')return <>{layers}<Certificate chapter="I" primary="Своя ферма" onPrimary={onExit} secondary="Ещё у Палыча · глава II" onSecondary={onNext}/>{cheer&&<Cheer c={cheer}/>}</>;
   if(t.step==='done')return <>{layers}<Certificate chapter="II" primary="На карту ферм" onPrimary={onExit} secondary="Ещё осмотрюсь" onSecondary={()=>onHideHint(true)}/>{cheer&&<Cheer c={cheer}/>}</>;
 
   const r=h.target?.getBoundingClientRect();
   const field=tab==='field'&&stage;
-  const step=TUTORIAL_STEPS.indexOf(t.step),of=TUTORIAL_STEPS.length-1;
   const worried=!!error;
   // The thing being explained is not always the next button. Protect both:
   // the thirsty crop when pointing at a card, and the comparison before "Start".
@@ -396,7 +451,7 @@ export function GuideHint({controls,tab}:{controls:TutorialControls;tab:TabId}){
   // measured once shown; until then estimated from the text, generously, so a guess never lands on a bed
   const lines=(txt:string|undefined,px:number)=>txt?Math.ceil(txt.length*px*.52/Math.max(120,fullW-30)):0;
   const fullKey=`${t.step}|${h.text}|${error??''}|${fullW}`;fullKeyRef.current=fullKey;
-  const fullH=(fullH_.current.key===fullKey?fullH_.current.h:48+lines(h.hello,15)*18+lines(error??h.text,16)*21+lines(h.more,13.5)*17+(h.check?28:0)+(h.next?46:0)+16)+(help?150:0);
+  const fullH=(fullH_.current.key===fullKey?fullH_.current.h:48+lines(h.hello,15)*18+lines(error??h.text,16)*21+lines(h.more,13.5)*17+(h.check?28:0)+(h.goal?26:0)+(h.next?46:0)+16)+(help?150:0);
   let mode:'full'|'strip'='full',left=0,top=0,W=fullW,maxH=innerHeight-12;
   const protectedRects=[...guard,...beds];
   // Find actual free vertical intervals. An expanded explanation may scroll
@@ -432,7 +487,8 @@ export function GuideHint({controls,tab}:{controls:TutorialControls;tab:TabId}){
   const gap=r?(below?r.top-(top+H):top-r.bottom):0;
   const tail=mode==='full'&&!!r&&gap>4&&gap<180&&x2>left+12&&x2<left+W-12;
   const tailX=r?Math.max(22,Math.min(W-22,x2-left)):0;
-  const label=<small class="guide-heading"><b title={`Глава ${chapterOf(t.step)}`}>{chapterOf(t.step)}</b>Неделя {weekOf(t.step)} · {LESSON[t.step]}</small>;
+  const label=<small class="guide-heading"><b title={`Глава ${tutorialChapter(t.step)}`}>{tutorialChapter(t.step)}</b>{weekLabel(t.step)}</small>;
+  const goal=h.goal&&<div class="coach-goal" role="img" aria-label={`${h.goal.label}: ${h.goal.done} из ${h.goal.of}`}><span>{h.goal.label}</span><span class="cg-bar" aria-hidden="true"><i style={{width:`${(h.goal.done/Math.max(1,h.goal.of))*100}%`}}/></span><b>{h.goal.done}/{h.goal.of}</b></div>;
   const detail=!!(h.more||h.hello||h.check);
   if(mode==='strip'){
     // one short command and its pointer; the hello and the explanation open on request
@@ -444,6 +500,7 @@ export function GuideHint({controls,tab}:{controls:TutorialControls;tab:TabId}){
         <div class="cs-body" key={`${t.step}-${h.text}`}>
           {second&&!error&&<p class="cs-hello">{second}</p>}
           <p class={`cs-text${error?' cs-error':''}`} role={error?'alert':undefined}>{error??h.text}</p>
+          {goal}
           {h.check&&<ul class="cs-check">{h.check.map(([label,ok])=><li class={ok?'ok':''}><i aria-hidden="true">{ok?'✓':''}</i>{label}</li>)}</ul>}
         </div>
         {h.next&&<button class="guide-next primary cs-next" onClick={onNext}>{h.nextLabel??'Дальше'}</button>}
@@ -457,17 +514,18 @@ export function GuideHint({controls,tab}:{controls:TutorialControls;tab:TabId}){
     {layers}
     <div class={`guide-note pal-note tutorial-bounded${h.next?' guide-intro':''}${worried?' worried':''}${h.free||h.check?' compact':''}${h.free?' free':''}`} ref={ref} style={{left,top,width:W,maxHeight:maxH,['--tail' as string]:`${tailX}px`}} role="status" aria-live="polite">
       {tail&&<span class={`coach-tail ${below?'down':'up'}`} aria-hidden="true"/>}
-      <div class="coach-progress" aria-hidden="true"><i style={{width:`${Math.max(4,(step/of)*100)}%`}}/></div>
+      <div class="coach-progress" aria-hidden="true"><i style={{width:`${Math.max(4,chapterProgress(t.step)*100)}%`}}/></div>
       <div class="coach-head">
         <span class="coach-face"><img src={PORTRAIT_IMAGES[worried?'palych_worried':'palych']??PORTRAIT_IMAGES.palych} alt=""/></span>
         {label}
         <button class="guide-help-toggle" aria-label="Помощь по обучению" aria-expanded={help} onClick={()=>setHelp(v=>!v)}>?</button>
         <button class="guide-close" onClick={()=>{if(expanded){setExpanded(false);setHelp(false);return;}onHideHint(true);setHelp(false);}} aria-label={expanded?'Свернуть подсказку':'Скрыть подсказку'}>{expanded?'–':'×'}</button>
       </div>
-      <div class="coach-body" key={`${t.step}-${certDone}-${h.text}`}>
+      <div class="coach-body" key={`${t.step}-${h.text}`}>
         {h.hello&&!error&&<p class="coach-hello">{h.hello}</p>}
         {error&&<p class="coach-error" key={error} role="alert">{error}</p>}
         <p>{h.text}</p>{h.more&&!error&&<small>{h.more}</small>}
+        {goal}
         {h.check&&<ul class="coach-check">{h.check.map(([label,ok])=><li class={ok?'ok':''}><i aria-hidden="true">{ok?'✓':''}</i>{label}</li>)}</ul>}
       </div>
       {h.next&&<div class="guide-actions"><button class="guide-next primary" onClick={onNext}>{h.nextLabel??'Начать главу II'}</button></div>}

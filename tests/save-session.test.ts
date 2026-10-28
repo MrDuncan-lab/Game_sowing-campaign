@@ -60,6 +60,6 @@ test('repeated clicks share a single pending ownership request',async()=>{
   await callback!(null);assert.equal(await a,false);
 });
 test('foreign live saves invalidate ownership; rolling backups and unrelated keys do not',()=>{
-  for(const key of [null,'posevnaya.v4.profile','posevnaya.v4.farm.chernozem','posevnaya.v4.farm.kuban','posevnaya.v4.farm.altai','posevnaya.tutorial.atlas.v3','posevnaya.tutorial.active'])assert.equal(isPersistentGameKey(key),true);
+  for(const key of [null,'posevnaya.v4.profile','posevnaya.v4.farm.chernozem','posevnaya.v4.farm.kuban','posevnaya.v4.farm.altai','posevnaya.tutorial.atlas.v3','posevnaya.tutorial.atlas.v4','posevnaya.tutorial.active'])assert.equal(isPersistentGameKey(key),true);
   for(const key of ['posevnaya.v4.profile.backup','posevnaya.v4.farm.chernozem.previous','posevnaya.v4.farm.chernozem.recovery','other.app'])assert.equal(isPersistentGameKey(key),false);
 });

@@ -67,6 +67,7 @@ export const isPersistentGameKey = (key: string | null) => key === null
   || key === 'posevnaya.v4.profile'
   || /^posevnaya\.v4\.farm\.(chernozem|kuban|altai)$/.test(key)
   || key === 'posevnaya.tutorial.atlas.v3'
+  || key === 'posevnaya.tutorial.atlas.v4'
   || key === 'posevnaya.tutorial.active';
 
 if (managedSaveSession) {

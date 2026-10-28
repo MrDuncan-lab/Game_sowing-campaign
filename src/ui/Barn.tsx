@@ -16,6 +16,8 @@ function ORGS_ACTIVE_NEED(s: GameState): Map<CropId, number> {
 }
 import { P } from '../art/palette';
 import { Bar, Btn, Dispatch } from './common';
+import { Peek } from './Peek';
+import { useLessonLock } from './lesson';
 import { CardView, cardPrice, cardDescription, cardDaysText } from './Card';
 
 // №9 · One horizon at a time. The words, the range and the arrow always speak of the same week — the next one
@@ -115,6 +117,7 @@ function SaleControls({ s, c, act }: { s: GameState; c: CropId; act: Dispatch })
 
 export function BarnView({ s, act, target, onPayment }: { s: GameState; act: Dispatch; target?: { tab: 'market' | 'shop' | 'bank'; key: number }; onPayment: () => void }) {
   const [tab, setTab] = useState<'market' | 'shop' | 'bank'>('market');
+  const lock = useLessonLock();
   const [shopPick,setShopPick]=useState<string|null>(null);
   const [bought,setBought]=useState<{def:string|null;n:number}>({def:null,n:0});
   useEffect(()=>{setBought(b=>b.def===shopPick?b:{def:null,n:0});},[shopPick]);
@@ -166,8 +169,8 @@ export function BarnView({ s, act, target, onPayment }: { s: GameState; act: Dis
         </div>
         <nav class="estate-links barn-links" role="tablist" aria-label="Разделы амбара">
           <button type="button" role="tab" aria-selected={tab==='market'} class={tab === 'market' ? 'on' : ''} onClick={() => setTab('market')}><Icon name="sack" size={18} /><span>Урожай</span></button>
-          <button type="button" role="tab" aria-selected={tab==='shop'} class={tab === 'shop' ? 'on' : ''} onClick={() => setTab('shop')}><Icon name="seeds" size={18} /><span>Лавка</span></button>
-          <button type="button" role="tab" aria-selected={tab==='bank'} class={tab === 'bank' ? 'on' : ''} onClick={() => setTab('bank')}><Icon name="bank" size={18} /><span>Касса</span></button>
+          <button type="button" role="tab" aria-selected={tab==='shop'} class={`${tab === 'shop' ? 'on' : ''}${lock('shop') ? ' locked' : ''}`} onClick={() => setTab('shop')}><Icon name={lock('shop') ? 'lock' : 'seeds'} size={18} /><span>Лавка</span></button>
+          <button type="button" role="tab" aria-selected={tab==='bank'} class={`${tab === 'bank' ? 'on' : ''}${lock('bank') ? ' locked' : ''}`} onClick={() => setTab('bank')}><Icon name={lock('bank') ? 'lock' : 'bank'} size={18} /><span>Касса</span></button>
         </nav>
       </div>
       {yard > 0 && <p class="barn-warn"><Icon name="sack" size={20}/><span><b>Во дворе {yard} ед.</b> Продайте до конца недели — иначе заберут за 60%, до {money(yardLoss)}.</span></p>}
@@ -186,7 +189,7 @@ export function BarnView({ s, act, target, onPayment }: { s: GameState; act: Dis
         </section>
       )}
 
-      {tab === 'shop' && (
+      {tab === 'shop' && <Peek area="shop">{(
         <section class="panel barn-panel">
           <p class="panel-note">{deckN < deckLimit(s) ? `Покупка ляжет в колоду · ${deckN}/${deckLimit(s)}` : 'Колода полна — покупка ляжет в запас'}</p>
           <div class="card-grid shop-grid">
@@ -222,9 +225,9 @@ export function BarnView({ s, act, target, onPayment }: { s: GameState; act: Dis
           })()}
           {s.unlocked.length > 0 && <p class="panel-note">Открыто здесь: {s.unlocked.map((c) => CROPS[c].name.toLowerCase()).join(', ')}.</p>}
         </section>
-      )}
+      )}</Peek>}
 
-      {tab === 'bank' && (
+      {tab === 'bank' && <Peek area="bank">{(
         <section class="panel barn-panel bank">
           <div class="pay-now">
             <span class="pay-label">{s.phase === 'shortfall' && s.due ? `Платёж «${s.due.name}»` : `«${np.name}» · через ${np.weeksLeft} нед.`}</span>
@@ -250,7 +253,7 @@ export function BarnView({ s, act, target, onPayment }: { s: GameState; act: Dis
             <p class="small muted">{[costs.salaries ? `зарплаты ${money(costs.salaries)}` : '', costs.interest ? `проценты ${money(costs.interest)}` : '', costs.heating ? `отопление ${money(costs.heating)}` : ''].filter(Boolean).join(' · ') || 'Постоянных расходов нет.'} Неоплаченное добавляется к долгу.</p>
           </details>
         </section>
-      )}
+      )}</Peek>}
     </div>
   );
 }

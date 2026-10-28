@@ -1,5 +1,7 @@
 import {GuideHint,type TutorialControls} from './Guide';
-import {QuickProjects} from './lesson';
+import {LessonLocks,QuickProjects} from './lesson';
+import {Peek} from './Peek';
+import {areaOpen,closedReason,type TutorialArea} from '../engine/tutorial';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { ComponentChildren, JSX } from 'preact';
 import { LOCATIONS, SEASON_NAMES } from '../engine/data';
@@ -28,6 +30,8 @@ export const TABS = [
 ] as const;
 export type TabId = (typeof TABS)[number]['id'];
 // where each screen stands in the village: from the village a tab flies there first
+// the training farm keeps these sections closed until their lesson (engine/tutorial.ts · AREA_OPENS)
+const TAB_AREA: Partial<Record<TabId, TutorialArea>> = { lab: 'lab', house: 'house', barn: 'barn', orders: 'orders' };
 const TAB_PLACE: Partial<Record<TabId, (s: GameState) => string>> = {
   lab: (s) => (lvl(s, 'lab') >= 1 ? 'lab' : 'lot-lab'),
   house: () => 'house',
@@ -177,6 +181,8 @@ export function FarmScreen({ s, dispatch, profile, fast, onFast, onMap, onRestar
   // the pager scrolls, and the section that settles in view becomes the live one.
   // the tab row is kept for the teaching farm only (its lessons point at the sections there)
   const tabs = !!tutorial;
+  const lockOf = (area: TutorialArea) => tutorial && !areaOpen(tutorial.session.step, area) ? closedReason(area) : null;
+  const tabLock = (id: TabId) => { const a = TAB_AREA[id]; return a ? lockOf(a) : null; };
   const paneProps = (id: TabId) => ({ id: `pane-${id}`, role: tabs ? 'tabpanel' as const : 'region' as const, ...(tabs ? { 'aria-labelledby': `tab-${id}` } : { 'aria-label': TABS[idx(id)].name }), inert: tab !== id, 'data-inert-base': String(tab !== id) });
   // a tablist with one Tab stop: arrows, Home and End move between sections
   function onTabKey(e: JSX.TargetedKeyboardEvent<HTMLElement>) {
@@ -237,9 +243,10 @@ export function FarmScreen({ s, dispatch, profile, fast, onFast, onMap, onRestar
       </header>
       {tabs && <nav class="tabs" role="tablist" aria-label="Разделы фермы" onKeyDown={onTabKey}>
         {TABS.map((t) => {
-          const b = badges[t.id];
+          const locked = tabLock(t.id);
+          const b = locked ? null : badges[t.id];
           return (
-            <button type="button" role="tab" id={`tab-${t.id}`} aria-controls={`pane-${t.id}`} tabIndex={tab === t.id ? 0 : -1} data-tab={t.id} aria-selected={tab === t.id} class={`tab${tab === t.id ? ' on' : ''}${t.id === 'field' ? ' main' : ''}`} onClick={() => {
+            <button type="button" role="tab" id={`tab-${t.id}`} aria-controls={`pane-${t.id}`} tabIndex={tab === t.id ? 0 : -1} data-tab={t.id} aria-selected={tab === t.id} aria-label={locked ? `${t.name} — закрыто` : undefined} class={`tab${tab === t.id ? ' on' : ''}${t.id === 'field' ? ' main' : ''}${locked ? ' locked' : ''}`} onClick={() => {
                 const v = villageApi.current;
                 // the field's tab takes you to the field, and on the field between it and the village
                 if (t.id === 'field') { if (tab === 'field' && v?.available) v.toggle(); else go('field'); return; }
@@ -247,7 +254,7 @@ export function FarmScreen({ s, dispatch, profile, fast, onFast, onMap, onRestar
                 if (tab === 'field' && v?.available && v.mode() !== 'field' && place) { void v.flyTo(place(s)).then(() => go(t.id)); return; }
                 go(t.id);
               }}>
-              <Icon name={t.icon} size={t.id === 'field' ? 26 : 22} />
+              <Icon name={locked ? 'lock' : t.icon} size={t.id === 'field' ? 26 : 22} />
               <span>{t.id === 'field' && tab === 'field' && fieldMode !== 'field' ? 'Деревня' : t.short}</span>
               {b && <i aria-hidden="true" class={`tab-badge ${b.tone ?? ''}`}>{b.n}</i>}
             </button>
@@ -255,13 +262,13 @@ export function FarmScreen({ s, dispatch, profile, fast, onFast, onMap, onRestar
         })}
       </nav>}
       {s.phase === 'shortfall' && !paymentOpen && (tab !== 'field' || fieldMode !== 'field') && <div class="payment-reminder" role="status"><div class="pr-chip"><span>Платёж ожидает решения</span><button type="button" onClick={()=>setPaymentOpen(true)}>Решить платёж</button></div></div>}
-      <QuickProjects.Provider value={!!tutorial}><div class="pager" ref={pager}>
-        <section class="pane" {...paneProps('lab')}><LabView s={s} act={dispatch} active={tab === 'lab' && !menu && !paymentOpen && !suspended} teaching={tutorial?.session.step === 'lab'} /></section>
-        <section class="pane" {...paneProps('house')}><HouseView s={s} act={dispatch} onPlace={(item) => { setPlaceRequest({ item, key: Date.now() }); go('field'); }} /></section>
+      <LessonLocks.Provider value={lockOf}><QuickProjects.Provider value={!!tutorial}><div class="pager" ref={pager}>
+        <section class="pane" {...paneProps('lab')}><Peek area="lab" onBack={() => go('field')}><LabView s={s} act={dispatch} active={tab === 'lab' && !menu && !paymentOpen && !suspended && !tabLock('lab')} teaching={tutorial?.session.step === 'lab'} /></Peek></section>
+        <section class="pane" {...paneProps('house')}><Peek area="house" onBack={() => go('field')}><HouseView s={s} act={dispatch} onPlace={(item) => { setPlaceRequest({ item, key: Date.now() }); go('field'); }} /></Peek></section>
         <section class="pane field-pane" {...paneProps('field')}><FieldView onPresent={setPresent} teaching={!!tutorial} precheck={tutorial?.precheck} lessonVisit={tutorial?.session.step==='visit'} onVisitDone={()=>{if(tutorial?.session.step==='visit')tutorial.onNext();}} onOrder={org=>{setOrderTarget({org,key:Date.now()});go('orders');}} onPayment={()=>setPaymentOpen(true)} onMap={onMap} villageApi={villageApi} onVillageMode={setFieldMode} testing={testing} s={s} dispatch={dispatch} fast={fast} active={tab === 'field' && !menu && !paymentOpen && !suspended} placeRequest={placeRequest} onGo={(t) => t === 'barn' ? openBarn() : go(t as TabId)} /></section>
-        <section class="pane" {...paneProps('barn')}><BarnView s={s} act={dispatch} target={barnTarget} onPayment={()=>setPaymentOpen(true)} /></section>
-        <section class="pane" {...paneProps('orders')}><OrdersView teaching={!!tutorial} target={orderTarget} s={s} act={dispatch} profile={profile} /></section>
-      </div></QuickProjects.Provider>
+        <section class="pane" {...paneProps('barn')}><Peek area="barn" onBack={() => go('field')}><BarnView s={s} act={dispatch} target={barnTarget} onPayment={()=>setPaymentOpen(true)} /></Peek></section>
+        <section class="pane" {...paneProps('orders')}><Peek area="orders" onBack={() => go('field')}><OrdersView teaching={!!tutorial} target={orderTarget} s={s} act={dispatch} profile={profile} /></Peek></section>
+      </div></QuickProjects.Provider></LessonLocks.Provider>
       {tutorial&&!menu&&!paymentOpen&&s.phase!=='gameover'&&<GuideHint controls={tutorial} tab={tab}/>}
       {error && !(tutorial && !menu && !paymentOpen && s.phase !== 'gameover' && tutorial.session.hiddenHintStep !== tutorial.session.step) && <div class="toast" role="alert">{error}</div>}
       {s.phase === 'shortfall' && paymentOpen && <ShortfallSheet s={s} act={dispatch} onBarn={() => openBarn()} onOrders={() => { setPaymentOpen(false); go('orders'); }} onClose={() => setPaymentOpen(false)} onRetry={tutorial?.onRetry} />}
