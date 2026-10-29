@@ -5,7 +5,7 @@
 /** units harvested for each level 1..5 */
 export const KNOW_AT = [20, 60, 150, 300, 600];
 /** level labels: shown after the crop's name in brackets, or after «знание»; 0 means the lab opens nothing of it yet */
-export const KNOW_NAMES = ['не открыто', 'знаком', 'умеет', 'знаток', 'мастер', 'свой сорт'];
+export const KNOW_NAMES = ['не открыто', 'новичок', 'ученик', 'знаток', 'мастер', 'селекционер'];
 export const KNOW_SEED_SALE = 0.8;
 export const KNOW_GLORY = 15;
 const SALE_PCT = Math.round((1 - KNOW_SEED_SALE) * 100);

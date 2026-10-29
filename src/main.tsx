@@ -1,6 +1,9 @@
 import { render } from 'preact';
 import { App } from './ui/App';
 import favicon from './assets/favicon.png';
+import { initTelegram } from './ui/telegram';
+import { UpdateBanner } from './ui/UpdateBanner';
+import { BUILD_ID } from './ui/autoUpdate';
 import './fonts.css';
 import './legacy.css';
 import './styles.css';
@@ -30,6 +33,9 @@ import './lesson-locks.css';
 // the year's ordeal and the fire pits
 import './trials.css';
 
+initTelegram();
+document.documentElement.dataset.build = BUILD_ID;
+
 // favicon is set from code so the single-file build keeps it inlined
 if (!document.querySelector('link[rel="icon"]')) {
   const link = document.createElement('link');
@@ -39,3 +45,7 @@ if (!document.querySelector('link[rel="icon"]')) {
 }
 
 render(<App />, document.getElementById('app')!);
+// the update offer lives outside the game tree: it works on every screen, the save-lock screen included
+const updateRoot = document.createElement('div');
+document.body.appendChild(updateRoot);
+render(<UpdateBanner />, updateRoot);
