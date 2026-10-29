@@ -14,7 +14,8 @@ import {NibbledPlant} from '../art/pestDamage';
 import type {PestHit} from '../engine/game';
 import { Locusts } from '../art/locusts';
 import { Beetles } from '../art/beetles';
-import { MeadowDecor, GrassPattern, YardDecor, EdgeDecor, propPlot, type Season } from '../art/meadow';
+import { MeadowDecor, GrassPattern, YardDecor, EdgeDecor, propPlot, ground, type Season } from '../art/meadow';
+import { CampRope, ForestEdge, ShadeDefs, forestSides } from '../art/ground';
 import { CROPS, GRID } from '../engine/data';
 import type { CropId, PetId } from '../engine/data';
 import {
@@ -159,7 +160,7 @@ function Hive() {
   );
 }
 
-function Meadow({ x, y, buyable, price, signOnly, season = 0, prop }: { x: number; y: number; buyable: boolean; price: number; signOnly?: boolean; season?: Season; prop?: boolean }) {
+function Meadow({ x, y, buyable, price, signOnly, season = 0, prop, region }: { x: number; y: number; buyable: boolean; price: number; signOnly?: boolean; season?: Season; prop?: boolean; region?: string }) {
   if (signOnly)
     return (
       <g class="sale-sign" data-price={price}>
@@ -172,8 +173,8 @@ function Meadow({ x, y, buyable, price, signOnly, season = 0, prop }: { x: numbe
     );
   return (
     <g>
-      <rect x={2} y={2} width={96} height={96} rx={10} fill={season === 3 ? '#eef4f8' : buyable ? '#97b267' : P.grass} opacity={0.9} />
-      <MeadowDecor x={x} y={y} season={season} prop={prop} />
+      <rect x={2} y={2} width={96} height={96} rx={10} fill={season === 3 ? '#eef4f8' : buyable ? ground(region).buy : ground(region).grass} opacity={0.9} />
+      <MeadowDecor x={x} y={y} season={season} prop={prop} region={region} />
       {buyable && (
         <g class="sale-sign">
           <rect x={8} y={8} width={84} height={84} rx={12} fill="none" stroke="#fff6c4" stroke-width={2.5} stroke-dasharray="7 8" opacity={0.7} />
@@ -214,7 +215,7 @@ function RiverLayer({ s, cam }: { s: GameState; cam: Camera }) {
   return (
     <g class="river" pointer-events="none">
       {/* PSV-014 · the banks under the river follow the season (snow in winter), not a summer-green strip */}
-      {cells.map(([x, y]) => <rect transform={at(x, y)} x={0} y={0} width={100} height={100} fill={s.season === 3 ? '#e4edf3' : P.grass} />)}
+      {cells.map(([x, y]) => <rect transform={at(x, y)} x={0} y={0} width={100} height={100} fill={s.season === 3 ? '#e4edf3' : ground(s.loc).grass} />)}
       {cells.map(([x, y]) => <path transform={at(x, y)} d={riverPath(s, x, y)} fill="#2c6f94" stroke="#2c6f94" stroke-width={6} stroke-linejoin="round" />)}
       {cells.map(([x, y]) => <path transform={at(x, y)} d={riverPath(s, x, y)} fill="#4f9fcf" />)}
       {cells.map(([x, y]) => (
@@ -229,11 +230,13 @@ function RiverLayer({ s, cam }: { s: GameState; cam: Camera }) {
 
 // PSV-014 · tayga in winter: the ground under snow like the meadow around it, firs with snow on their
 // branches, broad-leaved trees bare
-function Forest({ x, y, winter = false }: { x: number; y: number; winter?: boolean }) {
+function Forest({ x, y, winter = false, region }: { x: number; y: number; winter?: boolean; region?: string }) {
   const r = hashN(x, y, 4);
   return (
     <g class={winter ? 'forest winter' : 'forest'}>
-      <rect x={0} y={0} width={100} height={100} fill={winter ? '#e4edf3' : '#6aa843'} />
+      {/* 29.10 · the forest floor is darker than the open ground round it, darkest in the Altai's taiga */}
+      <rect x={0} y={0} width={100} height={100} fill={winter ? '#e4edf3' : ground(region).forest} />
+      {!winter && <path d="M12 20 l5 -1 M60 14 l4 1.4 M84 40 l-4 -1.6 M20 52 l5 -1 M70 90 l4 -1.4" stroke="#1f3a22" stroke-width={1.2} stroke-linecap="round" opacity={.45} />}
       {winter && <path d="M8 88 q14 -6 28 0 t28 0 t28 0" stroke="#c9dbe6" stroke-width={2} fill="none" stroke-linecap="round" />}
       {[[26, 70, 1], [70, 62, 0.9], [48, 38, 1.1]].map(([cx, cy, k], i) => (
         <g transform={`translate(${cx + (r - 0.5) * 10} ${cy}) scale(${k})`}>
@@ -867,6 +870,7 @@ export function Scene({
     <svg viewBox={`0 0 ${cam.W} ${cam.H}`} class={`scene-svg wind-${wind}${winter ? ' winter' : ''}${lens ? ` lens-on` : ''}${build ? ' build-on' : ''}${highlight.preview || highlight.area.size || highlight.block || highlight.tiles.size ? ' previewing' : ''}`} role="group" aria-label="Поле">
       <defs>
         <GrassPattern winter={winter} region={s.loc} />
+        <ShadeDefs />
         {/* the low sun on the field as on the village's hills: lit at the crest, deeper towards the hand; hatching
             (fyH) and cast shadows (fyS) for the yard drawn in the village's style */}
         <linearGradient id="field-light" x1="0" x2="0" y1="0" y2="1">
@@ -898,7 +902,7 @@ export function Scene({
       {skyOutside && <path d={crestLine(cam.W, SKY_H)} fill="none" stroke={winter ? '#ffe3d2' : '#f4f7c8'} stroke-width={1.8} stroke-opacity={0.7} transform="translate(0 1.6)" />}
       {skyOutside && <path d={crestLine(cam.W, SKY_H)} fill="none" stroke={winter ? '#33283a' : '#3a2a1f'} stroke-width={1.2} stroke-opacity={0.82} stroke-linejoin="round" />}
       <YardDecor W={cam.W} yard={yard} season={s.season as Season} region={s.loc} hauls={(s.trips ?? []).map((t) => t.loc)} />
-      <EdgeDecor W={cam.W} H={cam.H} yard={yard} season={s.season as Season} />
+      <EdgeDecor W={cam.W} H={cam.H} yard={yard} season={s.season as Season} region={s.loc} />
       {yardCrates > 0 && (
         <g transform={`translate(${cam.W / 2 - 40} ${yard - 44})`} class="yard-crates" pointer-events="none">
           {[0, 1, 2].slice(0, Math.min(3, Math.ceil(yardCrates / 6))).map((i) => (
@@ -978,7 +982,7 @@ export function Scene({
                   <rect x={0} y={0} width={100} height={100} fill="transparent" />
                 ) : t.terrain === 'forest' ? (
                   <g>
-                    <Forest x={x} y={y} winter={winter} />
+                    <Forest x={x} y={y} winter={winter} region={s.loc} />
                     {clearable && !winter && <g transform="translate(66 64) scale(0.6)" class="axe-hint">{icons.axe()}</g>}
                   </g>
                 ) : t.canal ? (
@@ -991,8 +995,9 @@ export function Scene({
                     {buyable && <Meadow x={x} y={y} buyable price={price} signOnly />}
                   </g>
                 ) : (
-                  <Meadow x={x} y={y} buyable={buyable} price={price} season={s.season as Season} prop={k === propKey} />
+                  <Meadow x={x} y={y} buyable={buyable} price={price} season={s.season as Season} prop={k === propKey} region={s.loc} />
                 )}
+                {!winter && t.terrain !== 'forest' && t.terrain !== 'river' && (() => { const sd = forestSides(s, x, y); return sd.length ? <ForestEdge sides={sd} /> : null; })()}
                 {t.terrain === 'rock' && <Rocks x={x} y={y} owned={t.owned} />}
                 {t.terrain === 'swamp' && <Swamp x={x} y={y} owned={t.owned} winter={winter} />}
                 {!hidePlants && t.owned && t.weeds && <Weeds x={x} y={y} />}
@@ -1054,6 +1059,8 @@ export function Scene({
             );
           }),
         )}
+        {/* 29.10 · an expedition's plot is roped off on stakes: a temporary camp's rented land */}
+        {s.run && <CampRope s={s} pad={PAD} cell={CELL} visible={vis} winter={winter} />}
         {highlight.preview && (() => {
           const pv = highlight.preview!;
           const inside = pv.cells.map(([x, y], i) => [x, y, i] as const).filter(([x, y]) => x >= 0 && y >= 0 && x < GRID && y < GRID && vis(x, y));

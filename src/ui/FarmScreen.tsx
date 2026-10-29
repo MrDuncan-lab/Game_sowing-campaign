@@ -16,7 +16,7 @@ import { Btn, ClosedLayer, Dispatch, Money, Sheet, compactMoney, reducedMotionNo
 import { ArrestLayer, HomeBankrupt, RivalSays, RoadSheet, RunOver, VisitSheet } from './Run';
 import { BankScene } from '../art/bankScene';
 import { FestivalSheet, RatingSheet, festToShow, markFestSeen } from './Festival';
-import { StoryLayer, pendingBeats } from './Story';
+import { StoryLayer, pendingStory } from './Story';
 import type { ExpeditionId } from '../engine/data';
 import { FieldView } from './FieldView';
 import type { VillageApi, VillageMode } from './Village';
@@ -109,10 +109,12 @@ function GameOver({ s, onMap, onRestart }: { s: GameState; onMap: () => void; on
   );
 }
 
-export function FarmScreen({ s, dispatch, profile, fast, onFast, onMap, onRestart, error, onTest, testing=false, onTestTools, suspended=false, tutorial, onHome, onWork, onExpedition }: {
+export function FarmScreen({ s, dispatch, profile, fast, onFast, onMap, onRestart, error, onTest, testing=false, onTestTools, suspended=false, tutorial, onHome, onWork, onExpedition, story }: {
   s: GameState; dispatch: Dispatch; profile: Profile; fast: boolean; onFast: () => void; onMap: () => void; onRestart: () => void; error: string | null; onTest?:()=>void; testing?:boolean; onTestTools?:()=>void; suspended?:boolean; tutorial?:TutorialControls;
   /** v3 · the home farm (from a finished run), going to work off a bankrupt home, a departure from the arrest */
   onHome?: () => void; onWork?: () => void; onExpedition?: (l: ExpeditionId) => void;
+  /** the story's scenes; off in the test mode unless a settlement scenario asks for them */
+  story?: boolean;
 }) {
   const [tab, setTab] = useState<TabId>('field');
   // PSV-028 · while last week's events play, the top bar shows that week too (the save is already the new one)
@@ -137,7 +139,8 @@ export function FarmScreen({ s, dispatch, profile, fast, onFast, onMap, onRestar
   // table, or the signpost) is open, the field behind it stands still and keeps its voice
   const festOn = festShut >= 0 && !!festToShow(s) && s.phase === 'week' && !tutorial && !menu && !paymentOpen && !present;
   const storyBlocked = !!menu || paymentOpen || !!festToShow(s) || rating || !!present || (!!visitKey && visitShut !== visitKey);
-  const storyOn = storyTick >= 0 && !tutorial && !testing && s.phase === 'week' && !storyBlocked && pendingBeats(s, 'sheet').length > 0;
+  const storyAllowed = story ?? !testing;
+  const storyOn = storyTick >= 0 && !tutorial && storyAllowed && s.phase === 'week' && !storyBlocked && pendingStory(s).length > 0;
   const overlay = festOn || rating || road || storyOn;
   const pager = useRef<HTMLDivElement>(null);
   const tabRef = useRef<TabId>('field');
@@ -297,7 +300,7 @@ export function FarmScreen({ s, dispatch, profile, fast, onFast, onMap, onRestar
       {festOn && <FestivalSheet s={s} onClose={() => { markFestSeen(s, s.year); setFestShut(festShut + 1); }} />}
       {rating && <RatingSheet s={s} profile={profile} onClose={() => setRating(false)} />}
       {road && onExpedition && <RoadSheet home={s} glory={profile.glory} onGo={onExpedition} onMap={onMap} onClose={() => setRoad(false)} />}
-      {!tutorial && !testing && s.phase === 'week' && <StoryLayer s={s} blocked={storyBlocked} onSeen={() => setStoryTick(storyTick + 1)} />}
+      {!tutorial && storyAllowed && s.phase === 'week' && <StoryLayer s={s} blocked={storyBlocked} onSeen={() => setStoryTick(storyTick + 1)} />}
       {menu && (
         <Sheet title={`${loc.name} · ${loc.place}`} icon="map" onClose={() => setMenu(false)}>
           <div class="stack">
