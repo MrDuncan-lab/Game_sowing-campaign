@@ -44,3 +44,13 @@ export function initTelegram() {
   const sdk = document.getElementById('tg-sdk');
   sdk?.addEventListener('load', () => { init(); }, { once: true });
 }
+
+/** Opened from a bot: Telegram passes launch parameters in the URL hash (the SDK may move them to sessionStorage),
+ *  so this is known at once, before the async SDK arrives. */
+export function launchedFromTelegram(): boolean {
+  try {
+    if (/tgWebApp(Data|Version|Platform)=/.test(window.location.hash)) return true;
+    if (webApp()) return true;
+    return !!sessionStorage.getItem('__telegram__initParams');
+  } catch { return false; }
+}
