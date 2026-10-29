@@ -272,6 +272,11 @@ export function plural(n: number, one: string, few: string, many: string): strin
   if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
   return many;
 }
+/** 29.10 · the harvest's unit. «ед.» stays only right after a number in tight places: card faces, chips, buttons,
+ *  table cells and short readouts («урожай 12 ед.», «−3 ед.»). In a sentence the word is written out and declined:
+ *  units() for the nominative («12 единиц ждут места»), unitsAcc() after «за», «просит», «нужно» («за 1 единицу»). */
+export const units = (n: number) => `${n}\u00a0${plural(n, 'единица', 'единицы', 'единиц')}`;
+export const unitsAcc = (n: number) => `${n}\u00a0${plural(n, 'единицу', 'единицы', 'единиц')}`;
 /** the first letter of a lowercase clause made capital, to open a sentence */
 const cap = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
 /** A capitalised sentence with exactly one closing mark: texts from the data may or may not end with a full stop. */
@@ -2583,7 +2588,7 @@ function sellYard(s: GameState) {
     s.earned = round2(s.earned + v);
     s.report.yardSold = v;
     s.report.yardUnits = n;
-    feed(s, `Перекупщик забрал со двора ${n} ед. за ${money(v)} (60% цены).`, 'info');
+    feed(s, `Перекупщик забрал со двора ${unitsAcc(n)} урожая за ${money(v)} (60% цены).`, 'info');
   }
 }
 export const reservedStock = (s: GameState, c: CropId) => Object.values(s.orgs).reduce((n, org) => n + (org?.active?.lines.filter((l) => l.crop === c).reduce((sum, l) => sum + l.qty, 0) ?? 0), 0);
@@ -3861,7 +3866,7 @@ export function apply(state: GameState, a: Action): GameState {
         got = `${money(cash)} за муку`;
       } else { deliverTemporary(s, 'helpers'); got = 'карту «Помощь соседей» в руку'; }
       (s.yards![a.yard] ??= { stage: yardStage(s, a.yard) }).swap = key;
-      feed(s, `${YARDS[a.yard].name}: за ${YARDS[a.yard].swap.take.qty} ед. «${CROPS[a.crop].name}» вы получили ${got}.`, 'good');
+      feed(s, `${YARDS[a.yard].name}: за ${unitsAcc(YARDS[a.yard].swap.take.qty)} ${CROPS[a.crop].gen} вы получили ${got}.`, 'good');
       break;
     }
     case 'yardHelp': {
@@ -4590,7 +4595,7 @@ function playCard(s: GameState, uid: number, cells: [number, number][], row?: nu
       const k = (hasCond(s, 'cedar') ? 2 : 1) * (hasRelic(s, 'oldmap') ? 2 : 1) * ((s.run?.cones ?? -1) >= s.absWeek ? 0.5 : 1);
       const q = Math.max(1, Math.round(base * Math.min(3, k)));
       addToStorage(s, 'mushrooms', q);
-      feed(s, `Поход в тайгу: ${q} ед. грибов.`, 'good');
+      feed(s, `Поход в тайгу принёс ${unitsAcc(q)} грибов.`, 'good');
     }
   }
   s.days -= days;

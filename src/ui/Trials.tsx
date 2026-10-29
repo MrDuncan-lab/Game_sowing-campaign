@@ -5,7 +5,7 @@ import type { GameState, Trial } from '../engine/game';
 import { SEASON_GEN } from '../engine/data';
 import {
   deckList, firePits, firesLit, firewoodCost, fireLightDays, lightFiresProblem, lvl, money, trialEnd, trialKnown, trialLead, frostVictims, weekInfo, buildStock, dripRows,
-  plural,
+  plural, units,
 } from '../engine/game';
 import { TRIALS, TRIAL_GLORY, TRIAL_GRADE_NAME, TRIAL_PASS, TRIAL_HOLD } from '../engine/trials';
 import { Icon } from '../art/icons';
@@ -136,7 +136,7 @@ export function TrialResultCard({ s, t, onClose }: { s: GameState; t: Trial; onC
               <span class={`ta-result-stamp g${r.grade}`}>{TRIAL_GRADE_NAME[r.grade]}</span>
               <p class="ta-omen" style={{ marginTop: '8px' }}>{r.grade === 0
                 ? `На поле было ${r.beds} ${plural(r.beds, 'грядка', 'грядки', 'грядок')}. Испытание прошло мимо.`
-                : `Под ударом было ${r.beds} ${plural(r.beds, 'грядка', 'грядки', 'грядок')} с урожаем на ${money(Math.round(r.risk))}. Потеряно ${r.lostUnits} ед. на ${money(Math.round(r.lostValue))}.`}</p>
+                : `Под ударом было ${r.beds} ${plural(r.beds, 'грядка', 'грядки', 'грядок')} с урожаем на ${money(Math.round(r.risk))}. Потеряно ${units(r.lostUnits)} урожая на ${money(Math.round(r.lostValue))}.`}</p>
             </div>
           </div>
           <p class="ta-reward">{r.glory ? <>Слава: <b>+{r.glory}</b>.</> : 'Славы за это испытание нет.'} {r.grade < 3 ? 'В следующем году будет новое испытание. Готовьтесь заранее: костры, укрытия, сорта.' : 'Округа заговорила о вашей ферме.'}</p>

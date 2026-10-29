@@ -3,6 +3,7 @@ import { CARDS, CROPS, CROP_IDS, CropId, RATINGS, isSeed } from '../engine/data'
 import {
   GameState, priceOf, rub, cardShopPrice, creditLimit, deckLimit, deckList, forecast, insurancePrice, locOf, loanRate, lookahead, marketPrice, money, nextPayment,
   outstanding, plural, shopCards, stockOf, miceTargets, storageCap, storageUsed, weeklyCosts, yardUsed, fmt, lvl, obtainable, freeStock, reservedStock, storageKeepWeeks, deckCount,
+  units,
 } from '../engine/game';
 import { Icon } from '../art/icons';
 import { CropSprite } from '../art/crops';
@@ -109,7 +110,7 @@ function SaleControls({ s, c, act }: { s: GameState; c: CropId; act: Dispatch })
       </Btn>
     </div>
     
-    {amount > freeStock(s, c) && <p class="small bad">Из резерва заказа будет продано {amount - freeStock(s, c)} ед.</p>}
+    {amount > freeStock(s, c) && <p class="small bad">Из резерва заказа будет продано {units(amount - freeStock(s, c))}.</p>}
     {(reserved > 0 || inYard > 0 || CROPS[c].perishable) && <details class="sale-more"><summary>{reserved > 0 ? `Хранение (резерв ${reserved})` : 'Хранение'}</summary>
       <p>В амбаре {s.storage.filter(l=>l.crop===c).reduce((a,l)=>a+l.qty,0)} ед.{inYard ? ` Во дворе ${inYard} ед.` : ''} {CROPS[c].perishable ? (keep - oldest > 0 ? `Не испортится ещё ${weeksIn(keep - oldest)}.` : 'Скоро испортится.') : 'Не портится.'}</p>
       {reserved > 0 && <label class="reserve-choice"><input type="checkbox" checked={includeReserved} onChange={e => setIncludeReserved(e.currentTarget.checked)} />Можно продать резерв заказа ({reserved})</label>}
@@ -180,7 +181,7 @@ export function BarnView({ s, act, target, onPayment }: { s: GameState; act: Dis
         </nav>
       </div>
       {yard > 0 && <p class="barn-warn"><Icon name="sack" size={20}/><span><b>Во дворе {yard} ед.</b> Продайте до конца недели, иначе их заберут за 60% цены (не больше {money(yardLoss)}).</span></p>}
-      {mice && <p class="barn-hint">Мыши каждую неделю грызут запасы от 10 ед.: {nibbled.map(c => CROPS[c].name.toLowerCase()).join(', ')}. Спасут кот или сусеки (амбар 2-го уровня).</p>}
+      {mice && <p class="barn-hint">Мыши каждую неделю грызут запасы от 10 единиц: {nibbled.map(c => CROPS[c].name.toLowerCase()).join(', ')}. Спасут кот или сусеки (амбар 2-го уровня).</p>}
       {tab === 'market' && (
         <section class="panel barn-panel">
           <p class="market-key">График показывает цену на {horizonOf(s)} {plural(horizonOf(s), 'неделю', 'недели', 'недель')} вперёд. Пунктир — ориентир, полоса — разброс, но цена может выйти за её границы. Строка у графика относится к отмеченной неделе, а чтобы выбрать другую, коснитесь графика.</p>

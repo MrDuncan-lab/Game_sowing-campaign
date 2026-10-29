@@ -23,7 +23,7 @@ import {
   plantBlock, plantingYield, playableTargets, plural, ripenIn, seasonLen, shapeRotations, shapeTiles, soilMult, soilTemp, sowingSoil, tile, waterArea,
   firePits, firesLit, lightFiresProblem, firewoodCost, fireLightDays, trialAhead, trialKnown, trialLead, trialEnd,
   weekDays, weekInfo, weekOutlook, weedsOnLine, yieldParts, cardNeedDays, cellReasons, sortiesPerSeason, weeklyDraw, episodesAt, mischiefOn, frostLimit, frostShield, lvl, deckCount, buildMoveSpots, winterCareTarget,
-  treeStage, TREE_NAMES, TREE_CHOP, TREE_YOUNG, TREE_GROWN, FELL_LOGS, STONE_BRICKS,
+  treeStage, chopDays, TREE_NAMES, TREE_CHOP, TREE_YOUNG, TREE_GROWN, FELL_LOGS, STONE_BRICKS,
 } from '../engine/game';
 import { EPISODES } from '../engine/calendar';
 import type { Episode } from '../engine/calendar';
@@ -45,7 +45,7 @@ import { BedPopover } from './BedPopover';
 import { morningCellDelay, type MorningStep } from './Morning';
 import { kidsScouting, kidsAhead } from './foresight';
 import {killers,kidMisses} from './collisions';
-import { workEffectCells, workCardPreview } from '../engine/game';
+import { workEffectCells, workCardPreview, units } from '../engine/game';
 export const TOUCH_AIM_OFFSET = 60;
 // a rail of tools beside the field: up to a 42-px button and its gaps, at least a 34-px one
 const RAIL_W = 52, RAIL_MIN = 44;
@@ -258,7 +258,7 @@ function JournalNow(c: JournalCtx & {compact?:boolean}) {
       {risky && outlook && <div class="book-note"><Icon name="thermo" size={28} /><div class="grow"><b>К концу этой недели</b>{outlook.frost > 0 && <p class="bad">Мороз угрожает {outlook.frost} {plural(outlook.frost, 'грядке', 'грядкам', 'грядкам')}. Проверьте укрытия.</p>}{outlook.dying > 0 && <p class="bad">Без полива {plural(outlook.dying, 'погибнет', 'погибнут', 'погибнут')} {outlook.dying} {plural(outlook.dying, 'грядка', 'грядки', 'грядок')}.</p>}{outlook.threats.map(t => <p class={t.guard === 'дрон' ? 'up' : 'bad'}>{t.name}: затронет {t.beds} {plural(t.beds, 'грядку', 'грядки', 'грядок')}. {t.guard === 'дрон' ? 'Защитит дрон' : t.guard ? 'Урожай пострадает, но страховка выплатит деньги' : 'Нужна защита'}.</p>)}</div><div class="book-acts"><Btn small onClick={onClose}>На поле</Btn></div></div>}
       {scouting && <div class="book-note"><Icon name="kids" size={28} /><div class="grow"><b>У поля крутятся ребята</b><p>{thievesBlocked(s) ? 'Ребята из интерната приглядываются к спелым грядкам, но ферму охраняют, так что урожай не тронут.' : 'Ребята из интерната приглядываются к спелым грядкам. На следующей неделе могут прийти за урожаем. Защитят пёс, сторож или «Сторожка». А если ребята всё же придут, с ними можно поговорить.'}</p></div></div>}
       {thievesNow && <div class="book-note"><Icon name="kids" size={28} /><div class="grow"><b>У поля чужие следы</b><p>Это ребята из интерната, присматриваются к урожаю. С ними можно поговорить заранее.</p></div><div class="book-acts"><Btn small disabled={s.days < 1 ? 'Нужен рабочий день' : null} onClick={() => act({ t: 'talkKids' })}>Поговорить · 1 день</Btn></div></div>}
-      {s.yard.length > 0 && <div class="book-note"><Icon name="barn" size={28} /><div class="grow"><b>Урожай во дворе</b><p>{s.yard.reduce((a, l) => a + l.qty, 0)} ед. ждут места в амбаре.</p></div><div class="book-acts"><Btn small onClick={() => { onClose(); onGo('barn'); }}>В амбар</Btn></div></div>}
+      {s.yard.length > 0 && <div class="book-note"><Icon name="barn" size={28} /><div class="grow"><b>Урожай во дворе</b><p>{(() => { const n = s.yard.reduce((a, l) => a + l.qty, 0); return `${units(n)} урожая ${plural(n, 'ждёт', 'ждут', 'ждут')} места в амбаре.`; })()}</p></div><div class="book-acts"><Btn small onClick={() => { onClose(); onGo('barn'); }}>В амбар</Btn></div></div>}
       {!c.compact&&<><h4 class="page-sub">В хозяйстве</h4>
       <dl class="book-ledger">
         <div><dt>Рабочих дней</dt><dd>{s.days}</dd></div>
@@ -283,7 +283,7 @@ function JournalLog({ s }: { s: GameState }) {
       {!r && <p class="ink-line muted">Это первая неделя, итогов пока нет. Они появятся здесь, когда вы завершите неделю.</p>}
       {r && <>
         {harvest.length > 0 ? <ul class="book-harvest">{harvest.map(([c, q]) => <li><CropIcon id={c} size={24} /><span>{CROPS[c].name}</span><b>+{q}</b></li>)}</ul> : <p class="ink-line muted">Урожай не собирали.</p>}
-        {r.overflow > 0 && <p class="ink-line bad">{r.overflow} ед. не влезли в амбар и неделю простоят во дворе.</p>}
+        {r.overflow > 0 && <p class="ink-line bad">{units(r.overflow)} урожая не {plural(r.overflow, 'влезла', 'влезли', 'влезли')} в амбар и неделю {plural(r.overflow, 'простоит', 'простоят', 'простоят')} во дворе.</p>}
         {r.lost.map((l) => <p class="ink-line bad">{l}</p>)}
         {r.done.map((l) => <p class="ink-line up">{l}</p>)}
         {!!r.insurancePaid && <p class="ink-line up">Страховая выплата: +{money(r.insurancePaid)}</p>}
@@ -380,7 +380,7 @@ function TileDetails({ s, x, y, act, onClose }: { s: GameState; x: number; y: nu
       {p && !note && <p class="small up">На этой неделе будет расти.{t.structure==='greenhouse' ? ' Теплица защищает и от перегрева.' : ''}</p>}
       {p && growthMoisture(s)[idx(x,y)]!==t.moisture && <p class="small">До роста дождь и орошение дадут влагу {growthMoisture(s)[idx(x,y)]}/3.</p>}
       {t.canal && !wetCanals(s).has(idx(x,y)) && <p class="small bad">Сухой канал: восстановите соединение с рекой.</p>}
-      {t.tree !== undefined && <p class="small">{treeText(t)}</p>}
+      {t.tree !== undefined && <p class="small">{treeText(s, t)}</p>}
       {t.terrain === 'rock' && <p class="small muted">Камни пойдут на фундамент: засчитаются как {STONE_BRICKS} {plural(STONE_BRICKS, 'кирпич', 'кирпича', 'кирпичей')}.</p>}
       {note && <p class={`ts-note${note === 'dormant' || note === 'rest' ? '' : ' bad'}`}>{note === 'dry' ? `Без воды не растёт. ${(p?.dry??0)+1 >= (p?.traits?.includes('drought')?3:2) ? 'Без полива погибнет в конце этой недели.' : `Сухих недель подряд: ${(p?.dry??0)+1} из ${p?.traits?.includes('drought')?3:2}.`}` : NOTE_TEXT[note]}</p>}
       {parts.some(q=>!q.label.startsWith('плодородие')) && <p class="small muted">Бонусы: {parts.filter(q=>!q.label.startsWith('плодородие')).map((q) => `${q.label} ×${String(q.mult).replace('.', ',')}`).join(', ')}</p>}
@@ -391,23 +391,25 @@ function TileDetails({ s, x, y, act, onClose }: { s: GameState; x: number; y: nu
         {isGuarded(s, x, y) && <span class="tag good">под защитой</span>}
         {p && CROPS[p.id].sidereal && p.grown >= 2 && s.season !== 3 && <Btn small disabled={s.days < 1 ? 'Нет рабочих дней' : null} onClick={() => doIt({ t: 'plow', x, y })}>Запахать всю посадку: почва +1</Btn>}
         {canClear(s, x, y) && <Btn small disabled={s.days < 1 ? 'Нет рабочих дней' : null} onClick={() => doIt({ t: 'clear', x, y })}>{t.terrain === 'rock' ? 'Убрать камни' : 'Осушить'} · {money(clearPrice(s, x, y))}</Btn>}
-        {t.tree !== undefined && <Btn small tone="primary" disabled={s.days < 1 ? 'Нет рабочих дней' : null} onClick={() => doIt({ t: 'fell', x, y })}>{fellLabel(t)}</Btn>}
+        {t.tree !== undefined && <Btn small tone="primary" disabled={s.days < 1 ? 'Нет рабочих дней' : null} onClick={() => doIt({ t: 'fell', x, y })}>{fellLabel(s, t)}</Btn>}
       </div>
     </div>
   );
 }
 
 // v3 §4.5 · what a tree on a bed is and what taking it out gives
-function treeText(t: Tile): string {
+function treeText(s: GameState, t: Tile): string {
+  // the find «Дедов топор» takes a day off the uprooting (chopDays)
+  const days = chopDays(s), axe = days < TREE_CHOP;
   const st = treeStage(t);
   const logs = (n: number) => `${n}\u00a0${plural(n, 'бревно', 'бревна', 'брёвен')}`;
   if (st === 1) return `Поросль на заросшей грядке. Через ${TREE_YOUNG - (t.tree ?? 0)}\u00a0${plural(TREE_YOUNG - (t.tree ?? 0), 'тёплую неделю', 'тёплые недели', 'тёплых недель')} станет молодым деревом. Выдернуть её можно за 1\u00a0день, а ещё её уберёт прополка ряда.`;
   if (st === 2) return `Молодое дерево затеняет соседние грядки: урожай на них ×0,85. Срубить его можно за 1\u00a0день, это даст ${logs(FELL_LOGS[2])}. Через ${TREE_GROWN - (t.tree ?? 0)}\u00a0${plural(TREE_GROWN - (t.tree ?? 0), 'тёплую неделю', 'тёплые недели', 'тёплых недель')} оно вырастет, и тогда корчёвка даст ${logs(FELL_LOGS[3])}.`;
-  return `Дерево затеняет соседние грядки: урожай на них ×0,85. Выкорчевать его можно за ${TREE_CHOP}\u00a0${plural(TREE_CHOP, 'рабочий день', 'рабочих дня', 'рабочих дней')}, по одному дню в неделю: сделано ${t.chop ?? 0} из ${TREE_CHOP}. Получите ${logs(FELL_LOGS[3])}, а плодородие грядки вырастет на 1.`;
+  return `Дерево затеняет соседние грядки: урожай на них ×0,85. Выкорчевать его можно за ${days}\u00a0${plural(days, 'рабочий день', 'рабочих дня', 'рабочих дней')}${axe ? ' (с Дедовым топором на день быстрее)' : ''}, по одному дню в неделю: сделано ${t.chop ?? 0} из ${days}. Получите ${logs(FELL_LOGS[3])}, а плодородие грядки вырастет на 1.`;
 }
-function fellLabel(t: Tile): string {
+function fellLabel(s: GameState, t: Tile): string {
   const st = treeStage(t);
-  return st === 1 ? 'Выдернуть · 1 день' : st === 2 ? `Срубить · 1 день · +${FELL_LOGS[2]} бревна` : `Корчевать · день ${(t.chop ?? 0) + 1} из ${TREE_CHOP}`;
+  return st === 1 ? 'Выдернуть · 1 день' : st === 2 ? `Срубить · 1 день · +${FELL_LOGS[2]} бревна` : `Корчевать · день ${(t.chop ?? 0) + 1} из ${chopDays(s)}`;
 }
 
 // ---------- the build palette ----------
@@ -1826,7 +1828,7 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
             {tile(s,...info).owned && <span class="bed-moisture"><Icon name="drop" size={13}/>{tile(s,...info).moisture}/3</span>}
             {guardable(s,...info) && <button type="button" class="bed-action" aria-label={`Защитить на эту неделю: 1 день и ${money(guardPrice(s))}`} disabled={s.days<1||s.money<guardPrice(s)} onClick={()=>{if(act({t:'guard',x:info[0],y:info[1]}))closeContext();}}><Icon name="shield" size={25}/><small>1 д. · {money(guardPrice(s))}</small></button>}
             {tile(s,...info).weeds && <button type="button" class="bed-action" aria-label="Прополоть за 1 день" disabled={s.days<1} onClick={()=>{if(act({t:'weed',x:info[0],y:info[1]}))closeContext();}}><Icon name="weeding" size={25}/><small>1 д.</small></button>}
-            {tile(s,...info).owned && tile(s,...info).tree!==undefined && <button type="button" class="bed-action" aria-label={fellLabel(tile(s,...info))} disabled={s.days<1} onClick={()=>{if(act({t:'fell',x:info[0],y:info[1]}))closeContext();}}><Icon name="axe" size={25}/><small>{treeStage(tile(s,...info))===3?`${(tile(s,...info).chop??0)+1}/${TREE_CHOP}`:'1 д.'}</small></button>}
+            {tile(s,...info).owned && tile(s,...info).tree!==undefined && <button type="button" class="bed-action" aria-label={fellLabel(s, tile(s,...info))} disabled={s.days<1} onClick={()=>{if(act({t:'fell',x:info[0],y:info[1]}))closeContext();}}><Icon name="axe" size={25}/><small>{treeStage(tile(s,...info))===3?`${(tile(s,...info).chop??0)+1}/${chopDays(s)}`:'1 д.'}</small></button>}
             <button type="button" class="bed-action bed-info" aria-label="Подробнее о грядке" onClick={()=>{setDetails(info);closeContext();setSheet('bed');}}>i</button>
           </>}
         </BedPopover>}

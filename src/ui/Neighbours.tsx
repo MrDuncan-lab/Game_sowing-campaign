@@ -15,7 +15,7 @@ import { Icon } from '../art/icons';
 import { Bar, Btn, Dispatch, Pips, Sheet } from './common';
 import { ShedChips } from './Fair';
 import { DistrictTable, FestivalStandings } from './Festival';
-import { districtPlace } from '../engine/game';
+import { districtPlace, unitsAcc } from '../engine/game';
 
 /** «3 недели»: a span of work or a wait, in words */
 const weeks = (n: number) => {
@@ -99,7 +99,7 @@ function YardBody({ s, y, act, onFair }: { s: GameState; y: YardId; act: Dispatc
       {now >= 1 && (
         <section class="nb-swap">
           <h3>Мена{y === 'zina' && now >= 2 ? ': каждую неделю' : ': раз в сезон'}</h3>
-          <p class="small">За {D.swap.take.qty} ед. {D.swap.take.name} одной культуры: {D.swap.give}.</p>
+          <p class="small">За {unitsAcc(D.swap.take.qty)} {D.swap.take.name} одной культуры: {D.swap.give}.</p>
           {y === 'zina' && (
             <div class="seg" role="radiogroup" aria-label="Какую карту взять">
               {ZINA_CARDS.map((c) => <button type="button" role="radio" aria-checked={card === c} class={card === c ? 'on' : ''} onClick={() => setCard(c)}>{CARDS[c].name}</button>)}

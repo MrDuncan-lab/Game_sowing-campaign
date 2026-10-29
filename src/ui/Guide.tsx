@@ -10,7 +10,7 @@ import {useEffect,useLayoutEffect,useRef,useState} from 'preact/hooks';
 import {AREA_IDS,areaOpen,dryBeds,lessonPrice,ownFarmDifferences,tutorialChapter,tutorialPlant,tutorialReserve,practiceNeed,saleProgress,wateringProgress,FREE_STEPS,TUTORIAL_STEPS,TUTORIAL_WEEK,CHAPTER_WEEKS,type TutorialArea,type TutorialSession,type TutorialStep} from '../engine/tutorial';
 import type {VillageMode} from './Village';
 import type {TabId} from './FarmScreen';
-import {workEffectCells,shapeTiles,plantBlock,nextPayment,money,plural,type Action} from '../engine/game';
+import {workEffectCells,shapeTiles,plantBlock,nextPayment,money,plural,unitsAcc,type Action} from '../engine/game';
 import {CROPS} from '../engine/data';
 import {PORTRAIT_IMAGES} from '../art/portraits';
 import {BUYERS} from '../content/orderDialogue';
@@ -109,7 +109,7 @@ function hint(t:TutorialSession,tab:TabId,visitLate=false,village:VillageMode='f
   if(step==='lab'&&q('.lab-pane .seg button:first-child:not(.on)'))return{text:'Откройте раздел «Селекция».',target:q('.lab-pane .seg button:first-child'),gesture:'tap'};
   if(['accept','deliver'].includes(step)&&q('.orders-pane .hall'))return{text:'Вернитесь из зала славы к заказам.',target:q('.orders-pane .back-link'),gesture:'tap'};
   const building=q('.field-view')?.getAttribute('data-build-item');
-  if(tab==='field'&&building&&step!=='place'&&step!=='practice'&&step!=='solo')return{text:'Закончите перемещение построек.',target:button('Завершить перемещение построек'),gesture:'tap'};
+  if(tab==='field'&&building&&step!=='place'&&step!=='practice'&&step!=='solo')return{text:'Сначала закончите с постройками: нажмите на молоток.',target:button('Завершить постройки'),gesture:'tap'};
   if(tab==='field'&&q('.exchange-cancel')&&step!=='practice'&&step!=='solo')return{text:'Отмените обмен, и продолжим урок.',target:q('.exchange-cancel'),gesture:'tap'};
   switch(step){
     case 'plant':{
@@ -162,7 +162,7 @@ function hint(t:TutorialSession,tab:TabId,visitLate=false,village:VillageMode='f
     case 'accept':{
       // B-14а: a concrete date, not «the term starts at once» — the term runs from the offer itself
       const o=Object.values(s.orgs).map(o=>o?.offer).find(Boolean);
-      return{text:`${guest} просит ${tutorialReserve(t)} ед. редиса. Возьмите заказ.`,target:button('Взять')??q('.org2'),gesture:'tap',hello:s.absWeek<=2?'Ваш редис ещё растёт — заказ подождёт, пока он созреет.':undefined,more:o?.deadline!==undefined?`Срок сдачи: ${weekDate(s,o.deadline)}. Если возьмёте заказ, он останется за вами. Если не возьмёте, штрафа не будет.`:'Если возьмёте заказ, он останется за вами. Если не возьмёте, штрафа не будет.'};
+      return{text:`${guest} просит ${unitsAcc(tutorialReserve(t))} редиса. Возьмите заказ.`,target:button('Взять')??q('.org2'),gesture:'tap',hello:s.absWeek<=2?'Ваш редис ещё растёт — заказ подождёт, пока он созреет.':undefined,more:o?.deadline!==undefined?`Срок сдачи: ${weekDate(s,o.deadline)}. Если возьмёте заказ, он останется за вами. Если не возьмёте, штрафа не будет.`:'Если возьмёте заказ, он останется за вами. Если не возьмёте, штрафа не будет.'};
     }
     case 'deliver':return{text:'Сдайте заказ, дети ждут.',target:button('Сдать'),gesture:'tap',more:'Урожай сам к покупателю не уходит.'};
     case 'solo':{
@@ -209,7 +209,7 @@ function hint(t:TutorialSession,tab:TabId,visitLate=false,village:VillageMode='f
           if(dry&&s.days<1)return{text:'Рабочие дни закончились. Завершите неделю.',target:q('.end-week'),gesture:'tap',more:'Утром рабочие дни вернутся. Первым делом полейте посадку для заказа.',check};
           if(dry&&q('.fan-slot .card.selected')&&!selected(card('water')))return cancelCard();
           return dry?{text:'Полейте посадку для заказа.',target:bed(...dry.at),gesture:'tap',more:'В сухой земле рост останавливается. Нажмите на грядку и выберите лейку.',check}
-            :{text:'Посадка полита. Завершите неделю, и она подрастёт.',target:q('.end-week'),gesture:'tap',more:`Для заказа нужно ${need.qty} ед. урожая (${name.toLowerCase()}). Проверяйте влагу каждую неделю.`,check};
+            :{text:'Посадка полита. Завершите неделю, и она подрастёт.',target:q('.end-week'),gesture:'tap',more:`Для заказа нужно ${unitsAcc(need.qty)} урожая (${name.toLowerCase()}). Проверяйте влагу каждую неделю.`,check};
         }
         if(need.seed){
           if(s.days<1)return{text:'Рабочие дни закончились. Завершите неделю.',target:q('.end-week'),gesture:'tap',more:`Семена останутся в руке. Утром посадите «${name}».`,check};
@@ -222,7 +222,7 @@ function hint(t:TutorialSession,tab:TabId,visitLate=false,village:VillageMode='f
             if(w>=0)return q('.fan-slot .card.selected')?cancelCard():{text:button('Прополоть')?'Прополите грядку.':'Грядки заросли. Прополите место для посева.',target:button('Прополоть')??bed(w%6,Math.floor(w/6)),gesture:'tap',more:'Нажмите на заросшую грядку и выберите прополку: 1 день за грядку.',check};
             return{text:'Освободите место для посева.',target:q('.end-week'),gesture:'tap',more:'Присмотрите за посадками и дождитесь урожая. Карту можно повернуть, тогда она займёт другое место.',check};
           }
-          return{text:`Для заказа посадите «${name}». Выберите карту.`,target:e,gesture:'tap',more:`Нужно ${need.qty} ед. урожая. После посадки не забывайте поливать.`,check};
+          return{text:`Для заказа посадите «${name}». Выберите карту.`,target:e,gesture:'tap',more:`Нужно ${unitsAcc(need.qty)} урожая. После посадки не забывайте поливать.`,check};
         }
         const ready=s.days>0&&s.exchangeWeek!==s.absWeek;
         return ready?{text:q('.exchange-cancel')?'Выберите ненужную карту для обмена.':'Нужных семян в руке нет. Нажмите обмен на колоде.',target:q('.exchange-cancel')?hand(s.hand[0]?.uid):button('Обменять карту'),gesture:'tap',more:`Дальше в учебной колоде лежат нужные семена (${name.toLowerCase()}). Обмен стоит один рабочий день.`,check}

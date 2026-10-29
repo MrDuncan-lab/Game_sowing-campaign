@@ -7,7 +7,7 @@ import { MorningLayer, MorningStep, morningPlantClass, morningCellDelay } from '
 import { BedLeftovers } from '../art/collisions';
 import { PlantBody, windFor } from './PlantMotion';
 import { kidDelay, type MissCause } from './collisions';
-import { wetCanals, idx, treeStage, TREE_CHOP, TREE_NAMES } from '../engine/game';
+import { wetCanals, idx, treeStage, chopDays, TREE_NAMES } from '../engine/game';
 // The field: beds, terrain, plants, marks, lenses and the farmer. Pure drawing — every decision comes in as props.
 import {CompostHeap} from '../art/compost';
 import {NibbledPlant} from '../art/pestDamage';
@@ -312,7 +312,7 @@ function SandDunes({ x, y, winter = false }: { x: number; y: number; winter?: bo
 
 // v3 §4.5 · a tree on a bed let go: a sprout, a young birch, a grown tree (in winter bare, with snow on its
 // branches). Uprooting shows: notches in the trunk, the axe left in it, a little tally of the days put in.
-function FieldTree({ x, y, stage, chop, winter }: { x: number; y: number; stage: 1 | 2 | 3; chop: number; winter: boolean }) {
+function FieldTree({ x, y, stage, chop, of, winter }: { x: number; y: number; stage: 1 | 2 | 3; chop: number; of: number; winter: boolean }) {
   const r = hashN(x, y, 9);
   const lean = (r - 0.5) * 6;
   const leaf = winter ? 'none' : '#5f9e3a', leafHi = winter ? 'none' : '#86c94e';
@@ -363,7 +363,7 @@ function FieldTree({ x, y, stage, chop, winter }: { x: number; y: number; stage:
       {stage === 3 && chop > 0 && (
         <g transform="translate(78 84)">
           <rect x={-12} y={-8} width={24} height={14} rx={7} fill="#fffaf0" stroke={P.ink} stroke-width={1.4} />
-          <text x={0} y={2.6} text-anchor="middle" font-size={9} font-weight={700} fill={P.ink}>{chop}/{TREE_CHOP}</text>
+          <text x={0} y={2.6} text-anchor="middle" font-size={9} font-weight={700} fill={P.ink}>{chop}/{of}</text>
         </g>
       )}
     </g>
@@ -1001,7 +1001,7 @@ export function Scene({
                 {t.terrain === 'rock' && <Rocks x={x} y={y} owned={t.owned} />}
                 {t.terrain === 'swamp' && <Swamp x={x} y={y} owned={t.owned} winter={winter} />}
                 {!hidePlants && t.owned && t.weeds && <Weeds x={x} y={y} />}
-                {t.owned && t.tree !== undefined && <FieldTree x={x} y={y} stage={treeStage(t) as 1 | 2 | 3} chop={t.chop ?? 0} winter={winter} />}
+                {t.owned && t.tree !== undefined && <FieldTree x={x} y={y} stage={treeStage(t) as 1 | 2 | 3} chop={t.chop ?? 0} of={chopDays(s)} winter={winter} />}
                 {t.owned && t.drip && <DripHose wet={t.moisture > 0} l={x > 0 && tile(s, x - 1, y).drip} r={x < GRID - 1 && tile(s, x + 1, y).drip} />}
                 {t.structure === 'hive' && <Hive />}
                 {!hidePlants && crop && !hit && (
