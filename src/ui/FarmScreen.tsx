@@ -92,7 +92,7 @@ function GameOver({ s, onMap, onRestart }: { s: GameState; onMap: () => void; on
   return (
     <ClosedLayer title="Ферма закрыта">
         {s.loc === 'chernozem' && s.over?.reason?.includes('Пряхин') && <BankScene mode="lost" level={lvl(s, 'house')} season={s.season} />}
-        {s.loc === 'chernozem' && s.over?.reason?.includes('Пряхин') && <RivalSays text="Записал: дом мой. Не держите зла — приезжайте в Заречье, в аренду пущу." />}
+        {s.loc === 'chernozem' && s.over?.reason?.includes('Пряхин') && <RivalSays text="Теперь дом мой, но зла на меня не держите. Приезжайте в Заречье, сдам вам землю в аренду." />}
         <p>{s.over?.reason}</p>
         <div class="bank-grid">
           <div class="kv"><span>Прожито лет</span><b>{s.yearsCompleted}</b></div>

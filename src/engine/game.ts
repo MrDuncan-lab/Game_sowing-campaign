@@ -40,7 +40,7 @@ export interface Loan { id: number; principal: number; rate: number }
 export interface Worker { id: WorkerId; level: number; away: number; leaves?: number; free?: boolean } // v3 · a temporary hand: leaves that week, takes no bed and no pay
 export interface QuestLine { crop: CropId; qty: number }
 export interface Quest { id: number; org: OrgId; step: number; title: string; text: string; lines: QuestLine[]; pay: number; rel: number; weeks: number; deadline?: number; expires?: number; contract?: boolean; reward?: Reward; createdWeek?: number }
-export interface OrgState { rel: number; step: number; offer: Quest | null; active: Quest | null; wait: number; idle: number; lastMischief: number }
+export interface OrgState { /** познакомились ли вы с заказчиком: первая встреча идёт раньше первого заказа */ met?: boolean; rel: number; step: number; offer: Quest | null; active: Quest | null; wait: number; idle: number; lastMischief: number }
 export type Project =
   | { kind: 'track'; track: TrackId; level: number; weeks: number; total: number }
   | { kind: 'cell'; card: Card; origin?: 'deck' | 'spare'; cell: [number, number]; weeks: number; total: number }
@@ -3315,7 +3315,7 @@ function answerVisit(s: GameState, v: RunVisit, choice: number) {
       if (choice === 1) takeProduce(s, 2);
       const add = Math.min(0.3, weeds * (choice === 1 ? 0.025 : 0.05));
       if (add > 0) { r.surcharge = round2((r.surcharge ?? 0) + add); feed(s, `Пряхин насчитал ${weeds} ${plural(weeds, 'заросшую грядку', 'заросшие грядки', 'заросших грядок')}: следующая аренда +${Math.round(add * 100)}%.`, 'bad'); }
-      else feed(s, 'Пряхин обошёл поле и ничего не сказал. Это и есть похвала.', 'good');
+      else feed(s, 'Пряхин обошёл поле и ничего не сказал, а от него это и есть похвала.', 'good');
       break;
     }
   }
@@ -3424,6 +3424,7 @@ export type Action =
   | { t: 'shoo' }
   | { t: 'droneCrows' }
   | { t: 'talkKids' }
+  | { t: 'meetOrg'; org: OrgId }
   | { t: 'plow'; x: number; y: number }
   | { t: 'clear'; x: number; y: number }
   | { t: 'buyLand'; x: number; y: number }
@@ -3466,7 +3467,7 @@ export type Action =
   | { t: 'yardHelp'; yard: YardId }
   | { t: 'forge'; track: TrackId };
 
-const ANY_PHASE: Action['t'][] = ['guide', 'pay', 'emergency', 'restructure', 'giveUp', 'seize', 'sell', 'borrow', 'repay', 'deliver'];
+const ANY_PHASE: Action['t'][] = ['guide', 'meetOrg', 'pay', 'emergency', 'restructure', 'giveUp', 'seize', 'sell', 'borrow', 'repay', 'deliver'];
 const isInt = (v: unknown): v is number => typeof v === 'number' && Number.isInteger(v);
 const cellOk = (x: unknown, y: unknown) => isInt(x) && isInt(y) && inGrid(x, y);
 // every card the farm owns (also those in the lab), by uid
@@ -3617,6 +3618,12 @@ export function apply(state: GameState, a: Action): GameState {
       s.dronesUsed += 1;
       s.crows!.drone = true;
       break;
+    case 'meetOrg': {
+      const st = s.orgs[a.org];
+      if (!st) fail('Такого заказчика здесь нет');
+      st.met = true;
+      break;
+    }
     case 'talkKids': {
       if (!s.thieves || s.thieves.week !== s.absWeek || s.thieves.talked) fail('Говорить не с кем');
       needDay(s);
@@ -3980,6 +3987,7 @@ export function apply(state: GameState, a: Action): GameState {
       st.active = { ...st.offer!, deadline: offerDeadline(s,st.offer!) };
       st.offer = null;
       st.idle = 0;
+      st.met = true; // взяли заказ — значит, уже знакомы
       break;
     }
     case 'deliver': {

@@ -1967,7 +1967,7 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
         )}
       </div>
 
-      <OrderVisit s={s} lesson={teaching} onDone={onVisitDone} canStart={(teaching?lessonVisit:true)&&visitReady&&!running.current&&!ending.current} onVisible={setMeetingOpen} onOrder={onOrder??(()=>onGo('orders'))}/>
+      <OrderVisit s={s} lesson={teaching} onDone={onVisitDone} canStart={(teaching?lessonVisit:true)&&visitReady&&!running.current&&!ending.current} onVisible={setMeetingOpen} onMet={(o)=>{dispatch({t:'meetOrg',org:o});}} onOrder={onOrder??(()=>onGo('orders'))}/>
       {sheet === 'bed' && details && <Sheet title="Грядка" variant="info" onClose={()=>setSheet(null)}><TileDetails s={s} x={details[0]} y={details[1]} act={act} onClose={()=>setSheet(null)}/></Sheet>}
       {sheet === 'forecast' && <ForecastSheet s={fieldState} onClose={() => setSheet(null)} />}
       {sheet === 'journal' && <JournalSheet s={s} act={act} onGo={onGo} onClose={() => setSheet(null)} />}

@@ -8,7 +8,7 @@ import { CropIcon } from '../art/crops';
 import { Emblem, Pet } from '../art/extra';
 import { Bar, Btn, CropChip, Dispatch, Sheet } from './common';
 import type { Profile } from './persist';
-import {BUYERS,orderDialogue} from '../content/orderDialogue';
+import {BUYERS,introDialogue,isMet,orderDialogue} from '../content/orderDialogue';
 import {Portrait} from '../art/portraits';
 
 // a deadline in words: «осень, 3-я неделя»
@@ -95,6 +95,8 @@ function OrgRelations({ s, o, open }: { s: GameState; o: OrgId; open?: boolean }
   const buyer = BUYERS[o];
   // the perk text is the data's own; the label «Бонус дружбы:» is ours, so a perk that already carries it is not doubled
   const perk = d.perk.replace(/^Бонус дружбы:\s*/i, '');
+  // с новым заказчиком сначала знакомятся: пока вы не знакомы, его первые слова помечены отдельно
+  const intro = q && !isMet(st) ? introDialogue(o) : [];
   const dialogue = q ? orderDialogue(q) : [];
   return (
     <details class="org-more" open={open}>
@@ -108,6 +110,12 @@ function OrgRelations({ s, o, open }: { s: GameState; o: OrgId; open?: boolean }
       {done && <p class="org-goal up">Цепочка пройдена. Дальше будут постоянные заказы.</p>}
       {q && st.active && <p class="org-goal">Отношения за сдачу заказа: +{q.rel}</p>}
       {dialogue.length > 0 && <div class="order-dialogue" aria-label={`Слова заказчика: ${buyer.name}`}>
+        {intro.length>0 && <small class="order-line-label">Знакомство</small>}
+        {intro.map((line,i)=><div class={`order-line${line.who!==buyer.person?' child-line':''}`} key={`intro${i}`}>
+          {line.who!==buyer.person&&<Portrait id={line.who} size={26}/>}
+          <p>{line.who!==buyer.person&&<b>{line.name}: </b>}{line.text}</p>
+        </div>)}
+        {intro.length>0 && <small class="order-line-label">Просьба</small>}
         {dialogue.map((line,i)=><div class={`order-line${i?' child-line':''}`} key={line.who}>
           {i>0&&<Portrait id={line.who} size={26}/>}
           <p>{i>0&&<b>{line.name}: </b>}{line.text}</p>

@@ -144,7 +144,7 @@ export function settleRun(home: GameState | null, run: GameState): { home: GameS
     } else if (h.arrest.runs <= 0 || res.bankrupt) {
       h.phase = 'gameover';
       h.over = { reason: 'Долг не закрыт: дом с молотка купил Пряхин' };
-      note(h, 'Дом ушёл с молотка. Пряхин записал покупку в тетрадь.', 'bad');
+      note(h, 'Дом ушёл с молотка, и Пряхин вписал покупку в тетрадь.', 'bad');
       return { home: h, run: done };
     } else note(h, `${name}: в счёт долга ушло ${money(pay)}. Осталось вернуть ${money(h.arrest.debt)}, на это даётся ещё ${h.arrest.runs} ${plural(h.arrest.runs, 'вылазка', 'вылазки', 'вылазок')}.`, 'bad');
   } else if (h.phase === 'gameover' && h.over?.work) {

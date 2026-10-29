@@ -234,7 +234,7 @@ export function HomeBankrupt({ s, onRestart, onWork, onMap }: { s: GameState; on
     <ClosedLayer title="За домом приехал банк">
       <BankScene mode="cart" level={lvl(s, 'house')} season={s.season} amount={compactMoney(s.over!.work!)} />
       <p>{s.over?.reason}. Дом в залоге, и Марат из банка разводит руками.</p>
-      <RivalSays text="Записал. Земля любит хозяина, а не мечтателя." />
+      <RivalSays text="Земля любит хозяина, а не мечтателя. Я так в тетради и отметил." />
       <p>Можно <b>начать заново</b>: дом снова будет в залоге, а профиль и слава останутся. Или <b>уйти на заработки</b>. Тогда дом окажется под арестом, а долг {money(s.over!.work!)} нужно погасить на вылазках, на это две попытки. Если закроете долг, дом проснётся следующей весной.</p>
       <div class="btn-row"><Btn tone="primary" onClick={onWork}><Icon name="cart" size={20} /> Уйти на заработки</Btn><Btn onClick={onRestart}>Начать заново</Btn><Btn tone="ghost" onClick={onMap}>На карту</Btn></div>
     </ClosedLayer>
@@ -251,7 +251,7 @@ export function ArrestLayer({ s, glory, onExpedition, onMap, runFarm }: { s: Gam
   return (
     <ClosedLayer title="Дом под арестом">
       <BankScene mode="arrest" level={lvl(s, 'house')} season={s.season} />
-      <RivalSays text={`Дом подождёт. Я тоже подожду: ${a.runs > 1 ? `${a.runs} ${plural(a.runs, 'вылазка', 'вылазки', 'вылазок')}` : 'одна вылазка'} — и он мой.`} />
+      <RivalSays text={`Дом подождёт, и я тоже. Но если за ${a.runs > 1 ? `${a.runs} ${plural(a.runs, 'вылазку', 'вылазки', 'вылазок')}` : 'одну вылазку'} долг не закроется, дом перейдёт ко мне.`} />
       <p>Долг банку: <b>{money(a.debt)}</b>. Вылазок на погашение: <b>{a.runs}</b>. Хозяйство, которое вы свернёте, сначала закроет долг, а остаток пойдёт в кассу дома.</p>
       {s.away ? <p>Обоз уже на вылазке: <b>{LOCATIONS[s.away.loc].name}</b>.</p> : <div class="btn-row">
         {EXPEDITION_IDS.map((l) => <Btn tone={l === 'rent' ? 'primary' : undefined} disabled={expeditionOpen(l, glory) ? null : `Нужна слава ${LOCATIONS[l].glory}`} onClick={() => onExpedition(l)}>{LOCATIONS[l].name}</Btn>)}
