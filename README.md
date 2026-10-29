@@ -12,7 +12,7 @@
 
 Скачайте [posevnaya-preview.html](https://github.com/MrDuncan-lab/Game_sowing-campaign/raw/refs/heads/main/posevnaya-preview.html) и откройте его в браузере. Игра собрана в один HTML-файл (около 11,5 МБ: портреты и шрифты лежат внутри); установка и сервер для запуска не требуются. Интерфейс рассчитан на телефон в портрете (от 320 px), на компьютере тоже работает.
 
-[Финальный ZIP с HTML и исходниками](https://github.com/MrDuncan-lab/Game_sowing-campaign/releases/latest)
+Исходники вместе с готовым HTML — кнопка **Code → Download ZIP** на странице репозитория.
 
 Сохранения хранятся в браузере. Режим проверки использует отдельную тестовую ферму.
 
