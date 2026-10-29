@@ -866,7 +866,7 @@ export function Scene({
   return (<>
     <svg viewBox={`0 0 ${cam.W} ${cam.H}`} class={`scene-svg wind-${wind}${winter ? ' winter' : ''}${lens ? ` lens-on` : ''}${build ? ' build-on' : ''}${highlight.preview || highlight.area.size || highlight.block || highlight.tiles.size ? ' previewing' : ''}`} role="group" aria-label="Поле">
       <defs>
-        <GrassPattern winter={winter} />
+        <GrassPattern winter={winter} region={s.loc} />
         {/* the low sun on the field as on the village's hills: lit at the crest, deeper towards the hand; hatching
             (fyH) and cast shadows (fyS) for the yard drawn in the village's style */}
         <linearGradient id="field-light" x1="0" x2="0" y1="0" y2="1">
@@ -890,14 +890,14 @@ export function Scene({
         {[[.76, .05], [.84, .09], [.92, .13]].map(([f, o]) => <rect x={0} y={cam.H * f} width={cam.W} height={cam.H * (1 - f)} fill="url(#fyH)" fill-opacity={o} />)}
       </g>
       {/* the yard strip: a path, the fence, the pets and the crates that did not fit the barn */}
-      {sky && !skyOutside && <SkyBand W={cam.W} season={s.season} tokens={sky.tokens} signs={sky.signs} meteoMax={sky.meteoMax} px={px} onToken={sky.onToken} onFog={sky.onFog} onSign={sky.onSign} clear={sky.clear} />}
+      {sky && !skyOutside && <SkyBand region={s.loc} W={cam.W} season={s.season} tokens={sky.tokens} signs={sky.signs} meteoMax={sky.meteoMax} px={px} onToken={sky.onToken} onFog={sky.onFog} onSign={sky.onSign} clear={sky.clear} />}
       {skyOutside
         ? <path d={`${crestLine(cam.W, SKY_H)} L${cam.W} ${yard} H0 Z`} fill={winter ? '#f4f8fb' : '#bccb92'} opacity={0.45} />
         : <rect x={0} y={yardTop} width={cam.W} height={yard - yardTop} rx={sky ? 0 : 18} fill={winter ? '#f4f8fb' : '#bccb92'} opacity={sky ? 0.45 : 0.6} />}
       {/* the field is the nearest hill: its crest is inked, with the low sun catching its edge, like the village's */}
       {skyOutside && <path d={crestLine(cam.W, SKY_H)} fill="none" stroke={winter ? '#ffe3d2' : '#f4f7c8'} stroke-width={1.8} stroke-opacity={0.7} transform="translate(0 1.6)" />}
       {skyOutside && <path d={crestLine(cam.W, SKY_H)} fill="none" stroke={winter ? '#33283a' : '#3a2a1f'} stroke-width={1.2} stroke-opacity={0.82} stroke-linejoin="round" />}
-      <YardDecor W={cam.W} yard={yard} season={s.season as Season} />
+      <YardDecor W={cam.W} yard={yard} season={s.season as Season} region={s.loc} hauls={(s.trips ?? []).map((t) => t.loc)} />
       <EdgeDecor W={cam.W} H={cam.H} yard={yard} season={s.season as Season} />
       {yardCrates > 0 && (
         <g transform={`translate(${cam.W / 2 - 40} ${yard - 44})`} class="yard-crates" pointer-events="none">

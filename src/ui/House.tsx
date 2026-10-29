@@ -97,7 +97,7 @@ function Interior({ s, onWorker, onHire }: { s: GameState; onWorker: (id: Worker
   const more = levels.findIndex((_, i) => i >= house && HOUSE_BEDS[i] > HOUSE_BEDS[house - 1]);
   return (
     <div class="room">
-      <Room seats={seats} certs={s.certs.length} cat={s.pets.includes('cat')} dog={s.pets.includes('dog')} winter={s.season === 3} />
+      <Room seats={seats} certs={s.certs.length} cat={s.pets.includes('cat')} dog={s.pets.includes('dog')} winter={s.season === 3} camp={isHome(s) ? 0 : lvl(s, 'house')} region={s.loc} />
       {more >= 0 && <p class="room-next">Ещё одна кровать — с уровнем «{levels[more].name}»</p>}
       {lodging(s) > 0 && (
         <p class="room-lodge">

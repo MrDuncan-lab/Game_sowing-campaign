@@ -73,3 +73,19 @@ test('the house screen has its own self-contained drawing of the same seven hous
     for (const id of used) { assert.ok(id.startsWith('es-'), id); assert.ok(ids.has(id), `missing def ${id}`); }
   }
 });
+
+test('29.10 · an expedition\'s yard is its camp, its region\'s things; a home shows what the carts brought back', async () => {
+  const { h } = await import('preact');
+  const render = (await import('preact-render-to-string')).default;
+  const { YardDecor } = await import('../src/art/meadow');
+  const { YARD } = await import('../src/art/yard');
+  const has = (html: string, k: keyof typeof YARD.summer) => html.includes(YARD.summer[k].slice(0, 60));
+  const home = render(h(YardDecor, { W: 420, yard: 120, season: 1 }));
+  assert.ok(has(home, 'well') && has(home, 'gate') && !has(home, 'tent'));
+  const kuban = render(h(YardDecor, { W: 620, yard: 120, season: 1, region: 'kuban' }));
+  assert.ok(has(kuban, 'tent') && has(kuban, 'fire') && has(kuban, 'poplar') && !has(kuban, 'well') && !has(kuban, 'gate'));
+  const altai = render(h(YardDecor, { W: 620, yard: 120, season: 1, region: 'altai' }));
+  assert.ok(has(altai, 'spruce') && !has(altai, 'poplar'));
+  const hauls = render(h(YardDecor, { W: 420, yard: 120, season: 1, hauls: ['rent', 'kuban', 'altai'] }));
+  assert.ok(has(hauls, 'well') && has(hauls, 'haystack') && has(hauls, 'poplar') && has(hauls, 'spruce_s') && !has(hauls, 'tent'));
+});

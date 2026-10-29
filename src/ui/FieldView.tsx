@@ -1732,7 +1732,7 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
           {(['solid', 'land', 'veil', 'front'] as const).map((part) => (
             <svg key={part} class={`sky-svg sb-${part}`} viewBox={`${-skyExt} 0 ${cam.W + 2 * skyExt} ${SKY_H}`} style={{ width: `${(cam.W + 2 * skyExt) * px}px`, height: `${skyPx}px` }}
               aria-hidden={part === 'front' ? undefined : 'true'} aria-label={part === 'front' ? 'Небо: погода на эту и следующие недели' : undefined}>
-              <SkyBand part={part} W={cam.W} season={fieldState.season} tokens={skyView.tokens} signs={skyView.signs} meteoMax={skyView.meteoMax} px={px} onToken={skyView.onToken} onFog={skyView.onFog} onSign={skyView.onSign} clear={skyView.clear} ext={skyExt} />
+              <SkyBand region={s.loc} part={part} W={cam.W} season={fieldState.season} tokens={skyView.tokens} signs={skyView.signs} meteoMax={skyView.meteoMax} px={px} onToken={skyView.onToken} onFog={skyView.onFog} onSign={skyView.onSign} clear={skyView.clear} ext={skyExt} />
             </svg>
           ))}
         </div>

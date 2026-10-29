@@ -244,8 +244,11 @@ export function MeadowDecor({ x, y, season, prop }: { x: number; y: number; seas
 }
 
 /** The grass under everything: varied tufts, seed dots and a little engraver's hatching. */
-export function GrassPattern({ winter }: { winter: boolean }) {
-  const base = winter ? '#e8f1f6' : P.grass, dark = winter ? '#c9dbe6' : P.grassDark, hatch = winter ? '#9fb6c4' : '#4f8a30';
+/** 29.10 · each region's grass: the Kuban steppe yellower, the Altai cooler and deeper */
+const REGION_GRASS: Record<string, [string, string, string]> = { kuban: ['#9fa956', '#7f8a40', '#6e7a2c'], altai: ['#76a05c', '#527a3f', '#3f7a3a'] };
+export function GrassPattern({ winter, region = 'chernozem' }: { winter: boolean; region?: string }) {
+  const tint = REGION_GRASS[region];
+  const base = winter ? '#e8f1f6' : tint?.[0] ?? P.grass, dark = winter ? '#c9dbe6' : tint?.[1] ?? P.grassDark, hatch = winter ? '#9fb6c4' : tint?.[2] ?? '#4f8a30';
   return (
     <pattern id="grass-tex" width="120" height="120" patternUnits="userSpaceOnUse">
       <rect width="120" height="120" fill={base} />
@@ -283,8 +286,16 @@ const piece = (season: Season, k: YardPiece) => YARD[season === 3 ? 'winter' : '
 
 /** The yard in the village's hybrid style (tools/village/yard.py draws the pieces): the trodden path the farmer
  *  walks, the road up to the village with its worn edges, the rain barrel, the fence, the gate, the crane well
- *  whose sweep dips, the hens, the sunflowers. */
-export function YardDecor({ W, yard, season }: { W: number; yard: number; season: Season }) {
+ *  whose sweep dips, the hens, the sunflowers. 29.10 · on an expedition the yard is the camp of its region (a tent,
+ *  a fire, a woodpile; poplars and melons on the Kuban, spruces and stones in the Altai, a haystack and a birch in
+ *  Заречье), and at home what the carts brought back stands in the yard: a haystack from Заречье, a poplar and
+ *  melons from the Kuban, a young cedar from the Altai. */
+export type YardRegion = 'chernozem' | 'rent' | 'kuban' | 'altai';
+export function YardDecor({ W, yard, season, region = 'chernozem', hauls = [] }: { W: number; yard: number; season: Season; region?: YardRegion; hauls?: YardRegion[] }) {
+  const camp = region !== 'chernozem';
+  const has = (r: YardRegion) => hauls.includes(r);
+  // the camp's things grow a little on a wide field; the compost heap holds the yard's right end
+  const k = Math.min(1.5, Math.max(1, W / 420)), yardEnd = W - 112;
   const winter = season === 3;
   const y = yard - 3;
   const top = yard - 66; // the crest of the field's hill, where the sky's land meets it
@@ -315,21 +326,50 @@ export function YardDecor({ W, yard, season }: { W: number; yard: number; season
       <path d={path} stroke={rut} stroke-width={.9} stroke-dasharray="1 9" stroke-linecap="round" fill="none" stroke-opacity={.8} />
       {tufts && <path d={tufts} stroke={grass} stroke-width={.9} stroke-linecap="round" fill="none" stroke-opacity={.75} />}
       <g transform={`translate(18 ${y - 3})`} {...html('barrel')} />
-      <g transform={`translate(88 ${y - 2})`}>
-        <g {...html('fence')} />
-        {season === 0 && <g transform="translate(34 -2) scale(.7)"><Dandelions k={1} /></g>}
-      </g>
-      <g transform={`translate(${rx} ${y - 1})`} {...html('gate')} />
-      <g transform={`translate(${W * .33} ${y + 1})`}>
-        <g {...html('well')} />
-        <g class="well-sweep" {...html('sweep')} />
-      </g>
-      {!winter && [0, 1].map((k) => (
-        <g transform={`translate(${W * (k ? .43 : .395)} ${y + (k ? 2 : -1)})${k ? ' scale(-1 1)' : ''}`}>
-          <g class={`yard-hen h${k}`}><g {...html('legs')} /><g class="hen-body" {...html(k ? 'hen1' : 'hen0')} /></g>
+      {camp ? <>
+        {/* the camp: a woodpile, the tent, the fire; the region's own things up to the compost heap (it stands at the
+            right, W − 108), a little larger on a wide expedition field */}
+        <g transform={`translate(58 ${y - 1}) scale(${k})`} {...html('woodstack')} />
+        <g transform={`translate(${W * .3} ${y}) scale(${k})`} {...html('tent')} />
+        <g transform={`translate(${W * .43} ${y + 1}) scale(${k})`} class="yard-fire" {...html('fire')} />
+        {region === 'kuban' && <>
+          <g transform={`translate(${W * .63} ${y}) scale(${k})`} {...html('melons')} />
+          <g transform={`translate(${yardEnd - 34 * k} ${y - 1}) scale(${k})`} {...html('poplar')} />
+          <g transform={`translate(${yardEnd - 12 * k} ${y}) scale(${k * .9})`} {...html('poplar')} />
+        </>}
+        {region === 'altai' && <>
+          <g transform={`translate(${W * .64} ${y}) scale(${k})`} {...html('stones')} />
+          <g transform={`translate(${yardEnd - 60 * k} ${y - 1}) scale(${k})`} {...html('spruce')} />
+          <g transform={`translate(${yardEnd - 38 * k} ${y}) scale(${k})`} {...html('spruce_s')} />
+          <g transform={`translate(${yardEnd - 14 * k} ${y - 1}) scale(${k})`} {...html('spruce')} />
+        </>}
+        {region === 'rent' && <>
+          <g transform={`translate(${W * .66} ${y}) scale(${k})`} {...html('haystack')} />
+          <g transform={`translate(${yardEnd - 24 * k} ${y}) scale(${k})`} {...html('birch')} />
+        </>}
+      </> : <>
+        {/* the hauls the carts brought home stand at the back of the yard, smaller for the distance: a cedar and a
+            poplar behind the well, a haystack past the gate, melons by the fence */}
+        {has('altai') && <g transform={`translate(${W * .2} ${y - 16}) scale(.7)`} {...html('spruce_s')} />}
+        {has('kuban') && <g transform={`translate(${W * .27} ${y - 18}) scale(.72)`} {...html('poplar')} />}
+        <g transform={`translate(88 ${y - 2})`}>
+          <g {...html('fence')} />
+          {season === 0 && <g transform="translate(34 -2) scale(.7)"><Dandelions k={1} /></g>}
         </g>
-      ))}
-      {season < 2 && [0, 1, 2].map((i) => (
+        {has('kuban') && <g transform={`translate(44 ${y}) scale(.8)`} {...html('melons')} />}
+        <g transform={`translate(${rx} ${y - 1})`} {...html('gate')} />
+        <g transform={`translate(${W * .33} ${y + 1})`}>
+          <g {...html('well')} />
+          <g class="well-sweep" {...html('sweep')} />
+        </g>
+        {!winter && [0, 1].map((k) => (
+          <g transform={`translate(${W * (k ? .43 : .395)} ${y + (k ? 2 : -1)})${k ? ' scale(-1 1)' : ''}`}>
+            <g class={`yard-hen h${k}`}><g {...html('legs')} /><g class="hen-body" {...html(k ? 'hen1' : 'hen0')} /></g>
+          </g>
+        ))}
+        {has('rent') && <g transform={`translate(${W * .655} ${y - 6}) scale(.8)`} {...html('haystack')} />}
+      </>}
+      {(region === 'chernozem' || region === 'kuban') && season < 2 && [0, 1, 2].map((i) => (
         <g transform={`translate(${W * (.73 + i * .035)} ${y - 2})`}>
           <g class="yard-sunflower" style={{ ['--sd' as string]: `${-hash2(i, 5) * 3}s` }} {...html(i % 2 ? 'sun32' : 'sun26')} />
         </g>

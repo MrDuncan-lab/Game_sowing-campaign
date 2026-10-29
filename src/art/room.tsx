@@ -42,17 +42,92 @@ function PlaceCard({ text, pips, of = 3, tone }: { text: string; pips?: number; 
   );
 }
 
-export function Room({ seats, certs, cat, dog, winter }: { seats: RoomSeat[]; certs: number; cat: boolean; dog: boolean; winter: boolean }) {
+/** 29.10 · inside the camp on an expedition: a canvas tent (Палатка), then plank walls (Времянка, Полевой стан) with a
+ *  window onto the region, a lantern and an iron stove instead of the izba's logs, clock and big stove */
+const OUTSIDE: Record<string, [string, string]> = { kuban: ['#e4c95a', '#a7b45a'], altai: ['#8fa6b8', '#5f8a5a'], rent: ['#9cc96a', '#7aa04e'] };
+function CampWalls({ level, winter, region }: { level: number; winter: boolean; region: string }) {
+  const [far, near] = winter ? ['#e8eef4', '#fbfdff'] : OUTSIDE[region] ?? OUTSIDE.rent;
+  if (level <= 1) return (
+    <g>
+      {/* the slopes of the tent and its back gable, the pole in the middle, seams of the canvas */}
+      <rect width={360} height={126} fill="#d7c493" />
+      <path d="M0 126 L180 4 L360 126 Z" fill="#ecdfb8" />
+      {[60, 120, 240, 300].map((x) => <path d={`M${x} 126 L180 ${4 + Math.abs(180 - x) * 0.0}`} stroke="#cdb98a" stroke-width={1.4} opacity={.8} />)}
+      <path d="M0 126 L180 4 L360 126" fill="none" stroke={INK} stroke-width={2} stroke-linejoin="round" />
+      <path d="M180 4 V126" stroke="#7c4f2b" stroke-width={6} /><path d="M180 4 V126" stroke="#9a6438" stroke-width={3} />
+      {/* a mesh window in the back wall: the region outside */}
+      <g stroke={INK} stroke-width={1.6}>
+        <path d="M70 92 Q70 70 96 66 Q122 70 122 92 Z" fill={far} />
+        <path d="M70 92 Q84 82 96 86 Q110 80 122 88 V92 Z" fill={near} stroke="none" />
+        <path d="M70 92 Q70 70 96 66 Q122 70 122 92 Z" fill="none" />
+        <path d="M78 74 L114 74 M74 82 L120 82 M84 68 V92 M96 66 V92 M108 68 V92" stroke="#b9a77a" stroke-width={.8} />
+        <path d="M66 94 Q96 100 126 94" fill="none" stroke="#b9925e" stroke-width={3} />
+      </g>
+    </g>
+  );
+  return (
+    <g>
+      {/* plank walls of the hut, a small window onto the region */}
+      <rect width={360} height={126} fill="#c9a774" />
+      {Array.from({ length: 18 }, (_, i) => <path d={`M${i * 20 + 10} 0 V126`} stroke={i % 3 ? '#b8935e' : '#a98251'} stroke-width={1.6} />)}
+      <path d="M0 4 H360" stroke="#8a6a3f" stroke-width={5} />
+      <g stroke={INK} stroke-width={2} stroke-linejoin="round">
+        <rect x={34} y={26} width={60} height={50} rx={2} fill="#efe2c4" />
+        <rect x={40} y={32} width={48} height={38} fill={far} />
+        <path d="M40 58 Q56 50 64 56 Q76 48 88 54 V70 H40 Z" fill={near} stroke="none" />
+        <path d="M64 32 V70 M40 51 H88" stroke="#efe2c4" stroke-width={3} />
+        <path d="M64 32 V70 M40 51 H88" stroke={INK} stroke-width={1.1} fill="none" />
+        <rect x={40} y={32} width={48} height={38} fill="none" />
+        <rect x={30} y={76} width={68} height={6} rx={2} fill="#9a6438" />
+      </g>
+    </g>
+  );
+}
+function CampLantern() {
+  return (
+    <g transform="translate(250 22)" stroke={INK} stroke-width={1.5} stroke-linejoin="round">
+      <path d="M0 -22 V0" stroke-width={1} />
+      <circle cx={0} cy={22} r={20} fill="#ffd27a" opacity={.22} stroke="none" />
+      <path d="M-6 2 H6 L4 6 H-4 Z" fill="#5b5f66" />
+      <path d="M-6 6 H6 V22 H-6 Z" fill="#fff1c2" />
+      <path d="M0 10 Q-3 15 0 19 Q3 15 0 10 Z" fill="#f6a23a" stroke="none" class="stove-fire" />
+      <path d="M-7 22 H7 V26 H-7 Z" fill="#5b5f66" />
+    </g>
+  );
+}
+function CampFloor({ level }: { level: number }) {
+  return (
+    <g>
+      <rect y={126} width={360} height={70} fill={level <= 1 ? '#a8895a' : '#b28a58'} />
+      {level <= 1
+        ? <path d="M40 150 H250 L262 182 H28 Z" fill="#c9573f" opacity={.85} stroke={INK} stroke-width={1.4} />
+        : Array.from({ length: 4 }, (_, i) => <path d={`M0 ${132 + i * 17} H360`} stroke="#9a7445" stroke-width={1.6} />)}
+      <path d="M0 126 H360" stroke="#7c4f2b" stroke-width={3} />
+      {/* the iron stove (буржуйка) and its pipe */}
+      <g stroke={INK} stroke-width={2} stroke-linejoin="round">
+        <path d="M322 0 V100" stroke="#4a4a52" stroke-width={7} /><path d="M322 0 V100" stroke="#6b6d75" stroke-width={3} />
+        <path d="M300 100 H344 V150 H300 Z" fill="#4a4a52" />
+        <path d="M308 112 H336 V136 H308 Z" fill="#2e2a2c" />
+        <path class="stove-fire" d="M312 136 Q312 124 318 120 Q319 126 323 123 Q327 116 331 124 Q334 130 333 136 Z" fill="url(#room-fire)" stroke="none" />
+        <path d="M304 150 V160 M340 150 V160" stroke-width={3} />
+        <path d="M296 160 H350" stroke="#6b6d75" stroke-width={2} />
+      </g>
+    </g>
+  );
+}
+
+export function Room({ seats, certs, cat, dog, winter, camp = 0, region = 'chernozem' }: { seats: RoomSeat[]; certs: number; cat: boolean; dog: boolean; winter: boolean; /** 29.10 · the camp's level on an expedition (0 at home) */ camp?: number; region?: string }) {
   const n = Math.max(1, seats.length);
   const x0 = 46, x1 = 280, step = (x1 - x0) / n, k = Math.min(1, step / 58);
   const xs = seats.map((_, i) => x0 + step * (i + 0.5));
   return (
-    <svg viewBox="0 0 360 196" class="room-art" role="group" aria-label="Дом изнутри">
+    <svg viewBox="0 0 360 196" class="room-art" role="group" aria-label={camp ? "Лагерь изнутри" : "Дом изнутри"}>
       <defs>
         <linearGradient id="room-sky" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color={winter ? '#dfeaf2' : '#bfe4f6'} /><stop offset="1" stop-color={winter ? '#f4f8fb' : '#e9f6dc'} /></linearGradient>
         <radialGradient id="room-fire" cx=".5" cy=".7" r=".6"><stop offset="0" stop-color="#ffe9a0" /><stop offset=".55" stop-color="#f6a23a" /><stop offset="1" stop-color="#9c3d1c" /></radialGradient>
         <radialGradient id="room-glow" cx=".85" cy=".72" r=".5"><stop offset="0" stop-color="#ffd27a" stop-opacity=".32" /><stop offset="1" stop-color="#ffd27a" stop-opacity="0" /></radialGradient>
       </defs>
+      {camp ? <CampWalls level={camp} winter={winter} region={region} /> : <>
       {/* log wall */}
       <rect width={360} height={126} fill="#d6a265" />
       {Array.from({ length: 7 }, (_, i) => (
@@ -81,6 +156,7 @@ export function Room({ seats, certs, cat, dog, winter }: { seats: RoomSeat[]; ce
         <path d="M24 91 L32 100 H90 L98 91" fill="#e9ddc0" stroke-width={1.6} />
         <g transform="translate(74 70)"><path d="M-7 4 H7 L5 14 H-5 Z" fill="#c4661a" /><path d="M0 4 V-6 M0 -2 Q-8 -8 -9 -1 Q-4 1 0 -2 Z M0 -4 Q7 -11 9 -4 Q5 -1 0 -4 Z" fill="#7cbc4a" stroke-width={1.3} /><circle cx={-3} cy={-9} r={2.6} fill="#f6b4cb" stroke-width={1.1} /></g>
       </g>
+      </>}
       {/* certificates of this farm */}
       <g transform="translate(122 20)">
         {Array.from({ length: Math.max(1, Math.min(4, certs)) }, (_, i) => (
@@ -91,6 +167,7 @@ export function Room({ seats, certs, cat, dog, winter }: { seats: RoomSeat[]; ce
           </g>
         ))}
       </g>
+      {camp ? <CampLantern /> : <>
       {/* wall clock: a little "khodiki" with a pendulum and two weights on chains */}
       <g transform="translate(262 30)" stroke={INK} stroke-width={1.6} stroke-linejoin="round">
         <path d="M-8.5 13 V30 M8.5 13 V22" stroke="#8a8f96" stroke-width={1} stroke-dasharray="1.6 1.2" />
@@ -108,6 +185,8 @@ export function Room({ seats, certs, cat, dog, winter }: { seats: RoomSeat[]; ce
         <path d="M0 0 V-4.6 M0 0 L3.2 1.8" stroke-width={1.3} stroke-linecap="round" />
         <circle cx={0} cy={11} r={1.3} fill={INK} stroke="none" />
       </g>
+      </>}
+      {camp ? <CampFloor level={camp} /> : <>
       {/* floor */}
       <rect y={126} width={360} height={70} fill="#b27947" />
       {Array.from({ length: 4 }, (_, i) => <path d={`M0 ${132 + i * 17} H360`} stroke="#9a6438" stroke-width={1.6} />)}
@@ -123,6 +202,7 @@ export function Room({ seats, certs, cat, dog, winter }: { seats: RoomSeat[]; ce
         <path d="M300 132 H348 V140 H300 Z" fill="#d9ccb5" />
         <path d="M296 58 h8 M312 66 h8 M330 58 h8 M300 76 h8 M322 80 h8 M342 72 h8" stroke="#ddcfb8" stroke-width={1.6} />
       </g>
+      </>}
       {cat && <g class="room-cat" transform="translate(300 2)"><Companion id="cat" size={44} pose="nap" /></g>}
       {/* table, with the people behind it */}
       <g class="room-crew">

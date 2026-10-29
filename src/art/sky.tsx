@@ -182,7 +182,12 @@ export interface SkyBandProps {
    *  repaint: 'solid' (the sky itself, with the defs), 'land' (its strip of hills), 'veil' (what is left over the
    *  village), 'front' (the forecast, the fog, the road, the signs). 'all' draws them in one. */
   part?: 'all' | 'solid' | 'land' | 'veil' | 'front';
+  /** 29.10 · the region's own horizon: the Kuban steppe with poplars and an elevator, the Altai's snowy peaks and
+   *  spruce, the river Заречье is named after */
+  region?: string;
 }
+/** the far hill and the near strip of land by region (spring, summer, autumn); winter keeps the home's snow */
+const REGION_LAND: Record<string, [string, string]> = { kuban: ['#d5cb8c', '#c3bd78'], altai: ['#b0c2a2', '#9bb48c'] };
 /** The village road in the sky's land: it leaves the field's crest (ROAD_CREST of the width), narrows as it
  *  climbs and ends at a few roofs and a church dome on the far hill — where the «Деревня» sign stands. */
 function VillageRoad({ W, H, winter }: { W: number; H: number; winter: boolean }) {
@@ -204,9 +209,11 @@ function VillageRoad({ W, H, winter }: { W: number; H: number; winter: boolean }
   );
 }
 
-export function SkyBand({ W, season, tokens, signs, meteoMax, px, onToken, onFog, onSign, clear = false, ext = 0, part = 'all' }: SkyBandProps) {
+export function SkyBand({ W, season, tokens, signs, meteoMax, px, onToken, onFog, onSign, clear = false, ext = 0, part = 'all', region = 'chernozem' }: SkyBandProps) {
   const H = SKY_H;
-  const [top0, bottom0, hill, front] = SEASON_SKY[season] ?? SEASON_SKY[1];
+  const [top0, bottom0, hill0, front0] = SEASON_SKY[season] ?? SEASON_SKY[1];
+  const winter = season === 3;
+  const [hill, front] = !winter && REGION_LAND[region] ? REGION_LAND[region] : [hill0, front0];
   // the sky over the field is this week's weather: grey in the rain, darker still under hail and flood
   const [top, bottom] = WEATHER_SKY[tokens[0]?.kind ?? ''] ?? [top0, bottom0];
   const slots = skySlots(W, tokens.length, clear);
@@ -224,11 +231,27 @@ export function SkyBand({ W, season, tokens, signs, meteoMax, px, onToken, onFog
   // touch targets never smaller than about 40 screen pixels
   const hit = Math.max(30, 40 / Math.max(0.05, px));
   const has = (q: SkyBandProps['part']) => part === 'all' || part === q;
+  const peaks = [[-.02, 34], [.08, 52], [.17, 40], [.27, 62], [.38, 44], [.5, 58], [.61, 38], [.72, 60], [.83, 46], [.93, 56], [1.03, 36]];
   const land = (
     <>
-      <path class="sky-land" d={`M${-ext} ${H - 26} L0 ${H - 26} Q${W * 0.16} ${H - 40} ${W * 0.33} ${H - 30} Q${W * 0.5} ${H - 44} ${W * 0.66} ${H - 32} Q${W * 0.82} ${H - 42} ${W} ${H - 30} L${W + ext} ${H - 30} V${H + 2} H${-ext} Z`} fill={hill} />
-      {/* a dark strip of forest on the far right hill, where flocks gather */}
-      <path class="sky-land" d={`M${W * 0.7} ${H - 34} q6 -12 12 0 q6 -14 12 0 q6 -10 12 0 q6 -13 12 0 q6 -11 12 0 V${H - 26} H${W * 0.7} Z`} fill={season === 3 ? '#c9d6de' : '#5a7a62'} opacity={0.55} />
+      {/* the Altai: snowy peaks behind the hills */}
+      {region === 'altai' && <>
+        <path class="sky-land" d={`M${-ext} ${H - 26} ${peaks.map(([f, h]) => `L${W * f} ${H - h}`).join(' ')} L${W + ext} ${H - 26} V${H} H${-ext} Z`} fill={winter ? '#dfe7ef' : '#a9b9cb'} />
+        {!winter && <path class="sky-land" d={peaks.filter(([, h]) => h >= 50).map(([f, h]) => `M${W * f - 7} ${H - h + 9} L${W * f} ${H - h} L${W * f + 7} ${H - h + 9} L${W * f + 2} ${H - h + 7} L${W * f - 2} ${H - h + 8} Z`).join(' ')} fill="#f6f8fb" />}
+      </>}
+      <path class="sky-land" d={region === 'kuban'
+        ? `M${-ext} ${H - 28} L0 ${H - 28} Q${W * 0.3} ${H - 32} ${W * 0.55} ${H - 29} Q${W * 0.8} ${H - 27} ${W} ${H - 30} L${W + ext} ${H - 30} V${H + 2} H${-ext} Z`
+        : `M${-ext} ${H - 26} L0 ${H - 26} Q${W * 0.16} ${H - 40} ${W * 0.33} ${H - 30} Q${W * 0.5} ${H - 44} ${W * 0.66} ${H - 32} Q${W * 0.82} ${H - 42} ${W} ${H - 30} L${W + ext} ${H - 30} V${H + 2} H${-ext} Z`} fill={hill} />
+      {region === 'kuban' ? <g class="sky-land" opacity={0.6}>
+        {/* the steppe: rows of poplars and a grain elevator on the flat horizon */}
+        {[0.04, 0.07, 0.1, 0.13, 0.16, 0.66, 0.69, 0.72, 0.75, 0.78, 0.81, 0.84].map((f, i) => <ellipse cx={W * f} cy={H - 36 - (i % 2) * 1.5} rx={2.6} ry={8 + (i % 3)} fill={winter ? '#c9d6de' : '#5f7a46'} />)}
+        <path d={`M${W * 0.4} ${H - 29} v-17 h4 v17 M${W * 0.4 + 5} ${H - 29} v-17 h4 v17 M${W * 0.4 + 10} ${H - 29} v-17 h4 v17 M${W * 0.4 + 3} ${H - 46} v-6 h8 v6`} fill={winter ? '#e3e9ee' : '#ddd6c2'} stroke="#8a8270" stroke-width={0.6} />
+      </g>
+      : <path class="sky-land" d={region === 'altai'
+        ? `M${W * 0.62} ${H - 33} ${Array.from({ length: 9 }, (_, i) => `l4 -${10 + (i % 3) * 3} l4 ${10 + (i % 3) * 3}`).join(' ')} V${H - 26} H${W * 0.62} Z`
+        : `M${W * 0.7} ${H - 34} q6 -12 12 0 q6 -14 12 0 q6 -10 12 0 q6 -13 12 0 q6 -11 12 0 V${H - 26} H${W * 0.7} Z`} fill={winter ? '#c9d6de' : region === 'altai' ? '#3f6a4e' : '#5a7a62'} opacity={region === 'altai' ? 0.7 : 0.55} />}
+      {/* the river Заречье is named after, between the far hill and the near land */}
+      {region === 'rent' && <path class="sky-land" d={`M${-ext} ${H - 20} Q${W * 0.25} ${H - 25} ${W * 0.5} ${H - 20} T${W + ext} ${H - 21} V${H - 16} Q${W * 0.75} ${H - 12} ${W * 0.5} ${H - 15} T${-ext} ${H - 15} Z`} fill={winter ? '#e9f0f5' : '#9cc8de'} opacity={0.85} />}
       <path class="sky-land" d={`M${-ext} ${H - 12} L0 ${H - 12} Q${W * 0.25} ${H - 22} ${W * 0.5} ${H - 14} Q${W * 0.75} ${H - 6} ${W} ${H - 16} L${W + ext} ${H - 16} V${H + 2} H${-ext} Z`} fill={front} opacity={0.9} />
     </>
   );
@@ -248,6 +271,9 @@ export function SkyBand({ W, season, tokens, signs, meteoMax, px, onToken, onFog
         {has('solid') && <rect class="sky-solid" x={-ext} width={W + 2 * ext} height={H + 2} fill="url(#sky-grad)" />}
         {part === 'all' && land}
         {has('front') && <>
+        {/* 29.10 · on an expedition the region's land is drawn again in front, under the weather and a fog that stops
+            above it, so its horizon reads at a glance: the steppe with poplars, the Altai's peaks, Заречье's river */}
+        {region !== 'chernozem' && part === 'front' && land}
         {/* the conveyor of weeks: keyed by the absolute week so a new week slides each picture one place closer */}
         {tokens.map((t, i) => {
           const s = slots[i];
@@ -267,7 +293,7 @@ export function SkyBand({ W, season, tokens, signs, meteoMax, px, onToken, onFog
         {/* fog past the forecast */}
         {fogX < W - 8 && (
           <g class="sky-fogbank" role="button" tabindex={0} aria-label="Туман: дальше прогноза" onClick={(e) => { e.stopPropagation(); onFog?.(); }} onKeyDown={(e) => key(e, () => onFog?.())}>
-            <rect class="sky-fog" x={fogX - 30} y={0} width={W - fogX + 30 + ext} height={H - 8} fill="url(#sky-fog)" />
+            <rect class="sky-fog" x={fogX - 30} y={0} width={W - fogX + 30 + ext} height={region !== 'chernozem' && part === 'front' ? H - 46 : H - 8} fill="url(#sky-fog)" />
             {[[0.2, 24], [0.45, 40], [0.12, 56]].map(([f, y], i) => (
               <path class="sky-wisp" d={`M${fogX + (W - fogX) * f} ${y} q10 -5 20 0 t20 0 t20 0`} stroke="#e2d9c6" stroke-width={3} fill="none" stroke-linecap="round" style={{ animationDelay: `${-i * 2.3}s` }} />
             ))}
