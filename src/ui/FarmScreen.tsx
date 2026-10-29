@@ -230,7 +230,7 @@ export function FarmScreen({ s, dispatch, profile, fast, onFast, onMap, onRestar
   };
   const days = hud.days, daysOf = Math.max(weekDays(hud), days);
   return (
-    <div class={`farm loc-${s.loc} season-${s.season} on-${tab}${tabs ? ' with-tabs' : ''}`}>
+    <div class={`farm loc-${s.loc} season-${s.season} on-${tab}${tabs ? ' with-tabs' : ''}${tutorial&&!menu&&!paymentOpen&&s.phase!=='gameover' ? ' guiding' : ''}`}>
       {/* one thin bar over every section: money and the payment on the left, the week and its working days on the right */}
       <header class="topbar main-bar">
         {tab === 'field' || tabs

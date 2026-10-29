@@ -269,6 +269,9 @@
 /* a section out of view keeps still: its loops (the clock, the stove, the hens, the leaves) would otherwise run and
    be composited behind the one on screen */
 .pane[inert] * { animation-play-state: paused !important; }
+/* 29.10 · the five sections stand side by side in the pager; the ones scrolled out of view skip style, layout and
+   paint (a card tap no longer restyles the house, the lab and the barn) */
+.pager > .pane { content-visibility: auto; contain-intrinsic-size: auto 100vw auto 600px; }
 
 /* 29.10 · the hand lies on a linen tablecloth (рушник) in the village's manner: the field's inked edge casts a soft
    shadow on it, a strip of red cross-stitch runs along its top, the weave shows faintly; the text on it stays dark

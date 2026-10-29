@@ -237,9 +237,11 @@
 /* ---------- №20 · the farm lives calmly; while the player aims or reads a lesson, decoration steps back ---------- */
 /* season particles and butterflies fade while a card is picked or dragged, or Палыч is speaking; pets keep walking */
 .fx { transition: opacity .45s ease; }
-.farm:has(.field-view.picking) .fx, .farm:has(.field-view.dragging) .fx, .farm:has(.guide-note) .fx { opacity: .22; }
-.farm:has(.field-view.dragging) .fx .bfly, .farm:has(.guide-note) .fx .bfly { opacity: 0; }
-.farm:has(.field-view.dragging) .meadow-decor .m-sway { animation-play-state: paused; }
+/* 29.10 · scoped to .field-view (where .fx lives): `.farm:has(.field-view.picking)` made every card tap restyle the
+   whole farm, ~12 700 elements twice — a second-long freeze on phones */
+.field-view.picking .fx, .field-view.dragging .fx, .farm.guiding .fx { opacity: .22; }
+.field-view.dragging .fx .bfly, .farm.guiding .fx .bfly { opacity: 0; }
+.field-view.dragging .meadow-decor .m-sway { animation-play-state: paused; }
 /* no endless pulsing on ordinary objects: a short call, then stillness */
 .dry-badge { animation-iteration-count: 3 !important; }
 .end-week.ready { animation-iteration-count: 2 !important; }
