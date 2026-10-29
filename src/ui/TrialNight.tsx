@@ -5,7 +5,7 @@
 // banner and the stamp are HTML over the field (TrialSky); the great swarm is a canvas (SwarmCanvas).
 import { useEffect, useRef } from 'preact/hooks';
 import type { GameState, TrialNight as Night, TrialOutcome } from '../engine/game';
-import { tile } from '../engine/game';
+import { plural, tile } from '../engine/game';
 import { GRID } from '../engine/data';
 import { TRIALS, TRIAL_GRADE_NAME, fireCore, fireRing } from '../engine/trials';
 import { FirePit } from '../art/fire';
@@ -200,7 +200,7 @@ export function TrialSky({ n, D, E = 0 }: { n: Night; D: number; E?: number }) {
   const lost = n.cells.filter((c) => BAD.includes(c.out)).length;
   const kept = n.cells.filter((c) => !BAD.includes(c.out)).length;
   const r = n.result;
-  const title = n.kind === 'locust' && n.waves && n.waves > 1 ? `${def.name} · волна ${n.wave ?? 1} из ${n.waves}` : def.name;
+  const title = n.kind === 'locust' && n.waves && n.waves > 1 ? `${def.name}, волна ${n.wave ?? 1} из ${n.waves}` : def.name;
   return (
     <div class={`tn-sky tk-${n.kind}`} style={{ ['--D' as string]: `${D}ms`, ['--E' as string]: `${-E}ms` }} aria-live="polite">
       <div class="tn-dark" />
@@ -216,11 +216,11 @@ export function TrialSky({ n, D, E = 0 }: { n: Night; D: number; E?: number }) {
       {n.kind === 'drought' && <div class="tn-temp hot"><span class="tn-temp-n">+34°</span><small>в тени</small></div>}
       <div class="tn-tally">
         {lost + kept > 0 ? <>
-          <span class="good">уцелело {kept}</span>
-          {lost > 0 && <span class="bad">{n.kind === 'frost' ? 'побито морозом' : n.kind === 'locust' ? 'съедено' : 'засохло'} {lost}</span>}
-        </> : <span>поле пустое — бить нечего</span>}
+          <span class="good">уцелело {kept} {plural(kept, 'грядка', 'грядки', 'грядок')}</span>
+          {lost > 0 && <span class="bad">{n.kind === 'frost' ? 'побито морозом' : n.kind === 'locust' ? 'съедено' : 'засохло'} {lost} {plural(lost, 'грядка', 'грядки', 'грядок')}</span>}
+        </> : <span>поле пустое, терять нечего</span>}
       </div>
-      {r && <div class={`tn-stamp g${r.grade}`}><span>{TRIAL_GRADE_NAME[r.grade]}</span><small>{r.grade === 0 ? 'испытание переждали' : `спасено ${Math.round(r.saved * 100)}%`}{r.glory ? ` · слава +${r.glory}` : ''}</small></div>}
+      {r && <div class={`tn-stamp g${r.grade}`}><span>{TRIAL_GRADE_NAME[r.grade]}</span><small>{r.grade === 0 ? 'испытание переждали' : `спасено ${Math.round(r.saved * 100)}%`}{r.glory ? `, слава +${r.glory}` : ''}</small></div>}
     </div>
   );
 }

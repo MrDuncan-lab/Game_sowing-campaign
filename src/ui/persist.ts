@@ -119,14 +119,14 @@ function read<T>(key: string, valid: (v: unknown) => v is T): T | null {
     try { recovered = backup === null ? null : JSON.parse(backup); } catch { /* keep both original strings */ }
     if (valid(recovered)) {
       invalid.delete(key);
-      issue(notice, `${label(key)}: повреждено сохранение, загружена резервная копия. Нажмите «Сохранить», чтобы восстановить основной слот.`);
+      issue(notice, `${label(key)}: сохранение повреждено, загружена резервная копия. Нажмите «Сохранить», чтобы записать её как основное сохранение.`);
       return recovered;
     }
     invalid.add(key);
-    issue(notice, `${label(key)}: сохранение повреждено. Данные сохранены; замена требует подтверждения.`);
+    issue(notice, `${label(key)}: сохранение повреждено и не читается. Мы его не стирали: заменить можно только с вашего подтверждения.`);
     return null;
   } catch {
-    issue(notice, `${label(key)}: хранилище недоступно. Прогресс остаётся в этой вкладке; повторите сохранение.`);
+    issue(notice, `${label(key)}: хранилище недоступно. Прогресс остаётся в этой вкладке. Повторите сохранение.`);
     return null;
   }
 }
@@ -147,7 +147,7 @@ function write<T>(key: string, value: T, valid: (v: unknown) => v is T, replaceI
         let recovered: unknown;
         try { recovered = backup === null ? null : JSON.parse(backup); } catch { /* no valid backup */ }
         if (!replaceInvalid && !valid(recovered)) {
-          issue(`${key}:write`, `${label(key)}: повреждённые данные сохранены. Подтвердите восстановление для замены.`);
+          issue(`${key}:write`, `${label(key)}: сохранение повреждено, но не стёрто. Подтвердите восстановление, чтобы заменить его.`);
           return false;
         }
         localStorage.setItem(`${key}.recovery`, old);
@@ -162,7 +162,7 @@ function write<T>(key: string, value: T, valid: (v: unknown) => v is T, replaceI
     if (issues.has(CLEARED) && key !== PROFILE) issue(CLEARED); // the progress is written again
     return true;
   } catch {
-    issue(`${key}:write`, `${label(key)} не ${key === PROFILE ? "сохранён" : "сохранена"}: запись недоступна или недостаточно места. Прогресс остаётся в этой вкладке; повторите сохранение.`);
+    issue(`${key}:write`, `${label(key)} не ${key === PROFILE ? "сохранён" : "сохранена"}: запись недоступна или недостаточно места. Прогресс остаётся в этой вкладке. Повторите сохранение.`);
     return false;
   }
 }
@@ -260,7 +260,7 @@ export function validFarm(v: unknown): v is GameState {
   if (!obj(v.levels) || !Object.entries(v.levels).every(([k, n]) => member(TRACKS, k) && Number.isInteger(n) && (n as number) >= (k === 'house' ? 1 : 0) && (n as number) <= TRACKS[k as keyof typeof TRACKS].levels.length) || !coords(v.guards) || !coords(v.scarecrows)) return false;
   if (!arr(v.team, worker) || !['candidates', 'freeHire'].every((k) => arr(v[k], (x) => member(WORKERS, x)))) return false;
   // PSV-022 · a story step is a whole number from 0; relations stay within −100…100
-  if (!obj(v.orgs) || !Object.entries(v.orgs).every(([k, x]) => member(ORGS, k) && obj(x) && ['rel', 'step', 'wait', 'idle', 'lastMischief'].every((n) => num(x[n])) && Number.isInteger(x.step) && x.step >= 0 && x.rel >= -100 && x.rel <= 100 && quest(x.offer) && quest(x.active))) return false;
+  if (!obj(v.orgs) || !Object.entries(v.orgs).every(([k, x]) => member(ORGS, k) && obj(x) && ['rel', 'step', 'wait', 'idle', 'lastMischief'].every((n) => num(x[n])) && (x.met === undefined || typeof x.met === 'boolean') && Number.isInteger(x.step) && x.step >= 0 && x.rel >= -100 && x.rel <= 100 && quest(x.offer) && quest(x.active))) return false;
   if (!arr(v.projects, (x) => obj(x) && num(x.weeks) && num(x.total) && (x.kind === 'track' ? member(TRACKS, x.track) && Number.isInteger(x.level) && x.level >= 1 && x.level <= TRACKS[x.track as keyof typeof TRACKS].levels.length : x.kind === 'cell' ? card(x.card) && points([x.cell]) : x.kind === 'trait' ? card(x.card) && member(TRAITS, x.trait) : x.kind === 'variety' ? member(CROPS, x.crop) : x.kind === 'train' ? member(WORKERS, x.worker) : x.kind === 'yard' ? member(YARDS, x.yard) && int(x.stage) && x.stage >= 1 && x.stage <= 3 : x.kind === 'common' ? member(COMMONS, x.id) : x.kind === 'bio'))) return false;
   if (!Number.isInteger(v.rating) || v.rating < 0 || v.rating > 5) return false;
   // every card is one object: a uid seen twice would play or move the wrong card

@@ -6,7 +6,7 @@ import { createPortal } from 'preact/compat';
 import { useState } from 'preact/hooks';
 import { CROPS, EXPEDITION_IDS, LOCATIONS } from '../engine/data';
 import { GameState, chronicle, tripDone, districtPlace, districtTable, festClub, festInClub, festOpen, festRival, festShow, isHome, plural } from '../engine/game';
-import { FEST_CATS, FEST_CAT_GLORY, FEST_NAME, FEST_NAMES, FEST_UNITS, FEST_WIN_GLORY, SMOTR_CAT_GLORY, SMOTR_NAME, SMOTR_WIN_GLORY } from '../engine/festival';
+import { FEST_CATS, FEST_CAT_GLORY, FEST_CERT, FEST_NAME, FEST_NAMES, FEST_PRIZE, FEST_UNITS, FEST_WIN_GLORY, SMOTR_CAT_GLORY, SMOTR_NAME, SMOTR_WIN_GLORY } from '../engine/festival';
 import { rivalVerdict } from '../content/story';
 import { LOOT } from '../engine/run';
 import { PORTRAIT_IMAGES } from '../art/portraits';
@@ -60,8 +60,10 @@ function Judging({ you, rival, done }: { you: Record<string, number>; rival: Rec
 export function FestivalSheet({ s, onClose }: { s: GameState; onClose: () => void }) {
   const f = s.fests?.at(-1);
   if (!f) return null;
+  // the certificate comes with the first win in the club only
+  const certNow = f.win && festInClub(f) && s.fests?.find((x) => x.win && festInClub(x)) === f;
   return createPortal(
-    <Sheet title={`${festInClub(f) ? FEST_NAME : SMOTR_NAME} · ${f.year}-й год`} icon="trophy" onClose={onClose}>
+    <Sheet title={`${festInClub(f) ? FEST_NAME : SMOTR_NAME}, ${f.year}-й год`} icon="trophy" onClose={onClose}>
       <div class="fest-sheet">
         <div class="nb-head">
           <Rival />
@@ -74,9 +76,9 @@ export function FestivalSheet({ s, onClose }: { s: GameState; onClose: () => voi
         {f.bestCrop && <p class="small muted">Ваша лучшая грядка — {CROPS[f.bestCrop].name.toLowerCase()}, {f.you.best} ед.</p>}
         <p class={`fest-result ${f.win ? 'up' : ''}`}>
           {f.win ? (festInClub(f)
-            ? <>Победа! Слава +{f.glory} · грамота «Победитель праздника урожая» · на зимней ярмарке ждёт призовой лот — за 60% цены, Пряхин его не тронет.</>
-            : <>Смотр ваш: слава +{f.glory}. Настоящий праздник урожая — с грамотой и призом — будет, когда деревня построит клуб.</>)
-            : f.won.length ? <>Одна номинация ваша: слава +{f.glory}. Для победы нужны две из трёх.</> : <>В этот раз без наград. Пряхин крепчает каждый год — растите урожай, культуры и лучшую грядку.</>}
+            ? <>Победа! Вы получаете +{f.glory} славы{certNow ? <> и грамоту «{FEST_CERT}»</> : ''}. На зимней ярмарке вас ждёт призовой лот за {Math.round(FEST_PRIZE * 100)}% цены, Пряхин его не тронет.</>
+            : <>Смотр выиграли вы: +{f.glory} славы. Настоящий праздник урожая, с грамотой и призом, будет, когда деревня построит клуб.</>)
+            : f.won.length ? <>Одна номинация ваша, это +{f.glory} славы. Для победы нужны две из трёх.</> : <>В этот раз без наград. Чтобы обойти Пряхина, растите урожай, число культур и лучшую грядку.</>}
         </p>
         <Btn tone="primary" onClick={onClose}>Дальше</Btn>
       </div>
@@ -92,8 +94,8 @@ export function FestivalStandings({ s }: { s: GameState }) {
   return (
     <section class="nb-swap fest-standings">
       <h3><Icon name="trophy" size={18} /> {club ? FEST_NAME : SMOTR_NAME}</h3>
-      {done ? <p class="small">В этом году {club ? 'праздник' : 'смотр'} прошёл: {done.win ? 'вы обошли Пряхина' : 'первый — Пряхин'}. Следующий — в первую неделю зимы.</p>
-        : <p class="small">В первую неделю зимы — {club ? 'праздник урожая в клубе' : 'смотр урожая на площади'}. Обойдите Пряхина в двух номинациях из трёх: +{club ? FEST_CAT_GLORY : SMOTR_CAT_GLORY} славы за каждую и +{club ? FEST_WIN_GLORY : SMOTR_WIN_GLORY} за победу.{club ? ' Победа в клубе — грамота и призовой лот.' : ' С клубом смотр станет праздником урожая: грамота и призовой лот.'}</p>}
+      {done ? <p class="small">В этом году {club ? 'праздник' : 'смотр'} уже прошёл: {done.win ? 'вы обошли Пряхина' : 'победил Пряхин'}. Следующий будет в первую неделю зимы.</p>
+        : <p class="small">В первую неделю зимы {club ? 'в клубе пройдёт праздник урожая' : 'на площади пройдёт смотр урожая'}. Обойдите Пряхина в двух номинациях из трёх: за каждую вы получите +{club ? FEST_CAT_GLORY : SMOTR_CAT_GLORY} славы, а за общую победу ещё +{club ? FEST_WIN_GLORY : SMOTR_WIN_GLORY}.{club ? ' За победу в клубе дают грамоту и призовой лот.' : ' Когда в деревне построят клуб, смотр станет праздником урожая, с грамотой и призовым лотом.'}</p>}
       <Judging you={done ? done.you : festShow(s)} rival={done ? done.rival : festRival(s)} done={!!done} />
       {wins > 0 && <small class="muted">Побед над Пряхиным: {wins}.</small>}
     </section>
@@ -120,7 +122,7 @@ export function Chronicle({ s }: { s: GameState }) {
         <b>Привезено из краёв</b>
         {(s.trips ?? []).slice(-6).reverse().map((t) => <p class="small"><span>{LOCATIONS[t.loc].name}, {t.year}-й год:</span> {t.loot.length ? t.loot.map((l) => LOOT[l].name).join(', ') : 'деньги'}</p>)}
       </div>}
-      <p class="small muted">{n === items.length ? 'Летопись закрыта. Игра продолжается: испытания крепнут, а Пряхин каждую зиму ждёт вас на празднике.' : `Записано ${n} из ${items.length}. Когда закроются все — эпилог, грамота и +50 славы.`}</p>
+      <p class="small muted">{n === items.length ? 'Летопись закрыта. Игра продолжается: испытания становятся сильнее, а Пряхин каждую зиму ждёт вас на празднике.' : `Записано ${n} из ${items.length}. Когда закроются все, вас ждут эпилог, грамота и +50 славы.`}</p>
     </div>
   );
 }
@@ -145,9 +147,9 @@ const GAME_URL = 'https://github.com/MrDuncan-lab/Game_sowing-campaign';
 const festWins = (p: Profile) => p.applied.filter((id) => id.includes('|fest-win-')).length;
 /** the result in a line, for the share */
 export function shareText(s: GameState, p: Profile) {
-  const parts = [`Посевная: слава ${p.glory}`, `лучший срок — ${p.best.years} ${plural(p.best.years, 'год', 'года', 'лет')}`];
+  const parts = [`Посевная: слава ${p.glory}`, `лучший срок ${p.best.years} ${plural(p.best.years, 'год', 'года', 'лет')}`];
   const w = festWins(p);
-  if (w) parts.push(`праздников урожая выиграно: ${w}`);
+  if (w) parts.push(`побед на празднике урожая: ${w}`);
   if (isHome(s)) parts.push(`${districtPlace(s)}-е место в районе`);
   return `${parts.join(', ')}. Обгонишь?`;
 }
@@ -174,23 +176,23 @@ export function RatingSheet({ s, profile, onClose }: { s: GameState; profile: Pr
     <Sheet title="Район и рекорды" icon="trophy" onClose={onClose}>
       <div class="stack rating-sheet">
         {isHome(s) && <>
-          <h3>Район · {districtPlace(s)}-е место</h3>
-          <p class="small muted">Сила хозяйства: дом, постройки, дворы соседей, общие постройки и победы на празднике урожая. Соседние сёла тоже растут каждый год.</p>
+          <h3>Район: {districtPlace(s)}-е место</h3>
+          <p class="small muted">Сила хозяйства складывается из дома, построек, дворов соседей, общих построек и побед на празднике урожая. Соседние сёла тоже растут каждый год.</p>
           <DistrictTable s={s} />
         </>}
         <h3>Ваши рекорды</h3>
         <div class="kv"><span>Слава профиля</span><b>{profile.glory}</b></div>
-        <div class="kv"><span>Дольше всего продержались</span><b>{profile.best.years} г.</b></div>
+        <div class="kv"><span>Дольше всего продержались</span><b>{profile.best.years} {plural(profile.best.years, 'год', 'года', 'лет')}</b></div>
         <div class="kv"><span>Больше всего урожая на ферме</span><b>{profile.best.harvest} ед.</b></div>
         <div class="kv"><span>Праздников урожая выиграно</span><b>{festWins(profile)}</b></div>
         {rows.length > 0 && <>
           <h4>Прошлые фермы</h4>
           <ol class="district past">
-            {rows.map((r, i) => <li><b class="place">{i + 1}</b><span><b>{LOCATIONS[r.loc].name}</b><small>{r.years} г. · {r.reason}</small></span><b class="strength">{r.glory}</b></li>)}
+            {rows.map((r, i) => <li><b class="place">{i + 1}</b><span><b>{LOCATIONS[r.loc].name}</b><small>{r.years} {plural(r.years, 'год', 'года', 'лет')}. {r.reason}</small></span><b class="strength">{r.glory}</b></li>)}
           </ol>
         </>}
         <h3>Рейтинг игроков</h3>
-        <p class="small">Общая таблица игроков появится, когда у игры будет свой сервер. Пока рейтинг хранится на этом устройстве, а результат можно отправить друзьям в Telegram:</p>
+        <p class="small">Общая таблица игроков появится, когда у игры будет свой сервер. Пока рейтинг хранится на этом устройстве, а результат можно отправить друзьям в Telegram.</p>
         <p class="share-text">«{text}»</p>
         <div class="btn-row">
           <Btn tone="primary" onClick={() => shareToTelegram(text)}><Icon name="send" size={18} /> Отправить в Telegram</Btn>

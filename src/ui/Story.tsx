@@ -68,7 +68,7 @@ export function StoryVisit({ id, onClose }: { id: string; onClose: () => void })
   const line = b.lines[Math.min(i, b.lines.length - 1)];
   const last = i >= b.lines.length - 1;
   return (
-    <VisitLine who={line.who} name={line.name} caption={b.title ? `${b.title}${b.lines.length > 1 ? ` · ${i + 1} из ${b.lines.length}` : ''}` : undefined} text={line.text} note={last ? b.note : undefined} onClose={onClose}>
+    <VisitLine who={line.who} name={line.name} caption={b.title ? `${b.title}${b.lines.length > 1 ? `, ${i + 1} из ${b.lines.length}` : ''}` : undefined} text={line.text} note={last ? b.note : undefined} onClose={onClose}>
       {!last && <Btn tone="ghost" onClick={onClose}>Пропустить</Btn>}
       {last ? <Btn tone="primary" onClick={onClose}>Понятно</Btn> : <Btn tone="primary" onClick={() => setI(i + 1)}>Дальше</Btn>}
     </VisitLine>

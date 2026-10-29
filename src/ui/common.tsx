@@ -5,7 +5,7 @@ import { CropIcon } from '../art/crops';
 import type { CropId } from '../engine/data';
 import { CROPS } from '../engine/data';
 import type { Action, GameState } from '../engine/game';
-import { rub } from '../engine/game';
+import { plural, rub } from '../engine/game';
 
 export type Dispatch = (a: Action) => GameState | null;
 let sheetId = 0;
@@ -163,6 +163,8 @@ export function Btn({ children, onClick, disabled, tone, small, title, class: cl
 export const weeksTxt = (n: number) => `${n} ${n % 10 === 1 && n % 100 !== 11 ? 'неделя' : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? 'недели' : 'недель'}`;
 // v3 · a building site in winter moves half a week a week: a remainder is shown rounded up
 export const weeksShort = (n: number) => `${Math.ceil(n - 1e-9)} нед.`;
+// the same rounding, in words for a roomy line: «через 2 недели», «ещё 1 неделю»
+export const weeksIn = (n: number) => { const k = Math.ceil(n - 1e-9); return `${k} ${plural(k, 'неделю', 'недели', 'недель')}`; };
 
 /** PSV-007 · the closed farm is a real modal: focus inside, Tab cycles its two actions, the farm behind is inert. */
 export function ClosedLayer({ title, children }: { title: string; children: ComponentChildren }) {
