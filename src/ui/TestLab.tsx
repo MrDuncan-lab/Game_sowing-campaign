@@ -1,12 +1,15 @@
 import {useEffect,useRef,useState} from 'preact/hooks';
 import * as D from '../engine/data';
 import * as G from '../engine/game';
-import {TEST_SCENARIOS,TestScenario,testFixture,testHand,testDate,testAnimation,testOrderFixture} from '../engine/testLab';
+import {TEST_SCENARIOS,TestScenario,testFixture,testHand,testDate,testAnimation,testOrderFixture,SETTLEMENT_TESTS,settlementFixture,visitorLoc,testExpedition} from '../engine/testLab';
+import {settleRun} from '../engine/meta';
+import * as R from '../engine/run';
 import {BUYERS} from '../content/orderDialogue';
 import {FarmScreen} from './FarmScreen';
 import {emptyProfile,syncProfile} from './persist';
 import {Btn,Sheet} from './common';
-type Panel='scenarios'|'cards'|'conditions'|'animations';
+type Panel='scenarios'|'places'|'cards'|'conditions'|'animations';
+const PLACE_GROUPS=[...new Set(SETTLEMENT_TESTS.map(t=>t.group))];
 export function TestLab({onExit,initialLoc='chernozem'}:{onExit:()=>void;initialLoc?:D.LocationId}){
  const[s,setS]=useState(()=>testFixture('planting',initialLoc)),[preset,setPreset]=useState<TestScenario>('planting');
  const[profile,setProfile]=useState(()=>({...emptyProfile(),glory:500,settings:{fast:false,intro:true}}));
@@ -14,27 +17,49 @@ export function TestLab({onExit,initialLoc='chernozem'}:{onExit:()=>void;initial
  const[cardDef,setCardDef]=useState('seed_radish'),[temperature,setTemperature]=useState(()=>G.airTemp(s)),[season,setSeason]=useState<number>(s.season),[year,setYear]=useState(s.year);
  const[buyer,setBuyer]=useState<D.OrgId>('orphanage'),[story,setStory]=useState(0);
  const[dialogueDemo,setDialogueDemo]=useState<{org:D.OrgId;step:number}|null>(null);
+ const[place,setPlace]=useState<string|null>(null),[visitor,setVisitor]=useState<R.VisitId>('shepherd');
  const[exportState,setExportState]=useState<string|null>(null);
  const exportText=useRef<HTMLTextAreaElement>(null);
  const ref=useRef(s),errTimer=useRef<number>();ref.current=s;
  useEffect(()=>()=>clearTimeout(errTimer.current),[]);
  function show(n:G.GameState,remount=false){ref.current=n;setS(n);setProfile(p=>syncProfile(p,n));setError(null);if(remount)setFrame(k=>k+1);}
  function update(fn:(n:G.GameState)=>void,close=false){const n=structuredClone(ref.current);fn(n);show(n,true);if(close)setOpen(false);}
- function load(id:TestScenario,loc=s.loc){setDialogueDemo(null);setPreset(id);const n=testFixture(id,loc);show(n,true);setSeason(n.season);setYear(n.year);setTemperature(G.airTemp(n));setOpen(false);}
- function loadDialogue(org:D.OrgId,step:number){const n=testOrderFixture(org,step);setDialogueDemo({org,step});show(n,true);setSeason(n.season);setYear(n.year);setTemperature(G.airTemp(n));setOpen(false);}
- function reset(){if(dialogueDemo)loadDialogue(dialogueDemo.org,dialogueDemo.step);else load(preset);}
+ function load(id:TestScenario,loc=s.loc){setDialogueDemo(null);setPlace(null);setPreset(id);const n=testFixture(id,loc);show(n,true);setSeason(n.season);setYear(n.year);setTemperature(G.airTemp(n));setOpen(false);}
+ function loadPlace(id:string,v=visitor){setDialogueDemo(null);setPlace(id);put(settlementFixture(id,v));}
+ function put(n:G.GameState){show(n,true);setSeason(n.season);setYear(n.year);setTemperature(G.airTemp(n));setOpen(false);}
+ // the settlement scenarios' own ways on: the road and the arrest open a test expedition, a folded or failed
+ // expedition brings its cart home to a test home, the bank's «на заработки» puts the home under arrest
+ function goExpedition(l:D.ExpeditionId){setDialogueDemo(null);setPlace(`run-${l}`);put(testExpedition(l));}
+ function goHome(){
+  const run=ref.current,home=settlementFixture('home-road');
+  if(run.run){home.away={loc:run.loc as D.ExpeditionId,seed:run.seed,cards:[],cash:0,week:home.absWeek};const r=settleRun(home,run);if(r?.home){setDialogueDemo(null);setPlace('home-road');put(r.home);return;}}
+  loadPlace('home-road');
+ }
+ function goWork(){try{show(G.startArrest(ref.current),true);}catch(e){if(!(e instanceof G.GameError))throw e;setError(e.message);}}
+ function loadDialogue(org:D.OrgId,step:number){const n=testOrderFixture(org,step);setPlace(null);setDialogueDemo({org,step});show(n,true);setSeason(n.season);setYear(n.year);setTemperature(G.airTemp(n));setOpen(false);}
+ function reset(){if(dialogueDemo)loadDialogue(dialogueDemo.org,dialogueDemo.step);else if(place)loadPlace(place);else load(preset);}
  function dispatch(a:G.Action):G.GameState|null {
   try{const n=G.apply(ref.current,a);show(n);return n;}catch(e){if(!(e instanceof G.GameError))throw e;setError(e.message);clearTimeout(errTimer.current);errTimer.current=window.setTimeout(()=>setError(null),2600);return null;}
  }
- const label=dialogueDemo?['dialogue',`Заказчик: ${BUYERS[dialogueDemo.org].name}`,'Новая реплика и переход к предложению. Обычные награды не меняются.']:TEST_SCENARIOS.find(x=>x[0]===preset)!;
+ const placeTest=place?SETTLEMENT_TESTS.find(x=>x.id===place):null;
+ const runLabel=place?.startsWith('run-')?['place',`Вылазка: ${D.LOCATIONS[s.loc].name}`,'Обычная тестовая вылазка: участок, лагерь, встречные с 3-й недели.']:null;
+ const label=runLabel??(placeTest?['place',placeTest.id==='visitor'?`Встречный: ${R.VISITS[visitor].name}`:placeTest.name,`Как: ${placeTest.id==='visitor'?R.VISITS[visitor].choices.map(c=>c.label).join(' / '):placeTest.how}`]:dialogueDemo?['dialogue',`Заказчик: ${BUYERS[dialogueDemo.org].name}`,'Новая реплика и переход к предложению. Обычные награды не меняются.']:TEST_SCENARIOS.find(x=>x[0]===preset)!);
  return <>
-  <FarmScreen key={frame} s={s} profile={profile} dispatch={dispatch} fast={fast} onFast={()=>setFast(v=>!v)} onMap={onExit} onRestart={reset} error={error} testing onTestTools={()=>setOpen(true)} suspended={open}/>
+  <FarmScreen key={frame} s={s} profile={profile} dispatch={dispatch} fast={fast} onFast={()=>setFast(v=>!v)} onMap={onExit} onRestart={reset} error={error} testing onTestTools={()=>setOpen(true)} suspended={open} story={!!place} onHome={place?goHome:undefined} onWork={place?goWork:undefined} onExpedition={place?goExpedition:undefined}/>
   {open&&<Sheet title="Режим проверки" onClose={()=>setOpen(false)}>
    <p class="test-isolation">Отдельная тестовая ферма. Обычные сохранения и награды не меняются. После перезагрузки тест начинается заново.</p>
    <div class="test-current"><b>{label[1]}</b><small>{label[2]}</small><Btn small tone="primary" onClick={()=>setOpen(false)}>Вернуться на поле</Btn></div>
    <label class="test-select">Регион<select aria-label="Регион теста" value={s.loc} onChange={e=>load(preset,e.currentTarget.value as D.LocationId)}>{D.LOCATION_IDS.map(l=><option value={l}>{D.LOCATIONS[l].name}</option>)}</select></label>
-   <nav class="seg test-tabs">{([['scenarios','Ситуации'],['cards','Карты'],['conditions','Условия'],['animations','Анимации']] as const).map(([id,name])=><button type="button" class={panel===id?'on':''} onClick={()=>setPanel(id)}>{name}</button>)}</nav>
+   <nav class="seg test-tabs">{([['scenarios','Ситуации'],['places','Поселения'],['cards','Карты'],['conditions','Условия'],['animations','Анимации']] as const).map(([id,name])=><button type="button" class={panel===id?'on':''} onClick={()=>setPanel(id)}>{name}</button>)}</nav>
    {panel==='scenarios'&&<div class="test-scenarios">{TEST_SCENARIOS.map(([id,name,desc])=><button type="button" class={`test-scenario${preset===id?' chosen':''}`} onClick={()=>load(id)}><b>{name}</b><small>{desc}</small></button>)}</div>}
+   {panel==='places'&&<div class="test-places">
+    <p class="small muted">Готовая ферма нужного края на нужной неделе. «Когда» — когда это бывает в обычной игре, «Как» — что сделать, «Зачем» — что это даёт. Завершите неделю, чтобы увидеть исход.</p>
+    {PLACE_GROUPS.map(g=><section class="test-place-group"><h4>{g}</h4>{SETTLEMENT_TESTS.filter(t=>t.group===g).map(t=><div class={`test-place${place===t.id?' chosen':''}`}>
+     <button type="button" class="test-place-go" onClick={()=>loadPlace(t.id)}><b>{t.name}</b><span>{D.LOCATIONS[t.id==='visitor'?visitorLoc(visitor):t.loc].name}</span></button>
+     {t.id==='visitor'&&<label class="test-select">Кто<select aria-label="Встречный у лагеря" value={visitor} onChange={e=>{const v=e.currentTarget.value as R.VisitId;setVisitor(v);loadPlace('visitor',v);}}>{R.VISIT_IDS.map(v=><option value={v}>{R.VISITS[v].name} · {R.VISITS[v].where.map(l=>D.LOCATIONS[l].name).join(', ')}</option>)}</select></label>}
+     <dl><dt>Когда</dt><dd>{t.when}</dd><dt>Как</dt><dd>{t.id==='visitor'?R.VISITS[visitor].choices.map(c=>c.note?`«${c.label}» — ${c.note}`:`«${c.label}»`).join('; ')+'.':t.how}</dd><dt>Зачем</dt><dd>{t.why}</dd></dl>
+    </div>)}</section>)}
+   </div>}
    {panel==='cards'&&<div class="stack">
     <label class="test-select">Карта<select aria-label="Карта для проверки" value={cardDef} onChange={e=>setCardDef(e.currentTarget.value)}>{Object.values(D.CARDS).map(c=><option value={c.id}>{c.name}</option>)}</select></label>
     <Btn tone="primary" onClick={()=>update(n=>testHand(n,[cardDef]),true)}>Оставить в руке выбранную карту</Btn>
@@ -68,7 +93,7 @@ export function TestLab({onExit,initialLoc='chernozem'}:{onExit:()=>void;initial
     <Btn onClick={()=>loadDialogue(buyer,story)}>Показать новый заказ и диалог</Btn>
     <small class="muted">Загрузится отдельный пример нужного региона. Нажмите на реплику над картами — откроется этот заказ.</small>
    </div>}
-   <div class="test-footer"><Btn small onClick={reset}>Сбросить ситуацию</Btn><Btn small onClick={()=>setExportState(JSON.stringify({mode:'test',scenario:dialogueDemo?`dialogue:${dialogueDemo.org}:${dialogueDemo.step}`:preset,farm:ref.current},null,2))}>Состояние для отчёта</Btn><Btn small tone="ghost" onClick={onExit}>Выйти из проверки</Btn></div>
+   <div class="test-footer"><Btn small onClick={reset}>Сбросить ситуацию</Btn><Btn small onClick={()=>setExportState(JSON.stringify({mode:'test',scenario:dialogueDemo?`dialogue:${dialogueDemo.org}:${dialogueDemo.step}`:place?`place:${place}${place==='visitor'?`:${visitor}`:''}`:preset,farm:ref.current},null,2))}>Состояние для отчёта</Btn><Btn small tone="ghost" onClick={onExit}>Выйти из проверки</Btn></div>
   </Sheet>}
   {exportState&&<Sheet title="Состояние тестовой фермы" onClose={()=>setExportState(null)}>
    <p class="small">Если нашли ошибку, приложите этот текст к описанию действий.</p>
