@@ -9,13 +9,18 @@
 /* 29.10 · on the field only a thin strip of the village shows above the sky: its ~200 SVG loops (hens, washing,
    smoke, butterflies) stand still until the player pulls the village down — SVG animations run on the main thread */
 .field-view.v-field .village * { animation-play-state: paused !important; }
+/* (they stay still through the ride too and wake when it ends: waking ~200 SVG loops at the start of the ride cost more
+   than the ride itself on a phone) */
 /* …and its seven parallax layers stop being separate GPU textures (≈16 MB each at phone density): Android WebView
    in Telegram ran out of tile memory and the screen flickered; the layers are promoted again once the village moves */
-.field-view.v-field .village .v-lay { will-change: auto; }
+.field-view.v-field:not(.v-moving):not(.v-warm) .village .v-lay { will-change: auto; }
 /* On the field only the nearest layer (F, and a hairline of C on tall phones) shows in that strip — measured at
    360×640, 393×760 and 412×915. The other five skip style, layout and paint until the village moves: Telegram's
    expanding sheet resizes the page a dozen times on open, and each resize restyled all ~8 000 village nodes. */
-.field-view.v-field .village .v-lay:is([data-k="sky"], [data-k="A"], [data-k="B"], [data-k="D"], [data-k="E"]) { content-visibility: hidden; }
+/* …but only while the village stands still: the glide is a compositor animation and the mode changes only when it
+   ends, so the layers come back as soon as the way starts (.v-moving), or already on the touch of the sign (.v-warm) —
+   otherwise the far houses popped in at the very end of the ride */
+.field-view.v-field:not(.v-moving):not(.v-warm) .village .v-lay:is([data-k="sky"], [data-k="A"], [data-k="B"], [data-k="D"], [data-k="E"]) { content-visibility: hidden; }
 .village .v-defs { position: absolute; width: 0; height: 0; }
 /* the drawing's ink (tools/village/hy.py): a line, an outline round a fill, a line in its own colour */
 .village { --vk: #3a2a1f; }
