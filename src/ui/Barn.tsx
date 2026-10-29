@@ -2,7 +2,8 @@ import { useEffect, useState } from 'preact/hooks';
 import { CARDS, CROPS, CROP_IDS, CropId, RATINGS, isSeed } from '../engine/data';
 import {
   GameState, priceOf, rub, cardShopPrice, creditLimit, deckLimit, deckList, forecast, insurancePrice, locOf, loanRate, lookahead, marketPrice, money, nextPayment,
-  outstanding, shopCards, stockOf, miceTargets, storageCap, storageUsed, weeklyCosts, yardUsed, fmt, lvl, obtainable, freeStock, reservedStock, storageKeepWeeks, deckCount,
+  outstanding, plural, shopCards, stockOf, miceTargets, storageCap, storageUsed, weeklyCosts, yardUsed, fmt, lvl, obtainable, freeStock, reservedStock, storageKeepWeeks, deckCount,
+  units,
 } from '../engine/game';
 import { Icon } from '../art/icons';
 import { CropSprite } from '../art/crops';
@@ -15,7 +16,7 @@ function ORGS_ACTIVE_NEED(s: GameState): Map<CropId, number> {
   return m;
 }
 import { P } from '../art/palette';
-import { Bar, Btn, Dispatch } from './common';
+import { Bar, Btn, Dispatch, weeksIn } from './common';
 import { Peek } from './Peek';
 import { useLessonLock } from './lesson';
 import { CardView, cardPrice, cardDescription, cardDaysText } from './Card';
@@ -31,7 +32,7 @@ function dirAt(s: GameState, c: CropId, k: number): Dir {
   const now = forecast(s, c, 0).price, then = forecast(s, c, k).price;
   return then > now * 1.03 ? 'up' : then < now * 0.97 ? 'down' : 'flat';
 }
-const whenOf = (k: number) => (k === 0 ? 'Сейчас' : k === 1 ? 'Через неделю' : `Через ${k} нед.`);
+const whenOf = (k: number) => (k === 0 ? 'Сейчас' : k === 1 ? 'Через неделю' : `Через ${k} ${plural(k, 'неделю', 'недели', 'недель')}`);
 function TrendArrow({ dir }: { dir: Dir }) {
   return (
     <svg viewBox="-9 -9 18 18" width={16} height={16} aria-hidden="true" class={`trend-arrow ${dir}`}>
@@ -109,9 +110,9 @@ function SaleControls({ s, c, act }: { s: GameState; c: CropId; act: Dispatch })
       </Btn>
     </div>
     
-    {amount > freeStock(s, c) && <p class="small bad">{amount - freeStock(s, c)} ед. из резерва заказа.</p>}
-    {(reserved > 0 || inYard > 0 || CROPS[c].perishable) && <details class="sale-more"><summary>{reserved > 0 ? `Резерв ${reserved} · хранение` : 'Хранение'}</summary>
-      <p>В амбаре {s.storage.filter(l=>l.crop===c).reduce((a,l)=>a+l.qty,0)}{inYard ? ` · во дворе ${inYard}` : ''}. {CROPS[c].perishable ? `Без порчи ещё ${Math.max(0, keep - oldest)} нед.` : 'Не портится.'}</p>
+    {amount > freeStock(s, c) && <p class="small bad">Из резерва заказа будет продано {units(amount - freeStock(s, c))}.</p>}
+    {(reserved > 0 || inYard > 0 || CROPS[c].perishable) && <details class="sale-more"><summary>{reserved > 0 ? `Хранение (резерв ${reserved})` : 'Хранение'}</summary>
+      <p>В амбаре {s.storage.filter(l=>l.crop===c).reduce((a,l)=>a+l.qty,0)} ед.{inYard ? ` Во дворе ${inYard} ед.` : ''} {CROPS[c].perishable ? (keep - oldest > 0 ? `Не испортится ещё ${weeksIn(keep - oldest)}.` : 'Скоро испортится.') : 'Не портится.'}</p>
       {reserved > 0 && <label class="reserve-choice"><input type="checkbox" checked={includeReserved} onChange={e => setIncludeReserved(e.currentTarget.checked)} />Можно продать резерв заказа ({reserved})</label>}
     </details>}
   </div>;
@@ -144,7 +145,7 @@ export function BarnView({ s, act, target, onPayment }: { s: GameState; act: Dis
     return <div key={c} class="sale-row" data-crop={c} data-stock={have}>
       <div class="sale-top">
         <CropMedal c={c}/>
-        <span class="grow"><b>{CROPS[c].name}</b><small>{have} ед.{reserved>0?` · резерв ${reserved}`:''}</small></span>
+        <span class="grow"><b>{CROPS[c].name}</b><small>{have} ед.{reserved>0?`, в резерве ${reserved}`:''}</small></span>
         <span class="sale-price"><b>{money(marketPrice(s,c))}</b><small>за 1 ед.</small></span>
       </div>
       <Forecast s={s} c={c}/>
@@ -179,16 +180,16 @@ export function BarnView({ s, act, target, onPayment }: { s: GameState; act: Dis
           {s.run && <button type="button" role="tab" aria-selected={tab==='run'} class={tab === 'run' ? 'on' : ''} onClick={() => setTab('run')}><Icon name="cart" size={18} /><span>Вылазка</span></button>}
         </nav>
       </div>
-      {yard > 0 && <p class="barn-warn"><Icon name="sack" size={20}/><span><b>Во дворе {yard} ед.</b> Продайте до конца недели — иначе заберут за 60%, до {money(yardLoss)}.</span></p>}
-      {mice && <p class="barn-hint">Мыши каждую неделю грызут запасы от 10 ед.: {nibbled.map(c => CROPS[c].name.toLowerCase()).join(', ')}. Спасут кот или сусеки (амбар 2-го уровня).</p>}
+      {yard > 0 && <p class="barn-warn"><Icon name="sack" size={20}/><span><b>Во дворе {yard} ед.</b> Продайте до конца недели, иначе их заберут за 60% цены (не больше {money(yardLoss)}).</span></p>}
+      {mice && <p class="barn-hint">Мыши каждую неделю грызут запасы от 10 единиц: {nibbled.map(c => CROPS[c].name.toLowerCase()).join(', ')}. Спасут кот или сусеки (амбар 2-го уровня).</p>}
       {tab === 'market' && (
         <section class="panel barn-panel">
-          <p class="market-key">График — {horizonOf(s)} нед.: пунктир — ориентир, полоса — разброс, цена может выйти за неё. Строка у графика — про отмеченную неделю; коснитесь графика, чтобы выбрать другую.</p>
+          <p class="market-key">График показывает цену на {horizonOf(s)} {plural(horizonOf(s), 'неделю', 'недели', 'недель')} вперёд. Пунктир — ориентир, полоса — разброс, но цена может выйти за её границы. Строка у графика относится к отмеченной неделе, а чтобы выбрать другую, коснитесь графика.</p>
           {stocked.length ? <div class="sale-list">{stocked.map(row)}</div> : (
             <div class="empty-stock">
               <Icon name="sack" size={34}/>
               <b>Продавать пока нечего</b>
-              <small>{s.phase==='shortfall' ? 'Кредит или перенос — в окне платежа.' : 'Собранный урожай попадёт сюда сам.'}</small>
+              <small>{s.phase==='shortfall' ? 'Взять кредит или перенести платёж можно в окне платежа.' : 'Собранный урожай попадёт сюда сам.'}</small>
             </div>
           )}
           {!!absent.length && <details class="price-list"><summary>Цены на остальное · {absent.length}</summary>{absent.map(priceRow)}</details>}
@@ -199,7 +200,7 @@ export function BarnView({ s, act, target, onPayment }: { s: GameState; act: Dis
       {tab === 'run' && s.run && <RunPanel s={s} act={act} />}
       {tab === 'shop' && <Peek area="shop">{(
         <section class="panel barn-panel">
-          <p class="panel-note">{deckN < deckLimit(s) ? `Покупка ляжет в колоду · ${deckN}/${deckLimit(s)}` : 'Колода полна — покупка ляжет в запас'}</p>
+          <p class="panel-note">{deckN < deckLimit(s) ? `Покупка ляжет в колоду: сейчас в ней ${deckN} из ${deckLimit(s)} карт.` : 'Колода полна, поэтому покупка ляжет в запас.'}</p>
           <div class="card-grid shop-grid">
             {shopCards(s).map((def) => {
               const price = cardShopPrice(s, def);
@@ -224,8 +225,8 @@ export function BarnView({ s, act, target, onPayment }: { s: GameState; act: Dis
                 <button type="button" class="icon-btn shop-choice-x" onClick={()=>setShopPick(null)} aria-label="Закрыть выбор">✕</button>
               </div>
               <p>{cardDescription(s,def)}</p>
-              <small>При применении: {use > 0 ? `${money(use)} · ` : ''}{cardDaysText(s, { def })}{CARDS[def].winterOnly ? ' · только зимой' : CARDS[def].noWinter ? ' · не зимой' : ''}</small>
-              <small>{deckN < deckLimit(s) ? `Ляжет в колоду · ${deckN}/${deckLimit(s)}` : 'Колода полна — ляжет в запас'} · на счету {money(s.money)} → {money(Math.max(0, s.money - price))}</small>
+              <small>При применении: {use > 0 ? `${money(use)}, ` : ''}{cardDaysText(s, { def })}{CARDS[def].winterOnly ? ', только зимой' : CARDS[def].noWinter ? ', не зимой' : ''}.</small>
+              <small>{deckN < deckLimit(s) ? `Ляжет в колоду (${deckN} из ${deckLimit(s)}).` : 'Колода полна, карта ляжет в запас.'} После покупки на счету останется {money(Math.max(0, s.money - price))}.</small>
               <Btn tone="primary" disabled={why} onClick={()=>{ if (act({t:'buyCard',def})) setBought(b=>({def,n:b.def===def?b.n+1:1})); }}>Купить · {money(price)}</Btn>
               <span class="sr-only" aria-live="polite">{bought.def===def&&bought.n?`Куплено: ${CARDS[def].name}${bought.n>1?` ×${bought.n}`:''}`:''}</span>
               {bought.def===def&&bought.n>0&&<small class="shop-bought" aria-hidden="true">✓ Куплено{bought.n>1?` ×${bought.n}`:''}</small>}
@@ -238,10 +239,10 @@ export function BarnView({ s, act, target, onPayment }: { s: GameState; act: Dis
       {tab === 'bank' && <Peek area="bank">{(
         <section class="panel barn-panel bank">
           <div class="pay-now">
-            <span class="pay-label">{s.phase === 'shortfall' && s.due ? `Платёж «${s.due.name}»` : `«${np.name}» · через ${np.weeksLeft} нед.`}</span>
+            <span class="pay-label">{s.phase === 'shortfall' && s.due ? `Платёж «${s.due.name}»` : np.weeksLeft <= 1 ? `Платёж «${np.name}» в конце недели` : `Платёж «${np.name}» через ${weeksIn(np.weeksLeft)}`}</span>
             <b class="pay-amount">{money(s.due?.amount ?? np.amount)}</b>
             <Bar value={s.money} max={Math.max(1, s.due?.amount ?? np.amount)} tone={s.money >= (s.due?.amount ?? np.amount) ? 'good' : 'warn'} label="Накоплено к платежу" />
-            <span class="pay-have">На счету {money(s.money)}{short > 0 ? <em> · не хватает {money(short)}</em> : <em class="ok"> · хватает</em>}</span>
+            <span class="pay-have">На счету {money(s.money)}.{short > 0 ? <em> Не хватает {money(short)}.</em> : <em class="ok"> Денег хватает.</em>}</span>
           </div>
           <HomeDeed s={s} act={act} />
           <AwayNote s={s} />
@@ -251,16 +252,16 @@ export function BarnView({ s, act, target, onPayment }: { s: GameState; act: Dis
               {[10, 25, 50].map((v) => <Btn small disabled={creditLimit(s) < v ? 'Банк столько не даст' : null} onClick={() => act({ t: 'borrow', amount: v })}>Взять {v} ₽</Btn>)}
               {s.loans.map((l) => <Btn small tone="good" disabled={s.money <= 0 ? 'Нет денег' : null} onClick={() => act({ t: 'repay', id: l.id, amount: Math.min(s.money, l.principal) })}>Погасить {money(Math.min(s.money, l.principal))}</Btn>)}
             </div>
-            <p class="small muted">Ставка {fmt(loanRate(s) * 100)}% в неделю · рейтинг <span class="rating-badge" data-r={RATINGS[s.rating]}>{RATINGS[s.rating]}</span>. Рейтинг растёт за сезоны без просрочек.{s.phase==='shortfall'?' Новый кредит после срока снижает рейтинг на 1.':''}</p>
+            <p class="small muted">Ставка {fmt(loanRate(s) * 100)}% в неделю. Ваш рейтинг: <span class="rating-badge" data-r={RATINGS[s.rating]}>{RATINGS[s.rating]}</span>. Он растёт за сезоны без просрочек.{s.phase==='shortfall'?' Новый кредит после срока снижает рейтинг на 1.':''}</p>
           </details>
           <details class="bank-more">
             <summary>Страховка <span>{s.insurance ? `полисов ${s.insurance}` : money(insurancePrice(s))}</span></summary>
-            <p class="small">Один удар града, паводка, жука или саранчи — вернёт 60% стоимости потерь, до {money(np.amount)}.</p>
-            <Btn small tone="primary" disabled={s.insurance >= 2 ? 'Уже две' : s.money < insurancePrice(s) ? 'Не хватает денег' : null} onClick={() => act({ t: 'insure' })}>Купить полис · {money(insurancePrice(s))}</Btn>
+            <p class="small">Полис покрывает один удар града, паводка, жука или саранчи: вернёт 60% стоимости потерь, но не больше {money(np.amount)}.</p>
+            <Btn small tone="primary" disabled={s.insurance >= 2 ? 'Уже куплено два полиса' : s.money < insurancePrice(s) ? 'Не хватает денег' : null} onClick={() => act({ t: 'insure' })}>Купить полис · {money(insurancePrice(s))}</Btn>
           </details>
           <details class="bank-more">
             <summary>Расходы <span>−{money(costs.total)} в неделю</span></summary>
-            <p class="small muted">{[costs.salaries ? `зарплаты ${money(costs.salaries)}` : '', costs.interest ? `проценты ${money(costs.interest)}` : '', costs.heating ? `отопление ${money(costs.heating)}` : ''].filter(Boolean).join(' · ') || 'Постоянных расходов нет.'} Неоплаченное добавляется к долгу.</p>
+            <p class="small muted">{[costs.salaries ? `зарплаты ${money(costs.salaries)}` : '', costs.interest ? `проценты ${money(costs.interest)}` : '', costs.heating ? `отопление ${money(costs.heating)}` : ''].filter(Boolean).join(', ') || 'Постоянных расходов нет'}. Неоплаченное добавляется к долгу.</p>
           </details>
         </section>
       )}</Peek>}

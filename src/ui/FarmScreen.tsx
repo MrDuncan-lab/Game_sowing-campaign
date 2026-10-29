@@ -12,7 +12,7 @@ import {
 import type { OrgId } from '../engine/data';
 import type { BuildItem } from '../engine/game';
 import { Icon } from '../art/icons';
-import { Btn, ClosedLayer, Dispatch, Money, Sheet, compactMoney, reducedMotionNow } from './common';
+import { Btn, ClosedLayer, Dispatch, Money, Sheet, compactMoney, reducedMotionNow, weeksIn } from './common';
 import { ArrestLayer, HomeBankrupt, RivalSays, RoadSheet, RunOver, VisitSheet } from './Run';
 import { BankScene } from '../art/bankScene';
 import { FestivalSheet, RatingSheet, festToShow, markFestSeen } from './Festival';
@@ -53,7 +53,7 @@ function ShortfallSheet({ s, act, onBarn, onOrders, onClose, onRetry }: { s: Gam
   // PSV-010 · the credit's terms are known before the choice, like the postponement's +20% and rating −2
   const ratePct = `${fmt(loanRate(s) * 100)}% в неделю`;
   const ratingHit = s.shortfallBorrowed ? '' : ' · рейтинг −1';
-  const creditTerms = `Ставка ${ratePct} · долг станет ${money(round2(outstanding(s) + deficit))}${ratingHit}`;
+  const creditTerms = `Ставка ${ratePct}. Долг станет ${money(round2(outstanding(s) + deficit))}.${s.shortfallBorrowed ? '' : ' Рейтинг снизится на 1.'}`;
   // one clear next step, the other ways stay below in a quiet list
   const main = deficit <= 0 ? 'pay' : sellable ? 'barn' : deliverable ? 'orders' : !creditWhy ? 'credit' : 'postpone';
   return (
@@ -76,10 +76,10 @@ function ShortfallSheet({ s, act, onBarn, onOrders, onClose, onRetry }: { s: Gam
       </div>
       {onRetry&&<div class="stack tight"><p class="small muted">Это учебная ферма. Можно вернуться к началу задания и попробовать ещё раз.</p><Btn onClick={onRetry}>Повторить этот шаг</Btn></div>}
       {s.loc === 'chernozem' && s.owned && !onRetry ? <details class="more"><summary>Опись</summary>
-        <p class="small muted">Выкупленный дом не отбирают: банк заберёт самое дорогое оборудование по 60% цены, остаток долга станет кредитом. Рейтинг −2.</p>
+        <p class="small muted">Выкупленный дом не отбирают: банк заберёт самое дорогое оборудование по 60% цены, остаток долга станет кредитом. Рейтинг снизится на 2.</p>
         <Btn small tone="danger" onClick={() => act({ t: 'seize' })}>Согласиться на опись</Btn>
       </details> : <details class="more"><summary>Закрыть ферму</summary>
-        <p class="small muted">{onRetry?'Учебная ферма закроется. После этого можно повторить шаг или вернуться на карту.':s.run?`Вылазка прогорит: домой вернутся работник и карты обоза${s.run.autumns>=1?' и одна скромная находка':''}, денег — нет.`:s.loc==='chernozem'?'Банк заберёт дом. Можно будет начать заново или уйти на заработки, чтобы отработать долг.':'Партия закончится. Слава, грамоты и питомцы останутся в профиле.'}</p>
+        <p class="small muted">{onRetry?'Учебная ферма закроется. После этого можно повторить шаг или вернуться на карту.':s.run?`Вылазка прогорит: домой вернутся ${s.run.autumns>=1?'работник, карты обоза и одна скромная находка':'работник и карты обоза'}, но денег не будет.`:s.loc==='chernozem'?'Банк заберёт дом. Можно будет начать заново или уйти на заработки, чтобы отработать долг.':'Партия закончится. Слава, грамоты и питомцы останутся в профиле.'}</p>
         <Btn small tone="danger" onClick={() => act({ t: 'giveUp' })}>Закрыть ферму</Btn>
       </details>}
     </Sheet>
@@ -92,7 +92,7 @@ function GameOver({ s, onMap, onRestart }: { s: GameState; onMap: () => void; on
   return (
     <ClosedLayer title="Ферма закрыта">
         {s.loc === 'chernozem' && s.over?.reason?.includes('Пряхин') && <BankScene mode="lost" level={lvl(s, 'house')} season={s.season} />}
-        {s.loc === 'chernozem' && s.over?.reason?.includes('Пряхин') && <RivalSays text="Записал: дом мой. Не держите зла — приезжайте в Заречье, в аренду пущу." />}
+        {s.loc === 'chernozem' && s.over?.reason?.includes('Пряхин') && <RivalSays text="Теперь дом мой, но зла на меня не держите. Приезжайте в Заречье, сдам вам землю в аренду." />}
         <p>{s.over?.reason}</p>
         <div class="bank-grid">
           <div class="kv"><span>Прожито лет</span><b>{s.yearsCompleted}</b></div>
@@ -100,7 +100,7 @@ function GameOver({ s, onMap, onRestart }: { s: GameState; onMap: () => void; on
           <div class="kv"><span>Слава с этой фермы</span><b>{s.glory}</b></div>
           <div class="kv"><span>Собрано урожая</span><b>{s.stats.harvested} ед.</b></div>
         </div>
-        <p class="small muted">Грамоты, питомцы, семенной фонд, знание культур и слава остаются в профиле — со следующей фермой будет легче.</p>
+        <p class="small muted">Грамоты, питомцы, семенной фонд, знание культур и слава остаются в профиле. С ними на следующей ферме будет легче.</p>
         <div class="btn-row">
           <Btn tone="primary" onClick={onRestart}>Начать заново</Btn>
           <Btn onClick={onMap}>На карту</Btn>
@@ -242,14 +242,14 @@ export function FarmScreen({ s, dispatch, profile, fast, onFast, onMap, onRestar
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5 L8 12 L15 19" fill="none" stroke="#3f2a1d" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
             </button>}
         <div class="tb-money"><Money v={hud.money} size={20} /></div>
-        <button type="button" class={`tb-pay${hud.money >= np.amount ? ' ok' : ''}${s.phase === 'shortfall' ? ' due' : ''}`} onClick={() => s.phase === 'shortfall' ? setPaymentOpen(true) : openBarn('bank')} aria-label={s.due ? `Решить платёж ${money(s.due.amount)}` : `Платёж «${np.name}» ${money(np.amount)} через ${np.weeksLeft} нед.`}>
+        <button type="button" class={`tb-pay${hud.money >= np.amount ? ' ok' : ''}${s.phase === 'shortfall' ? ' due' : ''}`} onClick={() => s.phase === 'shortfall' ? setPaymentOpen(true) : openBarn('bank')} aria-label={s.due ? `Решить платёж ${money(s.due.amount)}` : `Платёж «${np.name}», ${money(np.amount)}, через ${weeksIn(np.weeksLeft)}`}>
           <b>{compactMoney(s.due?.amount ?? np.amount)}</b>
           <small>{s.phase === 'shortfall' ? 'к оплате' : np.weeksLeft <= 1 ? 'в конце недели' : `через ${np.weeksLeft} нед.`}</small>
           <span class="pay-bar"><span style={{ width: `${Math.min(100, (hud.money / Math.max(1, np.amount)) * 100)}%` }} /></span>
         </button>
         <div class="tb-date">
           <b>{SEASON_NAMES[hud.season]} · {hud.weekInSeason}/{seasonLen(hud)}</b>
-          <small>{present && hud === present ? 'прошлая неделя' : tutorial?'Учебная ферма':`${testing?'Проверка · ':''}${s.year}-й год`}</small>
+          <small>{present && hud === present ? 'прошлая неделя' : tutorial?'Учебная ферма':`${testing?'Проверка: ':''}${s.year}-й год`}</small>
         </div>
         <div class="tb-days" aria-label={`Рабочих дней осталось: ${days}`}>
           <b>{days}</b>
@@ -262,7 +262,7 @@ export function FarmScreen({ s, dispatch, profile, fast, onFast, onMap, onRestar
           const locked = tabLock(t.id);
           const b = locked ? null : badges[t.id];
           return (
-            <button type="button" role="tab" id={`tab-${t.id}`} aria-controls={`pane-${t.id}`} tabIndex={tab === t.id ? 0 : -1} data-tab={t.id} aria-selected={tab === t.id} aria-label={locked ? `${t.name} — закрыто` : undefined} class={`tab${tab === t.id ? ' on' : ''}${t.id === 'field' ? ' main' : ''}${locked ? ' locked' : ''}`} onClick={() => {
+            <button type="button" role="tab" id={`tab-${t.id}`} aria-controls={`pane-${t.id}`} tabIndex={tab === t.id ? 0 : -1} data-tab={t.id} aria-selected={tab === t.id} aria-label={locked ? `${t.name}, закрыто` : undefined} class={`tab${tab === t.id ? ' on' : ''}${t.id === 'field' ? ' main' : ''}${locked ? ' locked' : ''}`} onClick={() => {
                 const v = villageApi.current;
                 // the field's tab takes you to the field, and on the field between it and the village
                 if (t.id === 'field') { if (tab === 'field' && v?.available) v.toggle(); else go('field'); return; }
@@ -312,7 +312,7 @@ export function FarmScreen({ s, dispatch, profile, fast, onFast, onMap, onRestar
             </div>}
             {!tabs && villageApi.current?.available && <p class="small muted">Те же разделы стоят в деревне: потяните небо вниз или нажмите «Деревня».</p>}
             <Btn tone="primary" onClick={() => { setMenu(false); onMap(); }}><Icon name="map" size={20} /> Карта ферм</Btn>
-            {s.run && <Btn onClick={() => { setMenu(false); openBarn('run'); }}><Icon name="cart" size={20} /> Вылазка: находки и свернуть</Btn>}
+            {s.run && <Btn onClick={() => { setMenu(false); openBarn('run'); }}><Icon name="cart" size={20} /> Вылазка: свернуть хозяйство и выбрать находки</Btn>}
             {!tutorial && !testing && <Btn onClick={() => { setMenu(false); setRating(true); }}><Icon name="trophy" size={20} /> Район и рекорды</Btn>}
             <Btn onClick={onFast}>{fast ? '⏩ Быстрая анимация' : '▶ Обычная анимация'}</Btn>
             {onTest&&<Btn onClick={()=>{setMenu(false);onTest();}}>Режим проверки</Btn>}

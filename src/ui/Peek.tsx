@@ -10,7 +10,7 @@ export const PEEK: Partial<Record<TutorialArea, { title: string; text: string }>
   shop: { title: 'Лавка семян', text: 'Новые карты для колоды: семена и работы.' },
   bank: { title: 'Касса', text: 'Платежи, кредиты и страховка.' },
   house: { title: 'Дом', text: 'Работники, стройки, соседи, летопись и ваша колода.' },
-  lab: { title: 'Лаборатория', text: 'Селекция: семенам добавляют клетки и признаки. Книга культур.' },
+  lab: { title: 'Лаборатория', text: 'Селекция: семенам добавляют клетки и свойства. А ещё здесь книга культур.' },
 };
 
 /** A closed part: the page itself under frosted glass (nothing there can be pressed) and a card on top. */

@@ -41,8 +41,8 @@ test('the lab: a trait needs knowledge 1, a cell 2; the second trait 3, the seco
   const s = home();
   s.levels.lab = 3;
   const c = seedCard(s);
-  assert.match(G.traitLimit(s, c) ?? '', /знание «Картофель» 1/);
-  assert.match(G.cellLimit(s, c) ?? '', /знание «Картофель» 2/);
+  assert.match(G.traitLimit(s, c) ?? '', /знание культуры «Картофель» на уровне «знаком» \(1 из 5\)/);
+  assert.match(G.cellLimit(s, c) ?? '', /знание культуры «Картофель» на уровне «умеет» \(2 из 5\)/);
   assert.deepEqual(G.upgradeSpots(s, c), []);
   assert.throws(() => G.apply(s, { t: 'labTrait', uid: c.uid, trait: 'cold' }), /знание/);
   s.knowBase = { potato: 60 };

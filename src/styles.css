@@ -719,6 +719,9 @@ button.hero { appearance: none; text-align: left; cursor: pointer; color: var(--
 .order-line{display:flex;gap:6px;align-items:center;}
 .order-line p{margin:0;font-size:.84rem;line-height:1.38;}
 .order-line svg{flex:none;}
+.order-line-label{display:block;margin:6px 0 3px;font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;color:#8a6a35;font-weight:700;}
+.order-line-label:first-child{margin-top:0;}
+.order-dialogue .order-line+.order-line{margin-top:4px;}
 .order-line.child-line{padding-top:7px;margin-top:7px;border-top:1px solid #d9c297;}
 .order-arrival{animation:order-attention 1.8s ease-out;}
 @keyframes order-attention{0%,45%{box-shadow:0 0 0 3px #ba8f45}100%{box-shadow:0 0 0 3px transparent}}

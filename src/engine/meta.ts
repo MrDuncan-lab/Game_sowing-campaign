@@ -28,9 +28,9 @@ export const cartCards = (home: GameState): Card[] => [...deckList(home), ...hom
 export const cartWorkers = (home: GameState): Worker[] => home.team.filter((w) => w.away === 0 && w.leaves === undefined);
 
 export function departProblem(home: GameState, loc: ExpeditionId, glory: number, cart?: Cart): string | null {
-  if (!EXPEDITION_IDS.includes(loc)) return 'Туда вылазок нет';
-  if (home.loc !== 'chernozem') return 'Вылазка собирается из родного дома';
-  if (home.away) return `Обоз уже в пути: ${LOCATIONS[home.away.loc].name}. Сначала сверните то хозяйство`;
+  if (!EXPEDITION_IDS.includes(loc)) return 'В этот край вылазки не ходят';
+  if (home.loc !== 'chernozem') return 'Вылазку можно собрать только из родного дома';
+  if (home.away) return `Обоз уже в пути: ${LOCATIONS[home.away.loc].name}. Сначала сверните хозяйство на вылазке`;
   if (home.phase === 'shortfall') return 'Сначала решите вопрос с платежом';
   if (home.phase === 'gameover') return 'Дом закрыт';
   if (!expeditionOpen(loc, glory)) return `Откроется со славой ${LOCATIONS[loc].glory}`;
@@ -89,7 +89,7 @@ function welcome(h: GameState, w: Worker) {
   h.team.push({ id: w.id, level: w.level, away: 0 });
   h.candidates = h.candidates.filter((x) => x !== w.id);
   h.freeHire = h.freeHire.filter((x) => x !== w.id);
-  if (bedsUsed(h) > workerSlots(h)) note(h, `${WORKERS[w.id].name} вернулся на своё место. В доме тесно: новых не нанять, пока не освободится кровать.`, 'info');
+  if (bedsUsed(h) > workerSlots(h)) note(h, `${WORKERS[w.id].name} ${WORKERS[w.id].gender === 'f' ? 'вернулась' : 'вернулся'} на своё место. В доме тесно, новых работников не нанять, пока не освободится кровать.`, 'info');
 }
 
 /** a finished expedition (folded or bankrupt) hands over to the home it came from: cash first pays an arrest's debt,
@@ -144,9 +144,9 @@ export function settleRun(home: GameState | null, run: GameState): { home: GameS
     } else if (h.arrest.runs <= 0 || res.bankrupt) {
       h.phase = 'gameover';
       h.over = { reason: 'Долг не закрыт: дом с молотка купил Пряхин' };
-      note(h, 'Дом ушёл с молотка. Пряхин записал покупку в тетрадь.', 'bad');
+      note(h, 'Дом ушёл с молотка, и Пряхин вписал покупку в тетрадь.', 'bad');
       return { home: h, run: done };
-    } else note(h, `${name}: в счёт долга ${money(pay)}. Осталось ${money(h.arrest.debt)}, вылазок — ${h.arrest.runs}.`, 'bad');
+    } else note(h, `${name}: в счёт долга ушло ${money(pay)}. Осталось вернуть ${money(h.arrest.debt)}, на это даётся ещё ${h.arrest.runs} ${plural(h.arrest.runs, 'вылазка', 'вылазки', 'вылазок')}.`, 'bad');
   } else if (h.phase === 'gameover' && h.over?.work) {
     // the home went bankrupt while the cart was away: what the cart brings pays the bank first, and a debt paid in
     // full wakes the house (next spring) without an arrest

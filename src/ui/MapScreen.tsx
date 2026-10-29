@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'preact/hooks';
 import type { ComponentChildren } from 'preact';
-import { CROPS, EXPEDITION_IDS, LOCATIONS, LOCATION_IDS, LocationId, SEASON_NAMES, rankOf, type ExpeditionId } from '../engine/data';
+import { CROPS, EXPEDITION_IDS, LOCATIONS, LOCATION_IDS, LocationId, SEASON_NAMES, rankOf, type ExpeditionId, type LocationDef } from '../engine/data';
 import { CONDITIONS, type PlotOffer } from '../engine/run';
 import { departProblem, type Cart } from '../engine/meta';
 import { Departure, RelicChip } from './Run';
 import type { GameState } from '../engine/game';
-import { money } from '../engine/game';
+import { money, plural } from '../engine/game';
 import { Icon } from '../art/icons';
 import { Pet } from '../art/extra';
 import { P } from '../art/palette';
@@ -105,7 +105,7 @@ function LessonButton({ onClick }: { onClick: () => void }) {
   return (
     <button class={`atlas-lesson${started ? ' started' : ''}${done ? ' done' : ''}`} onClick={onClick}>
       <span class="al-face"><img src={PORTRAIT_IMAGES.palych} alt="" /></span>
-      <span class="al-text"><b>Учебная ферма</b><small>{done ? 'Пройдена — можно заглянуть ещё раз' : firstDone ? 'Глава I пройдена · глава II по желанию' : started ? `Продолжить · глава ${chapter}` : 'Первый урожай за пять минут — Палыч покажет'}</small>
+      <span class="al-text"><b>Учебная ферма</b><small>{done ? 'Пройдена, можно заглянуть ещё раз' : firstDone ? 'Глава I пройдена. Глава II по желанию.' : started ? `Продолжить: глава ${chapter}` : 'Первый урожай за пять минут, Палыч всё покажет'}</small>
         {started && <span class="al-bar" aria-hidden="true"><i style={{ width: `${Math.round((i / of) * 100)}%` }} /></span>}</span>
       <span class="al-go" aria-hidden="true"><svg viewBox="0 0 16 16" width="16" height="16"><path d={done ? 'M3.5 8.5 L6.8 11.5 L12.5 4.8' : 'M6 3.5 L10.5 8 L6 12.5'} fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg></span>
     </button>
@@ -131,7 +131,7 @@ export function MapScreen({ profile, farms, onOpen, onNew, onTest, onTutorial, o
   useEffect(() => { if (departFor) askDepart(departFor.loc); }, [departFor?.key]);
   const home = farms.chernozem && farms.chernozem.phase !== 'gameover' ? farms.chernozem : null;
   // why a cart cannot leave for `l` now (null: it can)
-  const departWhy = (l: ExpeditionId) => !home ? 'Сначала заведите родной дом в Черноземье: обоз собирается из дома' : departProblem(home, l, profile.glory);
+  const departWhy = (l: ExpeditionId) => !home ? 'Обоз собирается из родного дома, а его у вас пока нет. Начните ферму в Черноземье.' : departProblem(home, l, profile.glory);
   function askDepart(l: ExpeditionId) {
     setPick(null);
     const f = farms[l];
@@ -139,7 +139,7 @@ export function MapScreen({ profile, farms, onOpen, onNew, onTest, onTutorial, o
   }
   const r = rankOf(profile.glory);
   const open = (l: LocationId) => profile.glory >= LOCATIONS[l].glory;
-  const L = pick ? LOCATIONS[pick] : null;
+  const L = pick ? homeCard(LOCATIONS[pick], farms[pick]) : null;
   const f = pick ? farms[pick] : null;
   function askNew(l: LocationId) {
     setPick(null);
@@ -168,7 +168,7 @@ export function MapScreen({ profile, farms, onOpen, onNew, onTest, onTutorial, o
       <div class="atlas-grid">
         {last && lf && <section class="atlas-continue" aria-label="Продолжить игру">
           <Seal size={52}><svg x={-17} y={-19} width={34} height={34} viewBox="10 6 80 82"><CropSpriteMap id={SIGN[last]} /></svg></Seal>
-          <div class="ac-text"><small>Ваша ферма</small><b>{LOCATIONS[last].name}</b><span>{SEASON_NAMES[lf.season]} · {lf.weekInSeason}/{LOCATIONS[last].seasons[lf.season]} · {lf.year}-й год · {money(lf.money)}</span></div>
+          <div class="ac-text"><small>Ваша ферма</small><b>{LOCATIONS[last].name}</b><span>{SEASON_NAMES[lf.season]}, {lf.weekInSeason}-я неделя из {LOCATIONS[last].seasons[lf.season]}, {lf.year}-й год, в кассе {money(lf.money)}</span></div>
           <button type="button" class="ac-go" onClick={() => go(last)}>Продолжить</button>
         </section>}
         <section class="atlas-rank" aria-label="Звание">
@@ -179,7 +179,7 @@ export function MapScreen({ profile, farms, onOpen, onNew, onTest, onTutorial, o
               <div class="rank-scale" role="progressbar" aria-valuemin={r.min} aria-valuemax={r.next.min} aria-valuenow={profile.glory} aria-label={`До звания «${r.next.name}»`}>
                 <i style={{ ['--p' as string]: `${Math.max(0, Math.min(1, got / span)) * 100}%` }} />
               </div>
-              <div class="rank-ticks"><span>{r.min}</span><em>до «{r.next.name}» — ещё {r.next.min - profile.glory}: {r.next.opens}</em><span>{r.next.min}</span></div>
+              <div class="rank-ticks"><span>{r.min}</span><em>до звания «{r.next.name}» ещё {r.next.min - profile.glory}: {r.next.opens}</em><span>{r.next.min}</span></div>
             </> : <div class="rank-ticks"><em>высшее звание</em></div>}
           </div>
           {profile.pets.length > 0 && <div class="rank-pets">{profile.pets.slice(0, 3).map((p) => <span class="rank-pet"><Pet id={p} size={30} /></span>)}</div>}
@@ -206,7 +206,7 @@ export function MapScreen({ profile, farms, onOpen, onNew, onTest, onTutorial, o
               );
             })}
           </ol>
-          <p class="atlas-note"><sup>*</sup> Черноземье — родной дом. Остальное — вылазки: обоз из дома, свой участок, свои заказчики; одна вылазка за раз. Слава, грамоты, питомцы, семенной фонд и знание культур общие. Главная цель — летопись родного дома: выкуп, подворье, соседи, клуб, победа над Пряхиным, первое место в районе.</p>
+          <p class="atlas-note"><sup>*</sup> Черноземье — ваш родной дом. Остальные места — вылазки: туда уходит обоз из дома, а на месте вас ждут свой участок и свои заказчики. Одновременно можно быть только на одной вылазке. Слава, грамоты, питомцы, семенной фонд и знание культур общие для всех ферм. Главная цель — закрыть летопись родного дома: выкупить его, развить деревню, построить клуб, обыграть Пряхина, занять первое место в районе и привезти добычу из Заречья, с Кубани и с Алтая.</p>
           <div class="atlas-test"><button type="button" class="atlas-stamp" onClick={()=>onTest(pick ?? undefined)}>Режим проверки</button></div>
         </section>
       </div>
@@ -217,28 +217,28 @@ export function MapScreen({ profile, farms, onOpen, onNew, onTest, onTutorial, o
         </div>
         <p class="loc-text">{L.text}</p>
         <dl class="loc-facts">
-          <div><dt><Icon name="sun" size={18} />лето</dt><dd>{L.seasons[1]} нед. · до {deg(L.temp.summer[1])}</dd></div>
-          <div><dt><Icon name="frost" size={18} />зима</dt><dd>{L.seasons[3]} нед. · до {deg(L.temp.winter[1])}</dd></div>
+          <div><dt><Icon name="sun" size={18} />лето</dt><dd>{L.seasons[1]} {plural(L.seasons[1], 'неделя', 'недели', 'недель')}, теплее всего {deg(L.temp.summer[1])}</dd></div>
+          <div><dt><Icon name="frost" size={18} />зима</dt><dd>{L.seasons[3]} {plural(L.seasons[3], 'неделя', 'недели', 'недель')}, холоднее всего {deg(L.temp.winter[1])}</dd></div>
         </dl>
         <ul class="loc-unique">{L.unique.map((u) => <li>{u}</li>)}</ul>
         {pick === 'chernozem' && f && <HomeStatus f={f} />}
         {isExp(pick) ? (f && f.phase !== 'gameover' ? <div class="loc-save">
-          <span><b>{SEASON_NAMES[f.season]}, {f.year}-й год</b> · {money(f.money)} · слава с фермы {f.glory}</span>
+          <span><b>{SEASON_NAMES[f.season]}, {f.year}-й год.</b> В кассе {money(f.money)}, слава с фермы {f.glory}.</span>
           {f.run ? <span class="loc-run">Участок «{CONDITIONS[f.run.cond].name}»{f.run.relics.length ? <> · {f.run.relics.map((r) => <RelicChip id={r} />)}</> : null}</span>
-            : <span class="small muted">Старая ферма, без обоза из дома. Её можно доиграть; новая начнётся как вылазка.</span>}
+            : <span class="small muted">Это старая ферма, начатая без обоза из дома. Её можно доиграть, а новая начнётся уже как вылазка.</span>}
           <div class="btn-row"><Btn tone="primary" onClick={() => go(pick)}>{f.run ? 'Продолжить вылазку' : 'Продолжить'}</Btn>{!f.run && <Btn tone="ghost" small disabled={departWhy(pick)} onClick={() => askDepart(pick)}>Новая вылазка</Btn>}</div>
         </div> : open(pick) ? <>
           <Btn tone="primary" disabled={departWhy(pick)} onClick={() => askDepart(pick)}><Icon name="cart" size={20} /> Собрать обоз</Btn>
           {departWhy(pick) && <p class="small muted">{departWhy(pick)}</p>}
-        </> : <p class="loc-locked"><Icon name="lock" size={16} /> Откроется со славой {L.glory} (звание «{rankOf(L.glory).name}»)</p>)
+        </> : <p class="loc-locked"><Icon name="lock" size={16} /> Откроется при славе {L.glory} (звание «{rankOf(L.glory).name}»)</p>)
         : f && f.phase === 'gameover' && f.over?.work ? <div class="loc-save">
-          <span><b>Дом в залоге у банка</b> · {f.over.reason}</span>
+          <span><b>За домом приехал банк.</b> {f.over.reason}, а дом в залоге.</span>
           <div class="btn-row"><Btn tone="primary" onClick={() => go(pick)}>Решить судьбу дома</Btn><Btn tone="ghost" small onClick={() => askNew(pick)}>Заново</Btn></div>
         </div>
         : f && f.phase !== 'gameover' ? <div class="loc-save">
-          <span><b>{SEASON_NAMES[f.season]}, {f.year}-й год</b> · {money(f.money)} · слава с фермы {f.glory}</span>
+          <span><b>{SEASON_NAMES[f.season]}, {f.year}-й год.</b> В кассе {money(f.money)}, слава с фермы {f.glory}.</span>
           <div class="btn-row"><Btn tone="primary" onClick={() => go(pick)}>{f.phase === 'arrest' ? 'К дому под арестом' : 'Продолжить'}</Btn><Btn tone="ghost" small onClick={() => askNew(pick)}>Заново</Btn></div>
-        </div> : open(pick) ? <Btn tone="primary" onClick={() => askNew(pick)}>{f ? 'Начать новую ферму' : 'Играть'}</Btn> : <p class="loc-locked"><Icon name="lock" size={16} /> Откроется со славой {L.glory} (звание «{rankOf(L.glory).name}»)</p>}
+        </div> : open(pick) ? <Btn tone="primary" onClick={() => askNew(pick)}>{f ? 'Начать новую ферму' : 'Играть'}</Btn> : <p class="loc-locked"><Icon name="lock" size={16} /> Откроется при славе {L.glory} (звание «{rankOf(L.glory).name}»)</p>}
       </Sheet>}
       {replace && (
         <Sheet title="Новая вылазка?" onClose={() => setReplace(null)}>
@@ -264,11 +264,18 @@ export function MapScreen({ profile, farms, onOpen, onNew, onTest, onTutorial, o
 }
 
 /** the home's standing on its location sheet: the mortgage, the cart away, the arrest */
+/** 29.10 · the home's card says what is true now: in mortgage (the default text), bought out, or under arrest.
+ *  A closed farm shows the default text: a new farm starts in mortgage again. */
+function homeCard(L: LocationDef, f: GameState | null | undefined): LocationDef {
+  if (!f || f.phase === 'gameover' || !L.states) return L;
+  const st = f.phase === 'arrest' ? L.states.arrest : f.owned ? L.states.owned : undefined;
+  return st ? { ...L, ...st } : L;
+}
 function HomeStatus({ f }: { f: GameState }) {
   if (f.phase === 'gameover') return null;
   const lines = [
-    f.phase === 'arrest' && f.arrest ? `Под арестом: долг ${money(f.arrest.debt)}, вылазок осталось ${f.arrest.runs}` : f.owned ? 'Дом выкуплен' : `Залог: выплачено ${f.paidYears ?? 0} из 3 осенних платежей`,
-    f.away ? `Обоз на вылазке: ${LOCATIONS[f.away.loc].name}` : '',
+    f.phase === 'arrest' && f.arrest ? `Дом под арестом. Долг банку ${money(f.arrest.debt)}, осталось вылазок: ${f.arrest.runs}.` : f.owned ? 'Дом выкуплен.' : `Дом в залоге: выплачено ${f.paidYears ?? 0} из 3 осенних платежей.`,
+    f.away ? `Обоз на вылазке: ${LOCATIONS[f.away.loc].name}.` : '',
   ].filter(Boolean);
-  return <p class="loc-home small">{lines.join(' · ')}</p>;
+  return <p class="loc-home small">{lines.join(' ')}</p>;
 }

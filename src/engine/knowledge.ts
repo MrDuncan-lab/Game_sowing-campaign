@@ -4,9 +4,13 @@
 
 /** units harvested for each level 1..5 */
 export const KNOW_AT = [20, 60, 150, 300, 600];
-export const KNOW_NAMES = ['не знаком', 'знаком', 'умеет', 'знаток', 'мастер', 'свой сорт'];
-/** what a level opens, in words */
-export const KNOW_OPENS = ['', '1-й признак', '1-я дополнительная клетка', '2-й признак · семена −20%', '2-я дополнительная клетка', '3-й признак и 3-я клетка · грамота и +15 славы'];
+/** level labels: shown after the crop's name in brackets, or after «знание»; 0 means the lab opens nothing of it yet */
+export const KNOW_NAMES = ['не открыто', 'знаком', 'умеет', 'знаток', 'мастер', 'свой сорт'];
+export const KNOW_SEED_SALE = 0.8;
+export const KNOW_GLORY = 15;
+const SALE_PCT = Math.round((1 - KNOW_SEED_SALE) * 100);
+/** what a level opens, in words: it follows «Откроется:» in the crop book (index = level) */
+export const KNOW_OPENS = ['', 'первое свойство', 'первая дополнительная клетка', `второе свойство и скидка ${SALE_PCT}% на семена этой культуры`, 'вторая дополнительная клетка', `третье свойство, третья клетка, грамота и +${KNOW_GLORY} славы`];
 export const knowLevelOf = (units: number) => KNOW_AT.filter((t) => units >= t).length;
 /** how many traits / extra cells the knowledge of a crop lets the lab give a card of it */
 export const knowTraits = (level: number) => (level >= 5 ? 3 : level >= 3 ? 2 : level >= 1 ? 1 : 0);
@@ -17,5 +21,3 @@ export const cellNeeds = (k: number) => [2, 4, 5][k] ?? 6;
 /** a new variety in the lab needs this knowledge in this many different crops */
 export const VARIETY_KNOW = 2;
 export const VARIETY_CROPS = 3;
-export const KNOW_SEED_SALE = 0.8;
-export const KNOW_GLORY = 15;

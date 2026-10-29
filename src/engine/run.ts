@@ -12,20 +12,20 @@ export type CondId =
   | 'strip' | 'road' | 'school' | 'widow';
 export interface CondDef { id: CondId; loc: ExpeditionId; name: string; plus: string; minus: string }
 export const CONDITIONS: Record<CondId, CondDef> = {
-  floodplain: { id: 'floodplain', loc: 'kuban', name: 'Пойма у самой воды', plus: 'река вплотную к участку, почва жирнее (3)', minus: 'паводок дважды в год' },
-  spit: { id: 'spit', loc: 'kuban', name: 'Песчаная коса', plus: 'песок прямо на участке: бахча и гречка на трети больше', minus: 'суховей дважды за лето' },
+  floodplain: { id: 'floodplain', loc: 'kuban', name: 'Пойма у самой воды', plus: 'река вплотную к участку, плодородие почвы 3 из 5', minus: 'паводок дважды в год' },
+  spit: { id: 'spit', loc: 'kuban', name: 'Песчаная коса', plus: 'на песке бахча и гречка дают примерно на треть больше', minus: 'суховей дважды за лето' },
   aryks: { id: 'aryks', loc: 'kuban', name: 'Старые арыки', plus: 'оросительная сеть уже прокопана (4 клетки канала)', minus: 'участок завален камнями' },
   lgota: { id: 'lgota', loc: 'kuban', name: 'Льгота от станицы', plus: 'все платежи на 15% меньше', minus: 'станица встречает холодно' },
-  melons: { id: 'melons', loc: 'kuban', name: 'Бахча по соседству', plus: 'две карты «сахарного» арбуза с признаком «урожайный»', minus: 'кабаны приходят дважды в год' },
-  burn: { id: 'burn', loc: 'altai', name: 'Гарь', plus: 'лес вокруг участка выгорел: почва 3, землю покупают без раскорчёвки', minus: 'грибов и брёвен меньше' },
+  melons: { id: 'melons', loc: 'kuban', name: 'Бахча по соседству', plus: 'две карты «сахарного» арбуза со свойством «урожайный»', minus: 'кабаны приходят дважды в год' },
+  burn: { id: 'burn', loc: 'altai', name: 'Гарь', plus: 'лес вокруг выгорел, землю можно покупать без раскорчёвки, а плодородие почвы 3 из 5', minus: 'меньше грибов и брёвен' },
   cedar: { id: 'cedar', loc: 'altai', name: 'Кедровник', plus: 'походы за грибами вдвое богаче', minus: 'медведь приходит дважды в год' },
   banya: { id: 'banya', loc: 'altai', name: 'Заимка с баней', plus: 'времянка уже стоит', minus: 'платежи на 10% больше' },
-  spring: { id: 'spring', loc: 'altai', name: 'У ключа', plus: 'в засуху земля не сохнет сильнее обычного', minus: 'у воды холодно: заморозки на 2° злее' },
-  oldhives: { id: 'oldhives', loc: 'altai', name: 'Брошенная пасека', plus: 'улей уже есть', minus: 'медведь знает дорогу: два визита в год, первым делом к ульям' },
-  strip: { id: 'strip', loc: 'rent', name: 'Пряхинская полоса', plus: 'аренда на 10% меньше', minus: 'Пряхин приходит с проверкой: за сорняки поднимает аренду' },
-  road: { id: 'road', loc: 'rent', name: 'У трассы', plus: 'чайная платит на 20% больше', minus: 'пыль с дороги: нижний ряд участка летом сохнет быстрее' },
-  school: { id: 'school', loc: 'rent', name: 'Земля при школе', plus: 'юннаты сразу дружат с вами, летом +1 рабочий день', minus: 'аренда на 10% больше' },
-  widow: { id: 'widow', loc: 'rent', name: 'Огород вдовы', plus: 'почва 4 — лучшая в Заречье', minus: 'участок зарос: сорняки и поросль' },
+  spring: { id: 'spring', loc: 'altai', name: 'У ключа', plus: 'в засуху земля не сохнет сильнее обычного', minus: 'у воды холоднее, заморозки на 2° злее' },
+  oldhives: { id: 'oldhives', loc: 'altai', name: 'Брошенная пасека', plus: 'улей уже есть', minus: 'медведь знает дорогу и приходит дважды в год, первым делом к ульям' },
+  strip: { id: 'strip', loc: 'rent', name: 'Пряхинская полоса', plus: 'аренда на 10% меньше', minus: 'Пряхин приходит с проверкой и за сорняки поднимает аренду' },
+  road: { id: 'road', loc: 'rent', name: 'У трассы', plus: 'чайная платит на 20% больше', minus: 'от дорожной пыли нижний ряд участка летом сохнет быстрее' },
+  school: { id: 'school', loc: 'rent', name: 'Земля при школе', plus: 'юннаты сразу дружат с вами, а летом прибавляется 1 рабочий день', minus: 'аренда на 10% больше' },
+  widow: { id: 'widow', loc: 'rent', name: 'Огород вдовы', plus: 'плодородие почвы 4 из 5, лучшее в Заречье', minus: 'участок зарос сорняками и порослью' },
 };
 export const REGION_CONDS: Record<ExpeditionId, CondId[]> = {
   kuban: ['floodplain', 'spit', 'aryks', 'lgota', 'melons'],
@@ -39,10 +39,10 @@ export const COND_PAY: Partial<Record<CondId, number>> = { lgota: 0.85, banya: 1
 export type RelicId = 'axe' | 'laika' | 'rattle' | 'oldmap' | 'notebook' | 'bead' | 'accordion' | 'vane' | 'seedbag' | 'kettle' | 'burka' | 'receipt';
 export interface RelicDef { id: RelicId; name: string; text: string; icon: string }
 export const RELICS: Record<RelicId, RelicDef> = {
-  axe: { id: 'axe', name: 'Дедов топор', text: 'дерево корчуется за 2 дня, тайга — на день быстрее', icon: 'axe' },
+  axe: { id: 'axe', name: 'Дедов топор', text: 'дерево корчуется за 2 дня, а тайга на день быстрее', icon: 'axe' },
   laika: { id: 'laika', name: 'Лайка Пурга', text: 'раз в сезон отгоняет медведя или кабанов', icon: 'dog' },
   rattle: { id: 'rattle', name: 'Трещотка', text: 'ночной караул у грядок бесплатный', icon: 'shield' },
-  oldmap: { id: 'oldmap', name: 'Старая карта', text: 'грибов вдвое больше, камни убираются бесплатно', icon: 'map' },
+  oldmap: { id: 'oldmap', name: 'Старая карта', text: 'грибов вдвое больше, а камни убираются бесплатно', icon: 'map' },
   notebook: { id: 'notebook', name: 'Бабкина тетрадь засолок', text: 'скоропорт хранится на 2 недели дольше', icon: 'jar' },
   bead: { id: 'bead', name: 'Скифская бусина', text: '+2 славы за каждый сданный заказ', icon: 'star' },
   accordion: { id: 'accordion', name: 'Гармонь', text: '+1 рабочий день в первую неделю сезона', icon: 'note' },
@@ -50,7 +50,7 @@ export const RELICS: Record<RelicId, RelicDef> = {
   seedbag: { id: 'seedbag', name: 'Мешок отборных семян', text: 'семена на 20% дешевле', icon: 'seed' },
   kettle: { id: 'kettle', name: 'Медный котелок', text: 'подработка платит вдвое', icon: 'coin' },
   burka: { id: 'burka', name: 'Бурка', text: 'заморозки на 1° мягче', icon: 'frost' },
-  receipt: { id: 'receipt', name: 'Пряхинская расписка', text: 'следующий платёж на четверть меньше (один раз)', icon: 'contract' },
+  receipt: { id: 'receipt', name: 'Пряхинская расписка', text: 'следующий платёж на четверть меньше, один раз', icon: 'contract' },
 };
 export const RELIC_IDS = Object.keys(RELICS) as RelicId[];
 // finds that only come from a visitor, never with the plot
@@ -66,42 +66,42 @@ export const VISITS: Record<VisitId, VisitDef> = {
   archaeologists: {
     id: 'archaeologists', gone: 'Археологи не дождались ответа и ушли копать к соседям.', where: ['kuban'], who: 'Даша и профессор Семён Ильич', name: 'Студенты-археологи', portrait: 'dasha', once: true,
     text: 'Даша раскопала курган у соседей и уверена, что следующий — под вашим полем. «Можно шурф на одной грядке? Три недели, честное слово». Профессор кивает и рассказывает про скифов.',
-    choices: [{ label: 'Пусть копают', note: 'пустая грядка занята на 3 недели; может, что-то найдут' }, { label: 'Не сейчас', note: 'они уйдут к соседям' }],
+    choices: [{ label: 'Пусть копают', note: 'Пустая грядка занята 3 недели. Находка — в половине случаев.' }, { label: 'Не сейчас', note: 'Они уйдут копать к соседям.' }],
   },
   shepherd: {
     id: 'shepherd', gone: 'Чабан постоял у забора и погнал отару дальше.', where: ['kuban'], who: 'Чабан Яков', name: 'Чабан с отарой', portrait: 'yakov', once: true,
     text: 'Бывший тракторист в бурке, даже летом. Молча показывает на отару, потом на ваши пустые грядки: «Навоз — тебе, трава — им».',
-    choices: [{ label: 'Пустить отару', note: 'пустые грядки: почва +1; молодые всходы теряют неделю роста' }, { label: 'Взять плату', note: '+деньги; всходы теряют неделю роста' }, { label: 'Отказать', note: 'отара пойдёт стороной' }],
+    choices: [{ label: 'Пустить отару', note: 'Пустые грядки (до четырёх) станут плодороднее на 1, но молодые всходы потеряют неделю роста.' }, { label: 'Взять плату', note: 'Чабан заплатит. Молодые всходы теряют неделю роста.' }, { label: 'Отказать', note: 'Отара пройдёт стороной.' }],
   },
   melonman: {
     id: 'melonman', gone: 'Бахчевник уехал, так и не продав свои семена.', where: ['kuban'], who: 'Петро Никифорович', name: 'Бахчевник', portrait: 'petro', once: true,
     text: '«Сахарный, урожайный. Сам вывел. Для хорошего человека — горсть дешевле, чем в лавке».',
-    choices: [{ label: 'Купить семена', note: 'карта арбуза с признаком «урожайный»' }, { label: 'Спасибо, не надо', note: '' }],
+    choices: [{ label: 'Купить семена', note: 'Карта арбуза со свойством «урожайный».' }, { label: 'Спасибо, не надо', note: '' }],
   },
   patrol: {
     id: 'patrol', gone: 'Разъезд поехал дальше по балке.', where: ['kuban'], who: 'Урядник Гордей', name: 'Казачий разъезд', portrait: 'gordey', once: true,
     text: 'Молодой и важный, на рыжем коне: «Кабаны в балке ходят. За четыре единицы урожая постоим у твоего поля, пока не уйдут».',
-    choices: [{ label: 'Угостить разъезд', note: '4 ед. урожая: 3 недели кабаны не придут, станица довольна' }, { label: 'Сами справимся', note: '' }],
+    choices: [{ label: 'Угостить разъезд', note: 'За 4 единицы урожая кабаны не придут 3 недели, а станица будет довольна.' }, { label: 'Сами справимся', note: '' }],
   },
   hunter: {
     id: 'hunter', gone: 'Афанасьич свистнул Пургу и ушёл в тайгу.', where: ['altai'], who: 'Афанасьич', name: 'Охотник с лайкой', portrait: 'afanasich', once: true,
     text: 'Восемьдесят лет в тайге. Лайка Пурга обнюхивает ваш сапог и садится. «Хромой к ручью ходит. Могу недели три посторожить. Или щенка от Пурги бери — за мёд».',
-    choices: [{ label: 'Нанять сторожить', note: 'деньги: 3 недели медведь не подойдёт' }, { label: 'Щенка за 4 ед. мёда или ягод', note: 'находка «Лайка Пурга»' }, { label: 'Не надо', note: '' }],
+    choices: [{ label: 'Нанять сторожить', note: 'За плату он посторожит, и 3 недели медведь не подойдёт.' }, { label: 'Щенка за 4 ед. мёда или ягод', note: 'Вы получите находку «Лайка Пурга».' }, { label: 'Не надо', note: '' }],
   },
   geologist: {
     id: 'geologist', gone: 'Геолог переночевала у костра и ушла к перевалу.', where: ['altai'], who: 'Алла Викторовна', name: 'Геолог', portrait: 'alla', once: true,
     text: 'С молотком, рюкзаком и картой, исчерченной карандашом. «Переночевать пустите? Я плачу картами. У меня отмечены все грибные места до самого перевала».',
-    choices: [{ label: 'Накормить и оставить', note: '3 ед. урожая: находка «Старая карта»' }, { label: 'Некуда', note: '' }],
+    choices: [{ label: 'Накормить и оставить', note: 'За 3 единицы урожая вы получите находку «Старая карта».' }, { label: 'Некуда', note: '' }],
   },
   firefamily: {
-    id: 'firefamily', gone: 'Звягины пошли искать работу дальше.', where: ['altai'], who: 'Николай Звягин с семьёй', name: 'Погорельцы', portrait: 'nikolay', once: true,
-    text: 'Деревню за перевалом зацепил пожар. Николай — плотник, рукастый и гордый: просит не милостыню, а работу. Дочка прячет за спиной спасённую кошку.',
-    choices: [{ label: 'Взять на время', note: 'механик на 6 недель без зарплаты' }, { label: 'Дать денег', note: 'слава +5' }, { label: 'Отказать', note: '' }],
+    id: 'firefamily', gone: 'Звягины отправились искать работу дальше.', where: ['altai'], who: 'Николай Звягин с семьёй', name: 'Погорельцы', portrait: 'nikolay', once: true,
+    text: 'Деревню за перевалом зацепил пожар. Николай — плотник, рукастый и гордый, просит не милостыню, а работу. Дочка прячет за спиной спасённую кошку.',
+    choices: [{ label: 'Взять на время', note: 'Николай проработает 6 недель без зарплаты.' }, { label: 'Дать денег', note: 'Вы получите +5 славы.' }, { label: 'Отказать', note: '' }],
   },
   pinecones: {
     id: 'pinecones', gone: 'Шишкари ушли бить кедрач в другую сторону.', where: ['altai'], who: 'Бригадир Костя', name: 'Шишкари', portrait: 'kostya', once: true,
-    text: 'Артель «Кедровая» — шумные, с колотами и мешками. «Дай побить кедрач у твоего края — заплатим сразу, наличными».',
-    choices: [{ label: 'Пусть бьют', note: '+деньги сейчас; до зимы грибов вдвое меньше' }, { label: 'Лес не трогать', note: '' }],
+    text: 'Это артель «Кедровая», люди шумные, с колотами и мешками. «Дай побить кедрач у твоего края — заплатим сразу, наличными».',
+    choices: [{ label: 'Пусть бьют', note: 'Деньги сразу, но до зимы грибов будет вдвое меньше.' }, { label: 'Лес не трогать', note: '' }],
   },
   peddler: {
     id: 'peddler', gone: 'Коробейник звякнул звонком и укатил.', where: ['kuban', 'altai', 'rent'], who: 'Дядя Гриша', name: 'Коробейник', portrait: 'grisha', once: false,
@@ -111,12 +111,12 @@ export const VISITS: Record<VisitId, VisitDef> = {
   postwoman: {
     id: 'postwoman', gone: 'Нюра оставила письмо под камнем у палатки.', where: ['kuban', 'altai', 'rent'], who: 'Нюра', name: 'Почтальонка', portrait: 'nyura', once: false,
     text: 'Запыхалась, волосы растрепал ветер. «Вам письмо! Из дома. Толстое».',
-    choices: [{ label: 'Прочитать', note: 'весточка из дома' }],
+    choices: [{ label: 'Прочитать', note: 'Письмо из дома.' }],
   },
   inspection: {
-    id: 'inspection', gone: 'Пряхин обошёл поле сам и всё записал.', where: ['rent'], who: 'Аркадий Семёнович Пряхин', name: 'Пряхин с проверкой', portrait: 'pryakhin', once: false,
-    text: 'Пряхин обходит поле с карманной тетрадью и карандашом. Молчит, считает. «Пырей у вас на грядке. Это тоже записал».',
-    choices: [{ label: 'Показать поле', note: 'чистое поле — аренда без надбавки; за каждую заросшую грядку +5%' }, { label: 'Угостить чаем', note: '2 ед. урожая: Пряхин записывает не всё' }],
+    id: 'inspection', gone: 'Пряхин не дождался вас, обошёл поле сам и всё записал в тетрадь.', where: ['rent'], who: 'Аркадий Семёнович Пряхин', name: 'Пряхин с проверкой', portrait: 'pryakhin', once: false,
+    text: 'Пряхин обходит поле с карманной тетрадью и карандашом. Молча считает, а потом говорит: «Пырей у вас на грядке, и это я тоже отмечу».',
+    choices: [{ label: 'Показать поле', note: 'Если поле чистое, аренда не вырастет. За каждую заросшую грядку она вырастет на 5%.' }, { label: 'Угостить чаем', note: 'За 2 единицы урожая Пряхин запишет не всё.' }],
   },
 };
 export const VISIT_IDS = Object.keys(VISITS) as VisitId[];
@@ -226,23 +226,23 @@ export interface LootDef { id: LootId; loc: ExpeditionId; name: string; text: st
 export const LOOT: Record<LootId, LootDef> = {
   bricks16: { id: 'bricks16', loc: 'kuban', name: 'Кирпич ×16', text: 'обожжённый станичный кирпич', value: 64, mats: { bricks: 16 } },
   glass6: { id: 'glass6', loc: 'kuban', name: 'Стекло ×6', text: 'рамы с разобранной теплицы консервного завода', value: 42, mats: { glass: 6 } },
-  seedWatermelon: { id: 'seedWatermelon', loc: 'kuban', name: 'Семена арбуза', text: 'в семенной фонд: арбуз растёт и дома', value: 40, seed: 'watermelon' },
-  settlerIrrigator: { id: 'settlerIrrigator', loc: 'kuban', name: 'Переселенец: поливальщик', text: 'Айдар поедет с вами: наём без платы', value: 50, worker: 'irrigator' },
-  settlerBeekeeper: { id: 'settlerBeekeeper', loc: 'kuban', name: 'Переселенец: пчеловод', text: 'Пётр поедет с вами: наём без платы', value: 50, worker: 'beekeeper' },
-  blacksoil: { id: 'blacksoil', loc: 'kuban', name: 'Кубанский чернозём', text: '+1 плодородие четырём самым бедным грядкам дома', value: 45 },
-  melonCash: { id: 'melonCash', loc: 'kuban', name: 'Выручка с бахчи', text: '30 ₽ сверх доли (с инфляцией)', value: 30, cash: 30 },
+  seedWatermelon: { id: 'seedWatermelon', loc: 'kuban', name: 'Семена арбуза', text: 'семена попадут в семенной фонд, и арбуз сможет расти дома', value: 40, seed: 'watermelon' },
+  settlerIrrigator: { id: 'settlerIrrigator', loc: 'kuban', name: 'Переселенец-поливальщик', text: 'Айдар поедет с вами, нанять его можно бесплатно', value: 50, worker: 'irrigator' },
+  settlerBeekeeper: { id: 'settlerBeekeeper', loc: 'kuban', name: 'Переселенец-пчеловод', text: 'Пётр поедет с вами, нанять его можно бесплатно', value: 50, worker: 'beekeeper' },
+  blacksoil: { id: 'blacksoil', loc: 'kuban', name: 'Кубанский чернозём', text: 'плодородие четырёх самых бедных грядок дома вырастет на 1', value: 45 },
+  melonCash: { id: 'melonCash', loc: 'kuban', name: 'Выручка с бахчи', text: '30 ₽ сверх вашей доли, с поправкой на инфляцию', value: 30, cash: 30 },
   logs24: { id: 'logs24', loc: 'altai', name: 'Кедровые брёвна ×24', text: 'сплавом по реке до самого дома', value: 48, mats: { logs: 24 } },
-  swarm: { id: 'swarm', loc: 'altai', name: 'Улей с роем', text: 'пасека дома на уровень выше, без стройки', value: 40 },
-  seedSeabuckthorn: { id: 'seedSeabuckthorn', loc: 'altai', name: 'Саженцы облепихи', text: 'в семенной фонд: облепиха растёт и дома', value: 40, seed: 'seabuckthorn' },
-  settlerSoilsci: { id: 'settlerSoilsci', loc: 'altai', name: 'Переселенец: почвовед', text: 'Олег поедет с вами: наём без платы', value: 50, worker: 'soilsci' },
-  settlerGreenhouser: { id: 'settlerGreenhouser', loc: 'altai', name: 'Переселенец: тепличница', text: 'Лиза поедет с вами: наём без платы', value: 50, worker: 'greenhouser' },
-  litter: { id: 'litter', loc: 'altai', name: 'Таёжная подстилка', text: '3 разовые карты компоста в колоду дома', value: 30 },
-  nutCash: { id: 'nutCash', loc: 'altai', name: 'Кедровый орех', text: '30 ₽ сверх доли (с инфляцией)', value: 30, cash: 30 },
-  rentPremium: { id: 'rentPremium', loc: 'rent', name: 'Премия от Варвары', text: '25 ₽ сверх доли (с инфляцией)', value: 25, cash: 25 },
-  levCut: { id: 'levCut', loc: 'rent', name: 'Лёвин процент', text: '40 ₽ сверх доли (с инфляцией)', value: 40, cash: 40 },
-  rentLogs: { id: 'rentLogs', loc: 'rent', name: 'Брёвна со старого сарая', text: 'Пряхин разобрал сарай: 10 брёвен', value: 20, mats: { logs: 10 } },
+  swarm: { id: 'swarm', loc: 'altai', name: 'Улей с роем', text: 'пасека дома станет на уровень выше, без стройки', value: 40 },
+  seedSeabuckthorn: { id: 'seedSeabuckthorn', loc: 'altai', name: 'Саженцы облепихи', text: 'саженцы попадут в семенной фонд, и облепиха сможет расти дома', value: 40, seed: 'seabuckthorn' },
+  settlerSoilsci: { id: 'settlerSoilsci', loc: 'altai', name: 'Переселенец-почвовед', text: 'Олег поедет с вами, нанять его можно бесплатно', value: 50, worker: 'soilsci' },
+  settlerGreenhouser: { id: 'settlerGreenhouser', loc: 'altai', name: 'Переселенка-тепличница', text: 'Лиза поедет с вами, нанять её можно бесплатно', value: 50, worker: 'greenhouser' },
+  litter: { id: 'litter', loc: 'altai', name: 'Таёжная подстилка', text: 'в колоду дома попадут 3 разовые карты компоста', value: 30 },
+  nutCash: { id: 'nutCash', loc: 'altai', name: 'Кедровый орех', text: '30 ₽ сверх вашей доли, с поправкой на инфляцию', value: 30, cash: 30 },
+  rentPremium: { id: 'rentPremium', loc: 'rent', name: 'Премия от Варвары', text: '25 ₽ сверх вашей доли, с поправкой на инфляцию', value: 25, cash: 25 },
+  levCut: { id: 'levCut', loc: 'rent', name: 'Лёвин процент', text: '40 ₽ сверх вашей доли, с поправкой на инфляцию', value: 40, cash: 40 },
+  rentLogs: { id: 'rentLogs', loc: 'rent', name: 'Брёвна со старого сарая', text: 'Пряхин разобрал сарай, вам достались 10 брёвен', value: 20, mats: { logs: 10 } },
   rentBricks: { id: 'rentBricks', loc: 'rent', name: 'Кирпич с фермы', text: '8 кирпичей с колхозной фермы', value: 32, mats: { bricks: 8 } },
-  rentGlass: { id: 'rentGlass', loc: 'rent', name: 'Стекло из школьной теплицы', text: 'Нелли Марковна отдала старые рамы: 4 стекла', value: 28, mats: { glass: 4 } },
+  rentGlass: { id: 'rentGlass', loc: 'rent', name: 'Стекло из школьной теплицы', text: 'Нелли Марковна отдала старые рамы, это 4 стекла', value: 28, mats: { glass: 4 } },
 };
 export const LOOT_IDS = Object.keys(LOOT) as LootId[];
 export const lootOf = (loc: ExpeditionId) => LOOT_IDS.filter((id) => LOOT[id].loc === loc);
