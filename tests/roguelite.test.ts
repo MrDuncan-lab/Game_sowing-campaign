@@ -386,6 +386,12 @@ test('the cart: up to three cards, one worker and some cash leave the home; fold
   assert.ok(G.matStock(H, 'logs') >= 5);
   assert.equal(back.run.run!.result!.settled, true);
   assert.equal(M.settleRun(H, back.run), null, 'settled once');
+  // 29.10 · the home remembers the haul (the chronicle's «Три края») and Пряхин has a word for the first one
+  assert.deepEqual(H.trips, [{ loc: 'rent', year: H.year, loot: picks }]);
+  assert.equal(G.tripDone(H, 'rent'), true);
+  assert.equal(G.tripDone(H, 'kuban'), false);
+  assert.ok(H.told?.includes('trip-rent'));
+  assert.ok(validFarm(JSON.parse(JSON.stringify(H))));
   // a farm folded for a home that was restarted: the run is closed, the new home is untouched
   const other = G.newGame({ loc: 'chernozem', seed: 'HOME-2' });
   const lone = M.settleRun(other, r)!;
@@ -405,6 +411,8 @@ test('a bankrupt expedition sends home the cart, no cash, and after a year one p
   assert.equal(r.run!.result!.bankrupt, true); assert.equal(r.run!.result!.cash, 0); assert.equal(r.run!.result!.loot.length, 0);
   const H = M.settleRun(h, r)!.home!;
   assert.equal(H.money, 100);
+  // a bankrupt cart is no haul: nothing for the chronicle
+  assert.equal(H.trips, undefined);
   assert.ok(H.feed.some((f) => /почти пустым/.test(f.text)));
   // after a year's work one poor find
   assert.equal(G.apply(later, { t: 'giveUp' }).run!.result!.loot.length, 1);

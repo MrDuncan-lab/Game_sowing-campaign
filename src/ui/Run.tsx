@@ -6,11 +6,11 @@ import { Face } from './Story';
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import type { ComponentChildren } from 'preact';
 import { createPortal } from 'preact/compat';
-import { CARDS, EXPEDITION_IDS, LOCATIONS, MATERIALS, WORKERS, type ExpeditionId, type Terrain } from '../engine/data';
+import { CARDS, EXPEDITION_IDS, LOCATIONS, MATERIALS, TRACKS, WORKERS, type ExpeditionId, type Terrain } from '../engine/data';
 import {
-  GameState, Card, buyoutPrice, foldProblem, foldValue, infl, lootCount, lootOffers, money, plural, visitOptions, randomSeed, matsList, chainsDone, lvl,
+  GameState, Card, buyoutPrice, foldProblem, foldValue, infl, lootCount, lootOffers, money, plural, visitOptions, randomSeed, matsList, chainsDone, lvl, tripDone,
 } from '../engine/game';
-import { CONDITIONS, LOOT, RELICS, VISITS, runMap, type LootId, type PlotOffer, type RelicId } from '../engine/run';
+import { CONDITIONS, LOOT, RELICS, VISITS, lootOf, runMap, type LootId, type PlotOffer, type RelicId } from '../engine/run';
 import { cartCardLimit, cartCards, cartCashMax, cartWorkers, departProblem, departureOffers, expeditionOpen, type Cart } from '../engine/meta';
 import { Icon } from '../art/icons';
 import { Portrait, PORTRAIT_IMAGES, type PersonId } from '../art/portraits';
@@ -289,11 +289,19 @@ export function AwayNote({ s }: { s: GameState }) {
 }
 
 /** 29.10 · the signpost in the village: where a cart can go from home, what is still closed and why */
+/** 29.10 · a find the home does not have yet: a new crop, a settler not in the team, a hive the apiary can still take */
+const newForHome = (home: GameState, id: LootId) => {
+  const L = LOOT[id];
+  if (L.seed) return !home.unlocked.includes(L.seed);
+  if (L.worker) return !home.team.some((w) => w.id === L.worker) && !home.freeHire.includes(L.worker);
+  if (id === 'swarm') return lvl(home, 'apiary') < TRACKS.apiary.levels.length;
+  return false;
+};
 export function RoadSheet({ home, glory, onGo, onMap, onClose }: { home: GameState; glory: number; onGo: (l: ExpeditionId) => void; onMap: () => void; onClose: () => void }) {
   return createPortal(
     <Sheet title="Указатель у дороги" icon="cart" onClose={onClose}>
       <div class="stack road-sheet">
-        <p class="small">Отсюда уходит обоз: до {cartCardLimit(glory)} карт, один работник и подъёмные. Свернёте хозяйство после первой осени — обоз вернётся с добычей.</p>
+        <p class="small">Отсюда уходит обоз: до {cartCardLimit(glory)} карт, один работник и подъёмные. Свернёте хозяйство после первой осени — обоз вернётся с добычей: того, что везут из краёв, дома не купить. Обоз из всех трёх краёв закрывает в летописи веху «Три края».</p>
         {EXPEDITION_IDS.map((l) => {
           const L = LOCATIONS[l], open = expeditionOpen(l, glory), why = departProblem(home, l, glory), away = home.away?.loc === l;
           return (
@@ -302,6 +310,7 @@ export function RoadSheet({ home, glory, onGo, onMap, onClose }: { home: GameSta
               {away ? <span class="tag good">обоз там</span>
                 : !open ? <span class="tag"><Icon name="lock" size={14} /> слава {L.glory} · ещё {L.glory - glory}</span>
                 : <Btn small tone={why ? undefined : 'primary'} disabled={why} onClick={() => { onClose(); onGo(l); }}>Собрать обоз</Btn>}
+              <p class="road-loot">{tripDone(home, l) && <span class="tag good">✓ в летописи</span>} Везёт домой: {lootOf(l).map((id, i) => <>{i ? ', ' : ''}{newForHome(home, id) ? <b class="road-new">{LOOT[id].name}</b> : LOOT[id].name}</>)}.</p>
             </div>
           );
         })}

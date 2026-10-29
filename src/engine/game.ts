@@ -4,7 +4,7 @@ import {
   ORGS, OrgId, PETS, PetId, RATING_LIMIT, RATING_RATE, Reward, SEASON_DEMAND, SEED_BANK_OK, SOWN_IDS, TERRAIN, TRACKS, Terrain, TraitId,
   TrackId, WORKERS, WORKER_IDS, WorkerId, isSeed, parseMap, relTier, TRAITS, PAYMENT_NAMES,
   CAMP, EQUIPMENT, HOUSE_BEDS, MATERIALS, MATERIAL_IDS, MaterialId, Mats, TrackDef, TrackLevel,
-  BUYOUT_NAME, BUYOUT_YEARS, TAX_NAME, ExpeditionId,
+  BUYOUT_NAME, BUYOUT_YEARS, TAX_NAME, ExpeditionId, EXPEDITION_IDS,
 } from './data';
 import {
   COND_PAY, CondId, FIRST_VISIT, LOOT, LootId, RELICS, RELIC_IDS, RelicId, VISITS, VISIT_IDS, VisitId, hazardsFor, lootOf, runMap,
@@ -213,7 +213,10 @@ export interface GameState {
   // 29.10 · the through-line: story beats raised once per farm (content/story.ts), the latest of them for the screen
   told?: string[];
   beats?: { id: string; week: number }[];
+  // 29.10 · the home remembers its expeditions folded with a haul: the region, the year it came back, the finds
+  trips?: Trip[];
 }
+export interface Trip { loc: ExpeditionId; year: number; loot: LootId[] }
 export interface YearHarvest { year: number; units: number; kinds: CropId[]; best: number; bestCrop?: CropId }
 export interface FestResult { club?: boolean; year: number; you: Record<FestCat, number>; rival: Record<FestCat, number>; won: FestCat[]; win: boolean; glory: number; bestCrop?: CropId }
 /** a neighbour's yard: the stages done (0..3), the season (year·4+season, or the week when weekly) of the last swap,
@@ -2468,10 +2471,13 @@ export function chronicle(s: GameState): { id: ChronicleId; name: string; hint: 
     club: hasCommon(s, 'club'),
     beat: (s.fests ?? []).some((f) => f.win && festInClub(f)),
     first: !!s.told?.includes('district-first'),
+    trips: EXPEDITION_IDS.every((l) => tripDone(s, l)),
   };
   return CHRONICLE.map((c) => ({ ...c, done: isHome(s) && done[c.id] }));
 }
 export const chronicleDone = (s: GameState) => chronicle(s).every((c) => c.done);
+/** 29.10 · an expedition to this region came home with a haul (folded, not bankrupt) */
+export const tripDone = (s: GameState, l: ExpeditionId) => !!s.trips?.some((t) => t.loc === l);
 function chronicleWeek(s: GameState) {
   if (!isHome(s) || s.told?.includes('epilogue') || !chronicleDone(s)) return;
   beat(s, 'epilogue');

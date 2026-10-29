@@ -93,15 +93,19 @@ test('the district: villages grow with the years; the farm climbs with its house
   assert.ok(G.districtPlace(s) > 1, 'the villages keep growing');
 });
 
-test('29.10 · the chronicle closes with an epilogue once all six milestones are done', () => {
+test('29.10 · the chronicle closes with an epilogue once all seven milestones are done (a haul from each region too)', () => {
   let s = home('CHRON');
   assert.equal(G.chronicleDone(s), false);
   s.owned = true; s.levels.house = 7;
   s.yards = { zina: { stage: 2 }, savva: { stage: 2 }, efim: { stage: 2 }, miller: { stage: 2 }, karpov: { stage: 2 } };
   s.commons = ['club'];
   s.fests = [{ club: true, year: 1, you: { units: 1, kinds: 1, best: 1 }, rival: { units: 0, kinds: 0, best: 0 }, won: ['units', 'kinds'], win: true, glory: 25 }];
-  assert.equal(G.chronicle(s).filter((c) => !c.done).map((c) => c.id).join(), 'first');
+  assert.equal(G.chronicle(s).filter((c) => !c.done).map((c) => c.id).join(), 'first,trips');
   s.told = [...(s.told ?? []), 'district-first'];
+  s.trips = [{ loc: 'rent', year: 2, loot: ['rentLogs'] }, { loc: 'kuban', year: 4, loot: [] }];
+  assert.equal(G.chronicleDone(s), false);
+  assert.ok(validFarm(json(s)));
+  s.trips.push({ loc: 'altai', year: 5, loot: ['logs24'] });
   assert.equal(G.chronicleDone(s), true);
   toAutumnEnd(s);
   const g = s.glory;

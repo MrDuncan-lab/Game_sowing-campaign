@@ -128,7 +128,11 @@ export function settleRun(home: GameState | null, run: GameState): { home: GameS
   if (w) welcome(h, w);
   const name = LOCATIONS[run.loc].name;
   delete h.away;
-  if (!res.bankrupt) beat(h, 'cart-back');
+  // 29.10 · a haul is remembered by the home (the chronicle's «Три края», the House's list) and Пряхин has a word
+  if (!res.bankrupt) {
+    h.trips = [...(h.trips ?? []), { loc: run.loc as ExpeditionId, year: h.year, loot: [...res.loot] }];
+    beat(h, `trip-${run.loc}`);
+  }
   if (h.phase === 'arrest' && h.arrest) {
     const pay = Math.min(cash, h.arrest.debt);
     h.arrest.debt = round2(h.arrest.debt - pay);

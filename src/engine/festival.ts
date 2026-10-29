@@ -26,8 +26,9 @@ export const SMOTR_CAT_GLORY = 2;
 export const SMOTR_WIN_GLORY = 5;
 export const SMOTR_NAME = 'Смотр урожая';
 export const FEST_NAME = 'Праздник урожая';
-/** the farm's chronicle: six milestones of the home; all of them close it with an epilogue */
-export type ChronicleId = 'owned' | 'house7' | 'yards' | 'club' | 'beat' | 'first';
+/** the farm's chronicle: seven milestones of the home (the last one — a haul from each region); all of them close it
+ *  with an epilogue */
+export type ChronicleId = 'owned' | 'house7' | 'yards' | 'club' | 'beat' | 'first' | 'trips';
 export const CHRONICLE: { id: ChronicleId; name: string; hint: string }[] = [
   { id: 'owned', name: 'Дом выкуплен', hint: 'три осенних взноса по залогу' },
   { id: 'house7', name: 'Подворье', hint: 'дом 7-го уровня' },
@@ -35,6 +36,8 @@ export const CHRONICLE: { id: ChronicleId; name: string; hint: string }[] = [
   { id: 'club', name: 'Клуб в деревне', hint: 'общая постройка, толокой' },
   { id: 'beat', name: 'Пряхин обыгран', hint: 'победа на празднике урожая в клубе' },
   { id: 'first', name: 'Первые в районе', hint: 'первое место в районной сводке' },
+  // 29.10 · the home and the expeditions are one game: the chronicle closes only with a haul from every region
+  { id: 'trips', name: 'Три края', hint: 'обоз с добычей из Заречья, с Кубани и с Алтая' },
 ];
 export const CHRONICLE_GLORY = 50;
 export const CHRONICLE_CERT = 'Летопись хозяйства';

@@ -4,10 +4,11 @@
 // says so plainly.
 import { createPortal } from 'preact/compat';
 import { useState } from 'preact/hooks';
-import { CROPS, LOCATIONS } from '../engine/data';
-import { GameState, chronicle, districtPlace, districtTable, festClub, festInClub, festOpen, festRival, festShow, isHome, plural } from '../engine/game';
+import { CROPS, EXPEDITION_IDS, LOCATIONS } from '../engine/data';
+import { GameState, chronicle, tripDone, districtPlace, districtTable, festClub, festInClub, festOpen, festRival, festShow, isHome, plural } from '../engine/game';
 import { FEST_CATS, FEST_CAT_GLORY, FEST_NAME, FEST_NAMES, FEST_UNITS, FEST_WIN_GLORY, SMOTR_CAT_GLORY, SMOTR_NAME, SMOTR_WIN_GLORY } from '../engine/festival';
 import { rivalVerdict } from '../content/story';
+import { LOOT } from '../engine/run';
 import { PORTRAIT_IMAGES } from '../art/portraits';
 import { Icon } from '../art/icons';
 import { Btn, Sheet } from './common';
@@ -107,12 +108,18 @@ export function Chronicle({ s }: { s: GameState }) {
     <div class="chronicle">
       <ol class="chronicle-list">
         {items.map((c) => (
-          <li class={c.done ? 'done' : ''}>
+          <li class={`${c.done ? 'done' : ''}${c.id === 'trips' ? ' wide' : ''}`}>
             <span class="chronicle-mark" aria-hidden="true">{c.done ? '✓' : ''}</span>
-            <span><b>{c.name}</b><small>{c.hint}</small></span>
+            <span><b>{c.name}</b><small>{c.hint}</small>
+              {c.id === 'trips' && <span class="trip-chips">{EXPEDITION_IDS.map((l) => <i class={tripDone(s, l) ? 'on' : ''}>{tripDone(s, l) ? '✓ ' : ''}{LOCATIONS[l].name}</i>)}</span>}
+            </span>
           </li>
         ))}
       </ol>
+      {(s.trips ?? []).length > 0 && <div class="trip-log">
+        <b>Привезено из краёв</b>
+        {(s.trips ?? []).slice(-6).reverse().map((t) => <p class="small"><span>{LOCATIONS[t.loc].name}, {t.year}-й год:</span> {t.loot.length ? t.loot.map((l) => LOOT[l].name).join(', ') : 'деньги'}</p>)}
+      </div>}
       <p class="small muted">{n === items.length ? 'Летопись закрыта. Игра продолжается: испытания крепнут, а Пряхин каждую зиму ждёт вас на празднике.' : `Записано ${n} из ${items.length}. Когда закроются все — эпилог, грамота и +50 славы.`}</p>
     </div>
   );
