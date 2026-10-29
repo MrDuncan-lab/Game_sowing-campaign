@@ -390,7 +390,7 @@ export function traitLimit(s: GameState, c: CardLike): string | null {
 export const varietyKnown = (s: GameState) => SOWN_IDS.filter((c) => knowLevel(s, c) >= VARIETY_KNOW);
 export function varietyProblem(s: GameState): string | null {
   const n = varietyKnown(s).length;
-  return n >= VARIETY_CROPS ? null : `Для нового сорта нужно знание «${KNOW_NAMES[VARIETY_KNOW]}» хотя бы у ${VARIETY_CROPS} ${plural(VARIETY_CROPS, 'культуры', 'культур', 'культур')}. Пока таких ${n}.`;
+  return n >= VARIETY_CROPS ? null : `Для нового сорта нужно знание на уровне «${KNOW_NAMES[VARIETY_KNOW]}» или выше хотя бы у ${VARIETY_CROPS} ${plural(VARIETY_CROPS, 'культуры', 'культур', 'культур')}. Пока таких ${n}.`;
 }
 export const greenhousesAllowed = (s: GameState) => [0, 1, 2, 2, 3][lvl(s, 'greenhouse')] ?? 3;
 export const heated = (s: GameState) => lvl(s, 'greenhouse') >= 3;
