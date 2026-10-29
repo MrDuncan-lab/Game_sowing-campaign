@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'preact/hooks';
 import type { ComponentChildren } from 'preact';
-import { CROPS, EXPEDITION_IDS, LOCATIONS, LOCATION_IDS, LocationId, SEASON_NAMES, rankOf, type ExpeditionId } from '../engine/data';
+import { CROPS, EXPEDITION_IDS, LOCATIONS, LOCATION_IDS, LocationId, SEASON_NAMES, rankOf, type ExpeditionId, type LocationDef } from '../engine/data';
 import { CONDITIONS, type PlotOffer } from '../engine/run';
 import { departProblem, type Cart } from '../engine/meta';
 import { Departure, RelicChip } from './Run';
@@ -139,7 +139,7 @@ export function MapScreen({ profile, farms, onOpen, onNew, onTest, onTutorial, o
   }
   const r = rankOf(profile.glory);
   const open = (l: LocationId) => profile.glory >= LOCATIONS[l].glory;
-  const L = pick ? LOCATIONS[pick] : null;
+  const L = pick ? homeCard(LOCATIONS[pick], farms[pick]) : null;
   const f = pick ? farms[pick] : null;
   function askNew(l: LocationId) {
     setPick(null);
@@ -264,6 +264,13 @@ export function MapScreen({ profile, farms, onOpen, onNew, onTest, onTutorial, o
 }
 
 /** the home's standing on its location sheet: the mortgage, the cart away, the arrest */
+/** 29.10 · the home's card says what is true now: in mortgage (the default text), bought out, or under arrest.
+ *  A closed farm shows the default text: a new farm starts in mortgage again. */
+function homeCard(L: LocationDef, f: GameState | null | undefined): LocationDef {
+  if (!f || f.phase === 'gameover' || !L.states) return L;
+  const st = f.phase === 'arrest' ? L.states.arrest : f.owned ? L.states.owned : undefined;
+  return st ? { ...L, ...st } : L;
+}
 function HomeStatus({ f }: { f: GameState }) {
   if (f.phase === 'gameover') return null;
   const lines = [
