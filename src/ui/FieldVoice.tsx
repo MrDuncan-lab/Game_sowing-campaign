@@ -45,8 +45,8 @@ export function FieldVoice({s,active,onOpen,onOrder,cue=null,fallback,quiet=fals
     cue.kind==='thieves'&&first?{...base,text:`${first} раньше детей — но остальное они утащили.`}:cue.visit?.crows.length?{...base,text:'Дети разгоняют ворон — и сами лезут за урожаем.'}:base;next={...line,key:`${line.critical?'critical:':''}event:${cue.id}`};}
   else {
    const options:Remark[]=[];
-   // 29.10 · Пряхин's remarks (story beats) come first: one line, once per farm
-   for(const id of quiet?[]:pendingBeats(s,'remark')){const l=STORY[id].lines[0];options.push({key:`beat:${id}`,who:l.who,name:l.name,text:l.text,critical:true});}
+   // 29.10 · Пряхин's remarks (story beats) come first, even in a quiet field: one line, once per farm
+   for(const id of pendingBeats(s,'remark')){const l=STORY[id].lines[0];options.push({key:`beat:${id}`,who:l.who,name:l.name,text:l.text,critical:true});}
    if(!quiet){
    if(crowsOpen(s))options.push({key:'crows',who:'zina',text:'Вороны уже на грядках. Надо прогнать.'});
    if(s.yard.length)options.push({key:'yard',who:'buyer',text:'Ящики остались во дворе. Освободите место или продайте урожай.'});
