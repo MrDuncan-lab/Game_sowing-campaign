@@ -73,7 +73,7 @@ export function cardStat(s: GameState, c: CardLike): { main: string; sub: string
     case 'weeding': return { main: 'линия', sub: 'без сорняков' };
     case 'early': return { main: lvl(s, 'machinery') >= 3 ? '100%' : '−30%', sub: 'сбор сейчас' };
     case 'helpers': return { main: '+1', sub: 'рабочий день' };
-    case 'sidejob': return { main: `+${sidejobPay(s)}₽`, sub: 'сразу' };
+    case 'sidejob': return { main: `+${sidejobPay(s)} ₽`, sub: 'сразу' };
     case 'shelter': return { main: '+5°', sub: 'квадрат 2×2' };
     case 'compost': return { main: wlvl(s, 'soilsci') >= 2 ? '+2' : '+1', sub: 'плодородие' };
     case 'bio': return { main: wlvl(s, 'soilsci') >= 2 ? '+2' : '+1', sub: 'плодородие 2×2' };

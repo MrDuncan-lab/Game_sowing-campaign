@@ -3,8 +3,11 @@ import { CARDS, CROPS, TRACKS, TRAITS, TRAIT_IDS, TraitId, isSeed } from '../eng
 import {
   Card, GameState, bioPrice, cardCells, cellPrice, labBusy, labCrops, labProblem, labSlots, labWeeksFor, lvl, maxExtra, maxTraits, money, trackCost,
   trackProblem, trackWeeks, traitPrice, upgradeSpots, varietyPrice, isLabProject, wlvl, cardDays, seedCost, cardShape, placements, heated, cropMinT,
-  seasonView, spotFits,
+  seasonView, spotFits, cellLimit, traitLimit, varietyProblem, cropKnow, knowLevel, locOf,
+  plural,
 } from '../engine/game';
+import { KNOW_AT, KNOW_NAMES, KNOW_OPENS, VARIETY_CROPS, VARIETY_KNOW } from '../engine/knowledge';
+import { SOWN_IDS, type CropId } from '../engine/data';
 import { Icon } from '../art/icons';
 import { CropIcon, CropSprite } from '../art/crops';
 import { Bar, Btn, Dispatch, Pips, Section, scrollBehavior, weeksShort } from './common';
@@ -90,6 +93,44 @@ function ProjectPreview({s,card,cell}:{s:GameState;card:Card;cell:[number,number
  </div>;
 }
 
+/** the knowledge of a crop in a line: its level, the bar to the next one */
+function KnowLine({ s, crop }: { s: GameState; crop: CropId }) {
+  const n = cropKnow(s, crop), lv = knowLevel(s, crop), next = KNOW_AT[lv];
+  return (
+    <p class="know-line small">
+      <span>Знание: <b>{KNOW_NAMES[lv]}</b> <Pips n={lv} of={5} /></span>
+      {next !== undefined ? <small class="muted">{n} из {next} ед. → {KNOW_OPENS[lv + 1]}</small> : <small class="up">знаете как свои пять пальцев</small>}
+    </p>
+  );
+}
+
+/** v3 §8.1 · «Книга культур»: what the profile knows of each crop and what the next level opens */
+function CropBook({ s }: { s: GameState }) {
+  const here = new Set<CropId>([...locOf(s).shop, ...locOf(s).lab, ...s.unlocked]);
+  const crops = SOWN_IDS.filter((c) => here.has(c) || cropKnow(s, c) > 0)
+    .sort((a, b) => cropKnow(s, b) - cropKnow(s, a) || CROPS[a].name.localeCompare(CROPS[b].name, 'ru'));
+  return (
+    <Section id="lab-book" title="Книга культур" icon="book">
+      <p class="small muted">Знание растёт с каждым урожаем — дома и на вылазках — и открывает работу лаборатории с культурой: {KNOW_AT.map((t, i) => `${t} ед. — ${KNOW_NAMES[i + 1]}`).join(', ')}.</p>
+      <div class="crop-book">
+        {crops.map((c) => {
+          const n = cropKnow(s, c), lv = knowLevel(s, c), next = KNOW_AT[lv], prev = lv ? KNOW_AT[lv - 1] : 0;
+          return (
+            <div class={`book-row lv${lv}`}>
+              <CropIcon id={c} size={36} />
+              <span class="book-name"><b>{CROPS[c].name}</b><small>{KNOW_NAMES[lv]}</small></span>
+              <span class="book-bar">
+                {next !== undefined ? <Bar value={n - prev} max={next - prev} tone="good" label={`${n} из ${next} ед.`} /> : <Pips n={5} of={5} />}
+                <small>{next !== undefined ? `${n}/${next} · дальше: ${KNOW_OPENS[lv + 1]}` : `${n} ед. · все работы открыты`}</small>
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </Section>
+  );
+}
+
 export function LabView({ s, act, active = true, teaching = false }: { s: GameState; act: Dispatch; active?: boolean; teaching?: boolean }) {
   const lessonWeeks = useLessonWeeks();
   const [visible, setVisible] = useState(() => !document.hidden);
@@ -156,7 +197,7 @@ export function LabView({ s, act, active = true, teaching = false }: { s: GameSt
   const toDesks = () => scrollTo('lab-desks');
   const toNew = () => scrollTo('lab-new');
   const projectCrop = (p: Project) => p.kind === 'cell' || p.kind === 'trait' ? CARDS[p.card.def].crop : p.kind === 'variety' ? p.crop : undefined;
-  const projectLabel = (p: Project) => p.kind === 'cell' ? '+1 клетка' : p.kind === 'trait' ? '+свойство' : p.kind === 'variety' ? 'новый сорт' : 'биопрепарат';
+  const projectLabel = (p: Project) => p.kind === 'cell' ? '+1 клетка' : p.kind === 'trait' ? '+признак' : p.kind === 'variety' ? 'новый сорт' : 'биопрепарат';
   // №5 · the tables themselves show the work: one station per lab table
   const stations: LabStation[] = [
     ...projects.map((p, i) => ({ key: `p${i}`, crop: projectCrop(p), bio: p.kind === 'bio', label: projectLabel(p), weeks: p.weeks, progress: (p.total - p.weeks) / Math.max(1, p.total),
@@ -167,7 +208,7 @@ export function LabView({ s, act, active = true, teaching = false }: { s: GameSt
     ...projects.map((p) => `Готово через ${weeksShort(p.weeks)}`),
     ...(busyNow < slots ? ['Выберите семена ниже.'] : ['Сроки работы — на бирках.']),
     'Больше клеток — дороже посев.',
-    'Свойство останется у карты.',
+    'Признак останется у карты.',
     'Карта на столе — посев ждёт.',
     ...(wlvl(s, 'breeder') ? ['Мария ускорит работу.'] : []),
   ];
@@ -178,10 +219,10 @@ export function LabView({ s, act, active = true, teaching = false }: { s: GameSt
         {built ? (
           <div class="lab-stage-art" ref={stage}>
             <LabRoom level={L} stations={stations} mood={projects.length ? 'work' : 'wait'} />
-            {/* Лёва talks about what is on the tables; a tap gives the next useful thing */}
-            {!teaching && <button type="button" class="lab-talk" onClick={() => setTalk((n) => n + 1)} aria-label={`Лёва: ${line} Ещё совет`}>
+            {/* Сева (the lab's young scientist; Лёва is Пряхин's nephew) talks about what is on the tables; a tap gives the next useful thing */}
+            {!teaching && <button type="button" class="lab-talk" onClick={() => setTalk((n) => n + 1)} aria-label={`Сева: ${line} Ещё совет`}>
               {PORTRAIT_IMAGES.scientist && <img src={PORTRAIT_IMAGES.scientist} alt="" />}
-              <span><b>Лёва</b><span class="lab-tip">{line}</span></span>
+              <span><b>Сева</b><span class="lab-tip">{line}</span></span>
             </button>}
           </div>
         ) : <div class="lab-stage-art" ref={stage}><LabScene built={built} busy={projects.length} level={L} /></div>}
@@ -198,7 +239,7 @@ export function LabView({ s, act, active = true, teaching = false }: { s: GameSt
       {!built && (
         <ul class="lab-promise">
           <li><Icon name="seed" size={22} /><span><b>Новая клетка</b> — из двух грядок фасоли получится три</span></li>
-          <li><Icon name="fast" size={22} /><span><b>Свойство сорта</b> — скороспелость, холодостойкость, урожайность</span></li>
+          <li><Icon name="fast" size={22} /><span><b>Признак сорта</b> — скороспелость, холодостойкость, урожайность</span></li>
           <li><Icon name="bio" size={22} /><span><b>Биопрепарат</b> — оживляет почву квадратом 2×2</span></li>
         </ul>
       )}
@@ -241,7 +282,7 @@ export function LabView({ s, act, active = true, teaching = false }: { s: GameSt
           {why && <p class="small bad">{why}</p>}
           {tab === 'breed' && (
             <div class="stack">
-              {!chosen && <p class="small muted">Выберите экземпляр семян. На время проекта он будет недоступен для посева. До +{maxExtra(s)} кл. и {maxTraits(s)} свойств.</p>}
+              {!chosen && <p class="small muted">Выберите экземпляр семян. На время проекта он будет недоступен для посева. Лаборатория даёт до +{maxExtra(s)} кл. и {maxTraits(s)} {plural(maxTraits(s), 'признак', 'признака', 'признаков')}, но не больше, чем позволяет знание культуры — <button type="button" class="link" onClick={() => scrollTo('lab-book')}>Книга культур</button>.</p>}
               {!chosen && <div class="card-grid" ref={seedList}>
                 {seeds.map((c) => (
                   <div class={`grid-card${pick === c.uid ? ' picked' : ''}`}>
@@ -265,36 +306,38 @@ export function LabView({ s, act, active = true, teaching = false }: { s: GameSt
                         <dt>Почва</dt><dd>от {cropMinT(CARDS[chosen.def].crop!, chosen.traits)}°</dd>
                       </dl>
                       {!!chosen.traits?.length && <p class="small">{chosen.traits.map(t => TRAITS[t].name).join(' · ')}</p>}
+                      <KnowLine s={s} crop={CARDS[chosen.def].crop!} />
                       <button type="button" class="seed-change" onClick={() => {setPick(null);setCellPick(null);setTraitPick(null);}}>Выбрать другие семена</button>
                     </div>
                   </div>
                   <div class="breed-panel">
                   <div class="breed-col">
-                    <h4>Добавить клетку · {money(cellPrice(s, chosen))} · {weeksShort(lessonWeeks(labWeeksFor(s, 'cell')))}</h4>
+                    <h4>Добавить клетку · {money(cellPrice(s, chosen))} · {weeksShort(lessonWeeks(labWeeksFor(s, 'cell', chosen)))}</h4>
                     {upgradeSpots(s, chosen).length ? (
                       <>
                         <p class="small muted">Только эта карта. Посев станет дороже.</p>
                         <ShapeEditor s={s} card={chosen} chosen={cellPick} onPick={setCellPick}/>
 
                         {cellPick&&<ProjectPreview s={s} card={chosen} cell={cellPick}/>}
-                        {cellPick&&<Btn tone="primary" disabled={why || (s.money<cellPrice(s,chosen)?'Не хватает денег':null)} onClick={()=>{if(act({t:'labCell',uid:chosen.uid,cell:cellPick})){setPick(null);setCellPick(null);}}}>Начать · {money(cellPrice(s,chosen))} · {weeksShort(lessonWeeks(labWeeksFor(s,'cell')))}</Btn>}
+                        {cellPick&&<Btn tone="primary" disabled={why || (s.money<cellPrice(s,chosen)?'Не хватает денег':null)} onClick={()=>{if(act({t:'labCell',uid:chosen.uid,cell:cellPick})){setPick(null);setCellPick(null);}}}>Начать · {money(cellPrice(s,chosen))} · {weeksShort(lessonWeeks(labWeeksFor(s,'cell',chosen)))}</Btn>}
                       </>
                     ) : (
-                      <p class="small muted">Больше клеток эта лаборатория не добавит.</p>
+                      <p class="small muted">{cellLimit(s, chosen) ?? 'Больше клеток эта лаборатория не добавит.'}</p>
                     )}
                   </div>
                   <div class="breed-col">
-                    <h4>Добавить свойство · {money(traitPrice(s, chosen))} · {weeksShort(lessonWeeks(labWeeksFor(s, 'trait')))}</h4>
+                    <h4>Добавить признак · {money(traitPrice(s, chosen))} · {weeksShort(lessonWeeks(labWeeksFor(s, 'trait')))}</h4>
                     <TraitBadges traits={chosen.traits} size={18} />
+                    {traitLimit(s, chosen) && <p class="small muted">{traitLimit(s, chosen)}</p>}
                     <div class="traits">
                       {TRAIT_IDS.map((t: TraitId) => (
-                        <button type="button" class={`trait-btn${traitPick===t?' chosen':''}`} aria-pressed={traitPick===t} disabled={!!why || (chosen.traits ?? []).includes(t) || (chosen.traits?.length ?? 0) >= maxTraits(s)} onClick={() => setTraitPick(traitPick===t?null:t)}>
+                        <button type="button" class={`trait-btn${traitPick===t?' chosen':''}`} aria-pressed={traitPick===t} disabled={!!why || (chosen.traits ?? []).includes(t) || !!traitLimit(s, chosen)} onClick={() => setTraitPick(traitPick===t?null:t)}>
                           <Icon name={TRAITS[t].icon} size={22} />
                           <span><b>{TRAITS[t].name}</b><small>{TRAITS[t].text}</small></span>
                         </button>
                       ))}
                     </div>
-                    {traitPick==='tough'&&<p class="small muted">В теплице защита от жука и саранчи уже есть. Свойство полезно для открытых посадок.</p>}
+                    {traitPick==='tough'&&<p class="small muted">В теплице защита от жука и саранчи уже есть. Признак полезен для открытых посадок.</p>}
                     {traitPick&&<Btn tone="primary" disabled={why || (s.money<traitPrice(s,chosen)?'Не хватает денег':null)} onClick={()=>{if(act({t:'labTrait',uid:chosen.uid,trait:traitPick})){setPick(null);setTraitPick(null);}}}>Начать · {money(traitPrice(s,chosen))} · {weeksShort(lessonWeeks(labWeeksFor(s,'trait')))}</Btn>}
                   </div>
                   </div>
@@ -304,13 +347,14 @@ export function LabView({ s, act, active = true, teaching = false }: { s: GameSt
           )}
           {tab === 'variety' && (
             <div class="stack">
-              <p class="small muted">Культура появится в лавке, одна карта — в колоду. {money(varietyPrice(s))} · {weeksShort(lessonWeeks(labWeeksFor(s, 'variety')))}.</p>
+              <p class="small muted">Культура появится в лавке, одна карта — в колоду. {money(varietyPrice(s))} · {weeksShort(lessonWeeks(labWeeksFor(s, 'variety')))}. Нужно знание {VARIETY_KNOW} ({KNOW_NAMES[VARIETY_KNOW]}) у {VARIETY_CROPS} разных культур.</p>
+              {varietyProblem(s) && <p class="small bad">{varietyProblem(s)}</p>}
               <div class="variety-list">
                 {labCrops(s).map((c) => (
                   <div class="variety">
                     <CropIcon id={c} size={44} />
                     <span class="grow"><b>{CROPS[c].name}</b><small>{CROPS[c].note}</small><small class="muted">почва от {CROPS[c].minT}°, {CROPS[c].grow} нед.</small></span>
-                    <Btn small tone="primary" disabled={why || (s.projects.some((p) => p.kind === 'variety' && p.crop === c) ? 'Уже открывается' : null) || (s.money < varietyPrice(s) ? 'Не хватает денег' : null)} onClick={() => act({ t: 'labVariety', crop: c })}>Открыть</Btn>
+                    <Btn small tone="primary" disabled={why || varietyProblem(s) || (s.projects.some((p) => p.kind === 'variety' && p.crop === c) ? 'Уже открывается' : null) || (s.money < varietyPrice(s) ? 'Не хватает денег' : null)} onClick={() => act({ t: 'labVariety', crop: c })}>Открыть</Btn>
                   </div>
                 ))}
                 {!labCrops(s).length && <p class="small muted">Все культуры, доступные здесь, уже открыты.</p>}
@@ -329,6 +373,8 @@ export function LabView({ s, act, active = true, teaching = false }: { s: GameSt
           )}
         </Section>
       )}
+
+      <CropBook s={s} />
 
       {built && expansion && (
         <section class="lab-expand">

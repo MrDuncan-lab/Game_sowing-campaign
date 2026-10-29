@@ -19,6 +19,8 @@ import { Bar, Btn, Dispatch } from './common';
 import { Peek } from './Peek';
 import { useLessonLock } from './lesson';
 import { CardView, cardPrice, cardDescription, cardDaysText } from './Card';
+import { FairPanel } from './Fair';
+import { AwayNote, HomeDeed, RunPanel } from './Run';
 
 // №9 · One horizon at a time. The words, the range and the arrow always speak of the same week — the next one
 // unless the player taps another point of the chart; the chart itself still shows several weeks.
@@ -115,8 +117,9 @@ function SaleControls({ s, c, act }: { s: GameState; c: CropId; act: Dispatch })
   </div>;
 }
 
-export function BarnView({ s, act, target, onPayment }: { s: GameState; act: Dispatch; target?: { tab: 'market' | 'shop' | 'bank'; key: number }; onPayment: () => void }) {
-  const [tab, setTab] = useState<'market' | 'shop' | 'bank'>('market');
+export type BarnTab = 'market' | 'fair' | 'shop' | 'bank' | 'run';
+export function BarnView({ s, act, target, onPayment }: { s: GameState; act: Dispatch; target?: { tab: BarnTab; key: number }; onPayment: () => void }) {
+  const [tab, setTab] = useState<BarnTab>('market');
   const lock = useLessonLock();
   const [shopPick,setShopPick]=useState<string|null>(null);
   const [bought,setBought]=useState<{def:string|null;n:number}>({def:null,n:0});
@@ -169,8 +172,11 @@ export function BarnView({ s, act, target, onPayment }: { s: GameState; act: Dis
         </div>
         <nav class="estate-links barn-links" role="tablist" aria-label="Разделы амбара">
           <button type="button" role="tab" aria-selected={tab==='market'} class={tab === 'market' ? 'on' : ''} onClick={() => setTab('market')}><Icon name="sack" size={18} /><span>Урожай</span></button>
+          {/* v3 · the season's fair: equipment, building materials, workers (the lesson opens it with the shop) */}
+          <button type="button" role="tab" aria-selected={tab==='fair'} class={`${tab === 'fair' ? 'on' : ''}${lock('shop') ? ' locked' : ''}`} onClick={() => setTab('fair')}><Icon name={lock('shop') ? 'lock' : 'fair'} size={18} /><span>Ярмарка</span></button>
           <button type="button" role="tab" aria-selected={tab==='shop'} class={`${tab === 'shop' ? 'on' : ''}${lock('shop') ? ' locked' : ''}`} onClick={() => setTab('shop')}><Icon name={lock('shop') ? 'lock' : 'seeds'} size={18} /><span>Лавка</span></button>
           <button type="button" role="tab" aria-selected={tab==='bank'} class={`${tab === 'bank' ? 'on' : ''}${lock('bank') ? ' locked' : ''}`} onClick={() => setTab('bank')}><Icon name={lock('bank') ? 'lock' : 'bank'} size={18} /><span>Касса</span></button>
+          {s.run && <button type="button" role="tab" aria-selected={tab==='run'} class={tab === 'run' ? 'on' : ''} onClick={() => setTab('run')}><Icon name="cart" size={18} /><span>Вылазка</span></button>}
         </nav>
       </div>
       {yard > 0 && <p class="barn-warn"><Icon name="sack" size={20}/><span><b>Во дворе {yard} ед.</b> Продайте до конца недели — иначе заберут за 60%, до {money(yardLoss)}.</span></p>}
@@ -189,6 +195,8 @@ export function BarnView({ s, act, target, onPayment }: { s: GameState; act: Dis
         </section>
       )}
 
+      {tab === 'fair' && <Peek area="shop"><FairPanel s={s} act={act} /></Peek>}
+      {tab === 'run' && s.run && <RunPanel s={s} act={act} />}
       {tab === 'shop' && <Peek area="shop">{(
         <section class="panel barn-panel">
           <p class="panel-note">{deckN < deckLimit(s) ? `Покупка ляжет в колоду · ${deckN}/${deckLimit(s)}` : 'Колода полна — покупка ляжет в запас'}</p>
@@ -235,6 +243,8 @@ export function BarnView({ s, act, target, onPayment }: { s: GameState; act: Dis
             <Bar value={s.money} max={Math.max(1, s.due?.amount ?? np.amount)} tone={s.money >= (s.due?.amount ?? np.amount) ? 'good' : 'warn'} label="Накоплено к платежу" />
             <span class="pay-have">На счету {money(s.money)}{short > 0 ? <em> · не хватает {money(short)}</em> : <em class="ok"> · хватает</em>}</span>
           </div>
+          <HomeDeed s={s} act={act} />
+          <AwayNote s={s} />
           <details class="bank-more">
             <summary>Кредит <span>{outstanding(s) > 0 ? `долг ${money(outstanding(s))}` : `до ${money(creditLimit(s))}`}</span></summary>
             <div class="btn-row">

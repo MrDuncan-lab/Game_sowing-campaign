@@ -1,6 +1,6 @@
 import {offerDeadline} from '../engine/game';
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { CROPS, LOCATIONS, ORGS, OrgId, PETS, RANKS, WORKERS, rankOf, relTier } from '../engine/data';
+import { CROPS, GLORY_SOURCES, LOCATIONS, ORGS, OrgId, PETS, RANKS, WORKERS, rankOf, relTier } from '../engine/data';
 import type { Reward } from '../engine/data';
 import { GameState, acceptProblem, deliverProblem, locOf, money, questSlots, stockOf, mischiefOn, plural, thievesBlocked, IGNORED_OFFER_WEEKS } from '../engine/game';
 import { Icon } from '../art/icons';
@@ -152,8 +152,9 @@ function HallView({ s, profile, onBack }: { s: GameState; profile: Profile; onBa
         </div>
       </div>
       <ol class="ranks">
-        {RANKS.map((k, i) => <li class={i <= r.index ? 'got' : ''}>{k.name} <small>{k.min}</small></li>)}
+        {RANKS.map((k, i) => <li class={i <= r.index ? 'got' : ''}>{k.name} <small>{k.min} · {k.opens}</small></li>)}
       </ol>
+      <p class="small muted">Слава даётся за {GLORY_SOURCES}. Она общая для всех ферм.</p>
       <h4>Грамоты со всех ферм</h4>
       {profile.certs.length ? (
         <div class="certs">
@@ -164,19 +165,19 @@ function HallView({ s, profile, onBack }: { s: GameState; profile: Profile; onBa
             </div>
           ))}
         </div>
-      ) : <p class="small muted">Грамоты дают организации в конце цепочек заказов.</p>}
+      ) : <p class="small muted">Грамоты дают заказчики в конце цепочек, выкуп дома, праздник урожая, первое место в районе, испытания года, знание культур и летопись хозяйства.</p>}
       <h4>Питомцы</h4>
       {profile.pets.length ? <div class="chips">{profile.pets.map((p) => <span class="chip"><Pet id={p} size={28} /> {PETS[p].kind} {PETS[p].name}</span>)}</div> : <p class="small muted">Пока нет. Питомцы переезжают с вами на любую ферму.</p>}
       <h4>Семенной фонд</h4>
       {profile.seedBank.length ? <div class="chips">{profile.seedBank.map((c) => <span class="chip"><CropIcon id={c} size={24} /> {CROPS[c].name}</span>)}</div> : <p class="small muted">Редкие семена из наград доступны потом на всех подходящих фермах.</p>}
-      <h4>Цель региона</h4>
-      <p class="small">Завершите цепочки местных покупателей: {locOf(s).orgs.filter(o=>(s.orgs[o]?.step??0)>=ORGS[o].steps.length).length}/{locOf(s).orgs.length}. После этого можно продолжать на рекорд или освоить другую ферму.</p>
-      <h4>Личные рекорды</h4><p class="small muted">Здесь учитываются ваши питомцы и открытые семена. Это результаты обычных ферм, без равного соревновательного старта.</p>
+      <h4>Заказчики</h4>
+      <p class="small">Цепочки заказов здесь: {locOf(s).orgs.filter(o=>(s.orgs[o]?.step??0)>=ORGS[o].steps.length).length} из {locOf(s).orgs.length} пройдены до конца. {s.loc === 'chernozem' ? 'Главная цель дома — летопись хозяйства (Дом → «Летопись»): выкуп, подворье, соседи, клуб, победа над Пряхиным, первое место в районе.' : 'На вылазке цепочки дают находки, когда хозяйство свернёте.'}</p>
+      <h4>Личные рекорды</h4><p class="small muted">Лучшие результаты всех ваших ферм на этом устройстве.</p>
       <div class="bank-grid">
         <div class="kv"><span>Лет на одной ферме</span><b>{profile.best.years}</b></div>
         <div class="kv"><span>Больше всего денег</span><b>{money(profile.best.money)}</b></div>
         <div class="kv"><span>Собрано за партию</span><b>{profile.best.harvest} ед.</b></div>
-        <div class="kv"><span>Слава этой фермы</span><b>{s.glory}</b></div>
+        <div class="kv"><span>Слава с этой фермы</span><b>{s.glory}</b></div>
       </div>
       {profile.history.length > 0 && (
         <>

@@ -80,6 +80,9 @@
 .farm .field-view .dock-say .lens-switch button { width: 30px; height: 30px; padding: 0; display: grid; place-items: center; border-radius: 50%; border: 1.5px solid var(--c-line2); background: #fffaf0; }
 .farm .field-view .dock-say .lens-switch button.on { border-color: #a77b14; background: #fff1b8; box-shadow: 0 0 0 2px rgba(242, 193, 63, .45); }
 .farm .field-view .dock-say .field-voice, .farm .field-view .dock-say > span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+/* a spoken line covers the deck and the toolbox for a moment; the speaker's name sits above the line */
+.farm .field-view .dock-say .field-voice { z-index: 3; }
+.farm .field-view .dock-say .field-voice span strong { display: block; font-size: .66rem; line-height: 1; margin-bottom: 2px; }
 
 /* the toolbox: one round button beside the deck; three round tools unfold from it along an arc, up and to the right */
 .farm .field-view .toolbox { position: relative; flex: none; width: 46px; height: 46px; }
@@ -231,8 +234,11 @@
 @keyframes sunflower-sway { from { transform: rotate(-2.5deg); } to { transform: rotate(2.5deg); } }
 .scene-svg .well-sweep { transform-box: view-box; transform-origin: 26px -48px; animation: well-dip 11s var(--e-breath, ease-in-out) infinite; }
 @keyframes well-dip { 0%, 70%, 100% { transform: none; } 80%, 88% { transform: rotate(-11deg); } }
-.scene-paused .scene-svg .yard-hen .hen-body, .scene-paused .scene-svg .yard-sunflower, .scene-paused .scene-svg .well-sweep { animation-play-state: paused; }
-@media (prefers-reduced-motion: reduce) { .scene-svg .yard-hen .hen-body, .scene-svg .yard-sunflower, .scene-svg .well-sweep { animation: none; } }
+/* 29.10 · the camp's fire flickers */
+.scene-svg .yard-fire .fire { transform-box: fill-box; transform-origin: 50% 100%; animation: yard-fire .9s var(--e-breath, ease-in-out) infinite alternate; }
+@keyframes yard-fire { from { transform: scale(1, 1); } to { transform: scale(.88, 1.12); } }
+.scene-paused .scene-svg .yard-hen .hen-body, .scene-paused .scene-svg .yard-sunflower, .scene-paused .scene-svg .well-sweep, .scene-paused .scene-svg .yard-fire .fire { animation-play-state: paused; }
+@media (prefers-reduced-motion: reduce) { .scene-svg .yard-hen .hen-body, .scene-svg .yard-sunflower, .scene-svg .well-sweep, .scene-svg .yard-fire .fire { animation: none; } }
 
 /* the picked card's pin and ✕ at the row's right end, beside «Конец недели» */
 .farm .field-view .dock-top .dock-card-tools { flex: none; display: flex; gap: 6px; margin-left: auto; margin-right: 64px; }

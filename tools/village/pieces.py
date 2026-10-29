@@ -191,8 +191,10 @@ def smoke_top(r, x, y, s=1.0):
 
 
 # ---------------------------------------------------------------- the mill on the far hill
-def windmill(r, cx, y, s=1.0):
-    """A post mill (столбовка): a plank body on a trestle, a tail pole to turn it, four lattice sails."""
+def windmill(r, cx, y, s=1.0, sails=True):
+    """A post mill (столбовка): a plank body on a trestle, a tail pole to turn it, four lattice sails (without them:
+    the bare hub and a broken stub, the miller's yard at its first look)."""
+    bare = sails is False
     P = r.P
     r.shadow([(cx - 6 * s, y), (cx + 30 * s, y - 3 * s), (cx + 40 * s, y + 5 * s), (cx - 2 * s, y + 6 * s)], .8)
     for x0, x1, op in ((-6, -1, .7), (6, 1, .7), (-13, -3, 1), (13, 3, 1)):
@@ -231,6 +233,11 @@ def windmill(r, cx, y, s=1.0):
             r.lines([[p(R0 + (R1 - R0) * k / 6, 0), p(R0 + (R1 - R0) * k / 6, wd)] for k in range(1, 6)] + [[p(R0, wd / 2), p(R1, wd / 2)]], .3 * s, op=.7)
             r.line([(0, 0), p(R1 + 2 * s, 0)], .9 * s, jitter=False)
         r.blob(0, 0, 2.2 * s, 2.2 * s, P['logs_s'], .5 * s, n=7, wob=.03)
+    if bare:
+        r.line([(hx, hy), (hx + 8 * s, hy - 9 * s)], .9 * s, jitter=False)
+        r.line([(hx + 7 * s, hy - 8 * s), (hx + 9.4 * s, hy - 7 * s)], .5 * s, jitter=False)
+        r.blob(hx, hy, 2.2 * s, 2.2 * s, P['logs_s'], .5 * s, n=7, wob=.03)
+        return
     r.group(sails, hx, hy, 'sails')
 
 
@@ -1423,16 +1430,44 @@ def manor_garden(r, cx, y, s, gate, fy):
     manor_fence(r, cx - 86 * s, cx + 52 * s, fy, s, gate)
 
 
-def homestead(r, cx, y, s=1.0, lit=False, level=4):
-    """The player's house at its level 1..5 (see above). Its centre x and ground line stay where they are; from level
-    3 on the yard reaches 92 s to the left of the centre, at level 5 the fence runs 30 s in front of the house."""
+def wing(r, cx, y, s=1.0, lit=False):
+    """The wing (флигель) of the sixth level: a small log house of its own behind the manor on the right, an iron
+    roof, two windows, its chimney smoking, a guest's bench at the door."""
     P = r.P
-    lv = max(1, min(5, int(level)))
+    izba(r, cx - 45 * s * .52, y, s * .52, roof='iron_g', frame=P['blue'], shutters=True, porch=False, lit=lit, smoke_on=True, carved=True, gable_win=False)
+    if not r.winter:
+        flowers(r, cx - 22 * s, cx + 8 * s, y + 1 * s, y + 4 * s, 5)
+
+
+def dovecote(r, x, y, s=1.0):
+    """The seventh level's dovecote (голубятня): a little house on a tall post with a landing board, doves on it."""
+    P = r.P
+    r.line([(x, y), (x, y - 26 * s)], 1.1 * s, color=P['logs_s'], jitter=False)
+    quad(r, x - 5 * s, y - 34 * s, x + 5 * s, y - 25 * s, P['white'], .6 * s)
+    r.shape([(x - 7 * s, y - 34 * s), (x, y - 40 * s), (x + 7 * s, y - 34 * s)], P['iron_g'], .6 * s)
+    quad(r, x - 2 * s, y - 31 * s, x + 2 * s, y - 28 * s, '#3b2b20', .3 * s)
+    r.line([(x - 7 * s, y - 27 * s), (x + 7 * s, y - 27 * s)], .7 * s, color=P['logs'], jitter=False)
+    if not r.winter:
+        r.dots([(x - 4.4 * s, y - 28.6 * s, 1.3 * s, 1 * s), (x + 4.6 * s, y - 28.4 * s, 1.3 * s, 1 * s)], '#eceae4', .3 * s)
+    else:
+        r.shape([(x - 7.2 * s, y - 34.4 * s), (x, y - 40.6 * s), (x + 7.2 * s, y - 34.4 * s), (x, y - 38 * s)], P['snow'], .3 * s)
+
+
+def homestead(r, cx, y, s=1.0, lit=False, level=4):
+    """The player's house at its level 1..7 (see above). Its centre x and ground line stay where they are; from level
+    3 on the yard reaches 92 s to the left of the centre, at level 5 the fence runs 30 s in front of the house; level
+    6 adds the wing behind on the right, level 7 joins it with a covered yard and puts up a dovecote."""
+    P = r.P
+    lv = max(1, min(7, int(level)))
     x = cx - 45 * s
     Wf, Hw = 66 * s, 40 * s
+    if lv >= 6:
+        wing(r, cx + 58 * s, y - 24 * s, s, lit)
+    if lv >= 7:
+        dovecote(r, cx + 92 * s, y - 2 * s, s)
     if lv >= 3:
         workshop(r, x + 2 * s, y, s, lit)
-    izba(r, x, y, s, roof='iron_g' if lv >= 5 else 'tes', frame=P['blue'] if lv >= 4 else light(P['grey'], .12), shutters=False,
+    izba(r, x, y, s, yard=lv >= 7, roof='iron_g' if lv >= 5 else 'tes', frame=P['blue'] if lv >= 4 else light(P['grey'], .12), shutters=False,
          svetelka=lv >= 4, porch=True, lit=lit, smoke_on=True, carved=lv >= 4, gable_win=lv <= 3)
     if lv >= 4:
         gable_balcony(r, x + Wf / 2, y - Hw, 24 * s, s, lit)
@@ -1559,3 +1594,70 @@ def scaffold(r, cx, y, s=1.0, stage=2):
         r.add('</g>')
         if w:
             r.blob(gx + 6 * s, arm[0][1] - .8 * s, 9 * s, .7 * s, P['snow'], .2 * s, n=7)
+
+
+# ---------------------------------------------------------------- the camp on an expedition (v3 §3.4)
+def tent(r, cx, y, s=1.0, lit=False):
+    """A canvas ridge tent (палатка): the front gable with its door flap tied back, the slope going back in shade,
+    a ridge pole, guy ropes and pegs; snow on the slope in winter."""
+    P = r.P
+    W, H, Dd = 34 * s, 22 * s, 26 * s
+    dy = Dd * .42
+    x = cx - W / 2
+    canvas, canvas_s = '#e7d8b0', dark('#e7d8b0', .2)
+    r.shadow([(x + W, y), (x + W + Dd, y - dy), (x + W + Dd + 20 * s, y - dy + 8 * s), (x + W + 10 * s, y + 7 * s), (x + 4 * s, y + 5 * s)], .8)
+    slope = [(x + W / 2, y - H), (x + W / 2 + Dd, y - H - dy), (x + W + Dd, y - dy), (x + W, y)]
+    r.shape(slope, canvas_s, .9 * s, shade=True)
+    r.lines([[(x + W / 2 + (W / 2) * k / 3, y - H + H * k / 3), (x + W / 2 + Dd + (W / 2) * k / 3, y - H - dy + H * k / 3)] for k in (1, 2)], .3 * s, op=.5)
+    if r.winter:
+        r.shape([slope[0], slope[1], (slope[1][0] + 4 * s, slope[1][1] + 6 * s), (slope[0][0] + 4 * s, slope[0][1] + 6 * s)], P['snow'], .5 * s)
+    front = [(x, y), (x + W / 2, y - H), (x + W, y)]
+    r.shape(front, canvas, 1.0 * s)
+    r.shape([(x + W * .38, y), (x + W / 2, y - H * .72), (x + W * .6, y)], P['win'] if lit else dark(canvas, .62), .6 * s)
+    r.shape([(x + W / 2, y - H * .72), (x + W * .6, y), (x + W * .74, y - H * .22)], light(canvas, .1), .6 * s)
+    r.line([(x + W / 2, y - H - 3.4 * s), (x + W / 2, y - H + .6 * s)], 1.0 * s, color=P['logs_s'], jitter=False)
+    r.lines([[(x + W / 2, y - H), (x - 9 * s, y + 2 * s)], [(x + W / 2 + Dd, y - H - dy), (x + W + Dd + 9 * s, y - dy + 2 * s)]], .35 * s, op=.85)
+    for px, py in ((x - 9 * s, y + 2 * s), (x + W + Dd + 9 * s, y - dy + 2 * s)):
+        r.line([(px, py + 1 * s), (px - .6 * s, py - 2.4 * s)], .8 * s, color=P['logs_s'], jitter=False)
+
+
+def campfire(r, x, y, s=1.0, pot=True):
+    """A fire in a ring of stones under a tripod with a pot; a log to sit on beside it."""
+    P = r.P
+    r.dots([(x + 6 * s * math.cos(a), y + 2 * s * math.sin(a), 1.8 * s, 1.3 * s) for a in [k * math.pi / 4 for k in range(8)]], P['grey'], .35 * s)
+    r.lines([[(x - 4 * s, y + .4 * s), (x + 4 * s, y - 1.4 * s)], [(x - 4 * s, y - 1.4 * s), (x + 4 * s, y + .4 * s)]], 1.2 * s, color=P['logs_s'])
+    r.add(f'<path class="fire" d="{D([(x - 3 * s, y - 1 * s), (x - 1.4 * s, y - 6 * s), (x - .2 * s, y - 3.6 * s), (x + 1 * s, y - 7.4 * s), (x + 3 * s, y - 1 * s)])}" fill="#f6a03a"/>')
+    r.add(f'<path d="{D([(x - 1.4 * s, y - 1 * s), (x - .4 * s, y - 3.6 * s), (x + .8 * s, y - 2 * s), (x + 1.6 * s, y - 1 * s)])}" fill="#ffe08a"/>')
+    if pot:
+        r.lines([[(x - 7 * s, y + 1 * s), (x, y - 13 * s)], [(x + 7 * s, y + 1 * s), (x, y - 13 * s)]], .7 * s, color=P['logs_s'])
+        r.line([(x, y - 13 * s), (x, y - 9.6 * s)], .3 * s, jitter=False)
+        r.shape([(x - 2.6 * s, y - 9.6 * s), (x + 2.6 * s, y - 9.6 * s), (x + 2 * s, y - 6.4 * s), (x - 2 * s, y - 6.4 * s)], '#4a4a52', .45 * s)
+    # the log to sit on
+    quad(r, x + 9 * s, y - 2.4 * s, x + 21 * s, y + .6 * s, P['logs'], .5 * s)
+    r.blob(x + 9 * s, y - .9 * s, 1.3 * s, 1.5 * s, light(P['logs'], .3), .35 * s, n=7)
+    if r.winter:
+        r.blob(x + 15 * s, y - 2.8 * s, 6 * s, .7 * s, P['snow'], .2 * s, n=7)
+
+
+def camp(r, cx, y, s=1.0, lit=False, level=1):
+    """The camp at its level 1..3: a tent and a fire (палатка); a plank hut beside them with a stove pipe (времянка);
+    a long plank barrack with a table under an awning (полевой стан). Centre x and ground line as homestead()."""
+    P = r.P
+    lv = max(1, min(3, int(level)))
+    if lv >= 3:
+        long_house(r, cx - 70 * s, y - 4 * s, s * .82, wall=light(P['grey'], .05), roof='tes', planks=True, windows=3, W_=86, H_=26, D_=24, lit=lit)
+        # the awning over a table in front
+        ax0, ax1, ay = cx - 80 * s, cx - 36 * s, y + 12 * s
+        r.lines([[(ax0, ay), (ax0, ay - 16 * s)], [(ax1, ay), (ax1, ay - 16 * s)]], .9 * s, color=P['logs_s'])
+        r.shape([(ax0 - 3 * s, ay - 16 * s), (ax1 + 3 * s, ay - 16 * s), (ax1 + 1 * s, ay - 20 * s), (ax0 - 1 * s, ay - 20 * s)], '#c9573f', .6 * s)
+        quad(r, ax0 + 4 * s, ay - 7 * s, ax1 - 4 * s, ay - 5 * s, P['logs'], .5 * s)
+        r.lines([[(ax0 + 8 * s, ay), (ax0 + 8 * s, ay - 5 * s)], [(ax1 - 8 * s, ay), (ax1 - 8 * s, ay - 5 * s)]], .6 * s, color=P['logs_s'])
+        campfire(r, cx + 30 * s, y + 18 * s, s)
+    elif lv == 2:
+        banya(r, cx - 75 * s, y, s * 1.35, smoke_on=True)
+        tent(r, cx + 6 * s, y + 4 * s, s * .8, lit)
+        campfire(r, cx - 22 * s, y + 18 * s, s)
+    else:
+        tent(r, cx - 10 * s, y + 2 * s, s * 1.15, lit)
+        campfire(r, cx + 36 * s, y + 12 * s, s)
+        woodstack(r, cx - 64 * s, y + 10 * s, s * .8)

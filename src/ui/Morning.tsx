@@ -7,8 +7,9 @@ import { GRID } from '../engine/data';
 import { Crow, CrowFlying } from '../art/crows';
 import type { MissCause } from './collisions';
 import { CrowMiss, BugMiss, CrowSnack, CrowDust } from '../art/collisions';
+import { icons } from '../art/icons';
 
-export type MorningKind = 'frost' | 'dry' | 'hail' | 'flood' | 'crows' | 'thieves' | 'crowmiss' | 'bugmiss';
+export type MorningKind = 'frost' | 'dry' | 'hail' | 'flood' | 'crows' | 'thieves' | 'crowmiss' | 'bugmiss' | 'bear' | 'boars' | 'fire';
 export interface MorningCell { x: number; y: number; note?: string; killed?: boolean; before?: Plant; after?: Plant | null;
   /** crowmiss / bugmiss: what had already taken the plant */ cause?: MissCause; pest?: 'beetle' | 'locust';
   /** crows: beetles were chewing this plant, the crow takes one */ bugs?: boolean }
@@ -21,6 +22,7 @@ export const morningCellDelay = (index:number) => (index % 4) * MORNING_STAGGER_
 const TIMING: Record<MorningKind, [number, number]> = {
   frost: [2700, 1500], dry: [2500, 1500], hail: [2700, 1600], flood: [2700, 1600], crows: [2450, 1120], thieves: [2100, 1150],
   crowmiss: [2400, 1100], bugmiss: [2000, 1800],
+  bear: [2600, 1300], boars: [2400, 1200], fire: [2700, 1500],
 };
 let stepId = 0;
 export function morningStep(kind: MorningKind, cells: MorningCell[]): MorningStep {
@@ -98,6 +100,18 @@ export function MorningLayer({ step }: { step: MorningStep | null }) {
           </g>}
           {step.kind === 'crowmiss' && <CrowMiss cause={c.cause ?? 'gone'} />}
           {step.kind === 'bugmiss' && <BugMiss cause={c.cause ?? 'gone'} pest={c.pest ?? 'beetle'} />}
+          {step.kind === 'bear' && <g class="m-bear-art">
+            {[[18, 86, -28], [34, 70, -18], [52, 60, -24], [70, 46, -16]].map(([x, y, rr], j) => <g class={`m-step s${j}`} transform={`translate(${x} ${y}) rotate(${rr})`} fill="#4a301d" opacity={.75}><ellipse rx={6} ry={5} />{[-6, -2, 2, 6].map((dx) => <circle cx={dx} cy={-7} r={1.8} />)}</g>)}
+            <g class="m-bear-walk"><g transform="translate(26 30) scale(1.05)">{icons.bear()}</g></g>
+          </g>}
+          {step.kind === 'boars' && <g class="m-boar-art">
+            <path class="m-crack" d="M14 70 q8 -8 16 0 q8 8 16 0 M46 46 q8 -8 16 0 q8 8 16 0 M24 30 q6 -6 12 0" stroke="#5a3a24" stroke-width={3} fill="none" stroke-linecap="round" />
+            <g class="m-boar-run"><g transform="translate(20 34) scale(.95)">{icons.boar()}</g></g>
+          </g>}
+          {step.kind === 'fire' && <g class="m-fire-art">
+            <g class="m-flames">{[[22, 70], [50, 58], [76, 72]].map(([x, y], j) => <g transform={`translate(${x - 12} ${y - 22}) scale(.5)`} style={{ animationDelay: `${j * .12}s` }} class="m-flame">{icons.fire()}</g>)}</g>
+            <rect class="m-ash" x={6} y={8} width={88} height={82} rx={12} fill="rgba(70,62,56,.45)" />
+          </g>}
           {step.kind === 'thieves' && <g class="m-thief-art" fill="#6b4a33" opacity={.7}>
             {[[16, 92, -20], [28, 78, 15], [40, 66, -15], [52, 54, 15]].map(([x, y, rr], j) => <ellipse class={`m-step s${j}`} cx={x} cy={y} rx={4.5} ry={7} transform={`rotate(${rr} ${x} ${y})`} />)}
           </g>}

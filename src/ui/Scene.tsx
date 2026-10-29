@@ -7,7 +7,7 @@ import { MorningLayer, MorningStep, morningPlantClass, morningCellDelay } from '
 import { BedLeftovers } from '../art/collisions';
 import { PlantBody, windFor } from './PlantMotion';
 import { kidDelay, type MissCause } from './collisions';
-import { wetCanals, idx } from '../engine/game';
+import { wetCanals, idx, treeStage, TREE_CHOP, TREE_NAMES } from '../engine/game';
 // The field: beds, terrain, plants, marks, lenses and the farmer. Pure drawing — every decision comes in as props.
 import {CompostHeap} from '../art/compost';
 import {NibbledPlant} from '../art/pestDamage';
@@ -19,8 +19,11 @@ import { CROPS, GRID } from '../engine/data';
 import type { CropId, PetId } from '../engine/data';
 import {
   GameState, Tile, canBuyLand, landPrice, tile, ripenIn, growNote, strikeVictims, isGuarded, frostVictims, soilTemp, airTemp, cropMinT, canClear,
-  underScarecrow, targetGrow, thievesBlocked,
+  underScarecrow, targetGrow, thievesBlocked, firePits, firesLit, lvl,
 } from '../engine/game';
+import type { TrialNight } from '../engine/game';
+import { FirePit } from '../art/fire';
+import { TrialTop, TrialVeil, trialPlantClass, trialPlantTime } from './TrialNight';
 import type { StrikeKind } from '../engine/game';
 import { icons } from '../art/icons';
 import { Crow, CrowFlying, Scarecrow, Wither } from '../art/crows';
@@ -31,7 +34,7 @@ import { KidsPeek } from '../art/people';
 import { ScoutingKids } from '../art/scouts';
 import { P } from '../art/palette';
 import { SkyBand, SKY_H } from '../art/sky';
-import { HailShadow, FloodMark, WeedSeeds, BeetleScouts } from '../art/omens';
+import { HailShadow, FloodMark, WeedSeeds, BeetleScouts, BearTracks, BoarFurrows, FireSmoke } from '../art/omens';
 import type { RaidSign, SkyToken } from './skyForecast';
 
 export type Lens = 'water' | 'soil' | 'temp' | null;
@@ -300,6 +303,66 @@ function SandDunes({ x, y, winter = false }: { x: number; y: number; winter?: bo
       <path d={`M10 ${60 + r * 10} Q30 ${46 + r * 6} 52 60 T92 ${56 + r * 8}`} stroke="#cfb175" stroke-width={3} fill="none" />
       <path d="M16 32 Q30 24 44 32 M58 28 Q70 22 82 28" stroke="#cfb175" stroke-width={2.5} fill="none" />
       {r > 0.5 && <path d="M70 76 v-12 M70 70 h-5 v-6 M70 68 h5 v-8" stroke="#6a9a3a" stroke-width={3} stroke-linecap="round" fill="none" />}
+    </g>
+  );
+}
+
+// v3 §4.5 · a tree on a bed let go: a sprout, a young birch, a grown tree (in winter bare, with snow on its
+// branches). Uprooting shows: notches in the trunk, the axe left in it, a little tally of the days put in.
+function FieldTree({ x, y, stage, chop, winter }: { x: number; y: number; stage: 1 | 2 | 3; chop: number; winter: boolean }) {
+  const r = hashN(x, y, 9);
+  const lean = (r - 0.5) * 6;
+  const leaf = winter ? 'none' : '#5f9e3a', leafHi = winter ? 'none' : '#86c94e';
+  return (
+    <g class={`field-tree stage-${stage}${winter ? ' winter' : ''}`} pointer-events="none">
+      <path d="M22 80 q8 -6 14 0 q6 -6 12 0 q6 -6 14 0 q6 -6 14 0" stroke={winter ? '#c9dbe6' : '#6aa843'} stroke-width={3} fill="none" stroke-linecap="round" />
+      {stage === 1 ? (
+        <g transform={`translate(${50 + lean} 78)`}>
+          <path d="M0 0 C1 -8 -1 -14 1 -22" stroke={P.woodDark} stroke-width={2.4} fill="none" stroke-linecap="round" />
+          {!winter && <>
+            <ellipse cx={-6} cy={-16} rx={6} ry={3.4} transform="rotate(-25 -6 -16)" fill={leafHi} stroke={P.ink} stroke-width={1.4} />
+            <ellipse cx={7} cy={-21} rx={6} ry={3.4} transform="rotate(25 7 -21)" fill={leaf} stroke={P.ink} stroke-width={1.4} />
+            <ellipse cx={-3} cy={-25} rx={4.4} ry={2.6} transform="rotate(-10 -3 -25)" fill={leafHi} stroke={P.ink} stroke-width={1.2} />
+          </>}
+        </g>
+      ) : (
+        <g transform={`translate(${50 + lean} 82)`}>
+          <ellipse cx={4} cy={0} rx={stage === 3 ? 26 : 16} ry={stage === 3 ? 6 : 4} fill="rgba(0,0,0,0.16)" />
+          {/* the trunk: a birch, white with black marks */}
+          <path d={stage === 3 ? 'M-5 0 C-4 -20 -4 -40 -2 -62 L3 -62 C4 -40 5 -20 6 0z' : 'M-3 0 C-2 -14 -2 -28 -1 -42 L2 -42 C2 -28 3 -14 4 0z'} fill="#f4f0e4" stroke={P.ink} stroke-width={1.8} />
+          {(stage === 3 ? [-12, -26, -40, -52] : [-10, -24, -34]).map((yy, i) => <path d={`M${i % 2 ? -2 : -3} ${yy} h${stage === 3 ? 5 : 3}`} stroke={P.ink} stroke-width={1.6} stroke-linecap="round" />)}
+          {winter ? (
+            <g fill="none" stroke="#6b5a4a" stroke-width={2} stroke-linecap="round">
+              <path d={stage === 3 ? 'M0 -40 L-16 -58 M0 -48 L15 -66 M-8 -50 L-12 -66 M1 -58 L-2 -76 M8 -58 L18 -60' : 'M0 -28 L-10 -40 M0 -34 L9 -46 M0 -40 L-2 -52'} />
+              <path d={stage === 3 ? 'M-18 -59 q2 -2 4 0 M14 -67 q2 -2 4 0 M-4 -77 q2 -2 4 0' : 'M-11 -41 q2 -2 4 0 M8 -47 q2 -2 4 0'} stroke="#fbfdff" stroke-width={2.6} />
+            </g>
+          ) : stage === 3 ? (
+            <g stroke={P.ink} stroke-width={1.8}>
+              <ellipse cx={-12} cy={-58} rx={15} ry={13} fill={leaf} />
+              <ellipse cx={12} cy={-62} rx={15} ry={14} fill={leaf} />
+              <ellipse cx={0} cy={-76} rx={16} ry={13} fill={leafHi} />
+              <path d="M-14 -62 q4 3 8 0 M6 -66 q4 3 8 0 M-4 -80 q4 3 8 0" fill="none" stroke-width={1.2} opacity={0.6} />
+            </g>
+          ) : (
+            <g stroke={P.ink} stroke-width={1.6}>
+              <ellipse cx={-6} cy={-40} rx={10} ry={9} fill={leaf} />
+              <ellipse cx={6} cy={-46} rx={10} ry={9} fill={leafHi} />
+            </g>
+          )}
+          {stage === 3 && chop > 0 && (
+            <g>
+              {Array.from({ length: chop }, (_, i) => <path d={`M-5 ${-6 - i * 5} l7 3`} stroke="#a0512e" stroke-width={2} stroke-linecap="round" />)}
+              <g transform="translate(6 -10) rotate(30)"><path d="M0 0 L16 0" stroke={P.woodDark} stroke-width={3} stroke-linecap="round" /><path d="M14 -5 Q22 -4 21 4 L14 3z" fill={P.stone} stroke={P.ink} stroke-width={1.2} /></g>
+            </g>
+          )}
+        </g>
+      )}
+      {stage === 3 && chop > 0 && (
+        <g transform="translate(78 84)">
+          <rect x={-12} y={-8} width={24} height={14} rx={7} fill="#fffaf0" stroke={P.ink} stroke-width={1.4} />
+          <text x={0} y={2.6} text-anchor="middle" font-size={9} font-weight={700} fill={P.ink}>{chop}/{TREE_CHOP}</text>
+        </g>
+      )}
     </g>
   );
 }
@@ -725,8 +788,10 @@ function Walker({ x, y, ms, paused, cycle, children }: { x: number; y: number; m
 
 export function Scene({
   scenePaused = false, menuTile = null,
-  s, highlight, onTile, onCorner, hoverTile, onHover, farmer, floaters, hidden, effects = [], yard = YARD, px = 1, queue, flock = 'off', lens = null, build = null, pets = [], lifeActive = true, showWarnings = true, pending = null, sceneCue = null, pestHits = [], pestPaused=false, morning = null, compost, scouts = false, onScouts, aftermath, spentDry, sky = null, skyOutside = false,
+  s, highlight, onTile, onCorner, hoverTile, onHover, farmer, floaters, hidden, effects = [], yard = YARD, px = 1, queue, flock = 'off', lens = null, build = null, pets = [], lifeActive = true, showWarnings = true, pending = null, sceneCue = null, pestHits = [], pestPaused=false, morning = null, compost, scouts = false, onScouts, aftermath, spentDry, sky = null, skyOutside = false, trial = null,
 }: {
+  /** the night of the year's ordeal while it plays: its length and how much of it has already gone */
+  trial?: { n: TrialNight; D: number; E: number } | null;
   /** W-05 · while the week plays: the troubles whose events are still to come. Their warnings (kids at the yard,
    *  footprints, beetles on the plants, frost, hail) stay on the field until their own event starts. */
   pending?: Set<string> | null;
@@ -791,6 +856,9 @@ export function Scene({
   const thieves = new Set(s.thieves && s.thieves.week === s.absWeek && !s.thieves.talked && !thievesBlocked(s) ? s.thieves.targets.filter((g) => tile(s, g.x, g.y).structure !== 'greenhouse' && tile(s, g.x, g.y).crop?.pid === g.pid && !isGuarded(s, g.x, g.y)).map((g) => `${g.x},${g.y}`) : []);
   const yardCrates = s.yard.reduce((a, l) => a + l.qty, 0);
   const mPlant = morningPlantClass(morning);
+  const tPlant = trialPlantClass(s, trial?.n ?? null);
+  for (const [key, cls] of tPlant) mPlant.set(key, `${mPlant.get(key) ?? ''} ${cls}`.trim());
+  const pits = firePits(s), pitsLit = firesLit(s), pitLevel = Math.max(1, lvl(s, 'fires'));
   // a warning about this week's trouble: shown until the trouble itself plays (future signs are always shown)
   const live = (kind: string) => showWarnings && (!pending || !PLAYED_WARNINGS.has(kind) || pending.has(kind));
   const wind = windFor(sky?.tokens[0]?.kind, winter);
@@ -798,7 +866,7 @@ export function Scene({
   return (<>
     <svg viewBox={`0 0 ${cam.W} ${cam.H}`} class={`scene-svg wind-${wind}${winter ? ' winter' : ''}${lens ? ` lens-on` : ''}${build ? ' build-on' : ''}${highlight.preview || highlight.area.size || highlight.block || highlight.tiles.size ? ' previewing' : ''}`} role="group" aria-label="Поле">
       <defs>
-        <GrassPattern winter={winter} />
+        <GrassPattern winter={winter} region={s.loc} />
         {/* the low sun on the field as on the village's hills: lit at the crest, deeper towards the hand; hatching
             (fyH) and cast shadows (fyS) for the yard drawn in the village's style */}
         <linearGradient id="field-light" x1="0" x2="0" y1="0" y2="1">
@@ -822,14 +890,14 @@ export function Scene({
         {[[.76, .05], [.84, .09], [.92, .13]].map(([f, o]) => <rect x={0} y={cam.H * f} width={cam.W} height={cam.H * (1 - f)} fill="url(#fyH)" fill-opacity={o} />)}
       </g>
       {/* the yard strip: a path, the fence, the pets and the crates that did not fit the barn */}
-      {sky && !skyOutside && <SkyBand W={cam.W} season={s.season} tokens={sky.tokens} signs={sky.signs} meteoMax={sky.meteoMax} px={px} onToken={sky.onToken} onFog={sky.onFog} onSign={sky.onSign} clear={sky.clear} />}
+      {sky && !skyOutside && <SkyBand region={s.loc} W={cam.W} season={s.season} tokens={sky.tokens} signs={sky.signs} meteoMax={sky.meteoMax} px={px} onToken={sky.onToken} onFog={sky.onFog} onSign={sky.onSign} clear={sky.clear} />}
       {skyOutside
         ? <path d={`${crestLine(cam.W, SKY_H)} L${cam.W} ${yard} H0 Z`} fill={winter ? '#f4f8fb' : '#bccb92'} opacity={0.45} />
         : <rect x={0} y={yardTop} width={cam.W} height={yard - yardTop} rx={sky ? 0 : 18} fill={winter ? '#f4f8fb' : '#bccb92'} opacity={sky ? 0.45 : 0.6} />}
       {/* the field is the nearest hill: its crest is inked, with the low sun catching its edge, like the village's */}
       {skyOutside && <path d={crestLine(cam.W, SKY_H)} fill="none" stroke={winter ? '#ffe3d2' : '#f4f7c8'} stroke-width={1.8} stroke-opacity={0.7} transform="translate(0 1.6)" />}
       {skyOutside && <path d={crestLine(cam.W, SKY_H)} fill="none" stroke={winter ? '#33283a' : '#3a2a1f'} stroke-width={1.2} stroke-opacity={0.82} stroke-linejoin="round" />}
-      <YardDecor W={cam.W} yard={yard} season={s.season as Season} />
+      <YardDecor W={cam.W} yard={yard} season={s.season as Season} region={s.loc} hauls={(s.trips ?? []).map((t) => t.loc)} />
       <EdgeDecor W={cam.W} H={cam.H} yard={yard} season={s.season as Season} />
       {yardCrates > 0 && (
         <g transform={`translate(${cam.W / 2 - 40} ${yard - 44})`} class="yard-crates" pointer-events="none">
@@ -857,9 +925,15 @@ export function Scene({
       )}
 
       {/* the plots: the cut edge plots stay under the yard line and inside the rounded board */}
-      <g clip-path="url(#field-land)">
+      <g clip-path="url(#field-land)" style={trial ? { ['--D' as string]: `${trial.D}ms`, ['--E' as string]: `${-trial.E}ms` } : undefined}>
       <g transform={`translate(${-cam.vx * CELL} ${yard - cam.vy * CELL})`}>
         <RiverLayer s={s} cam={cam} />
+        {pitsLit && !trial && !hidePlants && pits.map(([x, y]) => (
+          <g transform={`translate(${PAD + (x + 1) * CELL} ${PAD + (y + 1) * CELL})`} class="fire-aura-at" pointer-events="none" aria-hidden="true">
+            <rect class="fire-aura ring" x={-196} y={-196} width={392} height={392} rx={44} />
+            <rect class="fire-aura core" x={-96} y={-96} width={192} height={192} rx={26} />
+          </g>
+        ))}
         {rows.map((y) =>
           Array.from({ length: GRID }, (_, x) => {
             if (!vis(x, y)) return null;
@@ -877,7 +951,8 @@ export function Scene({
             const missIndex = sceneCue?.kind === 'thieves' ? (sceneCue.misses?.findIndex(m=>m.x===x&&m.y===y)??-1) : -1;
             const childIndex = (sceneCue?.visit?.outcome==='empty'?0:sceneCue?.targets?.length??2)+missIndex;
             const impactIndex = morning?.cells.findIndex(c=>c.x===x&&c.y===y)??-1;
-            const plantTiming = impactIndex<0 ? undefined : morning?.kind==='thieves'
+            const trialAt = trial ? trialPlantTime(s, trial.n, x, y) : undefined;
+            const plantTiming = trialAt !== undefined ? { '--t': trialAt.toFixed(3) } : impactIndex<0 ? undefined : morning?.kind==='thieves'
               ? {'--pull-time':`${(THEFT_IMPACT_MS-THEFT_ARRIVAL_MS)/(sceneCue?.rate??1)}ms`,'--pull-delay':`${(THEFT_ARRIVAL_MS+theftDelay(sceneCue)+theftStagger(impactIndex))/(sceneCue?.rate??1)}ms`}
               : {'--weather-impact':`${morning!.reveal}ms`,'--weather-delay':`${morningCellDelay(impactIndex)}ms`};
             const stage = crop ? (crop.rest ? 1 : cropStage(crop.grown, targetGrow(s, crop))) : 0;
@@ -896,7 +971,7 @@ export function Scene({
                 tabindex={clickable ? 0 : undefined}
                 aria-expanded={clickable && menuTile === k ? true : undefined}
                 aria-controls={clickable && menuTile === k ? 'bed-menu' : undefined}
-                aria-label={t.terrain === 'river' ? 'Река' : t.terrain === 'forest' ? (clearable ? 'Тайга: можно раскорчевать' : 'Тайга') : t.owned ? `Грядка ${x + 1}:${y + 1}${crop ? `, ${CROPS[crop.id].name}` : t.weeds ? ', сорняки' : ', пусто'}` : buyable ? `Участок на продажу за ${price} ₽` : 'Чужая земля'}
+                aria-label={t.terrain === 'river' ? 'Река' : t.terrain === 'forest' ? (clearable ? 'Тайга: можно раскорчевать' : 'Тайга') : t.owned ? `Грядка ${x + 1}:${y + 1}${crop ? `, ${CROPS[crop.id].name}` : t.tree !== undefined ? `, ${TREE_NAMES[treeStage(t)].toLowerCase()}` : t.weeds ? ', сорняки' : ', пусто'}` : buyable ? `Участок на продажу за ${price} ₽` : 'Чужая земля'}
                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onTile(x, y); } }}
               >
                 {t.terrain === 'river' ? (
@@ -921,6 +996,7 @@ export function Scene({
                 {t.terrain === 'rock' && <Rocks x={x} y={y} owned={t.owned} />}
                 {t.terrain === 'swamp' && <Swamp x={x} y={y} owned={t.owned} winter={winter} />}
                 {!hidePlants && t.owned && t.weeds && <Weeds x={x} y={y} />}
+                {t.owned && t.tree !== undefined && <FieldTree x={x} y={y} stage={treeStage(t) as 1 | 2 | 3} chop={t.chop ?? 0} winter={winter} />}
                 {t.owned && t.drip && <DripHose wet={t.moisture > 0} l={x > 0 && tile(s, x - 1, y).drip} r={x < GRID - 1 && tile(s, x + 1, y).drip} />}
                 {t.structure === 'hive' && <Hive />}
                 {!hidePlants && crop && !hit && (
@@ -953,9 +1029,15 @@ export function Scene({
                 ) : danger.get(k)!.kind === 'hail' ? <HailShadow faint={!danger.get(k)!.now} />
                   : danger.get(k)!.kind === 'flood' ? <FloodMark />
                   : danger.get(k)!.kind === 'weedsurge' ? <WeedSeeds landing />
+                  : danger.get(k)!.kind === 'bear' ? <BearTracks />
+                  : danger.get(k)!.kind === 'boars' ? <BoarFurrows />
+                  : danger.get(k)!.kind === 'fire' ? <FireSmoke />
                   : null)}
                 {showWarnings && !hidePlants && omen.get(k) === 'beetle' && crop && <BeetleScouts />}
                 {showWarnings && !hidePlants && omen.get(k) === 'weedsurge' && !crop && <WeedSeeds />}
+                {showWarnings && !hidePlants && !danger.has(k) && omen.get(k) === 'bear' && <BearTracks faint />}
+                {showWarnings && !hidePlants && !danger.has(k) && omen.get(k) === 'boars' && <BoarFurrows faint />}
+                {showWarnings && !hidePlants && !danger.has(k) && omen.get(k) === 'fire' && <FireSmoke faint />}
                 {lens && t.owned && !t.canal && <LensCell s={s} x={x} y={y} lens={lens} minT={highlight.minT} m={mLens} />}
                 {inArea && <rect x={4} y={6} width={92} height={88} rx={12} class={`area-overlay${highlight.areaKind ? ` k-${highlight.areaKind}` : ''}`} pointer-events="none" />}
                 {build?.removable.has(k) && (
@@ -1085,6 +1167,24 @@ export function Scene({
             )}
           </g>
         ))}
+        {!trial && pits.map(([x, y], i) => (
+          <g transform={`translate(${PAD + (x + 1) * CELL} ${PAD + (y + 1) * CELL + 8})`} class="fire-spot"
+            data-corner={`${x},${y}`} data-fire={`${x},${y}`}
+            role={build ? 'button' : undefined} tabindex={build ? 0 : undefined}
+            aria-label={build ? `Переместить кострище: угол ${x + 1}:${y + 1}` : pitsLit ? 'Кострище: горит' : 'Кострище'}
+            aria-pressed={build ? build.removable.has(`${x},${y}`) : undefined}
+            onClick={(e) => { if (build) { e.stopPropagation(); onCorner?.(x, y); } }}
+            onKeyDown={(e) => { if (build && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); e.stopPropagation(); onCorner?.(x, y); } }}
+            pointer-events={build ? 'auto' : 'none'}>
+            <rect x={-26} y={-50} width={52} height={62} fill="transparent" />
+            <FirePit lit={pitsLit} level={pitLevel} uid={`p${i}`} />
+            {build?.removable.has(`${x},${y}`) && (
+              <g pointer-events="none" class="move-mark">
+                <rect x={-26} y={-50} width={52} height={62} rx={12} fill="none" stroke="#395928" stroke-width={3} stroke-dasharray="7 4" />
+              </g>
+            )}
+          </g>
+        ))}
         {highlight.block && (() => {
           const [bx, by] = highlight.block!;
           return (
@@ -1111,6 +1211,10 @@ export function Scene({
             <rect x={PAD - 6 + cam.vx * CELL} y={PAD + y * CELL + 2} width={cam.span * CELL + 12} height={CELL - 4} rx={14} class={`row-target${hoverTile?.endsWith(`,${y}`) ? ' on' : ''}`} pointer-events="none" />
           ))}
       </g>
+      {trial && !hidePlants && <g class="trial-night" style={{ ['--D' as string]: `${trial.D}ms`, ['--E' as string]: `${-trial.E}ms` }} key={`${trial.n.id}:${trial.n.wave ?? 0}`}>
+        <TrialVeil n={trial.n} W={cam.W} H={cam.H} ox={-cam.vx * CELL} oy={yard - cam.vy * CELL} />
+        <g transform={`translate(${-cam.vx * CELL} ${yard - cam.vy * CELL})`} class="tn-anchor"><TrialTop s={s} n={trial.n} level={pitLevel} /></g>
+      </g>}
       </g>
       {/* an engraver's double rule round the plot, like the plates of the atlas */}
       <g class="board-rule" pointer-events="none" fill="none">

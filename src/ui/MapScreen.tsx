@@ -1,6 +1,9 @@
-import { useState } from 'preact/hooks';
+import { useEffect, useState } from 'preact/hooks';
 import type { ComponentChildren } from 'preact';
-import { CROPS, LOCATIONS, LOCATION_IDS, LocationId, SEASON_NAMES, rankOf } from '../engine/data';
+import { CROPS, EXPEDITION_IDS, LOCATIONS, LOCATION_IDS, LocationId, SEASON_NAMES, rankOf, type ExpeditionId } from '../engine/data';
+import { CONDITIONS, type PlotOffer } from '../engine/run';
+import { departProblem, type Cart } from '../engine/meta';
+import { Departure, RelicChip } from './Run';
 import type { GameState } from '../engine/game';
 import { money } from '../engine/game';
 import { Icon } from '../art/icons';
@@ -16,7 +19,8 @@ import { TUTORIAL_KEY, TUTORIAL_STEPS } from '../engine/tutorial';
 import mapBase from '../assets/map-base.webp';
 
 const PIN: Record<LocationId, readonly [number, number]> = MAP_PINS;
-const SIGN: Record<LocationId, CropId2> = { chernozem: 'wheat', kuban: 'watermelon', altai: 'seabuckthorn' };
+const SIGN: Record<LocationId, CropId2> = { chernozem: 'wheat', kuban: 'watermelon', altai: 'seabuckthorn', rent: 'pumpkin' };
+const isExp = (l: LocationId): l is ExpeditionId => (EXPEDITION_IDS as LocationId[]).includes(l);
 type CropId2 = keyof typeof CROPS;
 
 function RegionMap({ farms, open, onPick }: { farms: Partial<Record<LocationId, GameState>>; open: (l: LocationId) => boolean; onPick: (l: LocationId) => void }) {
@@ -116,9 +120,23 @@ function farmState(f: GameState | undefined | null) {
   return `${SEASON_SHORT[f.season] ?? SEASON_NAMES[f.season]}, ${f.year}-й год`;
 }
 
-export function MapScreen({ profile, farms, onOpen, onNew, onTest, onTutorial }: { profile: Profile; farms: Partial<Record<LocationId, GameState>>; onOpen: (l: LocationId) => void; onNew: (l: LocationId) => void; onTest:(loc?:LocationId)=>void; onTutorial?:()=>void }) {
+export function MapScreen({ profile, farms, onOpen, onNew, onTest, onTutorial, onDepart, departFor = null }: { profile: Profile; farms: Partial<Record<LocationId, GameState>>; onOpen: (l: LocationId) => void; onNew: (l: LocationId) => void; onTest:(loc?:LocationId)=>void; onTutorial?:()=>void;
+  /** v3 · a cart leaves the home for an expedition; the arrest screen sends the player here with a region */
+  onDepart?: (loc: ExpeditionId, offer: PlotOffer, cart: Cart, seed: string) => void; departFor?: { loc: ExpeditionId; key: number } | null }) {
   const [pick, setPick] = useState<LocationId | null>(null);
   const [confirm, setConfirm] = useState<LocationId | null>(null);
+  const [depart, setDepart] = useState<ExpeditionId | null>(null);
+  const [replace, setReplace] = useState<ExpeditionId | null>(null);
+  // a departure asked from elsewhere (the arrest, a finished farm) asks the same questions as one from the map
+  useEffect(() => { if (departFor) askDepart(departFor.loc); }, [departFor?.key]);
+  const home = farms.chernozem && farms.chernozem.phase !== 'gameover' ? farms.chernozem : null;
+  // why a cart cannot leave for `l` now (null: it can)
+  const departWhy = (l: ExpeditionId) => !home ? 'Сначала заведите родной дом в Черноземье: обоз собирается из дома' : departProblem(home, l, profile.glory);
+  function askDepart(l: ExpeditionId) {
+    setPick(null);
+    const f = farms[l];
+    if (f && f.phase !== 'gameover') setReplace(l); else setDepart(l);
+  }
   const r = rankOf(profile.glory);
   const open = (l: LocationId) => profile.glory >= LOCATIONS[l].glory;
   const L = pick ? LOCATIONS[pick] : null;
@@ -144,7 +162,7 @@ export function MapScreen({ profile, farms, onOpen, onNew, onTest, onTutorial }:
         <div class="atlas-title">
           <small class="atlas-kicker">атлас хозяйств</small>
           <h1>Посевная</h1>
-          <p>карточная ферма: сажай фигурами, следи за погодой, дружи с соседями</p>
+          <p>карточная ферма: выкупите родной дом, поднимите деревню и обойдите Пряхина</p>
         </div>
       </header>
       <div class="atlas-grid">
@@ -161,7 +179,7 @@ export function MapScreen({ profile, farms, onOpen, onNew, onTest, onTutorial }:
               <div class="rank-scale" role="progressbar" aria-valuemin={r.min} aria-valuemax={r.next.min} aria-valuenow={profile.glory} aria-label={`До звания «${r.next.name}»`}>
                 <i style={{ ['--p' as string]: `${Math.max(0, Math.min(1, got / span)) * 100}%` }} />
               </div>
-              <div class="rank-ticks"><span>{r.min}</span><em>до «{r.next.name}» — ещё {r.next.min - profile.glory}</em><span>{r.next.min}</span></div>
+              <div class="rank-ticks"><span>{r.min}</span><em>до «{r.next.name}» — ещё {r.next.min - profile.glory}: {r.next.opens}</em><span>{r.next.min}</span></div>
             </> : <div class="rank-ticks"><em>высшее звание</em></div>}
           </div>
           {profile.pets.length > 0 && <div class="rank-pets">{profile.pets.slice(0, 3).map((p) => <span class="rank-pet"><Pet id={p} size={30} /></span>)}</div>}
@@ -188,7 +206,7 @@ export function MapScreen({ profile, farms, onOpen, onNew, onTest, onTutorial }:
               );
             })}
           </ol>
-          <p class="atlas-note"><sup>*</sup> Каждая ферма сохраняется отдельно. Слава, грамоты, питомцы и семенной фонд общие.</p>
+          <p class="atlas-note"><sup>*</sup> Черноземье — родной дом. Остальное — вылазки: обоз из дома, свой участок, свои заказчики; одна вылазка за раз. Слава, грамоты, питомцы, семенной фонд и знание культур общие. Главная цель — летопись родного дома: выкуп, подворье, соседи, клуб, победа над Пряхиным, первое место в районе.</p>
           <div class="atlas-test"><button type="button" class="atlas-stamp" onClick={()=>onTest(pick ?? undefined)}>Режим проверки</button></div>
         </section>
       </div>
@@ -203,15 +221,38 @@ export function MapScreen({ profile, farms, onOpen, onNew, onTest, onTutorial }:
           <div><dt><Icon name="frost" size={18} />зима</dt><dd>{L.seasons[3]} нед. · до {deg(L.temp.winter[1])}</dd></div>
         </dl>
         <ul class="loc-unique">{L.unique.map((u) => <li>{u}</li>)}</ul>
-        {f && f.phase !== 'gameover' ? <div class="loc-save">
-          <span><b>{SEASON_NAMES[f.season]}, {f.year}-й год</b> · {money(f.money)} · слава {f.glory}</span>
-          <div class="btn-row"><Btn tone="primary" onClick={() => go(pick)}>Продолжить</Btn><Btn tone="ghost" small onClick={() => askNew(pick)}>Заново</Btn></div>
+        {pick === 'chernozem' && f && <HomeStatus f={f} />}
+        {isExp(pick) ? (f && f.phase !== 'gameover' ? <div class="loc-save">
+          <span><b>{SEASON_NAMES[f.season]}, {f.year}-й год</b> · {money(f.money)} · слава с фермы {f.glory}</span>
+          {f.run ? <span class="loc-run">Участок «{CONDITIONS[f.run.cond].name}»{f.run.relics.length ? <> · {f.run.relics.map((r) => <RelicChip id={r} />)}</> : null}</span>
+            : <span class="small muted">Старая ферма, без обоза из дома. Её можно доиграть; новая начнётся как вылазка.</span>}
+          <div class="btn-row"><Btn tone="primary" onClick={() => go(pick)}>{f.run ? 'Продолжить вылазку' : 'Продолжить'}</Btn>{!f.run && <Btn tone="ghost" small disabled={departWhy(pick)} onClick={() => askDepart(pick)}>Новая вылазка</Btn>}</div>
+        </div> : open(pick) ? <>
+          <Btn tone="primary" disabled={departWhy(pick)} onClick={() => askDepart(pick)}><Icon name="cart" size={20} /> Собрать обоз</Btn>
+          {departWhy(pick) && <p class="small muted">{departWhy(pick)}</p>}
+        </> : <p class="loc-locked"><Icon name="lock" size={16} /> Откроется со славой {L.glory} (звание «{rankOf(L.glory).name}»)</p>)
+        : f && f.phase === 'gameover' && f.over?.work ? <div class="loc-save">
+          <span><b>Дом в залоге у банка</b> · {f.over.reason}</span>
+          <div class="btn-row"><Btn tone="primary" onClick={() => go(pick)}>Решить судьбу дома</Btn><Btn tone="ghost" small onClick={() => askNew(pick)}>Заново</Btn></div>
+        </div>
+        : f && f.phase !== 'gameover' ? <div class="loc-save">
+          <span><b>{SEASON_NAMES[f.season]}, {f.year}-й год</b> · {money(f.money)} · слава с фермы {f.glory}</span>
+          <div class="btn-row"><Btn tone="primary" onClick={() => go(pick)}>{f.phase === 'arrest' ? 'К дому под арестом' : 'Продолжить'}</Btn><Btn tone="ghost" small onClick={() => askNew(pick)}>Заново</Btn></div>
         </div> : open(pick) ? <Btn tone="primary" onClick={() => askNew(pick)}>{f ? 'Начать новую ферму' : 'Играть'}</Btn> : <p class="loc-locked"><Icon name="lock" size={16} /> Откроется со славой {L.glory} (звание «{rankOf(L.glory).name}»)</p>}
-        <Btn tone="ghost" onClick={()=>onTest(pick)}>Проверить регион</Btn>
       </Sheet>}
+      {replace && (
+        <Sheet title="Новая вылазка?" onClose={() => setReplace(null)}>
+          <p>Старая ферма «{LOCATIONS[replace].name}» будет закрыта и уйдёт в историю. Её слава и награды останутся в профиле.</p>
+          <div class="btn-row">
+            <Btn tone="danger" onClick={() => { const l = replace; setReplace(null); setDepart(l); }}>Да, собрать обоз</Btn>
+            <Btn tone="ghost" onClick={() => setReplace(null)}>Отмена</Btn>
+          </div>
+        </Sheet>
+      )}
+      {depart && home && onDepart && <Departure home={home} loc={depart} glory={profile.glory} onCancel={() => setDepart(null)} onGo={(offer, cart, seed) => { const l = depart; setDepart(null); onDepart(l, offer, cart, seed); }} />}
       {confirm && (
         <Sheet title="Начать заново?" onClose={() => setConfirm(null)}>
-          <p>Ферма «{LOCATIONS[confirm].name}» будет закрыта, начнётся новая. Сохраним предыдущую партию резервной копией. Слава и награды профиля сохранятся.</p>
+          <p>Ферма «{LOCATIONS[confirm].name}» будет закрыта, начнётся новая. Сохраним предыдущую партию резервной копией. Слава и награды профиля сохранятся.{confirm === 'chernozem' && farms.chernozem?.away ? ' Обоз, что сейчас на вылазке, в новый дом не вернётся.' : ''}</p>
           <div class="btn-row">
             <Btn tone="danger" onClick={() => { const l = confirm; setConfirm(null); onNew(l); }}>Да, заново</Btn>
             <Btn tone="ghost" onClick={() => setConfirm(null)}>Отмена</Btn>
@@ -220,4 +261,14 @@ export function MapScreen({ profile, farms, onOpen, onNew, onTest, onTutorial }:
       )}
     </div>
   );
+}
+
+/** the home's standing on its location sheet: the mortgage, the cart away, the arrest */
+function HomeStatus({ f }: { f: GameState }) {
+  if (f.phase === 'gameover') return null;
+  const lines = [
+    f.phase === 'arrest' && f.arrest ? `Под арестом: долг ${money(f.arrest.debt)}, вылазок осталось ${f.arrest.runs}` : f.owned ? 'Дом выкуплен' : `Залог: выплачено ${f.paidYears ?? 0} из 3 осенних платежей`,
+    f.away ? `Обоз на вылазке: ${LOCATIONS[f.away.loc].name}` : '',
+  ].filter(Boolean);
+  return <p class="loc-home small">{lines.join(' · ')}</p>;
 }

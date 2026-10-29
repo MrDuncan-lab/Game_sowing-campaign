@@ -185,7 +185,7 @@ function oldLessonAction(E: any, T: any, t: any): any {
 // window is a per-tab EventTarget, so managedSaveSession is true there and the ownership fence is live.
 const HARNESS = String.raw`
 import { isMainThread } from 'node:worker_threads';
-const STUBS = { './FarmScreen': 'FarmScreen', './MapScreen': 'MapScreen', './Intro': 'Intro', './Tutorial': 'Tutorial', './TestLab': 'TestLab', './common': 'common' };
+const STUBS = { './FarmScreen': 'FarmScreen', './MapScreen': 'MapScreen', './Intro': 'Intro', './Tutorial': 'Tutorial', './TestLab': 'TestLab', './common': 'common', './RankUp': 'RankUp' };
 const tabOf = (u) => { const i = u.indexOf('?tab='); return i < 0 ? null : u.slice(i + 5).split('&')[0]; };
 export async function resolve(spec, ctx, next) {
   const parent = ctx.parentURL || '';
@@ -661,7 +661,8 @@ test(`ST-09 · every intermediate state of ${OLD} play (action by action) passes
   if (!o) return t.skip(`${OLD} not available`);
   let n = 0;
   const act = (s: any, a: any) => { const next = attempt(o.G, s, a); if (!next) return s; n++; assert.equal(validFarm(json(next)), true, `after ${a.t} at week ${next.absWeek} (${next.loc})`); return next; };
-  for (const loc of D.LOCATION_IDS) for (const k of [0, 1, 2, 3]) {
+  // the regions that engine knew (the rent of v3 came later)
+  for (const loc of o.D.LOCATION_IDS as D.LocationId[]) for (const k of [0, 1, 2, 3]) {
     let s: any = o.G.newGame({ loc, seed: `QA-FUZZ-${loc}-${k}` });
     if (k % 2) s = { ...s, money: 20000 };
     const r = prng(71 + k), xy = (): [number, number] => [Math.floor(r() * 6), Math.floor(r() * 6)];

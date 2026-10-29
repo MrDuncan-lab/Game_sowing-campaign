@@ -1,13 +1,15 @@
 // The year plan: weather periods, declared threats, market windows and the weekly air temperature.
 // Built once when a year starts, from its own random stream; nothing the player does changes it.
 import type { CropId, LocationDef } from './data';
+import type { HazardPlan } from './run';
 import { hashSeed, rand, randInt, shuffle } from './rng';
 
 export type EpisodeKind =
   | 'dry' | 'rain' | 'warm' | 'frost' | 'thaw'
   | 'hail' | 'flood' | 'beetle' | 'locust' | 'weedsurge'
   | 'export' | 'fair' | 'glut' | 'seeds'
-  | 'helpers' | 'crows';
+  | 'helpers' | 'crows'
+  | 'sukhovey' | 'bear' | 'boars' | 'fire';
 export type EpisodeRow = 'climate' | 'threat' | 'market' | 'help';
 export interface EpisodeDef { kind: EpisodeKind; name: string; icon: string; row: EpisodeRow; bad: boolean; biotic?: boolean; text: string }
 
@@ -23,11 +25,16 @@ export const EPISODES: Record<EpisodeKind, EpisodeDef> = {
   locust: { kind: 'locust', name: 'Саранча', icon: 'locust', row: 'threat', bad: true, biotic: true, text: 'Стая видна за неделю до каждого из двух ударов по самой большой посадке.' },
   weedsurge: { kind: 'weedsurge', name: 'Сорняки', icon: 'weeds', row: 'threat', bad: true, biotic: true, text: 'Ветер несёт семена сорняков: пустые грядки зарастут к концу следующей недели.' },
   export: { kind: 'export', name: 'Спрос на зерно', icon: 'up', row: 'market', bad: false, text: 'Пшеница и рис дороже в 1,6 раза.' },
-  fair: { kind: 'fair', name: 'Ярмарка', icon: 'up', row: 'market', bad: false, text: 'Тыква, томаты, клубника и мёд дороже в 1,4 раза.' },
+  fair: { kind: 'fair', name: 'Базарный день', icon: 'up', row: 'market', bad: false, text: 'Тыква, томаты, клубника и мёд дороже в 1,4 раза.' },
   glut: { kind: 'glut', name: 'Падение цены', icon: 'down', row: 'market', bad: true, text: 'Одна культура на 40% дешевле.' },
   seeds: { kind: 'seeds', name: 'Семена дешевле', icon: 'seed', row: 'market', bad: false, text: 'Семена одной культуры на 25% дешевле.' },
   helpers: { kind: 'helpers', name: 'Соседи помогают', icon: 'hand', row: 'help', bad: false, text: 'На этой неделе на один рабочий день больше.' },
   crows: { kind: 'crows', name: 'Вороны', icon: 'crow', row: 'threat', bad: true, biotic: true, text: 'Стая кружит над лесом за неделю до того, как сесть на поле.' },
+  // v3 · hazards of the expeditions (docs/PROGRESSION-v3.md §3.5)
+  sukhovey: { kind: 'sukhovey', name: 'Суховей', icon: 'wind', row: 'climate', bad: true, text: 'Горячий ветер (+4°): открытые грядки теряют ещё 1 влагу, а сухие гибнут сразу. Спасают лес или дерево рядом, мульча, укрытие, капельница, теплица.' },
+  bear: { kind: 'bear', name: 'Медведь', icon: 'bear', row: 'threat', bad: true, biotic: true, text: 'Следы у ручья за неделю до визита: медведь идёт к ульям, ягодникам и грядкам у тайги.' },
+  boars: { kind: 'boars', name: 'Кабаны', icon: 'boar', row: 'threat', bad: true, biotic: true, text: 'Кабаны выходят из балки к корнеплодам и бахче на краю поля.' },
+  fire: { kind: 'fire', name: 'Пожар', icon: 'fire', row: 'threat', bad: true, biotic: true, text: 'Дым над тайгой за неделю до огня: горят грядки у леса. Спасают полив до краёв, окоп и теплица.' },
 };
 
 // start and len in absolute weeks once the game shifts them; planYear works in weeks of the year (1-based)
@@ -42,7 +49,7 @@ export function marketMult(e: Episode, c: CropId): number {
   return 1;
 }
 
-export interface PlanInput { key: string; year: number; loc: LocationDef; river: boolean; crops: CropId[] }
+export interface PlanInput { key: string; year: number; loc: LocationDef; river: boolean; crops: CropId[]; hazards?: HazardPlan }
 export interface YearPlan { episodes: Episode[]; temps: number[] } // temps[i] = air °C of week i+1 of the year
 
 // the base temperature of a week: a straight line across spring and autumn, an arch over summer, a dip in winter
@@ -166,5 +173,41 @@ export function planYear(p: PlanInput): YearPlan {
     }
     temps.push(Math.round(t));
   }
+  if (p.hazards) placeHazards(p, eps, temps, { S0, S1, A1, firstWeek });
   return { episodes: eps, temps };
+}
+
+/** v3 · the hazards of an expedition, drawn after everything else from their own stream: a year of a farm without
+ *  them (every older save, every test) is exactly what it was. */
+function placeHazards(p: PlanInput, eps: Episode[], temps: number[], at: { S0: number; S1: number; A1: number; firstWeek: number }) {
+  const h = p.hazards!, w = { rng: hashSeed(`${p.key}|v3`) }, y = p.year;
+  const N = temps.length;
+  let k = 0;
+  const busy = (row: EpisodeRow, s: number, l: number, gap: number) =>
+    eps.some((e) => EPISODES[e.kind].row === row && s <= episodeEnd(e) + gap && s + l - 1 >= e.start - gap);
+  const put = (kind: EpisodeKind, lo: number, hi: number, len = 1, ok: (s: number) => boolean = () => true) => {
+    const row = EPISODES[kind].row;
+    // a week's gap between threats if the season allows, otherwise just not the same week
+    for (let t = 0; t < 28; t++) {
+      if (hi < lo) return false;
+      const s = lo + randInt(w, Math.max(1, hi - lo - len + 2));
+      if (s < 1 || s + len - 1 > Math.min(hi, N) || busy(row, s, len, row === 'threat' && t < 14 ? 1 : 0) || !ok(s)) continue;
+      eps.push({ id: y * 1000 + 500 + ++k, kind, start: s, len });
+      return true;
+    }
+    return false;
+  };
+  const late = at.firstWeek + 1;
+  for (let i = 0; i < h.floods; i++) put('flood', Math.max(2, at.S0 - 2), at.S0 + 3);
+  const noRain = (len: number) => (s: number) => !eps.some((e) => e.kind === 'rain' && s <= episodeEnd(e) + 1 && s + len - 1 >= e.start - 1);
+  for (let i = 0; i < h.sukhovey; i++) { const len = y === 1 ? 1 : 1 + randInt(w, 2); put('sukhovey', late, at.S1, len, noRain(len)); }
+  for (let i = 0; i < h.boars; i++) put('boars', late, at.A1 - 1);
+  for (let i = 0; i < h.bear; i++) put('bear', late, at.A1 - 1);
+  if (h.fire > 0 && rand(w) < h.fire) {
+    // fire follows a dry or warm spell: the week after one when that slot is free, otherwise any summer week
+    const after = eps.filter((e) => (e.kind === 'dry' || e.kind === 'warm') && episodeEnd(e) + 1 <= at.S1).map((e) => episodeEnd(e) + 1);
+    if (!after.some((s) => put('fire', s, s))) put('fire', late, at.S1);
+  }
+  for (const e of eps) if (e.kind === 'sukhovey') for (let wk = e.start; wk <= episodeEnd(e); wk++) temps[wk - 1] += 4;
+  eps.sort((a, b) => a.start - b.start || a.kind.localeCompare(b.kind));
 }

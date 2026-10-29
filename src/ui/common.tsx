@@ -161,4 +161,19 @@ export function Btn({ children, onClick, disabled, tone, small, title, class: cl
 }
 
 export const weeksTxt = (n: number) => `${n} ${n % 10 === 1 && n % 100 !== 11 ? 'неделя' : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? 'недели' : 'недель'}`;
-export const weeksShort = (n: number) => `${n} нед.`;
+// v3 · a building site in winter moves half a week a week: a remainder is shown rounded up
+export const weeksShort = (n: number) => `${Math.ceil(n - 1e-9)} нед.`;
+
+/** PSV-007 · the closed farm is a real modal: focus inside, Tab cycles its two actions, the farm behind is inert. */
+export function ClosedLayer({ title, children }: { title: string; children: ComponentChildren }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useModal(ref);
+  return (
+    <div class="gameover">
+      <div class="panel" role="dialog" aria-modal="true" aria-labelledby="gameover-title" tabIndex={-1} ref={ref}>
+        <h1 id="gameover-title">{title}</h1>
+        {children}
+      </div>
+    </div>
+  );
+}

@@ -4,7 +4,7 @@ import {sceneDuration, type Miss} from './collisions';
 // misses: children who came to a bed something else had emptied; bugs: beds the beetles were chewing
 export type SceneCue=NonNullable<GameState['scenes']>[number] & {elapsed?:number;managed?:boolean;targets?:[number,number][];rate?:number;misses?:Miss[];bugs?:[number,number][]};
 const done=new Set<string>();
-const priority:Record<SceneCue['kind'],number>={dogThieves:0,watchman:1,thieves:2,drone:3,geese:4};
+const priority:Record<SceneCue['kind'],number>={buyout:-1,dogThieves:0,watchman:1,thieves:2,bear:2,boars:2,fire:2,drone:3,geese:4};
 const key=(s:GameState,e:SceneCue)=>`posevnaya.scene.${s.loc}.${s.seed}.${e.id}`;
 export function completed(s:GameState,e:SceneCue){const k=key(s,e);try{return done.has(k)||!!sessionStorage.getItem(k);}catch{return done.has(k);}}
 export function finishScenes(s:GameState,scenes:SceneCue[]){

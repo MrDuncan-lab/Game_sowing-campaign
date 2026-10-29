@@ -51,19 +51,20 @@ test('early and ordinary harvesting apply the same bean and sunflower soil rules
   }
 });
 
+const G_TRAIT_WEEKS = 4; // v3 §8.2 · a trait takes 4 weeks
 test('laboratory active slots stay reserved; spare cards return to spare', () => {
-  let s = farm(); s.levels.lab = 1;
+  let s = farm(); s.levels.lab = 1; s.knowBase = { radish: 600, potato: 600, bean: 600, carrot: 600, onion: 600, cabbage: 600, wheat: 600, buckwheat: 600, pumpkin: 600, cranberry: 600 };
   const active = s.draw.find((c) => c.def.startsWith('seed_'))!;
   const n = deckCount(s); assert.equal(n, deckLimit(s));
   s = apply(s, { t: 'labTrait', uid: active.uid, trait: 'cold' });
   assert.equal(deckCount(s), n);
   s = apply(s, { t: 'buyCard', def: 'water' });
   assert.equal(s.spare.at(-1)!.def, 'water');
-  for (let i = 0; i < 3; i++) s = endWeek(s);
+  for (let i = 0; i < G_TRAIT_WEEKS; i++) s = endWeek(s);
   assert.equal(deckCount(s), n); assert.ok(s.discard.some((c) => c.uid === active.uid) || s.hand.some((c) => c.uid === active.uid) || s.draw.some((c) => c.uid === active.uid));
   const spare = { uid: s.nextUid++, def: 'seed_radish' }; s.spare.push(spare);
   s = apply(s, { t: 'labTrait', uid: spare.uid, trait: 'cold' });
-  for (let i = 0; i < 3; i++) s = endWeek(s);
+  for (let i = 0; i < G_TRAIT_WEEKS; i++) s = endWeek(s);
   assert.ok(s.spare.some((c) => c.uid === spare.uid && c.traits?.includes('cold')));
   assert.equal(deckCount(s), n);
 });
@@ -166,7 +167,8 @@ test('ripening forecast checks lethal frost before growth and expires mulch prot
 
 test('heating completed at week end is billed starting the following week', () => {
   let s = farm(); date(s, yearLen(s) - 2); s.levels.greenhouse = 2; tile(s, 2, 2).structure = 'greenhouse';
-  s.projects = [{ kind: 'track', track: 'greenhouse', level: 3, weeks: 1, total: 1 }];
+  // v3 · in winter a building site moves at half pace: half a week of work is left
+  s.projects = [{ kind: 'track', track: 'greenhouse', level: 3, weeks: 0.5, total: 1 }];
   assert.equal(weekOutlook(s).costs, 0); s = endWeek(s);
   assert.equal(s.lastReport!.costs.reduce((n, c) => n + c.amount, 0), 0);
   assert.equal(weeklyCosts(s).heating, 2); s = endWeek(s); assert.equal(s.lastReport!.costs.find((c) => c.label.includes('отопление'))!.amount, 2);

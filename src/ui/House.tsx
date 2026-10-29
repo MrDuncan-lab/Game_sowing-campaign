@@ -2,8 +2,10 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { COMMON_TRACKS, PETS, TRACKS, WORKERS, TrackId, WorkerId, DECK_MIN } from '../engine/data';
 import {
   GameState, deckCount, deckLimit, deckList, hirePrice, lvl, money, trackAvailable, trackCost, trackProblem, trackWeeks, trainPrice, trainWeeks,
-  workerSlots, workshopBusy, workshopSlots, locOf, buildStock, buildSpots, buildStage,
+  workerSlots, workshopBusy, workshopSlots, locOf, houseBeds, lodging, isHome, yardHelpProblem, buildStock, buildSpots, buildStage, trackDef, trackLevels, trackMats, matsList, helpProblem,
 } from '../engine/game';
+import { HOUSE_BEDS } from '../engine/data';
+import { ShedChips } from './Fair';
 import type { BuildItem } from '../engine/game';
 import { Icon } from '../art/icons';
 import { Pet } from '../art/extra';
@@ -14,8 +16,12 @@ import { Bar, Btn, Dispatch, Pips, Section, Sheet, scrollBehavior, weeksShort } 
 import { levelText } from '../content/rules';
 import { CardView, cardDescription } from './Card';
 import { useLessonWeeks } from './lesson';
+import { NeighbourRow, NeighbourSheet, COMMON_ICON, type NeighbourKey } from './Neighbours';
+import { COMMONS, YARDS, YARD_IDS } from '../engine/neighbours';
+import { Chronicle, FestivalStandings } from './Festival';
+import { districtPlace, hasAntonovka, plural } from '../engine/game';
 
-const PLACE: Partial<Record<TrackId, BuildItem>> = { greenhouse: 'greenhouse', apiary: 'hive', irrigation: 'drip', guard: 'scarecrow', canal: 'canal' };
+const PLACE: Partial<Record<TrackId, BuildItem>> = { greenhouse: 'greenhouse', apiary: 'hive', irrigation: 'drip', guard: 'scarecrow', canal: 'canal', fires: 'fire' };
 
 function WorkerSheet({ s, id, act, onClose }: { s: GameState; id: WorkerId; act: Dispatch; onClose: () => void }) {
   const d = WORKERS[id];
@@ -43,7 +49,7 @@ function WorkerSheet({ s, id, act, onClose }: { s: GameState; id: WorkerId; act:
         {next && <><dt>{w ? 'После учёбы' : 'Умеет'}</dt><dd>{next}</dd></>}
       </dl>
       {!w && (
-        <Btn tone="primary" disabled={s.team.length >= workerSlots(s) ? 'Все места в доме заняты' : s.money < price ? `Нужно ${money(price)}` : null} onClick={() => { if (act({ t: 'hire', id })) onClose(); }}>
+        <Btn tone="primary" disabled={s.team.length >= workerSlots(s) ? 'Свободных кроватей нет' : s.money < price ? `Нужно ${money(price)}` : null} onClick={() => { if (act({ t: 'hire', id })) onClose(); }}>
           Нанять · {price ? money(price) : 'бесплатно'}
         </Btn>
       )}
@@ -74,8 +80,11 @@ function WorkerSheet({ s, id, act, onClose }: { s: GameState; id: WorkerId; act:
 }
 
 function Interior({ s, onWorker, onHire }: { s: GameState; onWorker: (id: WorkerId) => void; onHire: () => void }) {
-  const slots = workerSlots(s);
+  // the room has the house's own beds; those who sleep at the neighbours' (v3 §7 · постой) are listed under it
+  const slots = houseBeds(s);
   const seats: RoomSeat[] = [];
+  const lodgers = s.team.slice(slots);
+  const lodgeFree = Math.max(0, lodging(s) - lodgers.length);
   for (let i = 0; i < slots; i++) {
     const w = s.team[i];
     if (w && w.away > 0) seats.push({ kind: 'away', id: w.id, title: WORKERS[w.id].title, weeks: w.away, label: `${WORKERS[w.id].name}, ${WORKERS[w.id].title}: на учёбе ещё ${w.away} нед.`, onOpen: () => onWorker(w.id) });
@@ -83,22 +92,35 @@ function Interior({ s, onWorker, onHire }: { s: GameState; onWorker: (id: Worker
     else seats.push({ kind: 'free', label: 'Свободное место — нанять работника', onOpen: onHire });
   }
   const house = lvl(s, 'house');
+  // v3 · beds come with the house: the next level that adds one
+  const levels = trackLevels(s, 'house');
+  const more = levels.findIndex((_, i) => i >= house && HOUSE_BEDS[i] > HOUSE_BEDS[house - 1]);
   return (
     <div class="room">
-      <Room seats={seats} certs={s.certs.length} cat={s.pets.includes('cat')} dog={s.pets.includes('dog')} winter={s.season === 3} />
-      {house < 5 && <p class="room-next">Ещё одно место — с домом «{TRACKS.house.levels[house].name}»</p>}
+      <Room seats={seats} certs={s.certs.length} cat={s.pets.includes('cat')} dog={s.pets.includes('dog')} winter={s.season === 3} camp={isHome(s) ? 0 : lvl(s, 'house')} region={s.loc} />
+      {more >= 0 && <p class="room-next">Ещё одна кровать — с уровнем «{levels[more].name}»</p>}
+      {lodging(s) > 0 && (
+        <p class="room-lodge">
+          <Icon name="village" size={18} /> На постое у соседей:{' '}
+          {lodgers.map((w) => <button type="button" class="link" onClick={() => onWorker(w.id)}>{WORKERS[w.id].name}</button>)}
+          {lodgeFree > 0 && <button type="button" class="link" onClick={onHire}>{lodgeFree} {plural(lodgeFree, 'свободная кровать', 'свободные кровати', 'свободных кроватей')}</button>}
+        </p>
+      )}
     </div>
   );
 }
 
-function TrackCard({ s, t, act, onPlace, open, onToggle }: { s: GameState; t: TrackId; act: Dispatch; onPlace: (item: BuildItem) => void; open: boolean; onToggle: () => void }) {
-  const def = TRACKS[t];
+function TrackCard({ s, t, act, onPlace, onFair, open, onToggle }: { s: GameState; t: TrackId; act: Dispatch; onPlace: (item: BuildItem) => void; onFair: () => void; open: boolean; onToggle: () => void }) {
+  const def = trackDef(s, t);
   const lessonWeeks = useLessonWeeks();
   const now = lvl(s, t);
   const max = def.levels.length;
   const next = def.levels[now];
   const proj = s.projects.find((p) => p.kind === 'track' && p.track === t);
   const why = trackProblem(s, t);
+  const equipment = !!TRACKS[t].equipment;
+  const need = next ? trackMats(s, t, now + 1) : {};
+  const help = proj ? helpProblem(s, t) : null;
   const item = PLACE[t];
   const stock = item ? buildStock(s)[item] : null;
   const unplaced = stock ? Math.max(0, stock.have - stock.used) : 0;
@@ -114,17 +136,22 @@ function TrackCard({ s, t, act, onPlace, open, onToggle }: { s: GameState; t: Tr
       </button>
       <p class="track2-effect">{proj && proj.kind === 'track' ? `Строим «${def.levels[proj.level - 1].name}»` : next ? levelText(t, now) : levelText(t, now - 1)}</p>
       {item && unplaced > 0 && <Btn small tone="good" disabled={!buildSpots(s, item).length ? 'На поле нет подходящего места' : null} onClick={() => onPlace(item)}>Разместить на поле · {unplaced}</Btn>}
+      {next && !proj && !equipment && matsList(need).length > 0 && <div class="track2-mats"><small>Материалы:</small><ShedChips s={s} need={need} /></div>}
       <div class="track2-foot">
         {proj && proj.kind === 'track' ? (
-          <div class="track2-progress"><Bar value={proj.total - proj.weeks} max={proj.total} tone="good" /><small>ещё {weeksShort(proj.weeks)}</small></div>
+          <div class="track2-progress"><Bar value={proj.total - proj.weeks} max={proj.total} tone="good" /><small>ещё {weeksShort(proj.weeks)}</small>
+            {!help && <Btn small tone="ghost" onClick={() => act({ t: 'helpBuild', track: t })}>Помочь · 1 день</Btn>}</div>
+        ) : next && equipment ? (
+          <Btn small onClick={onFair}><Icon name="fair" size={18} /> На ярмарке</Btn>
         ) : next ? (
           <Btn small tone={why ? undefined : 'primary'} disabled={why} onClick={() => act({ t: 'track', track: t })}>
             {money(trackCost(s, t, now + 1))} · {weeksShort(lessonWeeks(trackWeeks(s, t, now + 1)))}
           </Btn>
         ) : (
-          <span class="track2-done">Всё построено</span>
+          <span class="track2-done">{equipment ? 'Лучший уровень' : 'Всё построено'}</span>
         )}
       </div>
+
       {open && (
         <div class="track2-more">
           <ol class="levels">
@@ -138,7 +165,7 @@ function TrackCard({ s, t, act, onPlace, open, onToggle }: { s: GameState; t: Tr
   );
 }
 
-export function HouseView({ s, act, onPlace }: { s: GameState; act: Dispatch; onPlace: (item: BuildItem) => void }) {
+export function HouseView({ s, act, onPlace, onFair }: { s: GameState; act: Dispatch; onPlace: (item: BuildItem) => void; onFair: () => void }) {
   const lessonWeeks = useLessonWeeks();
   const [worker, setWorker] = useState<WorkerId | null>(null);
   const [inv, setInv] = useState<'deck' | 'spare'>('deck');
@@ -149,7 +176,9 @@ export function HouseView({ s, act, onPlace }: { s: GameState; act: Dispatch; on
   const house = lvl(s, 'house');
   const tracks = [...COMMON_TRACKS, ...locOf(s).extra].filter((t) => trackAvailable(s, t));
   const ownedTracks = tracks.filter((t) => lvl(s, t) > 0 || s.projects.some((p) => p.kind === 'track' && p.track === t));
-  const newTracks = tracks.filter((t) => !ownedTracks.includes(t));
+  // v3 · equipment is not built: it is bought at the fair, so the workshop's catalogue has buildings only
+  const newTracks = tracks.filter((t) => !ownedTracks.includes(t) && !TRACKS[t].equipment);
+  const hdef = trackDef(s, 'house'), hmax = hdef.levels.length;
   const houseProj = s.projects.find((p) => p.kind === 'track' && p.track === 'house');
   const busy = workshopBusy(s);
   const deck = deckList(s);
@@ -159,26 +188,38 @@ export function HouseView({ s, act, onPlace }: { s: GameState; act: Dispatch; on
   const rearranging = winter && editingDeck;
   const jump = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: scrollBehavior(), block: 'start' });
   const buildingNow = s.projects.filter((p) => p.kind === 'track' && p.track !== 'house');
+  const villageNow = s.projects.filter((p) => p.kind === 'yard' || p.kind === 'common');
+  const [neighbour, setNeighbour] = useState<NeighbourKey | null>(null);
+  const helpers = isHome(s) ? YARD_IDS.filter((y) => !yardHelpProblem(s, y)) : [];
   const toPlace = ownedTracks.flatMap((t) => { const item = PLACE[t]; const st = item ? buildStock(s)[item] : null; const n = st ? Math.max(0, st.have - st.used) : 0; return item && n > 0 ? [[t, item, n] as const] : []; });
   return (
     <div class="pane-inner house-pane">
       {/* the estate, big: the house at its level with what the farm owns around it, and the ways into the house */}
       <div class="hero house-hero estate-hero">
         <div class="estate-art">
-          <Estate level={house} building={buildStage(s, 'house')} season={s.season} owns={{ hive: lvl(s, 'apiary') > 0, greenhouse: lvl(s, 'greenhouse') > 0, scarecrow: lvl(s, 'guard') > 0, irrigation: lvl(s, 'irrigation') > 0, meteo: lvl(s, 'meteo') > 0, compost: lvl(s, 'compost') > 0 }} />
-          <div class="estate-plaque"><h2>{TRACKS.house.levels[house - 1].name}</h2><Pips n={house} of={5} /></div>
-          {houseProj && houseProj.kind === 'track' && <div class="estate-build"><span>Строим «{TRACKS.house.levels[houseProj.level - 1].name}» · ещё {weeksShort(houseProj.weeks)}</span><Bar value={houseProj.total - houseProj.weeks} max={houseProj.total} tone="good" /></div>}
+          <Estate level={house} camp={s.loc !== 'chernozem'} region={s.loc} building={buildStage(s, 'house')} season={s.season} owns={{ hive: lvl(s, 'apiary') > 0, greenhouse: lvl(s, 'greenhouse') > 0, scarecrow: lvl(s, 'guard') > 0, irrigation: lvl(s, 'irrigation') > 0, meteo: lvl(s, 'meteo') > 0, compost: lvl(s, 'compost') > 0, antonovka: hasAntonovka(s) }} />
+          <div class="estate-plaque"><h2>{hdef.levels[house - 1].name}</h2><Pips n={house} of={hmax} /></div>
+          {houseProj && houseProj.kind === 'track' && <div class="estate-build"><span>Строим «{hdef.levels[houseProj.level - 1].name}» · ещё {weeksShort(houseProj.weeks)}{s.season === 3 ? ' · зимой вдвое медленнее' : ''}</span><Bar value={houseProj.total - houseProj.weeks} max={houseProj.total} tone="good" /></div>}
         </div>
         <nav class="estate-links" aria-label="Разделы дома">
-            <button type="button" onClick={() => jump('hire')}><Icon name="team" size={18} /><span>Команда</span><b>{s.team.length}/{workerSlots(s)}</b></button>
-            <button type="button" onClick={() => jump('workshop')}><Icon name="build" size={18} /><span>Мастерская</span><b>{busy}/{workshopSlots(s)}</b></button>
+            <button type="button" onClick={() => jump('hire')}><Icon name="team" size={18} /><span>Кровати</span><b>{s.team.length}/{workerSlots(s)}</b></button>
+            <button type="button" onClick={() => jump('workshop')}><Icon name="build" size={18} /><span>Стройки</span><b>{busy}/{workshopSlots(s)}</b></button>
             <button type="button" onClick={() => jump('inventory')}><Icon name="seeds" size={18} /><span>Колода</span><b>{deckSize}/{deckLimit(s)}</b></button>
         </nav>
         <div class="hero-text">
           {/* №6 · first what is being built now, then the next action */}
           {buildingNow.map((p) => p.kind === 'track' && (
             <div class="stack tight now-line">
-              <span class="small"><Icon name={TRACKS[p.track].icon} size={16} /> Строим «{TRACKS[p.track].levels[p.level - 1].name}» · ещё {weeksShort(p.weeks)}</span>
+              <span class="small"><Icon name={TRACKS[p.track].icon} size={16} /> Строим «{trackLevels(s, p.track)[p.level - 1].name}» · ещё {weeksShort(p.weeks)}</span>
+              <Bar value={p.total - p.weeks} max={p.total} tone="good" />
+              {!helpProblem(s, p.track) && <Btn small tone="ghost" onClick={() => act({ t: 'helpBuild', track: p.track })}>Помочь на стройке · 1 день</Btn>}
+            </div>
+          ))}
+          {villageNow.map((p) => (p.kind === 'yard' || p.kind === 'common') && (
+            <div class="stack tight now-line">
+              <button type="button" class="link small" onClick={() => setNeighbour(p.kind === 'yard' ? p.yard : 'commons')}>
+                <Icon name={p.kind === 'yard' ? 'village' : COMMON_ICON[p.id]} size={16} /> {p.kind === 'yard' ? `${YARDS[p.yard].name}: «${YARDS[p.yard].stages[p.stage - 1].name}»` : `Толока: «${COMMONS[p.id].name}»`} · ещё {weeksShort(p.weeks)}
+              </button>
               <Bar value={p.total - p.weeks} max={p.total} tone="good" />
             </div>
           ))}
@@ -188,32 +229,51 @@ export function HouseView({ s, act, onPlace }: { s: GameState; act: Dispatch; on
               <button type="button" class="place-chip" disabled={!buildSpots(s, item).length} title={!buildSpots(s, item).length ? 'На поле нет подходящего места' : undefined} aria-label={`Разместить на поле: ${TRACKS[t].name} (${n})`} onClick={() => onPlace(item)}><Icon name={TRACKS[t].icon} size={18} /><span>{TRACKS[t].name}</span><b>{n}</b></button>
             ))}
           </div>}
-          {houseProj && houseProj.kind === 'track' ? null : house < 5 ? (
+          {houseProj && houseProj.kind === 'track' ? (
+            !helpProblem(s, 'house') ? <Btn small tone="ghost" onClick={() => act({ t: 'helpBuild', track: 'house' })}>Помочь на стройке · 1 день — на неделю быстрее</Btn> : null
+          ) : house < hmax ? (
             <div class="stack tight">
-              <span class="small">Дальше: <b>{TRACKS.house.levels[house].name}</b> — {levelText('house', house)}</span>
+              <span class="small">Дальше: <b>{hdef.levels[house].name}</b> — {hdef.levels[house].text}</span>
+              <div class="track2-mats"><small>Материалы:</small><ShedChips s={s} need={trackMats(s, 'house', house + 1)} /></div>
               <Btn small tone="primary" disabled={trackProblem(s, 'house')} onClick={() => act({ t: 'track', track: 'house' })}>
                 Строить · {money(trackCost(s, 'house', house + 1))} · {weeksShort(lessonWeeks(trackWeeks(s, 'house', house + 1)))}
               </Btn>
-              {trackProblem(s, 'house') && <p class="why">{trackProblem(s, 'house')}</p>}
+              {trackProblem(s, 'house')?.startsWith('Не хватает') && <p class="small"><button type="button" class="link" onClick={onFair}>Материалы — на ярмарке</button></p>}
             </div>
           ) : (
-            <span class="small up">Лучший дом в округе</span>
+            <span class="small up">{s.loc === 'chernozem' ? 'Лучший дом в округе' : 'Лагерь обустроен'}</span>
           )}
         </div>
       </div>
 
       <Interior s={s} onWorker={setWorker} onHire={() => document.getElementById('hire')?.scrollIntoView({ behavior: scrollBehavior(), block: 'start' })} />
 
-      <Section id="workshop" title="Мастерская" icon="build" extra={<span class={`slots${busy >= workshopSlots(s) ? ' full' : ''}`}>верстаки {busy}/{workshopSlots(s)}</span>}>
+      <Section id="workshop" title="Стройки" icon="build" extra={<span class={`slots${busy >= workshopSlots(s) ? ' full' : ''}`}>бригада {busy}/{workshopSlots(s)}</span>}>
+        <div class="shed-row"><span>В сарае</span><ShedChips s={s} /><button type="button" class="link" onClick={onFair}>Ярмарка</button></div>
+        <p class="small muted">Стройке нужны деньги, материалы и время; зимой стройки идут вдвое медленнее. Технику, дрон и метеоприборы продают на ярмарке.</p>
         <div class="tracks">
-          {ownedTracks.map((t) => <TrackCard s={s} t={t} act={act} onPlace={onPlace} open={openTrack === t} onToggle={() => setOpenTrack(openTrack === t ? null : t)} />)}
+          {ownedTracks.map((t) => <TrackCard s={s} t={t} act={act} onPlace={onPlace} onFair={onFair} open={openTrack === t} onToggle={() => setOpenTrack(openTrack === t ? null : t)} />)}
         </div>
-        {!ownedTracks.length && <p class="small muted">Оборудование пока не куплено.</p>}
-        {newTracks.length > 0 && <Btn onClick={() => setCatalogue(true)}><Icon name="build" size={20} /> Купить оборудование</Btn>}
+        {!ownedTracks.length && <p class="small muted">Пока ничего не построено.</p>}
+        {newTracks.length > 0 && <Btn onClick={() => setCatalogue(true)}><Icon name="build" size={20} /> Новая постройка</Btn>}
       </Section>
 
+      {isHome(s) && !s.quiet && (
+        <Section id="chronicle" title="Летопись хозяйства" icon="journal" extra={<span class="slots">район: {districtPlace(s)}-е место</span>}>
+          <Chronicle s={s} />
+          <FestivalStandings s={s} />
+        </Section>
+      )}
+
+      {isHome(s) && (
+        <Section id="neighbours" title="Соседи" icon="village" extra={helpers.length ? <span class="slots up">подмога: {helpers.length}</span> : undefined}>
+          <p class="small muted">Пять дворов деревни. Каждую стадию строит ваша бригада — за деньги, материалы и урожай; сосед отвечает меной, кроватью для работника и подмогой. Три двора на ногах — и деревня возьмётся за общее.</p>
+          <NeighbourRow s={s} onOpen={setNeighbour} />
+        </Section>
+      )}
+
       <Section title="Команда" icon="team" id="hire" extra={<span class="slots">{s.team.length}/{workerSlots(s)}</span>}>
-        <p class="small muted">Новые кандидаты приходят каждый сезон.</p>
+        <p class="small muted">Работники приходят с ярмарки, за заказы, от соседей и с вылазок. Нанять можно только на свободную кровать: кроватей прибавляется с домом и у соседей на постое.</p>
         <div class="candidates">
           {s.candidates.map((id) => (
             <button type="button" class="candidate" onClick={() => setWorker(id)}>
@@ -226,7 +286,7 @@ export function HouseView({ s, act, onPlace }: { s: GameState; act: Dispatch; on
               <span class="price">{hirePrice(s, id) ? money(hirePrice(s, id)) : <b class="up">даром</b>}</span>
             </button>
           ))}
-          {!s.candidates.length && <p class="small muted">Кандидатов пока нет — придут в новом сезоне.</p>}
+          {!s.candidates.length && <p class="small muted">Кандидатов нет. <button type="button" class="link" onClick={onFair}>Кто ищет работу на ярмарке</button></p>}
         </div>
       </Section>
 
@@ -262,10 +322,12 @@ export function HouseView({ s, act, onPlace }: { s: GameState; act: Dispatch; on
         </div>
       </Section>
       {worker && <WorkerSheet s={s} id={worker} act={act} onClose={() => setWorker(null)} />}
-      {catalogue && <Sheet title="Купить оборудование" onClose={() => setCatalogue(false)}>
+      {neighbour && <NeighbourSheet s={s} who={neighbour} act={act} onClose={() => setNeighbour(null)} onFair={() => { setNeighbour(null); onFair(); }} />}
+      {catalogue && <Sheet title="Новая постройка" onClose={() => setCatalogue(false)}>
         <p class="small muted">Одновременно строится: {workshopSlots(s)}.</p>
-        <div class="tracks">{newTracks.map((t) => <TrackCard s={s} t={t} act={act} onPlace={(item) => { setCatalogue(false); onPlace(item); }} open={openTrack === t} onToggle={() => setOpenTrack(openTrack === t ? null : t)} />)}</div>
-        {!newTracks.length && <p class="small muted">Всё доступное оборудование уже куплено.</p>}
+        <div class="shed-row"><span>В сарае</span><ShedChips s={s} /></div>
+        <div class="tracks">{newTracks.map((t) => <TrackCard s={s} t={t} act={act} onFair={() => { setCatalogue(false); onFair(); }} onPlace={(item) => { setCatalogue(false); onPlace(item); }} open={openTrack === t} onToggle={() => setOpenTrack(openTrack === t ? null : t)} />)}</div>
+        {!newTracks.length && <p class="small muted">Все постройки уже заложены.</p>}
       </Sheet>}
     </div>
   );

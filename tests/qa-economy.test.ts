@@ -163,12 +163,14 @@ test('ECO-05 · six years of steady paying play: every number finite, no hidden 
         const pl = G.placements(s, c); if (pl.length) s = G.apply(s, { t: 'play', uid: c.uid, tiles: pl[0].tiles });
       }
       for (const crop of D.CROP_IDS) { const q = G.freeStock(s, crop); if (q > 0) s = G.apply(s, { t: 'sell', crop, qty: q }); }
-      const p = G.paymentNow(s); const before = s.stats.payments, base = p ? G.paymentBase(s, p.season) + s.carry : 0;
+      const p = G.paymentNow(s); const before = s.stats.payments, base = p ? G.paymentDue(s, p.season) + s.carry : 0;
       s = pay(G.endWeek(s));
       if (p) assert.equal(G.round2(s.stats.payments - before), base);
       assert.ok(finite(s), `${loc} y${s.year} w${s.week}`); assert.equal(s.loans.length, 0); assert.ok(s.money >= 0);
     }
     assert.equal(G.paymentBase(s, 2), Math.round(112 * Math.pow(1.42, s.year - 1) * D.LOCATIONS[loc].payMult));
+    // v3 §3.1–3.2 · three autumn payments buy the home out: from then on it pays only the yearly tax
+    if (G.isHome(s)) { assert.equal(s.owned, true); assert.equal(G.paymentDue(s, 2), G.homeTax(s)); assert.equal(G.paymentSchedule(s).length, 1); }
   }
 });
 
@@ -347,7 +349,7 @@ test('ORG-06 · relation thresholds 25 and −40 act exactly at the boundary', (
 test('UP-01 · a full workshop or lab refuses new projects without charging; no duplicate project', () => {
   let s = quiet(); s = G.apply(s, { t: 'track', track: 'irrigation' });
   const snap = JSON.stringify(s);
-  assert.throws(() => G.apply(s, { t: 'track', track: 'barn' }), /Мастерская занята/); assert.throws(() => G.apply(s, { t: 'track', track: 'irrigation' }), /Уже строится/);
+  assert.throws(() => G.apply(s, { t: 'track', track: 'barn' }), /Бригада занята/); assert.throws(() => G.apply(s, { t: 'track', track: 'irrigation' }), /Уже строится/);
   assert.equal(JSON.stringify(s), snap);
   s.levels.lab = 1; s = G.apply(s, { t: 'labBio' }); const lab = JSON.stringify(s);
   assert.throws(() => G.apply(s, { t: 'labBio' }), /заняты/); assert.throws(() => G.apply(s, { t: 'labVariety', crop: G.labCrops(s)[0] }), /заняты/);
@@ -370,15 +372,21 @@ test('UP-02 · a building that finishes in a payment week (also the last before 
 test('UP-03/UP-04 · hire, train, fire mid-training, upgrade the house: never more workers than places', () => {
   let s = quiet(); s.candidates = ['foreman', 'agronomist', 'irrigator'];
   s = G.apply(s, { t: 'hire', id: 'foreman' });
-  assert.throws(() => G.apply(s, { t: 'hire', id: 'agronomist' }), /места/);
+  assert.throws(() => G.apply(s, { t: 'hire', id: 'agronomist' }), /кроватей/);
   const price = G.trainPrice(s, 'foreman'), cash = s.money;
   s = G.apply(s, { t: 'train', id: 'foreman' }); assert.equal(s.money, cash - price); assert.equal(s.team[0].away, 2); assert.equal(G.wlvl(s, 'foreman'), 0);
+  // v3 · the house takes materials, and the second bed comes with the third level (beds 1, 1, 2, …)
+  s.mats = { logs: 40, bricks: 40, glass: 10 };
   s = G.apply(s, { t: 'track', track: 'house' }); s = G.endWeek(s);
   s = G.apply(s, { t: 'fire', id: 'foreman' }); assert.equal(s.team.length, 0); assert.equal(G.weeklyCosts(s).salaries, 0);
-  while (G.lvl(s, 'house') < 2) { assert.ok(s.team.length <= G.workerSlots(s)); s = pay(G.endWeek(s)); }
+  while (G.lvl(s, 'house') < 3) {
+    assert.ok(s.team.length <= G.workerSlots(s));
+    if (!s.projects.some((p) => p.kind === 'track' && p.track === 'house')) { s.money = Math.max(s.money, 500); s = G.apply(s, { t: 'track', track: 'house' }); }
+    s = pay(G.endWeek(s));
+  }
   s.candidates = ['agronomist', 'irrigator', 'foreman'];
   s = G.apply(s, { t: 'hire', id: 'agronomist' }); s = G.apply(s, { t: 'hire', id: 'irrigator' });
-  assert.throws(() => G.apply(s, { t: 'hire', id: 'foreman' }), /места/); assert.equal(s.team.length, G.workerSlots(s));
+  assert.throws(() => G.apply(s, { t: 'hire', id: 'foreman' }), /кроватей/); assert.equal(s.team.length, G.workerSlots(s));
 });
 
 test('FIX UP-05 · moving a settled greenhouse onto its own cell does not silently reset its yield bonus', () => {
@@ -407,7 +415,7 @@ test('UP-05 · equipment moves: an invalid target changes nothing; a moved green
 });
 
 test('UP-06/UP-07 · a lab shape change kept through save/load and a region switch returns once, on time, across a season change', () => {
-  let s = quiet('chernozem', 0); date(s, D.LOCATIONS.chernozem.seasons[0]); s.levels.lab = 1; s.money = 1000;
+  let s = quiet('chernozem', 0); date(s, D.LOCATIONS.chernozem.seasons[0]); s.levels.lab = 1; s.money = 1000; s.knowBase = { radish: 600, potato: 600, bean: 600, carrot: 600, onion: 600, cabbage: 600, wheat: 600, buckwheat: 600, pumpkin: 600, cranberry: 600 };
   const c = s.hand.find((k) => D.CARDS[k.def].kind === 'seed')!, deck = G.deckCount(s), weeks = G.labWeeksFor(s, 'cell');
   const cell = G.upgradeSpots(s, c).find((sp) => G.spotFits(s, c, sp))!;
   s = G.apply(s, { t: 'labCell', uid: c.uid, cell });
