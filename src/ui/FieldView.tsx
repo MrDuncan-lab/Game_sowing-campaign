@@ -1801,7 +1801,7 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
         {trialNight && <TrialSky n={trialNight.n} D={trialNight.D} E={trialNight.E} key={`${trialNight.n.id}:${trialNight.n.wave ?? 0}`} />}
         {trialNight?.n.kind === 'locust' && <SwarmCanvas n={trialNight.n} D={trialNight.D} E={trialNight.E} anchor={() => viewRef.current?.querySelector('.tn-anchor') ?? null} key={`sw:${trialNight.n.id}:${trialNight.n.wave ?? 0}`} />}
         {/* the way to the sections: the village on the horizon (pulling the sky down works too) */}
-        {villageOn && vmode === 'field' && <button type="button" class={`v-sign${sectionNews ? ' news' : ''}`} style={{ top: "4px" }} onClick={() => village.toggle()} aria-label="Деревня: разделы фермы">
+        {villageOn && vmode === 'field' && <button type="button" class={`v-sign${sectionNews ? ' news' : ''}`} style={{ top: "4px" }} onPointerDown={() => viewRef.current?.classList.add('v-warm')} onClick={() => { viewRef.current?.classList.add('v-warm'); village.toggle(); }} aria-label="Деревня: разделы фермы">
           <span>Деревня<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 8 L6 4 L10 8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg></span>
         </button>}
 

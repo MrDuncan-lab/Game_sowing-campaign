@@ -322,6 +322,7 @@ export function useVillagePager(o: {
   function endMove() {
     const S = st.current, O = opts.current;
     if (S.moving) { S.moving = false; O.viewRef.current?.classList.remove('v-moving'); }
+    O.viewRef.current?.classList.remove('v-warm');
     const s = clamp(S.s, 0, S.T), phi = phiOf(s);
     // a house can be tapped once most of it is out from behind the hills in front (the field is the nearest hill of
     // all) and under the sky strip; on the field the houses just over the yard stay out of reach
