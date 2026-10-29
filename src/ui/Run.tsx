@@ -251,7 +251,7 @@ export function ArrestLayer({ s, glory, onExpedition, onMap, runFarm }: { s: Gam
   return (
     <ClosedLayer title="Дом под арестом">
       <BankScene mode="arrest" level={lvl(s, 'house')} season={s.season} />
-      <RivalSays text="Дом подождёт. Я тоже подожду: две вылазки — и он мой." />
+      <RivalSays text={`Дом подождёт. Я тоже подожду: ${a.runs > 1 ? `${a.runs} ${plural(a.runs, 'вылазка', 'вылазки', 'вылазок')}` : 'одна вылазка'} — и он мой.`} />
       <p>Долг банку <b>{money(a.debt)}</b>. Вылазок на погашение: <b>{a.runs}</b>. Свёрнутое хозяйство сначала закроет долг, остаток — в кассу дома.</p>
       {s.away ? <p>Обоз уже на вылазке: <b>{LOCATIONS[s.away.loc].name}</b>.</p> : <div class="btn-row">
         {EXPEDITION_IDS.map((l) => <Btn tone={l === 'rent' ? 'primary' : undefined} disabled={expeditionOpen(l, glory) ? null : `Слава ${LOCATIONS[l].glory}`} onClick={() => onExpedition(l)}>{LOCATIONS[l].name}</Btn>)}

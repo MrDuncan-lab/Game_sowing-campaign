@@ -165,7 +165,7 @@ function HallView({ s, profile, onBack }: { s: GameState; profile: Profile; onBa
             </div>
           ))}
         </div>
-      ) : <p class="small muted">Грамоты дают заказчики в конце цепочек, выкуп дома, праздник урожая, испытания года, знание культур и летопись хозяйства.</p>}
+      ) : <p class="small muted">Грамоты дают заказчики в конце цепочек, выкуп дома, праздник урожая, первое место в районе, испытания года, знание культур и летопись хозяйства.</p>}
       <h4>Питомцы</h4>
       {profile.pets.length ? <div class="chips">{profile.pets.map((p) => <span class="chip"><Pet id={p} size={28} /> {PETS[p].kind} {PETS[p].name}</span>)}</div> : <p class="small muted">Пока нет. Питомцы переезжают с вами на любую ферму.</p>}
       <h4>Семенной фонд</h4>

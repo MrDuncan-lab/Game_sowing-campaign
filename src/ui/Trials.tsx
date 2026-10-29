@@ -104,7 +104,7 @@ export function TrialCard({ s, t, intro, onClose, act, onWorkshop }: { s: GameSt
           <ul class="ta-counters">{def.counters.map((c, i) => <li style={{ ['--i' as string]: String(i) }}><span class="ico"><Icon name={c.icon} size={26} /></span>{c.text}</li>)}</ul>
           <p class="ta-reward">Сохраните {Math.round(TRIAL_PASS * 100)}% урожая — <b>+{TRIAL_GLORY[3]} славы</b>{s.certs.includes(def.cert) ? '' : <> и грамота «{def.cert}»</>}. Больше {Math.round(TRIAL_HOLD * 100)}% — +{TRIAL_GLORY[2]}. Если на поле меньше четырёх грядок, испытание пройдёт мимо.</p>
           <div class="ta-acts">
-            {t.kind !== 'drought' && !lvl(s, 'fires') && <Btn tone="ghost" onClick={() => { onClose(); onWorkshop(); }}>В мастерскую</Btn>}
+            {t.kind !== 'drought' && !lvl(s, 'fires') && <Btn tone="ghost" onClick={() => { onClose(); onWorkshop(); }}>К стройкам</Btn>}
             {fire && <Btn tone="primary" disabled={why} onClick={() => { if (act({ t: 'lightFires' })) onClose(); }}>{firesLit(s) ? 'Костры горят' : `Разжечь костры · ${fireLightDays(s) ? '1 д. · ' : ''}${money(firewoodCost(s))}`}</Btn>}
             <Btn tone={fire ? undefined : 'primary'} onClick={onClose}>{intro ? 'Готовиться' : 'Понятно'}</Btn>
           </div>

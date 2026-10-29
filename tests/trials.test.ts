@@ -138,7 +138,7 @@ test('great drought: one dry week kills; mulch and drip keep its extra loss out'
 
 test('fires: built in the workshop, placed on a corner, lit for a day and firewood, once a week', () => {
   let s = farm(1, 1);
-  assert.equal(G.lightFiresProblem(s), 'Кострищ ещё нет: их строят в мастерской');
+  assert.equal(G.lightFiresProblem(s), 'Кострищ ещё нет: их строят в «Доме», раздел «Стройки»');
   s.levels.fires = 1;
   assert.equal(G.buildStock(s).fire.have, 2);
   assert.ok(G.buildSpots(s, 'fire').some(([x, y]) => x === 2 && y === 2));

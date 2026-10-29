@@ -18,7 +18,7 @@ const sceneLines:Record<SceneCue['kind'],Omit<Remark,'key'>>={
  bear:{who:'egor',text:'Медведя отогнали. Хромой ушёл к ручью — ульи целы.',critical:true},
  boars:{who:'ivan',text:'Кабанов отогнали от поля. Хозяйство цело!',critical:true},
  fire:{who:'egor',text:'Огонь прошёл по краю поля. Политые до краёв грядки не горят.',critical:true},
- buyout:{who:'marat',text:'Залог снят: дом ваш. Поздравляю — от души!',critical:true},
+ buyout:{who:'marat',text:'Последний взнос принят. Несу бумаги на подпись!',critical:true},
 };
 // a bear or boars that got through: the line says what happened and what stops them
 const beastHit:Partial<Record<SceneCue['kind'],Omit<Remark,'key'>>>={

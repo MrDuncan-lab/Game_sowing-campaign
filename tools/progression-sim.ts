@@ -24,6 +24,8 @@ const QUEUE: [D.TrackId, number][] = loc === 'chernozem'
   : [['irrigation', 1], ['compost', 1], ['barn', 1], ['house', 2], ['house', 3], ['irrigation', 2], ['barn', 2]];
 
 const COND = process.env.SIM_COND, FOLD = Number(process.env.SIM_FOLD || 0);
+// SIM_DIAG=1 prints each run's year: cash, the show's harvest, beds, trees and stones, the team, the ordeals' hits so far
+const DIAG = process.env.SIM_DIAG === '1';
 function run(seed: string) {
   const offer = COND ? (COND === 'random' ? plotOffers(loc as D.ExpeditionId, seed)[0] : { cond: COND as CondId, relic: plotOffers(loc as D.ExpeditionId, seed)[0].relic }) : null;
   let s = G.newGame({ loc, seed, ...(offer ? { run: { cond: offer.cond, relics: [offer.relic] } } : {}) });
@@ -176,7 +178,10 @@ function run(seed: string) {
     act({ t: 'endWeek' });
     weeks++;
     for (const l of s.lastReport?.lost ?? []) { const k = l.split(':')[0]; if (['Медведь', 'Кабаны', 'Пожар', 'Засохли без воды', 'Паводок'].includes(k)) hits[k] = (hits[k] ?? 0) + 1; }
-    if (s.year !== year) cashByYear.push(Math.round(s.money - G.outstanding(s)));
+    if (s.year !== year) {
+      cashByYear.push(Math.round(s.money - G.outstanding(s)));
+      if (DIAG) console.log(`  ${seed} y${year}: cash ${Math.round(s.money)} owed ${Math.round(G.outstanding(s))} · harvest ${s.fests?.find((f) => f.year === year)?.you.units ?? '—'} · beds ${G.ownedTiles(s).length} trees ${G.ownedTiles(s).filter(([t]) => G.treeStage(t) > 0).length} rocks ${G.ownedTiles(s).filter(([t]) => t.terrain === 'rock').length} · team ${s.team.length} · hits ${JSON.stringify(hits)}`);
+    }
     const h = G.lvl(s, 'house');
     if (!reached[h]) reached[h] = s.absWeek;
   }

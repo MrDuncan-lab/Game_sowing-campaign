@@ -16,7 +16,7 @@ import { Btn, ClosedLayer, Dispatch, Money, Sheet, compactMoney, reducedMotionNo
 import { ArrestLayer, HomeBankrupt, RivalSays, RoadSheet, RunOver, VisitSheet } from './Run';
 import { BankScene } from '../art/bankScene';
 import { FestivalSheet, RatingSheet, festToShow, markFestSeen } from './Festival';
-import { StoryLayer } from './Story';
+import { StoryLayer, pendingBeats } from './Story';
 import type { ExpeditionId } from '../engine/data';
 import { FieldView } from './FieldView';
 import type { VillageApi, VillageMode } from './Village';
@@ -131,7 +131,14 @@ export function FarmScreen({ s, dispatch, profile, fast, onFast, onMap, onRestar
   const [visitShut, setVisitShut] = useState('');
   const [rating, setRating] = useState(false);
   const [road, setRoad] = useState(false);
+  const [storyTick, setStoryTick] = useState(0);
   const [festShut, setFestShut] = useState(0);
+  // 29.10 · the show and the story wait until the week's playback is over; while one of them (or the district's
+  // table, or the signpost) is open, the field behind it stands still and keeps its voice
+  const festOn = festShut >= 0 && !!festToShow(s) && s.phase === 'week' && !tutorial && !menu && !paymentOpen && !present;
+  const storyBlocked = !!menu || paymentOpen || !!festToShow(s) || rating || !!present || (!!visitKey && visitShut !== visitKey);
+  const storyOn = storyTick >= 0 && !tutorial && !testing && s.phase === 'week' && !storyBlocked && pendingBeats(s, 'sheet').length > 0;
+  const overlay = festOn || rating || road || storyOn;
   const pager = useRef<HTMLDivElement>(null);
   const tabRef = useRef<TabId>('field');
   const navigationTarget = useRef<TabId|null>(null);
@@ -271,7 +278,7 @@ export function FarmScreen({ s, dispatch, profile, fast, onFast, onMap, onRestar
       <LessonLocks.Provider value={lockOf}><QuickProjects.Provider value={!!tutorial}><div class="pager" ref={pager}>
         <section class="pane" {...paneProps('lab')}><Peek area="lab" onBack={() => go('field')}><LabView s={s} act={dispatch} active={tab === 'lab' && !menu && !paymentOpen && !suspended && !tabLock('lab')} teaching={tutorial?.session.step === 'lab'} /></Peek></section>
         <section class="pane" {...paneProps('house')}><Peek area="house" onBack={() => go('field')}><HouseView s={s} act={dispatch} onFair={() => openBarn('fair')} onPlace={(item) => { setPlaceRequest({ item, key: Date.now() }); go('field'); }} /></Peek></section>
-        <section class="pane field-pane" {...paneProps('field')}><FieldView onPresent={setPresent} teaching={!!tutorial} precheck={tutorial?.precheck} lessonVisit={tutorial?.session.step==='visit'} onVisitDone={()=>{if(tutorial?.session.step==='visit')tutorial.onNext();}} onOrder={org=>{setOrderTarget({org,key:Date.now()});go('orders');}} onPayment={()=>setPaymentOpen(true)} onMap={onMap} onRoad={!tutorial && onExpedition && s.loc === 'chernozem' ? () => setRoad(true) : undefined} villageApi={villageApi} onVillageMode={setFieldMode} testing={testing} s={s} dispatch={dispatch} fast={fast} active={tab === 'field' && !menu && !paymentOpen && !suspended} placeRequest={placeRequest} onGo={(t) => t === 'barn' ? openBarn() : t === 'fair' ? openBarn('fair') : go(t as TabId)} /></section>
+        <section class="pane field-pane" {...paneProps('field')}><FieldView onPresent={setPresent} teaching={!!tutorial} precheck={tutorial?.precheck} lessonVisit={tutorial?.session.step==='visit'} onVisitDone={()=>{if(tutorial?.session.step==='visit')tutorial.onNext();}} onOrder={org=>{setOrderTarget({org,key:Date.now()});go('orders');}} onPayment={()=>setPaymentOpen(true)} onMap={onMap} onRoad={!tutorial && onExpedition && s.loc === 'chernozem' ? () => setRoad(true) : undefined} villageApi={villageApi} onVillageMode={setFieldMode} testing={testing} s={s} dispatch={dispatch} fast={fast} active={tab === 'field' && !menu && !paymentOpen && !suspended && !overlay} placeRequest={placeRequest} onGo={(t) => t === 'barn' ? openBarn() : t === 'fair' ? openBarn('fair') : go(t as TabId)} /></section>
         <section class="pane" {...paneProps('barn')}><Peek area="barn" onBack={() => go('field')}><BarnView s={s} act={dispatch} target={barnTarget} onPayment={()=>setPaymentOpen(true)} /></Peek></section>
         <section class="pane" {...paneProps('orders')}><Peek area="orders" onBack={() => go('field')}><OrdersView teaching={!!tutorial} target={orderTarget} s={s} act={dispatch} profile={profile} /></Peek></section>
       </div></QuickProjects.Provider></LessonLocks.Provider>
@@ -287,10 +294,10 @@ export function FarmScreen({ s, dispatch, profile, fast, onFast, onMap, onRestar
         {visitShut !== visitKey && !menu && !paymentOpen && tab === 'field' && <VisitSheet s={s} act={dispatch} onClose={() => setVisitShut(visitKey)} />}
         {visitShut === visitKey && <button type="button" class="guest-chip" onClick={() => setVisitShut('')}><Icon name="hand" size={20} /> Гость у лагеря</button>}
       </>}
-      {festShut >= 0 && festToShow(s) && s.phase === 'week' && !tutorial && !menu && !paymentOpen && <FestivalSheet s={s} onClose={() => { markFestSeen(s, s.year); setFestShut(festShut + 1); }} />}
+      {festOn && <FestivalSheet s={s} onClose={() => { markFestSeen(s, s.year); setFestShut(festShut + 1); }} />}
       {rating && <RatingSheet s={s} profile={profile} onClose={() => setRating(false)} />}
       {road && onExpedition && <RoadSheet home={s} glory={profile.glory} onGo={onExpedition} onMap={onMap} onClose={() => setRoad(false)} />}
-      {!tutorial && !testing && s.phase === 'week' && <StoryLayer s={s} blocked={!!menu || paymentOpen || !!festToShow(s) || rating || (!!visitKey && visitShut !== visitKey)} />}
+      {!tutorial && !testing && s.phase === 'week' && <StoryLayer s={s} blocked={storyBlocked} onSeen={() => setStoryTick(storyTick + 1)} />}
       {menu && (
         <Sheet title={`${loc.name} · ${loc.place}`} icon="map" onClose={() => setMenu(false)}>
           <div class="stack">

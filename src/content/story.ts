@@ -21,7 +21,7 @@ export const STORY: Record<string, StoryBeat> = {
   start: {
     kind: 'sheet', title: 'Первое утро',
     lines: [
-      MARAT('С приездом! Дом в залоге у банка: весной, летом и осенью — взносы. Три осени без просрочки — и дом ваш, дальше только налог раз в год.'),
+      MARAT('С приездом! Дом в залоге у банка: весной, летом и осенью — взносы. Три осенних взноса — и дом ваш, дальше только налог раз в год.'),
       P('Пряхин. Аркадий Семёнович. Через реку живу, в Заречье. Я этот дом на торгах присматривал — банк вам отдал. Прежний хозяин тоже начинал с редиски… Записал вас в тетрадь. Посмотрим, что скажет осень.'),
       PALYCH('Не робейте, он со всеми так. Заказы — на доске у колодца, раз в сезон — ярмарка, а зимой — смотр урожая на площади. Окрепнете — у дороги указатель: обоз в Заречье, а там и на Кубань с Алтаем.'),
     ],
@@ -58,9 +58,9 @@ export const STORY: Record<string, StoryBeat> = {
     lines: [
       PALYCH('Помню, как вы с редиски начинали и как Пряхин вас в тетрадь записал. А теперь гляньте: дом ваш, дворы стоят, клуб гудит.'),
       ZINA('Внук мой говорит — в районе про нашу деревню теперь пишут. А всё с одной избы началось.'),
-      P('Тетрадь моя с восемьдесят седьмого года. Ваша страница в ней — самая длинная. Приходите зимой на смотр, сосед: без вас скучно.'),
+      P('Тетрадь моя с восемьдесят седьмого года. Ваша страница в ней — самая длинная. Приходите зимой на праздник, сосед: без вас скучно.'),
     ],
-    note: 'Летопись закрыта: грамота «Летопись хозяйства» и +50 славы. Игра продолжается — испытания крепнут, Пряхин тоже.',
+    note: 'Летопись закрыта: грамота «Летопись хозяйства» и +50 славы. Игра продолжается: испытания крепнут, а Пряхин каждую зиму ждёт вас на празднике.',
   },
   // ---- remarks: one line in the field's voice
   'rival-buy': { kind: 'remark', lines: [P('Кто зевает на ярмарке, тот покупает у меня. Записал.')] },
@@ -91,11 +91,12 @@ export function rivalVerdict(win: boolean, any: boolean, year: number): string {
   return lines[(year - 1) % lines.length];
 }
 
-/** the rival at a region's fair: Пряхин at home and in Заречье, local dealers on the expeditions far away */
-export const FAIR_RIVAL: Record<string, { name: string; gen: string; who: PersonId; text: string }> = {
-  chernozem: { name: 'Пряхин', gen: 'Пряхина', who: 'pryakhin', text: `${PRYAKHIN} из Заречья тоже ходит на ярмарку` },
-  rent: { name: 'Пряхин', gen: 'Пряхина', who: 'pryakhin', text: `${PRYAKHIN}, ваш арендодатель, тоже ходит на ярмарку` },
-  kuban: { name: 'Перекупщик Жора', gen: 'перекупщика Жоры', who: 'trader', text: 'Перекупщик Жора со станичного рынка скупает всё, что плохо лежит' },
-  altai: { name: 'Скупщик Кеша', gen: 'скупщика Кеши', who: 'trader', text: 'Скупщик Кеша из райцентра возит товар на «буханке» и берёт лучшее' },
+/** the rival at a region's fair: Пряхин at home and in Заречье, local dealers on the expeditions far away
+ *  (the name reads well both at the start and in the middle of a sentence) */
+export const FAIR_RIVAL: Record<string, { name: string; who: PersonId; text: string }> = {
+  chernozem: { name: 'Пряхин', who: 'pryakhin', text: `${PRYAKHIN} из Заречья тоже ходит на ярмарку` },
+  rent: { name: 'Пряхин', who: 'pryakhin', text: `${PRYAKHIN}, ваш арендодатель, тоже ходит на ярмарку` },
+  kuban: { name: 'Жора-перекупщик', who: 'trader', text: 'Жора-перекупщик со станичного рынка скупает всё, что плохо лежит' },
+  altai: { name: 'Кеша-скупщик', who: 'trader', text: 'Кеша-скупщик из райцентра возит товар на «буханке» и берёт лучшее' },
 };
 export const fairRival = (loc: string) => FAIR_RIVAL[loc] ?? FAIR_RIVAL.chernozem;

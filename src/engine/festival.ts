@@ -7,15 +7,16 @@ export type FestCat = 'units' | 'kinds' | 'best';
 export const FEST_CATS: FestCat[] = ['units', 'kinds', 'best'];
 export const FEST_NAMES: Record<FestCat, string> = { units: 'Урожай года', kinds: 'Разнообразие', best: 'Лучшая грядка' };
 export const FEST_UNITS: Record<FestCat, string> = { units: 'ед.', kinds: 'культур', best: 'ед. с грядки' };
-/** Пряхин's showing in the k-th year of the farm (0 = the first): he grows every year, club or no club. A judging is
+/** Пряхин's showing in the k-th year of the farm (0 = the first): he grows for the first six years, club or no club,
+ *  then holds at his best (an old man's peak: the late game is the farm's own fight with the ordeals). A judging is
  *  won by beating him outright: a tie is his. Calibrated 29.10 on the builder bot (tools/progression-sim.ts): he takes
- *  the first two winters, an ordinary growing farm overtakes him in years 3–6, and he catches up later unless the farm
- *  keeps growing and sows more crops. */
-export const rivalShow = (k: number): Record<FestCat, number> => ({
-  units: 320 + 45 * k,
-  kinds: Math.min(10, 6 + Math.floor(k / 2)),
-  best: Math.round(22 + 2.5 * k),
-});
+ *  the first two winters, an ordinary growing farm overtakes him in years 3–6, and a club built late is still a fight
+ *  the farm can win if its harvest keeps up. */
+export const RIVAL_PEAK = 5;
+export const rivalShow = (k: number): Record<FestCat, number> => {
+  const y = Math.min(Math.max(0, k), RIVAL_PEAK);
+  return { units: 320 + 45 * y, kinds: 6 + Math.floor(y / 2), best: Math.round(22 + 2.5 * y) };
+};
 /** glory for each judging won, and for winning two of three */
 export const FEST_CAT_GLORY = 5;
 export const FEST_WIN_GLORY = 15;
@@ -23,7 +24,7 @@ export const FEST_CERT = 'Победитель праздника урожая';
 /** 29.10 · before the club there is a smaller show on the square every winter, with smaller rewards */
 export const SMOTR_CAT_GLORY = 2;
 export const SMOTR_WIN_GLORY = 5;
-export const SMOTR_NAME = 'Смотр на площади';
+export const SMOTR_NAME = 'Смотр урожая';
 export const FEST_NAME = 'Праздник урожая';
 /** the farm's chronicle: six milestones of the home; all of them close it with an epilogue */
 export type ChronicleId = 'owned' | 'house7' | 'yards' | 'club' | 'beat' | 'first';

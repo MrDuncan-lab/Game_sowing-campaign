@@ -64,10 +64,12 @@ test('before the club a show on the square (small glory, no prize); with the clu
   assert.ok(validFarm(json(n)));
 });
 
-test('Пряхин grows every year; a weak year loses', () => {
+test('Пряхин grows for six years, then holds; a weak year loses', () => {
   const a = F.rivalShow(0), b = F.rivalShow(4);
   for (const c of F.FEST_CATS) assert.ok(b[c] >= a[c]);
   assert.ok(b.units > a.units);
+  assert.deepEqual(F.rivalShow(F.RIVAL_PEAK + 7), F.rivalShow(F.RIVAL_PEAK));
+  assert.ok(F.rivalShow(F.RIVAL_PEAK).units > F.rivalShow(F.RIVAL_PEAK - 1).units);
   let s = home();
   toAutumnEnd(s);
   s.commons = ['club'];
@@ -120,4 +122,42 @@ test('29.10 · story beats: the first morning at home, once; none on the lesson 
   const old = json(s) as unknown as Record<string, unknown>;
   delete old.told; delete old.beats;
   assert.ok(validFarm(old));
+});
+
+test('29.10 · the lesson farm stays without story beats however long it is played', async () => {
+  const { createTutorial } = await import('../src/engine/tutorial');
+  const t = createTutorial();
+  let s = t.farm;
+  assert.equal(s.told, undefined);
+  for (let i = 0; i < 8; i++) { s = pass(s); G.beat(s, 'rival-buy'); }
+  assert.equal(s.told, undefined);
+  assert.equal(s.beats, undefined);
+});
+
+test('29.10 · antonovka and «сосед» come with the first win in the club only; an older save keeps its tree', () => {
+  let s = home('PACT');
+  toAutumnEnd(s);
+  s.commons = ['club'];
+  // a save from before the show on the square: its result has no `club` field and was a festival in the club
+  s.fests = [{ year: 0, you: { units: 1, kinds: 1, best: 1 }, rival: { units: 0, kinds: 0, best: 0 }, won: ['units', 'kinds'], win: true, glory: 25 }];
+  assert.equal(G.hasAntonovka(s), true);
+  s.yearHarvest = { year: s.year, units: 9999, kinds: ['potato', 'radish', 'wheat', 'cabbage', 'carrot', 'onion', 'bean', 'pumpkin'], best: 99 };
+  s = pass(s);
+  assert.equal(s.fests!.at(-1)!.win, true);
+  assert.equal(s.told?.includes('fest-pact'), false);
+});
+
+test('29.10 · in the district a tie is the village’s: the farm passes a place only by being stronger', () => {
+  const s = home('TIE');
+  s.year = 1;
+  for (const k of Object.keys(s.levels) as D.TrackId[]) s.levels[k] = 0;
+  s.levels.house = 5;
+  s.yards = { zina: { stage: 2 }, savva: { stage: 2 } };
+  s.commons = []; s.fests = [];
+  const him = () => G.districtTable(s).findIndex((r) => r.name === F.DISTRICT[0].name);
+  const me = () => G.districtTable(s).findIndex((r) => r.you);
+  assert.equal(G.farmStrength(s), Math.round(F.DISTRICT[0].base + F.DISTRICT[0].growth * s.year));
+  assert.ok(him() < me());
+  s.yards.efim = { stage: 1 };
+  assert.ok(me() < him());
 });

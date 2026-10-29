@@ -414,7 +414,7 @@ export function fireHeat(s: GameState, x: number, y: number, lit = firesLit(s)):
 export const inSmoke = (s: GameState, x: number, y: number) => firesLit(s) && firePits(s).some(([a, b]) => fireCore(a, b).some(([p, q]) => p === x && q === y));
 export function lightFiresProblem(s: GameState): string | null {
   if (s.phase !== 'week') return 'Сначала решите вопрос с платежом';
-  if (!firePits(s).length) return lvl(s, 'fires') ? 'Поставьте кострища на поле' : 'Кострищ ещё нет: их строят в мастерской';
+  if (!firePits(s).length) return lvl(s, 'fires') ? 'Поставьте кострища на поле' : 'Кострищ ещё нет: их строят в «Доме», раздел «Стройки»';
   if (s.season === 3) return 'Зимой в поле греть нечего';
   if (firesLit(s)) return 'Костры уже горят';
   if (s.money < firewoodCost(s)) return `Нужно ${money(firewoodCost(s))} на дрова`;
@@ -1327,7 +1327,8 @@ function startRun(s: GameState, o: RunOptions) {
   const carried: RunState['carried'] = { uids: [], cash: 0 };
   s.run = { cond: o.cond, relics: [...new Set(o.relics ?? [])], carried, visit: null, nextVisit: FIRST_VISIT, seen: [], used: [], autumns: 0, ...(o.home ? { home: o.home } : {}), ...(o.work ? { work: true } : {}) };
   // the cart: cards bred at home ride on top of the deck, a worker from home, and some cash
-  const cards = (o.cards ?? []).slice(0, 3).map((c) => ({ ...structuredClone(c), uid: s.nextUid++ }));
+  // (how many cards fit is checked on departure, meta.ts departProblem: 3, four from the rank «Мастер урожая»)
+  const cards = (o.cards ?? []).slice(0, 4).map((c) => ({ ...structuredClone(c), uid: s.nextUid++ }));
   for (const c of cards) { delete c.keep; delete c.temp; carried.uids.push(c.uid); }
   s.draw.push(...cards);
   if (o.worker) { s.team.push({ id: o.worker.id, level: o.worker.level, away: 0 }); carried.worker = o.worker.id; }
@@ -2024,6 +2025,8 @@ export function thievesBlocked(s: GameState): boolean {
 }
 /** a story beat (content/story.ts): once per farm; the screen shows the recent ones as a sheet or a remark */
 export function beat(s: GameState, id: string) {
+  // the lesson farm has no story: Палыч teaches, Пряхин waits for the player's own farm
+  if (s.quiet) return;
   if ((s.told ??= []).includes(id)) return;
   s.told.push(id);
   s.beats = [...(s.beats ?? []), { id, week: s.absWeek }].slice(-8);
@@ -2407,6 +2410,7 @@ function festival(s: GameState) {
   const you = festShow(s), rival = festRival(s);
   const won = FEST_CATS.filter((c) => you[c] > rival[c]);
   const win = won.length >= 2;
+  const firstInClub = club && win && !(s.fests ?? []).some((f) => f.win && festInClub(f));
   let glory = 0;
   const catGlory = club ? FEST_CAT_GLORY : SMOTR_CAT_GLORY;
   for (const c of won) { addGlory(s, catGlory, `fest-${s.year}-${c}`); glory += catGlory; }
@@ -2416,7 +2420,7 @@ function festival(s: GameState) {
     glory += g;
     if (club && !s.certs.includes(FEST_CERT)) { s.certs.push(FEST_CERT); s.rewardsOut.push({ id: `${s.seed}|${s.loc}|fest|cert`, kind: 'cert', value: FEST_CERT }); }
     // the first win in the club: Пряхин's antonovka and «сосед»
-    if (club) beat(s, 'fest-pact');
+    if (firstInClub) beat(s, 'fest-pact');
     else beat(s, 'smotr-win');
   }
   (s.fests ??= []).push({ club, year: s.year, you, rival, won, win, glory, ...(s.yearHarvest?.bestCrop ? { bestCrop: s.yearHarvest.bestCrop } : {}) });
@@ -2427,7 +2431,7 @@ function festival(s: GameState) {
   feed(s, `${msg}.`, win ? 'good' : 'info');
 }
 /** Пряхин gave his antonovka: it grows in the yard */
-export const hasAntonovka = (s: GameState) => !!s.told?.includes('fest-pact');
+export const hasAntonovka = (s: GameState) => !!s.told?.includes('fest-pact') || (s.fests ?? []).some((f) => f.win && festInClub(f));
 // ---------- v3 §9.1 · the district ----------
 /** the strength of the farm as the district sees it: the house, the buildings, the village, the festivals */
 export function farmStrength(s: GameState): number {
@@ -2440,7 +2444,8 @@ export interface DistrictRow { name: string; strength: number; note: string; you
 export function districtTable(s: GameState): DistrictRow[] {
   const rows: DistrictRow[] = DISTRICT.map((v) => ({ name: v.name, note: v.note, strength: Math.round(v.base + v.growth * s.year) }));
   rows.push({ name: 'Ваше хозяйство', note: LOCATIONS[s.loc].name, strength: farmStrength(s), you: true });
-  return rows.sort((a, b) => b.strength - a.strength || Number(!!b.you) - Number(!!a.you));
+  // a tie is the village's: the farm overtakes a place only by being stronger (as at the show, where a tie is Пряхин's)
+  return rows.sort((a, b) => b.strength - a.strength || Number(!!a.you) - Number(!!b.you));
 }
 export const districtPlace = (s: GameState) => districtTable(s).findIndex((r) => r.you) + 1;
 /** at a season's start at home: the farm overtakes Пряхин's place in the district, then comes first */
@@ -3877,7 +3882,7 @@ export function apply(state: GameState, a: Action): GameState {
       const why = labProblem(s);
       if (why) fail(why);
       const c = findDeckCard(s, a.uid);
-      if (!c || !isSeed(c.def)) fail('Выбери карту семян');
+      if (!c || !isSeed(c.def)) fail('Выберите карту семян');
       { const lim = cellLimit(s, c!); if (lim) fail(lim); }
       // Selecting a hand card explicitly transfers that UID into the project.
       if (!Array.isArray(a.cell) || !upgradeSpots(s, c!).some(([x, y]) => x === a.cell[0] && y === a.cell[1])) fail('Сюда клетку не добавить');
@@ -3894,7 +3899,7 @@ export function apply(state: GameState, a: Action): GameState {
       const why = labProblem(s);
       if (why) fail(why);
       const c = findDeckCard(s, a.uid);
-      if (!c || !isSeed(c.def)) fail('Выбери карту семян');
+      if (!c || !isSeed(c.def)) fail('Выберите карту семян');
       // Selecting a hand card explicitly transfers that UID into the project.
       if (!Object.prototype.hasOwnProperty.call(TRAITS, a.trait)) fail('Нет такого признака');
       if ((c!.traits ?? []).includes(a.trait)) fail('Этот признак уже есть');
@@ -4435,7 +4440,7 @@ function build(s: GameState, item: BuildItem, x: number, y: number) {
   const stock = buildStock(s);
   const st = typeof item === 'string' && Object.prototype.hasOwnProperty.call(stock, item) ? stock[item] : undefined;
   if (!st) fail('Нет такой постройки');
-  if (st.used >= st.have) fail(st.have ? 'Все такие постройки уже стоят на поле' : 'Сначала её нужно построить в мастерской');
+  if (st.used >= st.have) fail(st.have ? 'Все такие постройки уже стоят на поле' : 'Сначала её нужно построить: «Дом», раздел «Стройки»');
   if (!buildSpots(s, item).some(([a, b]) => (item === 'drip' ? b === y : a === x && b === y))) fail('Сюда не поставить');
   if (item === 'drip') for (let k = 0; k < GRID; k++) tile(s, k, y).drip = true;
   else if (item === 'scarecrow') s.scarecrows.push([x, y]);

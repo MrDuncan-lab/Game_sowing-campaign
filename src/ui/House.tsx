@@ -258,7 +258,7 @@ export function HouseView({ s, act, onPlace, onFair }: { s: GameState; act: Disp
         {newTracks.length > 0 && <Btn onClick={() => setCatalogue(true)}><Icon name="build" size={20} /> Новая постройка</Btn>}
       </Section>
 
-      {isHome(s) && (
+      {isHome(s) && !s.quiet && (
         <Section id="chronicle" title="Летопись хозяйства" icon="journal" extra={<span class="slots">район: {districtPlace(s)}-е место</span>}>
           <Chronicle s={s} />
           <FestivalStandings s={s} />

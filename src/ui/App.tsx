@@ -71,10 +71,13 @@ function OwnedApp() {
   const profRef = useRef(profile);
   profRef.current = profile;
 
+  /** 29.10 · a new rank tells what it opens (whichever way the glory came: a week, a closed farm, a departure) */
+  function noteRank(p: Profile) {
+    if (rankOf(p.glory).index > rankOf(profRef.current.glory).index) setRankUp(rankOf(p.glory).index);
+  }
   function commitProfile(p: Profile) {
     if (!checkSaveSession()) return false;
-    // 29.10 · a new rank tells what it opens
-    if (rankOf(p.glory).index > rankOf(profRef.current.glory).index) setRankUp(rankOf(p.glory).index);
+    noteRank(p);
     if (p !== profRef.current) {
       profRef.current = p;
       setProfile(p);
@@ -149,6 +152,7 @@ function OwnedApp() {
     if (previous) {
       const closed = recordEnd(syncProfile(profRef.current, previous), previous);
       if (closed !== profRef.current && !saveProfile(closed)) return;
+      noteRank(closed);
       profRef.current = closed;
       setProfile(closed);
     }
@@ -202,6 +206,7 @@ function OwnedApp() {
       // ST-05/ST-06 · the closed run's rewards reach the stored profile before its live slot is replaced
       const closed = recordEnd(syncProfile(profRef.current, previous), previous);
       if (closed !== profRef.current && !saveProfile(closed)) return;
+      noteRank(closed);
       profRef.current = closed;
       setProfile(closed);
     }
@@ -261,11 +266,12 @@ function OwnedApp() {
         onExpedition={(l) => { toMap(); setDepartFor({ loc: l, key: Date.now() }); }}
         error={error}
         onTest={()=>{setTestRegion(s.loc);setTesting(true);}}
+        suspended={rankUp !== null}
       />
     );
   const leaveTutorial=()=>{commitProfile({...profRef.current,settings:{...profRef.current.settings,intro:true}});setTutorial(false);if(window.location.hash==='#learn')history.replaceState(null,'',location.pathname+location.search);};
   // 29.10 · «Своя ферма» after the lesson goes straight home: the home that is there, or a new one (its first morning)
-  if(tutorial)return <Tutorial profile={profile} onExit={leaveTutorial} onOwn={()=>{leaveTutorial();const home=farmsRef.current.chernozem;if(home&&home.phase!=='gameover')open('chernozem');else startNew('chernozem');}}/>;
+  if(tutorial)return <Tutorial profile={profile} onExit={leaveTutorial} onOwn={()=>{leaveTutorial();const home=farmsRef.current.chernozem??loadFarm('chernozem');if(home&&(home.phase!=='gameover'||home.over?.work!==undefined))open('chernozem');else startNew('chernozem');}}/>;
   if(testing)return <TestLab initialLoc={testRegion} onExit={()=>{setTesting(false);if(window.location.hash==='#test')window.history.replaceState(null,'',window.location.pathname+window.location.search);}}/>;
   return (
     <>

@@ -91,8 +91,8 @@ export function FestivalStandings({ s }: { s: GameState }) {
   return (
     <section class="nb-swap fest-standings">
       <h3><Icon name="trophy" size={18} /> {club ? FEST_NAME : SMOTR_NAME}</h3>
-      {done ? <p class="small">В этом году смотр прошёл: {done.win ? 'вы обошли Пряхина' : 'первый — Пряхин'}. Следующий — в первую неделю зимы.</p>
-        : <p class="small">В первую неделю зимы — смотр хозяйств. Обойдите Пряхина в двух номинациях из трёх: +{club ? FEST_CAT_GLORY : SMOTR_CAT_GLORY} славы за каждую и +{club ? FEST_WIN_GLORY : SMOTR_WIN_GLORY} за победу.{club ? ' Победа в клубе — грамота и призовой лот.' : ' С клубом смотр станет праздником урожая: грамота и призовой лот.'}</p>}
+      {done ? <p class="small">В этом году {club ? 'праздник' : 'смотр'} прошёл: {done.win ? 'вы обошли Пряхина' : 'первый — Пряхин'}. Следующий — в первую неделю зимы.</p>
+        : <p class="small">В первую неделю зимы — {club ? 'праздник урожая в клубе' : 'смотр урожая на площади'}. Обойдите Пряхина в двух номинациях из трёх: +{club ? FEST_CAT_GLORY : SMOTR_CAT_GLORY} славы за каждую и +{club ? FEST_WIN_GLORY : SMOTR_WIN_GLORY} за победу.{club ? ' Победа в клубе — грамота и призовой лот.' : ' С клубом смотр станет праздником урожая: грамота и призовой лот.'}</p>}
       <Judging you={done ? done.you : festShow(s)} rival={done ? done.rival : festRival(s)} done={!!done} />
       {wins > 0 && <small class="muted">Побед над Пряхиным: {wins}.</small>}
     </section>
@@ -113,7 +113,7 @@ export function Chronicle({ s }: { s: GameState }) {
           </li>
         ))}
       </ol>
-      <p class="small muted">{n === items.length ? 'Летопись закрыта. Игра продолжается: испытания крепнут, Пряхин тоже.' : `Записано ${n} из ${items.length}. Когда закроются все — эпилог, грамота и +50 славы.`}</p>
+      <p class="small muted">{n === items.length ? 'Летопись закрыта. Игра продолжается: испытания крепнут, а Пряхин каждую зиму ждёт вас на празднике.' : `Записано ${n} из ${items.length}. Когда закроются все — эпилог, грамота и +50 славы.`}</p>
     </div>
   );
 }

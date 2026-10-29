@@ -61,11 +61,11 @@ export function StorySheet({ id, onClose }: { id: string; onClose: () => void })
 }
 
 /** the next unseen sheet beat of this farm, shown over the farm when nothing else is open */
-export function StoryLayer({ s, blocked }: { s: GameState; blocked: boolean }) {
+export function StoryLayer({ s, blocked, onSeen }: { s: GameState; blocked: boolean; onSeen?: () => void }) {
   const [, setTick] = useState(0);
   if (blocked) return null;
   const id = pendingBeats(s, 'sheet')[0];
   if (!id) return null;
-  return <StorySheet id={id} onClose={() => { markBeat(s, id); setTick((t) => t + 1); }} />;
+  return <StorySheet key={id} id={id} onClose={() => { markBeat(s, id); setTick((t) => t + 1); onSeen?.(); }} />;
 }
 

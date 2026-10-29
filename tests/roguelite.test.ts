@@ -573,3 +573,16 @@ test('the worker away with the cart is never offered by the fair and cannot be h
     assert.ok(!home.fair!.lots.some((l) => l.kind === 'worker' && l.worker === 'agronomist'), `week ${home.absWeek}`);
   }
 });
+
+test('29.10 · the rank «Мастер урожая» puts a fourth card on the cart, and all four ride to the expedition', () => {
+  const home = G.newGame({ loc: 'chernozem', seed: 'HOME-4' });
+  home.money = 500;
+  const uids = home.draw.slice(0, 4).map((c) => c.uid);
+  const deck = G.deckCount(home);
+  assert.match(M.departProblem(home, 'rent', 0, { uids, cash: 0 })!, /3 карты/);
+  assert.equal(M.departProblem(home, 'rent', 300, { uids, cash: 0 }), null);
+  const { home: h, run } = M.depart(home, 'rent', M.departureOffers(home, 'rent')[0], { uids, cash: 0 }, 'RUN-4', { glory: 300 });
+  assert.equal(G.deckCount(h), deck - 4);
+  assert.equal(h.away!.cards.length, 4);
+  assert.equal(run.run!.carried.uids.length, 4);
+});
