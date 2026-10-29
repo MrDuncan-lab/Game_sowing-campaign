@@ -10,6 +10,7 @@ import { FarmScreen } from './FarmScreen';
 import { MapScreen } from './MapScreen';
 import { Profile, allFarms, checkSaveSession, hasFarmData, loadFarm, loadProfile, persistenceStatus, profileRecoveryRequired, recordEnd, resetPersistenceSession, saveFarm, saveProfile, subscribePersistence, syncFarm, syncProfile, writeSessionStorage } from './persist';
 import { saveSession } from './saveSession';
+import { launchedFromTelegram } from './telegram';
 import { Intro } from './Intro';
 import { Btn, Sheet } from './common';
 
@@ -20,7 +21,9 @@ export function App() {
     const unsubscribe = saveSession.subscribe(() => setSession(saveSession.status()));
     const resume = () => { void saveSession.acquire(); };
     window.addEventListener('pageshow', resume);
-    void saveSession.acquire();
+    // In Telegram the player sees one game at a time: a copy that still holds the save is a mini app Telegram
+    // minimised or kept alive after closing, so the one just opened takes over at once
+    void saveSession.acquire().then(ok => { if (!ok && saveSession.status().state === 'busy' && launchedFromTelegram()) void saveSession.takeOver(); });
     return () => { unsubscribe(); window.removeEventListener('pageshow', resume); saveSession.release(); };
   }, []);
   if (session.state === 'owner') {
@@ -33,13 +36,13 @@ export function App() {
   const stale = session.state === 'stale', unsupported = session.state === 'unsupported', checking = session.state === 'checking';
   return <main style={{ minHeight: '100dvh', display: 'grid', placeItems: 'center', padding: '20px' }}>
     <section class="sheet" role="status" aria-live="polite" style={{ width: 'min(100%, 460px)', padding: '24px' }}>
-      <h2>{checking ? 'Открываем ферму…' : stale ? 'Сохранение обновилось' : unsupported ? 'Не удалось защитить сохранение' : 'Игра открыта в другой вкладке'}</h2>
+      <h2>{checking ? 'Открываем ферму…' : stale ? 'Игра продолжается в другом окне' : unsupported ? 'Не удалось защитить сохранение' : 'Игра открыта в другом окне'}</h2>
       {!checking && <p>{stale
-        ? 'Другая вкладка изменила прогресс. Обновите страницу, чтобы продолжить с последнего сохранения.'
+        ? 'Игру открыли ещё раз, и прогресс теперь ведётся там. Обновите страницу, чтобы продолжить с последнего сохранения.'
         : unsupported
           ? 'В этом браузере недоступна безопасная запись игры. Сохранения не изменены. Попробуйте открыть игру в другом браузере.'
-          : 'Закройте другую вкладку с игрой, затем продолжите здесь. Ваш прогресс сохранится.'}</p>}
-      {!checking && !unsupported && <Btn tone="primary" onClick={() => stale ? window.location.reload() : void saveSession.acquire()}>{stale ? 'Обновить страницу' : 'Продолжить здесь'}</Btn>}
+          : 'Похоже, игра уже открыта в другой вкладке или свёрнута в Telegram. Нажмите «Продолжить здесь»: там игра остановится, весь прогресс сохранён.'}</p>}
+      {!checking && !unsupported && <Btn tone="primary" onClick={() => stale ? window.location.reload() : void saveSession.takeOver()}>{stale ? 'Обновить страницу' : 'Продолжить здесь'}</Btn>}
     </section>
   </main>;
 }
