@@ -7,11 +7,14 @@ export type FestCat = 'units' | 'kinds' | 'best';
 export const FEST_CATS: FestCat[] = ['units', 'kinds', 'best'];
 export const FEST_NAMES: Record<FestCat, string> = { units: 'Урожай года', kinds: 'Разнообразие', best: 'Лучшая грядка' };
 export const FEST_UNITS: Record<FestCat, string> = { units: 'ед.', kinds: 'культур', best: 'ед. с грядки' };
-/** Пряхин's showing in the k-th year of the farm (0 = the first): he grows every year, club or no club */
+/** Пряхин's showing in the k-th year of the farm (0 = the first): he grows every year, club or no club. A judging is
+ *  won by beating him outright: a tie is his. Calibrated 29.10 on the builder bot (tools/progression-sim.ts): he takes
+ *  the first two winters, an ordinary growing farm overtakes him in years 3–6, and he catches up later unless the farm
+ *  keeps growing and sows more crops. */
 export const rivalShow = (k: number): Record<FestCat, number> => ({
-  units: Math.round(200 * (1 + 0.1 * k)),
-  kinds: Math.min(10, 5 + Math.floor(k / 3)),
-  best: Math.round(10 + 1.5 * k),
+  units: 320 + 45 * k,
+  kinds: Math.min(10, 6 + Math.floor(k / 2)),
+  best: Math.round(22 + 2.5 * k),
 });
 /** glory for each judging won, and for winning two of three */
 export const FEST_CAT_GLORY = 5;

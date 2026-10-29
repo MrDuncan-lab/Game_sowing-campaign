@@ -100,7 +100,7 @@ function GameOver({ s, onMap, onRestart }: { s: GameState; onMap: () => void; on
           <div class="kv"><span>Слава с этой фермы</span><b>{s.glory}</b></div>
           <div class="kv"><span>Собрано урожая</span><b>{s.stats.harvested} ед.</b></div>
         </div>
-        <p class="small muted">Грамоты, питомцы, семенной фонд и слава остаются в профиле — со следующей фермой будет легче.</p>
+        <p class="small muted">Грамоты, питомцы, семенной фонд, знание культур и слава остаются в профиле — со следующей фермой будет легче.</p>
         <div class="btn-row">
           <Btn tone="primary" onClick={onRestart}>Начать заново</Btn>
           <Btn onClick={onMap}>На карту</Btn>

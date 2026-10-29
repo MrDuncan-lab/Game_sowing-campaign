@@ -223,7 +223,7 @@ export function RunOver({ s, onHome, onMap }: { s: GameState; onHome: () => void
         {res.worker && <li><Portrait id={WORKERS[res.worker.id].portrait as PersonId} size={24} /> {WORKERS[res.worker.id].name} возвращается</li>}
         {res.cards.length > 0 && <li><Icon name="seeds" size={20} /> {res.cards.length} {plural(res.cards.length, 'карта', 'карты', 'карт')} обоза</li>}
       </ul>}
-      <p class="small muted">{bust ? 'Работник и карты обоза возвращаются. Слава и грамоты остаются в профиле.' : 'Всё это уже дома. Слава и грамоты вылазки — в профиле.'}</p>
+      <p class="small muted">{bust ? 'Работник и карты обоза возвращаются. Слава и грамоты остаются в профиле.' : 'Всё это уже дома. Слава, грамоты и знание культур с вылазки — в профиле.'}</p>
       <div class="btn-row"><Btn tone="primary" onClick={onHome}>Домой</Btn><Btn onClick={onMap}>На карту</Btn></div>
     </ClosedLayer>
   );

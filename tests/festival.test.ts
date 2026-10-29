@@ -37,7 +37,7 @@ test('the year’s harvest is kept for the festival: units, crops, the best bed'
 test('before the club a show on the square (small glory, no prize); with the club the festival, judged in three', () => {
   let s = home();
   toAutumnEnd(s);
-  s.yearHarvest = { year: s.year, units: 999, kinds: ['potato', 'radish', 'wheat', 'cabbage', 'carrot', 'onion'], best: 30, bestCrop: 'potato' };
+  s.yearHarvest = { year: s.year, units: 999, kinds: ['potato', 'radish', 'wheat', 'cabbage', 'carrot', 'onion', 'bean'], best: 30, bestCrop: 'potato' };
   let n = pass(json(s));
   assert.equal(n.season, 3);
   assert.equal(n.fests?.length, 1);

@@ -184,7 +184,7 @@ function run(seed: string) {
   const stages = YARD_IDS.reduce((n, y) => n + G.yardStage(s, y), 0);
   const know = D.SOWN_IDS.map((c) => G.knowLevel(s, c)).filter((l) => l > 0).sort((a, b) => b - a);
   return { seed, weeks, alive: s.phase !== 'gameover' || !!folded, folded, cond: offer?.cond, relics: s.run?.relics ?? [], hits, visits, house: G.lvl(s, 'house'), reached, cashByYear, got, lots, levels: s.levels, team: s.team.length, mats: s.mats,
-    stages, commons: s.commons ?? [], fests: (s.fests ?? []).length, festWins: (s.fests ?? []).filter((f) => f.win).length, place: loc === 'chernozem' ? G.districtPlace(s) : 0, know, glory: s.glory };
+    stages, commons: s.commons ?? [], festList: s.fests ?? [], fests: (s.fests ?? []).length, festWins: (s.fests ?? []).filter((f) => f.win).length, place: loc === 'chernozem' ? G.districtPlace(s) : 0, know, glory: s.glory };
 }
 
 const res = Array.from({ length: seeds }, (_, i) => run(`V3SIM-${i}`));
@@ -205,6 +205,11 @@ console.log(`materials per run: fair ${Math.round(sum((r) => r.got.fair) / seeds
 if (loc === 'chernozem') {
   console.log(`neighbours: yard stages median ${pct(res.map((r) => r.stages), 0.5)}/15 (p25–p75 ${pct(res.map((r) => r.stages), 0.25)}–${pct(res.map((r) => r.stages), 0.75)}); shared buildings median ${pct(res.map((r) => r.commons.length), 0.5)}; club in ${res.filter((r) => r.commons.includes('club')).length}/${seeds}`);
   console.log(`festivals per run median ${pct(res.map((r) => r.fests), 0.5)}, won ${pct(res.map((r) => r.festWins), 0.5)}; district place median ${pct(res.map((r) => r.place), 0.5)} (best ${Math.min(...res.map((r) => r.place))}); farm glory median ${pct(res.map((r) => r.glory), 0.5)}`);
+  for (let y = 1; y <= 10; y++) {
+    const fs = res.map((r) => r.festList.find((f) => f.year === y)).filter((f) => f);
+    if (!fs.length) continue;
+    console.log(`  show y${y}: you units ${pct(fs.map((f) => f!.you.units), 0.5)} kinds ${pct(fs.map((f) => f!.you.kinds), 0.5)} best ${pct(fs.map((f) => f!.you.best), 0.5)} · rival ${fs[0]!.rival.units}/${fs[0]!.rival.kinds}/${fs[0]!.rival.best} · won ${fs.filter((f) => f!.win).length}/${fs.length}`);
+  }
   console.log(`knowledge (first run): ${res[0].know.map((l) => KNOW_NAMES[l]).join(', ') || '—'}`);
 }
 console.log('final levels (first run):', JSON.stringify(res[0].levels), 'team', res[0].team, 'shed', JSON.stringify(res[0].mats));

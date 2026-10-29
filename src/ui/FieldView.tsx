@@ -400,8 +400,8 @@ function TileDetails({ s, x, y, act, onClose }: { s: GameState; x: number; y: nu
 // v3 §4.5 · what a tree on a bed is and what taking it out gives
 function treeText(t: Tile): string {
   const st = treeStage(t);
-  if (st === 1) return `Поросль на заросшей грядке. Через ${TREE_YOUNG - (t.tree ?? 0)} тёплых недель станет молодым деревом. Выдернуть — 1 день; прополка ряда тоже убирает.`;
-  if (st === 2) return `Молодое дерево: соседи в его тени (×0,85). Срубить — 1 день, +${FELL_LOGS[2]} бревна. Через ${TREE_GROWN - (t.tree ?? 0)} тёплых недель вырастет — тогда ${FELL_LOGS[3]} брёвен.`;
+  if (st === 1) return `Поросль на заросшей грядке. Через ${TREE_YOUNG - (t.tree ?? 0)} ${plural(TREE_YOUNG - (t.tree ?? 0), 'тёплую неделю', 'тёплые недели', 'тёплых недель')} станет молодым деревом. Выдернуть — 1 день; прополка ряда тоже убирает.`;
+  if (st === 2) return `Молодое дерево: соседи в его тени (×0,85). Срубить — 1 день, +${FELL_LOGS[2]} бревна. Через ${TREE_GROWN - (t.tree ?? 0)} ${plural(TREE_GROWN - (t.tree ?? 0), 'тёплую неделю', 'тёплые недели', 'тёплых недель')} вырастет — тогда ${FELL_LOGS[3]} брёвен.`;
   return `Дерево: соседи в его тени (×0,85). Выкорчевать — ${TREE_CHOP} рабочих дня, можно по дню в неделю; сделано ${t.chop ?? 0} из ${TREE_CHOP}. Даст ${FELL_LOGS[3]} брёвен, плодородие грядки +1.`;
 }
 function fellLabel(t: Tile): string {

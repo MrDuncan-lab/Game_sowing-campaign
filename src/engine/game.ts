@@ -2405,7 +2405,7 @@ function festival(s: GameState) {
   if (!festOpen(s) || s.fests?.some((f) => f.year === s.year)) return;
   const club = festClub(s);
   const you = festShow(s), rival = festRival(s);
-  const won = FEST_CATS.filter((c) => you[c] >= rival[c]);
+  const won = FEST_CATS.filter((c) => you[c] > rival[c]);
   const win = won.length >= 2;
   let glory = 0;
   const catGlory = club ? FEST_CAT_GLORY : SMOTR_CAT_GLORY;

@@ -42,7 +42,7 @@ function Judging({ you, rival, done }: { you: Record<string, number>; rival: Rec
       <thead><tr><th></th><th>Вы</th><th>Пряхин</th></tr></thead>
       <tbody>
         {FEST_CATS.map((c) => {
-          const win = you[c] >= rival[c];
+          const win = you[c] > rival[c];
           return (
             <tr class={win ? 'win' : 'lose'}>
               <th scope="row">{FEST_NAMES[c]}<small>{FEST_UNITS[c]}</small></th>

@@ -206,7 +206,7 @@ export function MapScreen({ profile, farms, onOpen, onNew, onTest, onTutorial, o
               );
             })}
           </ol>
-          <p class="atlas-note"><sup>*</sup> Черноземье — родной дом. Остальное — вылазки: обоз из дома, свой участок, свои заказчики; одна вылазка за раз. Слава, грамоты, питомцы и семенной фонд общие.</p>
+          <p class="atlas-note"><sup>*</sup> Черноземье — родной дом. Остальное — вылазки: обоз из дома, свой участок, свои заказчики; одна вылазка за раз. Слава, грамоты, питомцы, семенной фонд и знание культур общие. Главная цель — летопись родного дома: выкуп, подворье, соседи, клуб, победа над Пряхиным, первое место в районе.</p>
           <div class="atlas-test"><button type="button" class="atlas-stamp" onClick={()=>onTest(pick ?? undefined)}>Режим проверки</button></div>
         </section>
       </div>
@@ -223,7 +223,7 @@ export function MapScreen({ profile, farms, onOpen, onNew, onTest, onTutorial, o
         <ul class="loc-unique">{L.unique.map((u) => <li>{u}</li>)}</ul>
         {pick === 'chernozem' && f && <HomeStatus f={f} />}
         {isExp(pick) ? (f && f.phase !== 'gameover' ? <div class="loc-save">
-          <span><b>{SEASON_NAMES[f.season]}, {f.year}-й год</b> · {money(f.money)} · слава {f.glory}</span>
+          <span><b>{SEASON_NAMES[f.season]}, {f.year}-й год</b> · {money(f.money)} · слава с фермы {f.glory}</span>
           {f.run ? <span class="loc-run">Участок «{CONDITIONS[f.run.cond].name}»{f.run.relics.length ? <> · {f.run.relics.map((r) => <RelicChip id={r} />)}</> : null}</span>
             : <span class="small muted">Старая ферма, без обоза из дома. Её можно доиграть; новая начнётся как вылазка.</span>}
           <div class="btn-row"><Btn tone="primary" onClick={() => go(pick)}>{f.run ? 'Продолжить вылазку' : 'Продолжить'}</Btn>{!f.run && <Btn tone="ghost" small disabled={departWhy(pick)} onClick={() => askDepart(pick)}>Новая вылазка</Btn>}</div>
@@ -236,10 +236,9 @@ export function MapScreen({ profile, farms, onOpen, onNew, onTest, onTutorial, o
           <div class="btn-row"><Btn tone="primary" onClick={() => go(pick)}>Решить судьбу дома</Btn><Btn tone="ghost" small onClick={() => askNew(pick)}>Заново</Btn></div>
         </div>
         : f && f.phase !== 'gameover' ? <div class="loc-save">
-          <span><b>{SEASON_NAMES[f.season]}, {f.year}-й год</b> · {money(f.money)} · слава {f.glory}</span>
+          <span><b>{SEASON_NAMES[f.season]}, {f.year}-й год</b> · {money(f.money)} · слава с фермы {f.glory}</span>
           <div class="btn-row"><Btn tone="primary" onClick={() => go(pick)}>{f.phase === 'arrest' ? 'К дому под арестом' : 'Продолжить'}</Btn><Btn tone="ghost" small onClick={() => askNew(pick)}>Заново</Btn></div>
         </div> : open(pick) ? <Btn tone="primary" onClick={() => askNew(pick)}>{f ? 'Начать новую ферму' : 'Играть'}</Btn> : <p class="loc-locked"><Icon name="lock" size={16} /> Откроется со славой {L.glory} (звание «{rankOf(L.glory).name}»)</p>}
-        <Btn tone="ghost" onClick={()=>onTest(pick)}>Проверить регион</Btn>
       </Sheet>}
       {replace && (
         <Sheet title="Новая вылазка?" onClose={() => setReplace(null)}>
