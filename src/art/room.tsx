@@ -203,7 +203,7 @@ export function Room({ seats, certs, cat, dog, winter, camp = 0, region = 'chern
         <path d="M296 58 h8 M312 66 h8 M330 58 h8 M300 76 h8 M322 80 h8 M342 72 h8" stroke="#ddcfb8" stroke-width={1.6} />
       </g>
       </>}
-      {cat && <g class="room-cat" transform="translate(300 2)"><Companion id="cat" size={44} pose="nap" /></g>}
+      {cat && <g class="room-cat" transform={`translate(300 ${camp ? 56 : 2})`}><Companion id="cat" size={44} pose="nap" /></g>}
       {/* table, with the people behind it */}
       <g class="room-crew">
         {seats.map((st, i) => st.kind === 'worker' ? (

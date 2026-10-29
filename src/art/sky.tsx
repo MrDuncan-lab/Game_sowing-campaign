@@ -231,6 +231,8 @@ export function SkyBand({ W, season, tokens, signs, meteoMax, px, onToken, onFog
   // touch targets never smaller than about 40 screen pixels
   const hit = Math.max(30, 40 / Math.max(0.05, px));
   const has = (q: SkyBandProps['part']) => part === 'all' || part === q;
+  // on an expedition the fog stops above the region's land (drawn again in front)
+  const fogH = region !== 'chernozem' && part === 'front' ? H - 46 : H - 8;
   const peaks = [[-.02, 34], [.08, 52], [.17, 40], [.27, 62], [.38, 44], [.5, 58], [.61, 38], [.72, 60], [.83, 46], [.93, 56], [1.03, 36]];
   const land = (
     <>
@@ -255,7 +257,8 @@ export function SkyBand({ W, season, tokens, signs, meteoMax, px, onToken, onFog
       <path class="sky-land" d={`M${-ext} ${H - 12} L0 ${H - 12} Q${W * 0.25} ${H - 22} ${W * 0.5} ${H - 14} Q${W * 0.75} ${H - 6} ${W} ${H - 16} L${W + ext} ${H - 16} V${H + 2} H${-ext} Z`} fill={front} opacity={0.9} />
     </>
   );
-  if (part === 'land') return <g class="sky-band" clip-path="url(#sky-clip)">{land}</g>;
+  // on an expedition the land is drawn once, in front (below), not here as well
+  if (part === 'land') return <g class="sky-band" clip-path="url(#sky-clip)">{region === 'chernozem' ? land : null}</g>;
   if (part === 'veil') return <g class="sky-band" clip-path="url(#sky-clip)"><rect class="sky-veil" x={-ext} width={W + 2 * ext} height={H + 2} fill="url(#sky-veil)" /></g>;
   return (
     <g class="sky-band">
@@ -293,11 +296,11 @@ export function SkyBand({ W, season, tokens, signs, meteoMax, px, onToken, onFog
         {/* fog past the forecast */}
         {fogX < W - 8 && (
           <g class="sky-fogbank" role="button" tabindex={0} aria-label="Туман: дальше прогноза" onClick={(e) => { e.stopPropagation(); onFog?.(); }} onKeyDown={(e) => key(e, () => onFog?.())}>
-            <rect class="sky-fog" x={fogX - 30} y={0} width={W - fogX + 30 + ext} height={region !== 'chernozem' && part === 'front' ? H - 46 : H - 8} fill="url(#sky-fog)" />
-            {[[0.2, 24], [0.45, 40], [0.12, 56]].map(([f, y], i) => (
+            <rect class="sky-fog" x={fogX - 30} y={0} width={W - fogX + 30 + ext} height={fogH} fill="url(#sky-fog)" />
+            {[[0.2, 24], [0.45, 40], [0.12, 56]].filter(([, y]) => y < fogH - 4).map(([f, y], i) => (
               <path class="sky-wisp" d={`M${fogX + (W - fogX) * f} ${y} q10 -5 20 0 t20 0 t20 0`} stroke="#e2d9c6" stroke-width={3} fill="none" stroke-linecap="round" style={{ animationDelay: `${-i * 2.3}s` }} />
             ))}
-            {!meteoMax && <g transform={`translate(${Math.min(W - 70, fogX + (W - fogX) * 0.38)} 46) scale(.55)`} opacity={0.5}>{icons.sensor()}</g>}
+            {!meteoMax && <g transform={`translate(${Math.min(W - 70, fogX + (W - fogX) * 0.38)} ${Math.min(46, fogH - 16)}) scale(.55)`} opacity={0.5}>{icons.sensor()}</g>}
           </g>
         )}
         {/* the road from the field's gate up through the hills to the village on the horizon: over the fog,

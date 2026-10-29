@@ -288,20 +288,21 @@ export function AwayNote({ s }: { s: GameState }) {
   return <p class="deed away"><Icon name="cart" size={22} /><span><b>Обоз на вылазке: {LOCATIONS[a.loc].name}.</b> {[a.cards.length ? `${a.cards.length} ${plural(a.cards.length, 'карта', 'карты', 'карт')}` : '', a.worker ? WORKERS[a.worker.id].name : '', a.cash ? money(a.cash) : ''].filter(Boolean).join(', ') || 'Налегке'}. Вернётся, когда хозяйство там свернут.</span></p>;
 }
 
-/** 29.10 · the signpost in the village: where a cart can go from home, what is still closed and why */
-/** 29.10 · a find the home does not have yet: a new crop, a settler not in the team, a hive the apiary can still take */
+/** 29.10 · a find the home does not have yet: a new crop, a settler not in the team (or on the cart), a hive the
+ *  apiary can still take */
 const newForHome = (home: GameState, id: LootId) => {
   const L = LOOT[id];
   if (L.seed) return !home.unlocked.includes(L.seed);
-  if (L.worker) return !home.team.some((w) => w.id === L.worker) && !home.freeHire.includes(L.worker);
+  if (L.worker) return !home.team.some((w) => w.id === L.worker) && !home.freeHire.includes(L.worker) && home.away?.worker?.id !== L.worker;
   if (id === 'swarm') return lvl(home, 'apiary') < TRACKS.apiary.levels.length;
   return false;
 };
+/** 29.10 · the signpost in the village: where a cart can go from home, what is still closed and why */
 export function RoadSheet({ home, glory, onGo, onMap, onClose }: { home: GameState; glory: number; onGo: (l: ExpeditionId) => void; onMap: () => void; onClose: () => void }) {
   return createPortal(
     <Sheet title="Указатель у дороги" icon="cart" onClose={onClose}>
       <div class="stack road-sheet">
-        <p class="small">Отсюда уходит обоз: до {cartCardLimit(glory)} карт, один работник и подъёмные. Свернёте хозяйство после первой осени — обоз вернётся с добычей: того, что везут из краёв, дома не купить. Обоз из всех трёх краёв закрывает в летописи веху «Три края».</p>
+        <p class="small">Отсюда уходит обоз: до {cartCardLimit(glory)} карт, один работник и подъёмные. Свернёте хозяйство после первой осени — обоз вернётся с добычей: того, что везут из краёв, дома не купить. Обозы из всех трёх краёв закрывают в летописи веху «Три края». Жирным — то, чего дома ещё нет.</p>
         {EXPEDITION_IDS.map((l) => {
           const L = LOCATIONS[l], open = expeditionOpen(l, glory), why = departProblem(home, l, glory), away = home.away?.loc === l;
           return (
@@ -310,7 +311,7 @@ export function RoadSheet({ home, glory, onGo, onMap, onClose }: { home: GameSta
               {away ? <span class="tag good">обоз там</span>
                 : !open ? <span class="tag"><Icon name="lock" size={14} /> слава {L.glory} · ещё {L.glory - glory}</span>
                 : <Btn small tone={why ? undefined : 'primary'} disabled={why} onClick={() => { onClose(); onGo(l); }}>Собрать обоз</Btn>}
-              <p class="road-loot">{tripDone(home, l) && <span class="tag good">✓ в летописи</span>} Везёт домой: {lootOf(l).map((id, i) => <>{i ? ', ' : ''}{newForHome(home, id) ? <b class="road-new">{LOOT[id].name}</b> : LOOT[id].name}</>)}.</p>
+              <p class="road-loot">{tripDone(home, l) && <span class="tag good">✓ в летописи</span>} Обоз привезёт: {lootOf(l).map((id, i) => <>{i ? ', ' : ''}{newForHome(home, id) ? <b class="road-new">{LOOT[id].name}<span class="sr-only"> (новое)</span></b> : LOOT[id].name}</>)}.</p>
             </div>
           );
         })}

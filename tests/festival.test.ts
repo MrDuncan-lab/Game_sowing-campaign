@@ -165,3 +165,10 @@ test('29.10 · in the district a tie is the village’s: the farm passes a place
   s.yards.efim = { stage: 1 };
   assert.ok(me() < him());
 });
+
+test('29.10 · a home whose chronicle closed before «Три края» keeps it closed and is not promised the epilogue again', () => {
+  const s = home('OLD-EPILOGUE');
+  s.told = [...(s.told ?? []), 'epilogue'];
+  assert.equal(G.chronicle(s).find((c) => c.id === 'trips')!.done, true);
+  assert.equal(G.tripDone(s, 'kuban'), false);
+});

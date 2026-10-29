@@ -2471,7 +2471,8 @@ export function chronicle(s: GameState): { id: ChronicleId; name: string; hint: 
     club: hasCommon(s, 'club'),
     beat: (s.fests ?? []).some((f) => f.win && festInClub(f)),
     first: !!s.told?.includes('district-first'),
-    trips: EXPEDITION_IDS.every((l) => tripDone(s, l)),
+    // a home whose chronicle closed before «Три края» was written keeps it closed
+    trips: EXPEDITION_IDS.every((l) => tripDone(s, l)) || !!s.told?.includes('epilogue'),
   };
   return CHRONICLE.map((c) => ({ ...c, done: isHome(s) && done[c.id] }));
 }

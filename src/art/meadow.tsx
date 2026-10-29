@@ -334,18 +334,18 @@ export function YardDecor({ W, yard, season, region = 'chernozem', hauls = [] }:
         <g transform={`translate(${W * .43} ${y + 1}) scale(${k})`} class="yard-fire" {...html('fire')} />
         {region === 'kuban' && <>
           <g transform={`translate(${W * .63} ${y}) scale(${k})`} {...html('melons')} />
-          <g transform={`translate(${yardEnd - 34 * k} ${y - 1}) scale(${k})`} {...html('poplar')} />
-          <g transform={`translate(${yardEnd - 12 * k} ${y}) scale(${k * .9})`} {...html('poplar')} />
+          <g transform={`translate(${yardEnd - 34 * k} ${y - 1}) scale(${Math.min(k, .95)})`} {...html('poplar')} />
+          <g transform={`translate(${yardEnd - 12 * k} ${y}) scale(${Math.min(k, .95) * .9})`} {...html('poplar')} />
         </>}
         {region === 'altai' && <>
           <g transform={`translate(${W * .64} ${y}) scale(${k})`} {...html('stones')} />
-          <g transform={`translate(${yardEnd - 60 * k} ${y - 1}) scale(${k})`} {...html('spruce')} />
+          <g transform={`translate(${yardEnd - 60 * k} ${y - 1}) scale(${Math.min(k, 1.35)})`} {...html('spruce')} />
           <g transform={`translate(${yardEnd - 38 * k} ${y}) scale(${k})`} {...html('spruce_s')} />
-          <g transform={`translate(${yardEnd - 14 * k} ${y - 1}) scale(${k})`} {...html('spruce')} />
+          <g transform={`translate(${yardEnd - 14 * k} ${y - 1}) scale(${Math.min(k, 1.35)})`} {...html('spruce')} />
         </>}
         {region === 'rent' && <>
           <g transform={`translate(${W * .66} ${y}) scale(${k})`} {...html('haystack')} />
-          <g transform={`translate(${yardEnd - 24 * k} ${y}) scale(${k})`} {...html('birch')} />
+          <g transform={`translate(${yardEnd - 24 * k} ${y}) scale(${Math.min(k, 1.15)})`} {...html('birch')} />
         </>}
       </> : <>
         {/* the hauls the carts brought home stand at the back of the yard, smaller for the distance: a cedar and a
@@ -369,7 +369,8 @@ export function YardDecor({ W, yard, season, region = 'chernozem', hauls = [] }:
         ))}
         {has('rent') && <g transform={`translate(${W * .655} ${y - 6}) scale(.8)`} {...html('haystack')} />}
       </>}
-      {(region === 'chernozem' || region === 'kuban') && season < 2 && [0, 1, 2].map((i) => (
+      {/* tall pieces keep their tops under the crest (yard − 66): over it they would cover the forecast */}
+      {!camp && season < 2 && [0, 1, 2].map((i) => (
         <g transform={`translate(${W * (.73 + i * .035)} ${y - 2})`}>
           <g class="yard-sunflower" style={{ ['--sd' as string]: `${-hash2(i, 5) * 3}s` }} {...html(i % 2 ? 'sun32' : 'sun26')} />
         </g>

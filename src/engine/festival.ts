@@ -37,7 +37,7 @@ export const CHRONICLE: { id: ChronicleId; name: string; hint: string }[] = [
   { id: 'beat', name: 'Пряхин обыгран', hint: 'победа на празднике урожая в клубе' },
   { id: 'first', name: 'Первые в районе', hint: 'первое место в районной сводке' },
   // 29.10 · the home and the expeditions are one game: the chronicle closes only with a haul from every region
-  { id: 'trips', name: 'Три края', hint: 'обоз с добычей из Заречья, с Кубани и с Алтая' },
+  { id: 'trips', name: 'Три края', hint: 'обозы с добычей из Заречья, с Кубани и с Алтая' },
 ];
 export const CHRONICLE_GLORY = 50;
 export const CHRONICLE_CERT = 'Летопись хозяйства';
