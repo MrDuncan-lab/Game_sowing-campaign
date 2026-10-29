@@ -17,18 +17,18 @@ const BAD: SkyKind[] = ['hail', 'flood', 'frost', 'dry', 'wind'];
 function phrase(kind: SkyKind, t: number, struck: boolean): string {
   switch (kind) {
     case 'sun': return `ясно, ${tStr(t)}`;
-    case 'hot': return `жарко, ${tStr(t)}${t >= HOT_AIR ? ': земля сохнет быстрее' : ''}`;
-    case 'dry': return `засуха, ${tStr(t)}: каждую неделю земля теряет больше влаги`;
-    case 'warm': return `тепло, ${tStr(t)}: политое растёт за неделю как за две`;
+    case 'hot': return `жарко, ${tStr(t)}${t >= HOT_AIR ? '. Земля сохнет быстрее' : ''}`;
+    case 'dry': return `засуха, ${tStr(t)}. Каждую неделю земля теряет больше влаги`;
+    case 'warm': return `тепло, ${tStr(t)}. Политое растёт за неделю как за две`;
     case 'cloud': return `облачно, ${tStr(t)}`;
-    case 'cold': return `холодно, ${tStr(t)}: теплолюбивые не растут`;
-    case 'rain': return `дожди, ${tStr(t)}: открытые грядки польёт само`;
-    case 'hail': return struck ? 'град: тень тучи лежит на грядках под ударом, теплица и укрытие спасают' : 'град: побьёт грядки вне теплиц, урожай вдвое меньше';
-    case 'flood': return 'паводок: у реки урожай вдвое меньше';
+    case 'cold': return `холодно, ${tStr(t)}. Теплолюбивые не растут`;
+    case 'rain': return `дожди, ${tStr(t)}. Открытые грядки польёт само`;
+    case 'hail': return struck ? 'град. Тень тучи лежит на грядках под ударом. Теплица и укрытие спасут' : 'град. Побьёт грядки вне теплиц, урожай вдвое меньше';
+    case 'flood': return 'паводок. У реки урожай вдвое меньше';
     case 'snow': return `зима, ${tStr(t)}`;
-    case 'frost': return `заморозок, ${tStr(t)}: ростки и нежные культуры без укрытия погибнут`;
+    case 'frost': return `заморозок, ${tStr(t)}. Ростки и нежные культуры без укрытия погибнут`;
     case 'thaw': return 'оттепель, около нуля';
-    case 'wind': return `суховей, ${tStr(t)}: сухие грядки гибнут сразу, открытые теряют ещё влагу. Спасают лес или дерево рядом, мульча, укрытие, капельница`;
+    case 'wind': return `суховей, ${tStr(t)}. Сухие грядки гибнут сразу, открытые теряют ещё влагу. Спасут лес или дерево рядом, мульча, укрытие и капельный полив`;
   }
 }
 
@@ -53,7 +53,7 @@ export function skyTokens(s: GameState): SkyToken[] {
     else if (info.temp >= 15) kind = 'sun';
     else if (info.temp >= 6) kind = 'cloud';
     else kind = 'cold';
-    out.push({ k, abs: info.absWeek, kind, temp: info.temp, bad: BAD.includes(kind), text: `${whenStr(k)} — ${phrase(kind, info.temp, !!strike)}.` });
+    out.push({ k, abs: info.absWeek, kind, temp: info.temp, bad: BAD.includes(kind), text: `${whenStr(k)}: ${phrase(kind, info.temp, !!strike)}.` });
   }
   return out;
 }
@@ -73,7 +73,7 @@ export function raidSigns(s: GameState): RaidSign[] {
     out.push({ kind: 'crows', ahead: w - s.absWeek, cells: [], text: `Вороны кружат над лесом: ${ahead(w - s.absWeek)} сядут на всходы и спелые грядки. Пугало или теплица их не пустят, прогнать можно за рабочий день.` });
   if (kidsScouting(s)) {
     const n = kidsAhead(s);
-    out.push({ kind: 'kids', ahead: n, cells: [], text: `Дети из интерната высматривают спелые грядки: ${ahead(n)} придут за урожаем. Пёс, сторож или сторожка их не пустят, а в теплице грядки они не трогают.` });
+    out.push({ kind: 'kids', ahead: n, cells: [], text: `Ребята из интерната высматривают спелые грядки: ${ahead(n)} придут за урожаем. Пёс, сторож или сторожка их не пустят, а в теплице грядки они не трогают.` });
   }
   for (const st of s.strikes) {
     if (st.week <= s.absWeek || !['beetle', 'locust', 'weedsurge', 'bear', 'boars', 'fire'].includes(st.kind)) continue;
@@ -83,7 +83,7 @@ export function raidSigns(s: GameState): RaidSign[] {
     if (st.kind === 'locust') out.push({ kind: 'locust', ahead: n, cells, text: `Саранча на горизонте: ${ahead(n)} налетит на самую большую посадку.` });
     if (st.kind === 'weedsurge') out.push({ kind: 'weedsurge', ahead: n, cells, text: `Ветер несёт семена сорняков: ${ahead(n)} пустые грядки зарастут. Засейте их.` });
     if (st.kind === 'bear') out.push({ kind: 'bear', ahead: n, cells, text: `Медвежьи следы у ручья: ${ahead(n)} медведь придёт к ульям, ягодникам и грядкам у тайги. Покараульте их или позовите сторожа.` });
-    if (st.kind === 'boars') out.push({ kind: 'boars', ahead: n, cells, text: `Кабаны в балке: ${ahead(n)} перероют край поля. Покараульте грядки — или пусть пёс и сторож их отгонят.` });
+    if (st.kind === 'boars') out.push({ kind: 'boars', ahead: n, cells, text: `Кабаны в балке: ${ahead(n)} перероют край поля. Покараульте грядки. Отогнать кабанов могут и пёс, и сторож.` });
     if (st.kind === 'fire') out.push({ kind: 'fire', ahead: n, cells, text: `Дым над тайгой: ${ahead(n)} огонь подойдёт к полю. Полейте грядки у леса до краёв или окопайте их.` });
   }
   return out;

@@ -69,12 +69,12 @@ export function Departure({ home, loc, glory, onCancel, onGo }: { home: GameStat
   if (step === 'go') return createPortal(
     <div class="departure-scene" role="status" aria-live="polite">
       <div class="dep-road"><span class="dep-cart"><Icon name="cart" size={72} /></span></div>
-      <p><b>Обоз в пути</b><span>{L.name} · участок «{CONDITIONS[offers[pick!].cond].name}»</span></p>
+      <p><b>Обоз в пути</b><span>{L.name}, участок «{CONDITIONS[offers[pick!].cond].name}»</span></p>
     </div>, document.body);
   return (
     <Sheet title={step === 'plot' ? `Вылазка: ${L.name}` : 'Обоз'} icon="cart" onClose={onCancel} wide>
       {step === 'plot' && <>
-        <p class="small muted">Участок каждый раз другой: река, песок, камни, тайга лягут по-новому. У каждого — своё условие и находка в сарае.</p>
+        <p class="small muted">Участок каждый раз новый: река, песок, камни и тайга лягут по-другому. У каждого участка своё условие и своя находка в сарае.</p>
         <div class="plot-offers" role="radiogroup" aria-label="Участки на выбор">
           {offers.map((o, i) => {
             const c = CONDITIONS[o.cond];
@@ -91,10 +91,10 @@ export function Departure({ home, loc, glory, onCancel, onGo }: { home: GameStat
             );
           })}
         </div>
-        <div class="btn-row"><Btn tone="primary" disabled={pick === null ? 'Выберите участок' : null} onClick={() => setStep('cart')}>Дальше: обоз</Btn><Btn tone="ghost" onClick={onCancel}>Отмена</Btn></div>
+        <div class="btn-row"><Btn tone="primary" disabled={pick === null ? 'Выберите участок' : null} onClick={() => setStep('cart')}>К обозу</Btn><Btn tone="ghost" onClick={onCancel}>Отмена</Btn></div>
       </>}
       {step === 'cart' && <>
-        <p class="small muted">На телегу помещается {CART_CARDS} {plural(CART_CARDS, 'карта', 'карты', 'карт')} из колоды дома, один работник и подъёмные. Всё вернётся домой, когда хозяйство свернёте; работник и карты дома пока не нужны.</p>
+        <p class="small muted">На телегу помещается {CART_CARDS} {plural(CART_CARDS, 'карта', 'карты', 'карт')} из колоды дома, один работник и подъёмные. Работник и карты вернутся домой, когда вы свернёте хозяйство, а пока дома их не будет.</p>
         <h3 class="cart-h">Карты <small>{uids.length}/{CART_CARDS}</small></h3>
         <div class="card-grid cart-cards">
           {cards.map((c) => {
@@ -113,7 +113,7 @@ export function Departure({ home, loc, glory, onCancel, onGo }: { home: GameStat
         </div>
         <h3 class="cart-h">Подъёмные <small>до {money(max)}</small></h3>
         <label class="cart-cash"><input type="range" min={0} max={max} step={1} value={cash} disabled={!max} onInput={(e) => setCash(Number(e.currentTarget.value))} aria-label="Сколько денег взять с собой" /><b>{money(cash)}</b></label>
-        <p class="small muted">Дома останется {money(Math.max(0, home.money - cash))}. На вылазке свои 70{NB}₽ от района плюс подъёмные.</p>
+        <p class="small muted">Дома останется {money(Math.max(0, home.money - cash))}. На вылазке вы начнёте с 70{NB}₽ от района и подъёмных.</p>
         {why && <p class="small bad">{why}</p>}
         <div class="btn-row"><Btn tone="primary" disabled={why} onClick={() => setStep('go')}><Icon name="cart" size={20} /> В путь</Btn><Btn tone="ghost" onClick={() => setStep('plot')}>Назад</Btn></div>
       </>}
@@ -164,16 +164,16 @@ export function RunPanel({ s, act }: { s: GameState; act: Dispatch }) {
         <span><b>Участок «{c.name}»</b><span class="po-plus">+ {c.plus}</span><span class="po-minus">− {c.minus}</span></span>
       </div>
       <h3 class="cart-h">Находки</h3>
-      {r.relics.length ? <ul class="relic-list">{r.relics.map((id) => <li><Icon name={RELICS[id].icon} size={22} /><span><b>{RELICS[id].name}</b> — {RELICS[id].text}{id === 'receipt' && r.used.includes('receipt') ? ' (уже использована)' : id === 'laika' && r.used.includes(`laika-${s.year}-${s.season}`) ? ' (в этом сезоне уже)' : ''}</span></li>)}</ul> : <p class="small muted">Пока ничего. Находки приносят встречные и коробейник.</p>}
-      {r.visit && <p class="run-guest"><Icon name="hand" size={20} /> У лагеря: {VISITS[r.visit.id].name.toLowerCase()}. Ответьте до конца недели.</p>}
+      {r.relics.length ? <ul class="relic-list">{r.relics.map((id) => <li><Icon name={RELICS[id].icon} size={22} /><span><b>{RELICS[id].name}</b>: {RELICS[id].text}{id === 'receipt' && r.used.includes('receipt') ? ' (уже использована)' : id === 'laika' && r.used.includes(`laika-${s.year}-${s.season}`) ? ' (в этом сезоне уже сработала)' : ''}</span></li>)}</ul> : <p class="small muted">Пока ничего. Находки приносят гости лагеря и коробейник.</p>}
+      {r.visit && <p class="run-guest"><Icon name="hand" size={20} /> У лагеря гость: {VISITS[r.visit.id].name}. Ответьте до конца недели.</p>}
       <h3 class="cart-h">Свернуть хозяйство</h3>
       <div class="fold-sum">
         <span>Касса <b>{money(v.cash)}</b></span>
         <span>Склад по цене перекупщика <b>{money(v.stock)}</b></span>
         {v.debts > 0 && <span>Долги <b class="bad">−{money(v.debts)}</b></span>}
-        <span>Домой {Math.round(v.share * 100)}% <b class="good">{money(v.total)}</b></span>
+        <span>Поедет домой ({Math.round(v.share * 100)}%) <b class="good">{money(v.total)}</b></span>
       </div>
-      <p class="small muted">Находок на выбор: {lootCount(s)} — по одной за год (до четырёх) и за каждую законченную цепочку заказов{chainsDone(s) ? ` (уже ${chainsDone(s)})` : ''}. Материалы из сарая лагеря поедут домой целиком. Каждый лишний год — ещё находка, но и платежи выше.</p>
+      <p class="small muted">Находок на выбор: {lootCount(s)}. По одной дают за каждую осень (но не больше четырёх) и за каждую законченную цепочку заказов{chainsDone(s) ? ` (таких уже ${chainsDone(s)})` : ''}. Материалы из сарая лагеря поедут домой целиком. Каждый лишний год приносит ещё одну находку, но платежи тоже растут.</p>
       <Btn tone="primary" disabled={why} onClick={() => setFold(true)}><Icon name="cart" size={20} /> Свернуть и ехать домой</Btn>
       {fold && <FoldSheet s={s} act={act} onClose={() => setFold(false)} />}
     </section>
@@ -188,8 +188,8 @@ export function FoldSheet({ s, act, onClose }: { s: GameState; act: Dispatch; on
   const worker = s.run!.carried.worker;
   return (
     <Sheet title="Свернуть хозяйство" icon="cart" onClose={onClose} wide>
-      <p>Домой поедут <b>{money(v.total)}</b> ({Math.round(v.share * 100)}% от кассы и склада за вычетом долгов){mats.length ? `, материалы: ${mats.map(([m, q]) => `${MATERIALS[m].name.toLowerCase()} ${q}`).join(', ')}` : ''}{worker ? `, ${WORKERS[worker].name}` : ''}{s.run!.carried.uids.length ? ` и карты обоза` : ''}.</p>
-      <h3 class="cart-h">Находки <small>выберите {n}: {picks.length}/{n}</small></h3>
+      <p>Домой поедут <b>{money(v.total)}</b> ({Math.round(v.share * 100)}% от кассы и склада за вычетом долгов).{mats.length ? ` Материалы из сарая: ${mats.map(([m, q]) => `${MATERIALS[m].name.toLowerCase()} ${q}`).join(', ')}.` : ''}{worker || s.run!.carried.uids.length ? ` Вернутся и ${[worker ? WORKERS[worker].name : '', s.run!.carried.uids.length ? 'карты обоза' : ''].filter(Boolean).join(', и ')}.` : ''}</p>
+      <h3 class="cart-h">Находки <small>выбрано {picks.length} из {n}</small></h3>
       <div class="loot-offers">
         {offers.map((id) => {
           const L = LOOT[id], on = picks.includes(id);
@@ -223,7 +223,7 @@ export function RunOver({ s, onHome, onMap }: { s: GameState; onHome: () => void
         {res.worker && <li><Portrait id={WORKERS[res.worker.id].portrait as PersonId} size={24} /> {WORKERS[res.worker.id].name} возвращается</li>}
         {res.cards.length > 0 && <li><Icon name="seeds" size={20} /> {res.cards.length} {plural(res.cards.length, 'карта', 'карты', 'карт')} обоза</li>}
       </ul>}
-      <p class="small muted">{bust ? 'Работник и карты обоза возвращаются. Слава и грамоты остаются в профиле.' : 'Всё это уже дома. Слава, грамоты и знание культур с вылазки — в профиле.'}</p>
+      <p class="small muted">{bust ? 'Работник и карты обоза возвращаются. Слава и грамоты остаются в профиле.' : 'Всё это уже дома. Слава, грамоты и знание культур, полученные на вылазке, сохранены в профиле.'}</p>
       <div class="btn-row"><Btn tone="primary" onClick={onHome}>Домой</Btn><Btn onClick={onMap}>На карту</Btn></div>
     </ClosedLayer>
   );
@@ -235,7 +235,7 @@ export function HomeBankrupt({ s, onRestart, onWork, onMap }: { s: GameState; on
       <BankScene mode="cart" level={lvl(s, 'house')} season={s.season} amount={compactMoney(s.over!.work!)} />
       <p>{s.over?.reason}. Дом в залоге, и Марат из банка разводит руками.</p>
       <RivalSays text="Записал. Земля любит хозяина, а не мечтателя." />
-      <p>Можно <b>начать заново</b> — дом снова в залоге, профиль и слава остаются. Или <b>уйти на заработки</b>: дом под арестом, долг {money(s.over!.work!)} гасится на вылазках, две попытки. Закроете — дом проснётся следующей весной.</p>
+      <p>Можно <b>начать заново</b>: дом снова будет в залоге, а профиль и слава останутся. Или <b>уйти на заработки</b>. Тогда дом окажется под арестом, а долг {money(s.over!.work!)} нужно погасить на вылазках, на это две попытки. Если закроете долг, дом проснётся следующей весной.</p>
       <div class="btn-row"><Btn tone="primary" onClick={onWork}><Icon name="cart" size={20} /> Уйти на заработки</Btn><Btn onClick={onRestart}>Начать заново</Btn><Btn tone="ghost" onClick={onMap}>На карту</Btn></div>
     </ClosedLayer>
   );
@@ -252,9 +252,9 @@ export function ArrestLayer({ s, glory, onExpedition, onMap, runFarm }: { s: Gam
     <ClosedLayer title="Дом под арестом">
       <BankScene mode="arrest" level={lvl(s, 'house')} season={s.season} />
       <RivalSays text={`Дом подождёт. Я тоже подожду: ${a.runs > 1 ? `${a.runs} ${plural(a.runs, 'вылазка', 'вылазки', 'вылазок')}` : 'одна вылазка'} — и он мой.`} />
-      <p>Долг банку <b>{money(a.debt)}</b>. Вылазок на погашение: <b>{a.runs}</b>. Свёрнутое хозяйство сначала закроет долг, остаток — в кассу дома.</p>
+      <p>Долг банку: <b>{money(a.debt)}</b>. Вылазок на погашение: <b>{a.runs}</b>. Хозяйство, которое вы свернёте, сначала закроет долг, а остаток пойдёт в кассу дома.</p>
       {s.away ? <p>Обоз уже на вылазке: <b>{LOCATIONS[s.away.loc].name}</b>.</p> : <div class="btn-row">
-        {EXPEDITION_IDS.map((l) => <Btn tone={l === 'rent' ? 'primary' : undefined} disabled={expeditionOpen(l, glory) ? null : `Слава ${LOCATIONS[l].glory}`} onClick={() => onExpedition(l)}>{LOCATIONS[l].name}</Btn>)}
+        {EXPEDITION_IDS.map((l) => <Btn tone={l === 'rent' ? 'primary' : undefined} disabled={expeditionOpen(l, glory) ? null : `Нужна слава ${LOCATIONS[l].glory}`} onClick={() => onExpedition(l)}>{LOCATIONS[l].name}</Btn>)}
       </div>}
       {runFarm}
       <div class="btn-row"><Btn tone="ghost" onClick={onMap}>На карту</Btn></div>
@@ -265,12 +265,12 @@ export function ArrestLayer({ s, glory, onExpedition, onMap, runFarm }: { s: Gam
 /** the home's mortgage and buyout in the barn's cash desk */
 export function HomeDeed({ s, act }: { s: GameState; act: Dispatch }) {
   if (s.loc !== 'chernozem') return null;
-  if (s.owned) return <p class="deed owned"><Icon name="cert" size={22} /><span><b>Дом выкуплен.</b> Раз в год, в конце осени — налог: 3{NB}₽ за клетку и 15{NB}₽ за уровень дома, с инфляцией. Не хватит — опись оборудования, а не банкротство.</span></p>;
+  if (s.owned) return <p class="deed owned"><Icon name="cert" size={22} /><span><b>Дом выкуплен.</b> Раз в год, в конце осени, вы платите налог: 3{NB}₽ за клетку и 15{NB}₽ за уровень дома, с поправкой на инфляцию. Если денег не хватит, будет опись оборудования, а не банкротство.</span></p>;
   const paid = s.paidYears ?? 0;
   return (
     <details class="bank-more deed">
-      <summary>Залог дома <span>выплачено {paid} из 3 осеней</span></summary>
-      <p class="small">Третий осенний платёж выкупает дом: +30 славы и грамота. Можно раньше — остаток лестницы со скидкой 10%.</p>
+      <summary>Залог дома <span>выплачено {paid} из 3 взносов</span></summary>
+      <p class="small">Третий осенний платёж выкупит дом и принесёт +30 славы и грамоту. Можно выкупить и раньше: остаток платежей будет на 10% дешевле.</p>
       <BuyoutButton s={s} act={act} />
     </details>
   );
@@ -278,14 +278,15 @@ export function HomeDeed({ s, act }: { s: GameState; act: Dispatch }) {
 function BuyoutButton({ s, act }: { s: GameState; act: Dispatch }) {
   const price = buyoutPrice(s);
   if (price === null) return null;
-  return <Btn small tone="primary" disabled={s.phase !== 'week' ? 'Сначала решите вопрос с платежом' : s.money < price ? `Нужно ${money(price)}` : null} onClick={() => act({ t: 'buyout' })}>Выкупить сейчас · {money(price)}</Btn>;
+  return <Btn small tone="primary" disabled={s.phase !== 'week' ? 'Сначала решите вопрос с платежом' : s.money < price ? `Нужно ${money(price)}` : null} onClick={() => act({ t: 'buyout' })}>Выкупить сейчас за {money(price)}</Btn>;
 }
 
 /** the home's side of an expedition: what the cart took and where it is */
 export function AwayNote({ s }: { s: GameState }) {
   const a = s.away;
   if (!a) return null;
-  return <p class="deed away"><Icon name="cart" size={22} /><span><b>Обоз на вылазке: {LOCATIONS[a.loc].name}.</b> {[a.cards.length ? `${a.cards.length} ${plural(a.cards.length, 'карта', 'карты', 'карт')}` : '', a.worker ? WORKERS[a.worker.id].name : '', a.cash ? money(a.cash) : ''].filter(Boolean).join(', ') || 'Налегке'}. Вернётся, когда хозяйство там свернут.</span></p>;
+  const took = [a.cards.length ? `${a.cards.length} ${plural(a.cards.length, 'карта', 'карты', 'карт')}` : '', a.worker ? WORKERS[a.worker.id].name : '', a.cash ? `${money(a.cash)} подъёмных` : ''].filter(Boolean);
+  return <p class="deed away"><Icon name="cart" size={22} /><span><b>Обоз на вылазке: {LOCATIONS[a.loc].name}.</b> {took.length ? `С обозом: ${took.join(', ')}.` : 'Обоз ушёл налегке.'} Он вернётся, когда вы там свернёте хозяйство.</span></p>;
 }
 
 /** 29.10 · a find the home does not have yet: a new crop, a settler not in the team (or on the cart), a hive the
@@ -302,14 +303,14 @@ export function RoadSheet({ home, glory, onGo, onMap, onClose }: { home: GameSta
   return createPortal(
     <Sheet title="Указатель у дороги" icon="cart" onClose={onClose}>
       <div class="stack road-sheet">
-        <p class="small">Отсюда уходит обоз: до {cartCardLimit(glory)} карт, один работник и подъёмные. Свернёте хозяйство после первой осени — обоз вернётся с добычей: того, что везут из краёв, дома не купить. Обозы из всех трёх краёв закрывают в летописи веху «Три края». Жирным — то, чего дома ещё нет.</p>
+        <p class="small">Отсюда уходит обоз: в него можно взять до {cartCardLimit(glory)} карт, одного работника и подъёмные. Когда вы после первой осени свернёте хозяйство, обоз вернётся с добычей, которой дома не купить. Если съездить во все три края, в летописи закроется веха «Три края». Жирным выделено то, чего дома ещё нет.</p>
         {EXPEDITION_IDS.map((l) => {
           const L = LOCATIONS[l], open = expeditionOpen(l, glory), why = departProblem(home, l, glory), away = home.away?.loc === l;
           return (
             <div class={`road-row${open ? '' : ' locked'}`}>
-              <span class="road-name"><b>{L.name}</b><small>{L.place} · {L.tagline}</small></span>
+              <span class="road-name"><b>{L.name}</b><small>{L.place}. {L.tagline}</small></span>
               {away ? <span class="tag good">обоз там</span>
-                : !open ? <span class="tag"><Icon name="lock" size={14} /> слава {L.glory} · ещё {L.glory - glory}</span>
+                : !open ? <span class="tag"><Icon name="lock" size={14} /> нужна слава {L.glory}, ещё {L.glory - glory}</span>
                 : <Btn small tone={why ? undefined : 'primary'} disabled={why} onClick={() => { onClose(); onGo(l); }}>Собрать обоз</Btn>}
               <p class="road-loot">{tripDone(home, l) && <span class="tag good">✓ в летописи</span>} Обоз привезёт: {lootOf(l).map((id, i) => <>{i ? ', ' : ''}{newForHome(home, id) ? <b class="road-new">{LOOT[id].name}<span class="sr-only"> (новое)</span></b> : LOOT[id].name}</>)}.</p>
             </div>

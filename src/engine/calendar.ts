@@ -14,14 +14,14 @@ export type EpisodeRow = 'climate' | 'threat' | 'market' | 'help';
 export interface EpisodeDef { kind: EpisodeKind; name: string; icon: string; row: EpisodeRow; bad: boolean; biotic?: boolean; text: string }
 
 export const EPISODES: Record<EpisodeKind, EpisodeDef> = {
-  dry: { kind: 'dry', name: 'Засуха', icon: 'sun', row: 'climate', bad: true, text: 'Жарко (+5°), каждую неделю земля теряет на 1 влагу больше, песок — на 2.' },
-  rain: { kind: 'rain', name: 'Дожди', icon: 'rain', row: 'climate', bad: false, text: 'Прохладнее (−2°). Открытые грядки сами получают +1 влагу.' },
-  warm: { kind: 'warm', name: 'Тепло', icon: 'warm', row: 'climate', bad: false, text: 'Теплее на 4°. Политое и прогретое растёт за неделю как за две.' },
+  dry: { kind: 'dry', name: 'Засуха', icon: 'sun', row: 'climate', bad: true, text: 'Жарко (+5°). Каждую неделю земля теряет влаги на 1 больше, а песок — на 2.' },
+  rain: { kind: 'rain', name: 'Дожди', icon: 'rain', row: 'climate', bad: false, text: 'Прохладнее (−2°). Открытые грядки сами получают +1 влаги.' },
+  warm: { kind: 'warm', name: 'Тепло', icon: 'warm', row: 'climate', bad: false, text: 'Теплее на 4°. Политые и прогретые грядки за неделю растут как за две.' },
   frost: { kind: 'frost', name: 'Заморозок', icon: 'frost', row: 'climate', bad: true, text: 'Ночью ниже нуля. Ростки и нежные культуры без укрытия погибнут.' },
   thaw: { kind: 'thaw', name: 'Оттепель', icon: 'warm', row: 'climate', bad: false, text: 'Зимняя оттепель: воздух около нуля.' },
-  hail: { kind: 'hail', name: 'Град', icon: 'hail', row: 'threat', bad: true, text: 'Град побьёт отмеченные грядки без теплицы и укрытия: урожай вдвое меньше.' },
-  flood: { kind: 'flood', name: 'Паводок', icon: 'flood', row: 'threat', bad: true, text: 'Река разольётся: у воды урожай вдвое меньше.' },
-  beetle: { kind: 'beetle', name: 'Колорадский жук', icon: 'beetle', row: 'threat', bad: true, biotic: true, text: 'Жуки ползут к посадке картофеля. Неделю спустя съедят половину урожая.' },
+  hail: { kind: 'hail', name: 'Град', icon: 'hail', row: 'threat', bad: true, text: 'Град побьёт отмеченные грядки без теплицы и укрытия, и урожай с них будет вдвое меньше.' },
+  flood: { kind: 'flood', name: 'Паводок', icon: 'flood', row: 'threat', bad: true, text: 'Река разольётся, и у воды урожай будет вдвое меньше.' },
+  beetle: { kind: 'beetle', name: 'Колорадский жук', icon: 'beetle', row: 'threat', bad: true, biotic: true, text: 'Жуки ползут к посадкам картофеля. Через неделю они съедят половину урожая.' },
   locust: { kind: 'locust', name: 'Саранча', icon: 'locust', row: 'threat', bad: true, biotic: true, text: 'Саранча дважды налетает на самую большую посадку и уничтожает часть растений. Стая видна за неделю до налёта.' },
   weedsurge: { kind: 'weedsurge', name: 'Сорняки', icon: 'weeds', row: 'threat', bad: true, biotic: true, text: 'Ветер несёт семена сорняков: пустые грядки зарастут к концу этой недели.' },
   export: { kind: 'export', name: 'Спрос на зерно', icon: 'up', row: 'market', bad: false, text: 'Пшеница и рис дороже в 1,6 раза.' },
@@ -31,10 +31,10 @@ export const EPISODES: Record<EpisodeKind, EpisodeDef> = {
   helpers: { kind: 'helpers', name: 'Соседи помогают', icon: 'hand', row: 'help', bad: false, text: 'На один рабочий день больше, чем обычно.' },
   crows: { kind: 'crows', name: 'Вороны', icon: 'crow', row: 'threat', bad: true, biotic: true, text: 'Стая кружит над лесом за неделю до того, как сесть на поле.' },
   // v3 · hazards of the expeditions (docs/PROGRESSION-v3.md §3.5)
-  sukhovey: { kind: 'sukhovey', name: 'Суховей', icon: 'wind', row: 'climate', bad: true, text: 'Горячий ветер (+4°): открытые грядки теряют ещё 1 влагу, а сухие гибнут сразу. Спасают лес или дерево рядом, мульча, укрытие, капельница, теплица.' },
-  bear: { kind: 'bear', name: 'Медведь', icon: 'bear', row: 'threat', bad: true, biotic: true, text: 'Следы у ручья за неделю до визита: медведь идёт к ульям, ягодникам и грядкам у тайги.' },
+  sukhovey: { kind: 'sukhovey', name: 'Суховей', icon: 'wind', row: 'climate', bad: true, text: 'Горячий ветер (+4°): открытые грядки теряют ещё 1 влаги, а сухие гибнут сразу. Спасут лес или дерево рядом, мульча, укрытие, капельный полив и теплица.' },
+  bear: { kind: 'bear', name: 'Медведь', icon: 'bear', row: 'threat', bad: true, biotic: true, text: 'За неделю до визита у ручья видны следы: медведь идёт к ульям, ягодникам и грядкам у тайги.' },
   boars: { kind: 'boars', name: 'Кабаны', icon: 'boar', row: 'threat', bad: true, biotic: true, text: 'Кабаны выходят из балки к корнеплодам и бахче на краю поля.' },
-  fire: { kind: 'fire', name: 'Пожар', icon: 'fire', row: 'threat', bad: true, biotic: true, text: 'Дым над тайгой за неделю до огня: горят грядки у леса. Спасают полив до краёв, окоп и теплица.' },
+  fire: { kind: 'fire', name: 'Пожар', icon: 'fire', row: 'threat', bad: true, biotic: true, text: 'За неделю до огня над тайгой появляется дым. Горят грядки у леса. Спасут полив до краёв, окоп и теплица.' },
 };
 
 // start and len in absolute weeks once the game shifts them; planYear works in weeks of the year (1-based)

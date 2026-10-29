@@ -3,7 +3,7 @@ import { CARDS, CROPS } from '../engine/data';
 import type { Card, GameState } from '../engine/game';
 import { useState } from 'preact/hooks';
 import { airTemp, cardCells, cardDaysShown, cropMinT, plural, rub, wlvl } from '../engine/game';
-import { CardArt, cardDescription, cardPrice, cardStat, seedWeeks } from './Card';
+import { CardArt, cardDescription, cardPrice, cardStat, daysWord, seedWeeks } from './Card';
 import { Sheet } from './common';
 
 /** The second reading level of a card: the picked (or browsed) card, read in full at sizes that never
@@ -21,17 +21,23 @@ export function cardFacts(s: GameState, card: Card): { text: string; tone?: 'war
     const weeks = seedWeeks(s, crop, card.traits);
     const minT = cropMinT(crop, card.traits);
     const out: { text: string; tone?: 'warm' | 'cold' | 'bad' }[] = [
-      weeks === null ? { text: 'до холодов не успеет', tone: 'bad' } : { text: `рост ${weeks} нед.` },
-      { text: `${per * cells} ед.` },
+      weeks === null ? { text: 'не успеет до холодов', tone: 'bad' } : { text: `рост ${weeks} ${plural(weeks, 'неделя', 'недели', 'недель')}` },
+      { text: `урожай ${per * cells} ед.` },
       { text: `почва от ${tStr(minT)}`, tone: minT > airTemp(s) ? 'cold' : minT >= 12 ? 'warm' : undefined },
     ];
     if (info.greenhouseOnly) out.push({ text: 'только в теплице' });
-    if (info.perennial) out.push({ text: `плодоносит ${info.perennial} г.` });
+    if (info.perennial) out.push({ text: `плодоносит ${info.perennial} ${plural(info.perennial, 'год', 'года', 'лет')}` });
     return out;
   }
   const st = cardStat(s, card);
   return [{ text: `${st.main} ${st.sub}`.trim() }];
 }
+
+/** the facts as a sentence for the «about» sheet: «Рост 3 недели, урожай 5 ед., почва от +5°.» */
+const factsLine = (facts: { text: string }[]) => {
+  const t = facts.map((f) => f.text).join(', ');
+  return t ? `${t[0].toUpperCase()}${t.slice(1)}.` : '';
+};
 
 export function CardReadout({ s, card, status, browsing, desc, children }: { s: GameState; card: Card; status: ReadoutStatus | null; browsing?: boolean; desc?: boolean; children?: ComponentChildren }) {
   const d = CARDS[card.def];
@@ -48,7 +54,7 @@ export function CardReadout({ s, card, status, browsing, desc, children }: { s: 
       <div class="ro-head">
         <strong class="ro-name">{d.name}</strong>
         <span class="ro-cost">
-          <span class="ro-days">{card.def === 'fertilizer' ? 'от ' : ''}{days} {plural(days, 'день', 'дня', 'дней')}</span>
+          <span class="ro-days">{card.def === 'fertilizer' ? 'от ' : ''}{days} {daysWord(days, card.def === 'fertilizer')}</span>
           {price > 0 && <span class={`ro-money${d.kind === 'seed' && s.money < price ? ' short' : ''}`}>{rub(price)} ₽</span>}
           {!desc && !browsing && <button type="button" class="ro-about" onClick={() => setAbout(true)} aria-label={`О карте «${d.name}»`} title="О карте">?</button>}
         </span>
@@ -59,7 +65,7 @@ export function CardReadout({ s, card, status, browsing, desc, children }: { s: 
       {children}
       {about && <Sheet title={d.name} variant="info" onClose={() => setAbout(false)}>
         <p>{cardDescription(s, card.def)}</p>
-        <p class="small muted">{days} {plural(days, 'день', 'дня', 'дней')}{price > 0 ? ` · ${rub(price)} ₽` : ''} · {facts.map((f) => f.text).join(' · ')}</p>
+        <p class="small muted">{days > 0 ? `Занимает ${card.def === 'fertilizer' ? 'от ' : ''}${days} ${daysWord(days, card.def === 'fertilizer')}.` : 'Не занимает рабочих дней.'}{price > 0 ? ` Цена: ${rub(price)} ₽.` : ''} {factsLine(facts)}</p>
       </Sheet>}
     </div>
   );

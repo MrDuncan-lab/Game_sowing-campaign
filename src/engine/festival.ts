@@ -30,14 +30,14 @@ export const FEST_NAME = 'Праздник урожая';
  *  with an epilogue */
 export type ChronicleId = 'owned' | 'house7' | 'yards' | 'club' | 'beat' | 'first' | 'trips';
 export const CHRONICLE: { id: ChronicleId; name: string; hint: string }[] = [
-  { id: 'owned', name: 'Дом выкуплен', hint: 'три осенних взноса по залогу' },
-  { id: 'house7', name: 'Подворье', hint: 'дом 7-го уровня' },
-  { id: 'yards', name: 'Деревня на ногах', hint: 'все пять дворов на второй стадии' },
-  { id: 'club', name: 'Клуб в деревне', hint: 'общая постройка, толокой' },
-  { id: 'beat', name: 'Пряхин обыгран', hint: 'победа на празднике урожая в клубе' },
-  { id: 'first', name: 'Первые в районе', hint: 'первое место в районной сводке' },
+  { id: 'owned', name: 'Дом выкуплен', hint: 'выплачены три осенних взноса по залогу' },
+  { id: 'house7', name: 'Подворье', hint: 'дом дошёл до 7-го уровня' },
+  { id: 'yards', name: 'Деревня на ногах', hint: 'все пять дворов дошли до второй стадии' },
+  { id: 'club', name: 'Клуб в деревне', hint: 'деревня построила клуб толокой' },
+  { id: 'beat', name: 'Пряхин обыгран', hint: 'вы победили Пряхина на празднике урожая в клубе' },
+  { id: 'first', name: 'Первые в районе', hint: 'ваша ферма на первом месте в районе' },
   // 29.10 · the home and the expeditions are one game: the chronicle closes only with a haul from every region
-  { id: 'trips', name: 'Три края', hint: 'обозы с добычей из Заречья, с Кубани и с Алтая' },
+  { id: 'trips', name: 'Три края', hint: 'обозы вернулись с добычей из Заречья, с Кубани и с Алтая' },
 ];
 export const CHRONICLE_GLORY = 50;
 export const CHRONICLE_CERT = 'Летопись хозяйства';

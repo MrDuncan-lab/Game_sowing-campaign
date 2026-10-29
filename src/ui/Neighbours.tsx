@@ -6,16 +6,23 @@ import { useState } from 'preact/hooks';
 import { CARDS, CROPS, CropId, TRACKS } from '../engine/data';
 import {
   GameState, ZINA_CARDS, ZinaCard, commonCost, commonProblem, commonWeeks, commonsOpen, cropNeedStock, forgeOffer, forgeOfferLines, forgeProblem, hasCommon,
-  lvl, money, seasonKey, stockOf, swapProblem, yardCost, yardHelpProblem, yardProblem, yardStage, yardWeeks, yardsStanding,
+  lvl, money, plural, seasonKey, stockOf, swapProblem, yardCost, yardHelpProblem, yardProblem, yardStage, yardWeeks, yardsStanding,
 } from '../engine/game';
 import { COMMONS, COMMONS_NEED, COMMON_IDS, CommonId, FORGE_WEEKS, TOLOKA, YARDS, YARD_IDS, YardId } from '../engine/neighbours';
 import { PORTRAIT_IMAGES, Portrait, PersonId } from '../art/portraits';
 import { CropIcon } from '../art/crops';
 import { Icon } from '../art/icons';
-import { Bar, Btn, Dispatch, Pips, Sheet, weeksShort } from './common';
+import { Bar, Btn, Dispatch, Pips, Sheet } from './common';
 import { ShedChips } from './Fair';
 import { DistrictTable, FestivalStandings } from './Festival';
 import { districtPlace } from '../engine/game';
+
+/** «3 недели»: a span of work or a wait, in words */
+const weeks = (n: number) => {
+  const k = Math.ceil(n - 1e-9);
+  return `${k} ${plural(k, 'неделя', 'недели', 'недель')}`;
+};
+const cap = (t: string) => `${t[0].toUpperCase()}${t.slice(1)}`;
 
 export type NeighbourKey = YardId | 'commons';
 /** the village's places that belong to a neighbour or a shared building (see tools/village: the yards' spots) */
@@ -55,7 +62,7 @@ function YardBody({ s, y, act, onFair }: { s: GameState; y: YardId; act: Dispatc
       <div class="nb-head">
         <Person id={D.person} size={96} />
         <div class="nb-say">
-          <small>{D.who} · {D.looks[now]}</small>
+          <small>{cap(D.who)}. {D.looks[now]}</small>
           <p>«{D.lines[now]}»</p>
         </div>
       </div>
@@ -67,14 +74,14 @@ function YardBody({ s, y, act, onFair }: { s: GameState; y: YardId; act: Dispatc
               <span class="nb-step">{i < now ? '✓' : i + 1}</span>
               <span class="nb-stage-text">
                 <b>{st.name}</b>
-                <small>{i === 0 ? `мена: ${D.swap.give}` : i === 1 ? D.second : D.third}</small>
+                <small>{i === 0 ? `Откроется мена: ${D.swap.give}` : cap(i === 1 ? D.second : D.third)}</small>
                 {state === 'next' && (
                   <span class="nb-need">
                     <ShedChips s={s} need={st.mat} />
                     {st.crop && <CropChip s={s} {...st.crop} />}
                   </span>
                 )}
-                {state === 'busy' && proj && <span class="nb-progress"><Bar value={proj.total - proj.weeks} max={proj.total} tone="good" /><small>ещё {weeksShort(proj.weeks)}{s.season === 3 ? ' · зимой вдвое медленнее' : ''}</small></span>}
+                {state === 'busy' && proj && <span class="nb-progress"><Bar value={proj.total - proj.weeks} max={proj.total} tone="good" /><small>ещё {weeks(proj.weeks)}{s.season === 3 ? '. Зимой стройка идёт вдвое медленнее' : ''}</small></span>}
               </span>
             </li>
           );
@@ -83,16 +90,16 @@ function YardBody({ s, y, act, onFair }: { s: GameState; y: YardId; act: Dispatc
       {next && !proj && (
         <div class="nb-act">
           <Btn tone={why ? undefined : 'primary'} disabled={why} onClick={() => act({ t: 'yardBuild', yard: y })}>
-            Строить «{next.name}» · {money(yardCost(s, y, now + 1))} · {weeksShort(yardWeeks(s, y, now + 1))}
+            Строить «{next.name}»: {money(yardCost(s, y, now + 1))}, {weeks(yardWeeks(s, y, now + 1))}
           </Btn>
-          {why && <small class="muted">{why}{why.startsWith('Не хватает') && <> · <button type="button" class="link" onClick={onFair}>материалы — на ярмарке</button></>}</small>}
-          <small class="muted">Стройка займёт слот бригады. Слава: +{now === 2 ? 20 : 10}.</small>
+          {why && <small class="muted">{why}{why.startsWith('Не хватает') && <>. <button type="button" class="link" onClick={onFair}>Материалы продаются на ярмарке</button></>}</small>}
+          <small class="muted">Стройка займёт одно место в бригаде. За неё вы получите +{now === 2 ? 20 : 10} славы.</small>
         </div>
       )}
       {now >= 1 && (
         <section class="nb-swap">
-          <h3>Мена{y === 'zina' && now >= 2 ? ' · каждую неделю' : ' · раз в сезон'}</h3>
-          <p class="small">{D.swap.take.qty} ед. {D.swap.take.name} одной культуры → {D.swap.give}</p>
+          <h3>Мена{y === 'zina' && now >= 2 ? ': каждую неделю' : ': раз в сезон'}</h3>
+          <p class="small">За {D.swap.take.qty} ед. {D.swap.take.name} одной культуры: {D.swap.give}.</p>
           {y === 'zina' && (
             <div class="seg" role="radiogroup" aria-label="Какую карту взять">
               {ZINA_CARDS.map((c) => <button type="button" role="radio" aria-checked={card === c} class={card === c ? 'on' : ''} onClick={() => setCard(c)}>{CARDS[c].name}</button>)}
@@ -112,13 +119,13 @@ function YardBody({ s, y, act, onFair }: { s: GameState; y: YardId; act: Dispatc
       {now >= 2 && (
         <section class="nb-swap">
           <h3>Подмога</h3>
-          <Btn small tone={helpWhy ? undefined : 'good'} disabled={helpWhy} onClick={() => act({ t: 'yardHelp', yard: y })}>Позвать соседа · +1 рабочий день</Btn>
+          <Btn small tone={helpWhy ? undefined : 'good'} disabled={helpWhy} onClick={() => act({ t: 'yardHelp', yard: y })}>Позвать соседа (+1 рабочий день)</Btn>
           <small class="muted">{helpWhy ?? 'Раз в сезон сосед придёт помочь на поле.'}</small>
         </section>
       )}
       {y === 'savva' && now >= 2 && <Forge s={s} act={act} />}
-      {y === 'karpov' && now >= 2 && <p class="small nb-note"><Icon name="team" size={16} /> В пристройке живут ваши работники: 2 кровати.</p>}
-      {y !== 'karpov' && now >= 2 && <p class="small nb-note"><Icon name="team" size={16} /> У {D.gen} на постое — кровать для вашего работника.</p>}
+      {y === 'karpov' && now >= 2 && <p class="small nb-note"><Icon name="team" size={16} /> В пристройке есть 2 кровати для ваших работников.</p>}
+      {y !== 'karpov' && now >= 2 && <p class="small nb-note"><Icon name="team" size={16} /> У {D.gen} есть кровать для вашего работника.</p>}
     </>
   );
 }
@@ -128,9 +135,9 @@ function Forge({ s, act }: { s: GameState; act: Dispatch }) {
   const f = s.forge;
   return (
     <section class="nb-swap">
-      <h3>Кузня: скую сам</h3>
+      <h3>Кузня Саввы</h3>
       {f ? (
-        <p class="small">Савва куёт «{TRACKS[f.track].levels[f.level - 1].name}»: будет через {weeksShort(Math.max(1, f.week - s.absWeek))}.</p>
+        <p class="small">Савва куёт «{TRACKS[f.track].levels[f.level - 1].name}», будет готово через {weeks(Math.max(1, f.week - s.absWeek))}.</p>
       ) : lines.length ? (
         <div class="nb-forge">
           {lines.map((t) => {
@@ -139,14 +146,14 @@ function Forge({ s, act }: { s: GameState; act: Dispatch }) {
             return (
               <button type="button" class="nb-forge-line" disabled={!!why} title={why ?? undefined} onClick={() => act({ t: 'forge', track: t })}>
                 <Icon name={TRACKS[t].icon} size={22} />
-                <span><b>{TRACKS[t].levels[o.level - 1].name}</b><small>{TRACKS[t].name}{lvl(s, t) ? ` · сейчас ур. ${lvl(s, t)}` : ''}</small></span>
+                <span><b>{TRACKS[t].levels[o.level - 1].name}</b><small>{TRACKS[t].name}{lvl(s, t) ? `, сейчас ${lvl(s, t)}-й уровень` : ''}</small></span>
                 <b class="price">{money(o.price)}</b>
               </button>
             );
           })}
         </div>
       ) : <p class="small muted">Всё, что продают на ярмарке, у вас уже есть.</p>}
-      <small class="muted">Дороже ярмарки на 30%, зато без очереди и без Пряхина · {FORGE_WEEKS} недели.</small>
+      <small class="muted">Дороже ярмарки на 30%, зато без очереди и без Пряхина. Работа займёт {weeks(FORGE_WEEKS)}.</small>
     </section>
   );
 }
@@ -156,8 +163,8 @@ function CommonsBody({ s, act, onFair }: { s: GameState; act: Dispatch; onFair: 
   return (
     <>
       <p class="small">{open
-        ? `Три двора на ногах — деревня берётся за общее. Толока: строят всем миром, на ${Math.round((1 - TOLOKA) * 100)}% быстрее.`
-        : `Когда ${COMMONS_NEED} двора будут на второй стадии, деревня возьмётся за общие постройки. Сейчас: ${yardsStanding(s)} из ${COMMONS_NEED}.`}</p>
+        ? `Три двора уже на ногах, и деревня берётся за общие постройки. Строить будут всем миром, толокой: это на ${Math.round((1 - TOLOKA) * 100)}% быстрее.`
+        : `Когда ${COMMONS_NEED} двора дойдут до второй стадии, деревня возьмётся за общие постройки. Пока их ${yardsStanding(s)} из ${COMMONS_NEED}.`}</p>
       <div class="nb-commons">
         {COMMON_IDS.map((c) => {
           const D = COMMONS[c];
@@ -170,16 +177,16 @@ function CommonsBody({ s, act, onFair }: { s: GameState; act: Dispatch; onFair: 
               <span class="nb-common-text">
                 <b>{D.name}</b><small>{D.text}</small>
                 {!done && !proj && open && <span class="nb-need"><ShedChips s={s} need={D.mat} /></span>}
-                {proj && <span class="nb-progress"><Bar value={proj.total - proj.weeks} max={proj.total} tone="good" /><small>ещё {weeksShort(proj.weeks)}</small></span>}
+                {proj && <span class="nb-progress"><Bar value={proj.total - proj.weeks} max={proj.total} tone="good" /><small>ещё {weeks(proj.weeks)}</small></span>}
               </span>
               {done ? <span class="up small">стоит</span> : !proj && open ? (
-                <Btn small tone={why ? undefined : 'primary'} disabled={why} onClick={() => act({ t: 'commonBuild', id: c })}>{money(commonCost(s, c))} · {weeksShort(commonWeeks(s, c))}</Btn>
+                <Btn small tone={why ? undefined : 'primary'} disabled={why} onClick={() => act({ t: 'commonBuild', id: c })}>{money(commonCost(s, c))}, {Math.ceil(commonWeeks(s, c) - 1e-9)} нед.</Btn>
               ) : null}
             </div>
           );
         })}
       </div>
-      {open && COMMON_IDS.some((c) => commonProblem(s, c)?.startsWith('Не хватает')) && <p class="small"><button type="button" class="link" onClick={onFair}>Материалы — на ярмарке</button></p>}
+      {open && COMMON_IDS.some((c) => commonProblem(s, c)?.startsWith('Не хватает')) && <p class="small"><button type="button" class="link" onClick={onFair}>Материалы продаются на ярмарке</button></p>}
       <FestivalStandings s={s} />
       <details class="nb-district">
         <summary><Icon name="trophy" size={18} /> Район: {districtPlace(s)}-е место</summary>
@@ -211,7 +218,7 @@ export function NeighbourRow({ s, onOpen }: { s: GameState; onOpen: (k: Neighbou
         const swap = st >= 1 && !swapProblem(s, y);
         const help = st >= 2 && s.yards?.[y]?.help !== key;
         return (
-          <button type="button" class={`nb-card${busy ? ' busy' : ''}`} onClick={() => onOpen(y)} aria-label={`${D.name}: ${st} из 3`}>
+          <button type="button" class={`nb-card${busy ? ' busy' : ''}`} onClick={() => onOpen(y)} aria-label={`${D.name}, стадия ${st} из 3`}>
             <Person id={D.person} size={56} />
             <b>{D.name.split(' ').at(-1)}</b>
             <Pips n={st} of={3} />

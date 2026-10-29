@@ -216,7 +216,7 @@ test('CRD-05/06 · Altai cranberry extensions refused without charge; a 4-cell w
   G.tile(w, 1, 1).structure = 'greenhouse'; G.tile(w, 2, 1).structure = 'greenhouse';
   const p = card(w, 'seed_potato', { extra: [[1, 1]] });
   assert.equal(G.placements(w, p).length, 0);
-  assert.equal(G.cardBlockReason(w, p), 'Фигуре нет места на поле');
+  assert.equal(G.cardBlockReason(w, p), 'Для этой фигуры на поле нет места');
 });
 
 // ---------------------------------------------------------------- CAL-01 / CAL-02

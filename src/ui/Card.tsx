@@ -20,16 +20,19 @@ export const SHY: Record<string, string> = {
 };
 const asCard = (c: CardLike) => (typeof c === 'string' ? { def: c } : c);
 export function cardDescription(s: GameState, def: string) {
-  if(def==='mulch')return 'На 3 недели убирает обычную потерю влаги и смягчает холод и жару. Не поливает; засуха всё ещё сушит.';
-  if(def==='care')return 'Урожай каждой растущей грядки в ряду +1. Эффект суммируется.';
-  if(def==='weeding')return 'Убирает сорняки в линии и сохраняет её чистой 4 недели. Нужен хотя бы один сорняк.';
-  if(def==='snow')return 'Весной: вода 3/3, плодородие +1 и мульча в выбранном ряду.';
-  if(def==='compost')return `Плодородие +${wlvl(s,'soilsci')>=2?2:1} на грядке и соседях по стороне, до 5.`;
-  if(def==='bio')return `Плодородие +${wlvl(s,'soilsci')>=2?2:1} в квадрате 2×2, до 5.`;
-  if(def==='fertilizer')return 'Базовый урожай посадки ×1,5. Каждая грядка — один раз. Зимой только в отапливаемой теплице.';
-  if(def==='water')return wlvl(s,'irrigator')?'Влага +2 во всём ряду и столбце.':'Влага +2 на выбранной грядке и соседях по стороне.';
-  const d=CARDS[def];return d.kind==='seed'?CROPS[d.crop!].note+(soilHarvestCost(s,d.crop!)?' После сбора: плодородие −1, не ниже 1.':''):d.text;
+  if(def==='mulch')return 'На 3 недели убирает обычную потерю влаги и смягчает холод и жару. Сама не поливает, а засуха всё равно сушит.';
+  if(def==='care')return 'Добавляет +1 к урожаю каждой растущей грядки в ряду. Действие нескольких таких карт складывается.';
+  if(def==='weeding')return 'Убирает сорняки в линии и 4 недели держит её чистой. Нужен хотя бы один сорняк.';
+  if(def==='snow')return 'Весной выбранный ряд получит полную воду (3 из 3), плодородие +1 и мульчу.';
+  if(def==='compost')return `Плодородие +${wlvl(s,'soilsci')>=2?2:1} на этой грядке и у соседей по стороне, но не выше 5.`;
+  if(def==='bio')return `Плодородие +${wlvl(s,'soilsci')>=2?2:1} в квадрате 2×2, но не выше 5.`;
+  if(def==='fertilizer')return 'Базовый урожай посадки ×1,5. Каждую грядку можно подкормить только один раз. Зимой работает только в отапливаемой теплице.';
+  if(def==='water')return wlvl(s,'irrigator')?'Влага +2 во всём ряду и столбце выбранной грядки.':'Влага +2 на выбранной грядке и у её соседей по стороне.';
+  const d=CARDS[def];return d.kind==='seed'?CROPS[d.crop!].note+(soilHarvestCost(s,d.crop!)?' После сбора плодородие снижается на 1, но не ниже 1.':''):d.text;
 }
+
+/** «2 дня», «5 дней»; after «от» the genitive: «от 1 дня», «от 2 дней» */
+export const daysWord = (n: number, from = false) => (from ? plural(n, 'дня', 'дней', 'дней') : plural(n, 'день', 'дня', 'дней'));
 
 export function cardPrice(s: GameState, c: CardLike): number {
   const k = asCard(c);
@@ -66,12 +69,12 @@ export function cardStat(s: GameState, c: CardLike): { main: string; sub: string
     return { main: `${per * cells} ед.`, sub: `рост ${w} нед.`, tone: 'pos' };
   }
   switch (k.def) {
-    case 'water': return { main: '+2', sub: wlvl(s, 'irrigator') ? 'ряд и столбец' : 'влаги крестом' };
-    case 'fertilizer': return { main: '×1,5', sub: 'базовый урожай' };
+    case 'water': return { main: '+2', sub: wlvl(s, 'irrigator') ? 'влаги в ряду и столбце' : 'влаги крестом' };
+    case 'fertilizer': return { main: '×1,5', sub: 'к базовому урожаю' };
     case 'mulch': return { main: '3 нед.', sub: 'бережёт влагу' };
-    case 'care': return { main: '+1', sub: 'к грядкам ряда' };
+    case 'care': return { main: '+1', sub: 'к урожаю ряда' };
     case 'weeding': return { main: 'линия', sub: 'без сорняков' };
-    case 'early': return { main: lvl(s, 'machinery') >= 3 ? '100%' : '−30%', sub: 'сбор сейчас' };
+    case 'early': return { main: lvl(s, 'machinery') >= 3 ? '100%' : '−30%', sub: 'урожая при сборе' };
     case 'helpers': return { main: '+1', sub: 'рабочий день' };
     case 'sidejob': return { main: `+${sidejobPay(s)} ₽`, sub: 'сразу' };
     case 'shelter': return { main: '+5°', sub: 'квадрат 2×2' };
@@ -190,13 +193,13 @@ const TWO_LINE = 13;
 const nameLines = (name: string) => (name.length >= TWO_LINE ? 2 : 1);
 const SHORT_SUB: Record<string, string> = {
   water: 'влаги', fertilizer: 'урожай', mulch: 'бережёт влагу', care: 'в ряду', weeding: 'прополка', early: 'сбор сейчас', helpers: 'рабочий день',
-  sidejob: 'раз в неделю', shelter: 'от града · тепло', compost: 'плодородие', bio: 'почва 2×2', snow: 'вода к весне', forage: 'из тайги',
+  sidejob: 'раз в неделю', shelter: 'тепло и от града', compost: 'плодородие', bio: 'почва 2×2', snow: 'вода к весне', forage: 'из тайги',
 };
 /** PSV-002 · one day cost for the card face, its spoken label and every description (shop, inventory): the same
  *  calculation the engine charges — seeds by area and machinery, fertilizer by the size of the planting it feeds. */
 export function cardDaysText(s: GameState, card: CardLike): string {
   const d = cardDaysShown(s, card), def = typeof card === 'string' ? card : card.def;
-  return def === 'fertilizer' ? `от ${d} дн. — по размеру посадки` : `${d} дн.`;
+  return def === 'fertilizer' ? `от ${d} ${daysWord(d, true)}, в зависимости от размера посадки` : `${d} ${daysWord(d)}`;
 }
 
 // The colour of a card's window: the crop is known by it before its picture is read. [window, ink of the numbers]
@@ -237,6 +240,9 @@ export function FanCard({ s, card, selected, blocked, onClick, rot = 0, onPointe
   const rotatable = d.target === 'line' || (d.kind === 'seed' && shapeRotations(card).length > 1);
   const minT = d.crop ? cropMinT(d.crop, card.traits) : null;
   const sub = d.kind === 'seed' ? st.sub.replace('рост ', '') : SHORT_SUB[card.def] ?? st.sub;
+  // the face says «5 ед. 3 нед.»; a screen reader gets the words
+  const weeks = d.kind === 'seed' ? seedWeeks(s, d.crop!, card.traits) : null, units = parseFloat(st.main);
+  const spoken = weeks !== null && !Number.isNaN(units) ? `${st.main.replace(' ед.', '')} ${plural(units, 'единица', 'единицы', 'единиц')} урожая, рост ${weeks} ${plural(weeks, 'неделя', 'недели', 'недель')}` : `${st.main} ${sub}`;
   const m = /^([+−-]?[\d,.×%]+(?:\s?₽)?)\s*(.*)$/.exec(st.main);
   const [tint, ink] = cardTint(card.def);
   return (
@@ -248,8 +254,8 @@ export function FanCard({ s, card, selected, blocked, onClick, rot = 0, onPointe
       onClick={onClick}
       onPointerDown={onPointerDown}
       aria-pressed={selected}
-      aria-label={`${d.name}. ${st.main} ${sub}. ${card.def==='fertilizer'?'От ':''}${days} ${plural(days, 'день', 'дня', 'дней')}${price > 0 ? `, ${rub(price)} ₽` : ''}${blocked ? `. ${blocked}` : ''}`}
-      title={`${d.name}. ${cardDescription(s,card.def)}${blocked ? ` — ${blocked}` : ''}`}
+      aria-label={`${d.name}. ${spoken}. ${card.def==='fertilizer'?'От ':''}${days} ${daysWord(days, card.def==='fertilizer')}${price > 0 ? `, ${rub(price)} ₽` : ''}${blocked ? `. ${blocked}` : ''}`}
+      title={`${d.name}. ${cardDescription(s,card.def)}${blocked ? ` ${blocked}` : ''}`}
     >
       <span class={`p2-win${d.kind === 'seed' ? ' fig' : ''}`}>
         {d.kind === 'seed'
@@ -267,7 +273,7 @@ export function FanCard({ s, card, selected, blocked, onClick, rot = 0, onPointe
       {price > 0 && !noPrice && <span class={`p2-price${d.kind === 'seed' && s.money < price ? ' debt' : ''}`}>{rub(price)} ₽</span>}
       {selected && rotatable && turnHint && <span class="p2-turn" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M18.5 9.5 A7 7 0 1 0 19 14" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/><path d="M19.5 4.5 V10 H14" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>}
       <TraitBadges traits={card.traits} />
-      {!!card.extra?.length && <span class="up-tag" title={`Селекция: +${card.extra.length} кл. (до ${maxExtra(s)})`}>+{card.extra.length}</span>}
+      {!!card.extra?.length && <span class="up-tag" title={`Селекция: ${card.extra.length} ${plural(card.extra.length, 'новая клетка', 'новые клетки', 'новых клеток')} (можно до ${maxExtra(s)})`}>+{card.extra.length}</span>}
       {card.temp && <span class="temp-card-tag">разовая</span>}
     </button>
   );
@@ -305,8 +311,8 @@ export function CardView({
       onClick={onClick}
       onPointerDown={onPointerDown}
       aria-pressed={selected}
-      aria-label={`${d.name}. ${card.def==='fertilizer'?'От ':''}${days} ${plural(days, 'день', 'дня', 'дней')}${price > 0 ? `, ${rub(price)} ₽` : ''}${blocked ? `. ${blocked}` : ''}`}
-      title={`${d.name}. ${cardDescription(s,card.def)}${blocked ? ` — ${blocked}` : ''}`}
+      aria-label={`${d.name}. ${card.def==='fertilizer'?'От ':''}${days} ${daysWord(days, card.def==='fertilizer')}${price > 0 ? `, ${rub(price)} ₽` : ''}${blocked ? `. ${blocked}` : ''}`}
+      title={`${d.name}. ${cardDescription(s,card.def)}${blocked ? ` ${blocked}` : ''}`}
     >
       <span class="pc-face">
         <span class="pc-band">{nameLines(d.name) === 2
@@ -338,7 +344,7 @@ export function CardView({
       {price > 0 && !noPrice && <span class={`gem gem-money${d.kind === 'seed' && s.money < price ? ' debt' : ''}`} aria-hidden="true">{rub(price)}</span>}
       {minT !== null && <span class={`pc-temp${minT >= 12 ? ' warm' : minT <= 3 ? ' cold' : ''}`} title={`Растёт, когда почва не холоднее ${minT}°`}>от {minT > 0 ? '+' : ''}{minT}°</span>}
       <TraitBadges traits={card.traits} />
-      {!!card.extra?.length && <span class="up-tag" title={`Селекция: +${card.extra.length} кл. (до ${maxExtra(s)})`}>+{card.extra.length}</span>}
+      {!!card.extra?.length && <span class="up-tag" title={`Селекция: ${card.extra.length} ${plural(card.extra.length, 'новая клетка', 'новые клетки', 'новых клеток')} (можно до ${maxExtra(s)})`}>+{card.extra.length}</span>}
       {selected && rotatable && rotHint && <span class="rot-pill" aria-hidden="true">⟳ ещё раз</span>}
       {card.temp && <span class="temp-card-tag">разовая</span>}
     </button>

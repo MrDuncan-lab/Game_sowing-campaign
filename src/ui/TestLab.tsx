@@ -63,7 +63,7 @@ export function TestLab({onExit,initialLoc='chernozem'}:{onExit:()=>void;initial
     <Btn onClick={()=>setFast(v=>!v)}>{fast?'Включить обычную скорость':'Включить быструю посадку'}</Btn>
     <small class="muted">Если в системе включено уменьшение движения, сценки будут статичными. Последовательную посадку проверяйте картами.</small>
     <h4>Заказчики</h4>
-    <label class="test-select">Персонаж<select aria-label="Персонаж заказчика" value={buyer} onChange={e=>{setBuyer(e.currentTarget.value as D.OrgId);setStory(0);}}>{D.ORG_IDS.map(o=><option value={o}>{BUYERS[o].name} · {D.ORGS[o].short}</option>)}</select></label>
+    <label class="test-select">Персонаж<select aria-label="Персонаж заказчика" value={buyer} onChange={e=>{setBuyer(e.currentTarget.value as D.OrgId);setStory(0);}}>{D.ORG_IDS.map(o=><option value={o}>{BUYERS[o].name}, {D.ORGS[o].short}</option>)}</select></label>
     <label class="test-select">Просьба<select aria-label="Реплика заказа" value={story} onChange={e=>setStory(Number(e.currentTarget.value))}>{D.ORGS[buyer].steps.map((q,i)=><option value={i}>{q.title}</option>)}<option value={D.ORGS[buyer].steps.length}>Повторная поставка</option></select></label>
     <Btn onClick={()=>loadDialogue(buyer,story)}>Показать новый заказ и диалог</Btn>
     <small class="muted">Загрузится отдельный пример нужного региона. Нажмите на реплику над картами — откроется этот заказ.</small>

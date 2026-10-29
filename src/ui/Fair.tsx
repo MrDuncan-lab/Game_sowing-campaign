@@ -49,7 +49,7 @@ function lotNote(s: GameState, l: FairLot): string {
   }
   if (l.kind === 'mat') {
     const n = matsList(l.mats!).reduce((a, [, q]) => a + q, 0);
-    return l.special ? `подвода: всё сразу, дешевле, чем порознь` : `${n}${NB}ед. · ${money(l.price / n)} за единицу`;
+    return l.special ? `целая подвода: всё сразу и дешевле, чем порознь` : `${n}${NB}ед., ${money(l.price / n)} за единицу`;
   }
   return WORKERS[l.worker!].levels[(l.wlevel ?? 1) - 1];
 }
@@ -69,7 +69,7 @@ function LotCard({ s, l, act }: { s: GameState; l: FairLot; act: Dispatch }) {
           {l.prize ? <span class="tag good"><Icon name="trophy" size={14} /> приз праздника</span> : l.special && <span class="tag good">особый лот</span>}
           {l.used && <span class="tag">б/у</span>}
           {eyed && <span class="tag warn"><Icon name="eye" size={14} /> {fairRival(s.loc).name} присматривается</span>}
-          {held && <span class="tag good">за вами до конца {l.hold === s.absWeek ? 'этой' : 'следующей'} недели · задаток {money(l.deposit ?? 0)}</span>}
+          {held && <span class="tag good">за вами до конца {l.hold === s.absWeek ? 'этой' : 'следующей'} недели, задаток {money(l.deposit ?? 0)}</span>}
         </span>
       </div>
       <div class="lot-side">
@@ -97,22 +97,22 @@ export function FairPanel({ s, act }: { s: GameState; act: Dispatch }) {
         <Icon name="fair" size={34} />
         <span class="grow">
           <b>Ярмарка {SEASON_GEN[f.season]}</b>
-          <small>{left > 1 ? `закроется через ${left}${NB}${plural(left, 'неделю', 'недели', 'недель')}` : 'последняя неделя: в новом сезоне — новые лоты'}</small>
+          <small>{left > 1 ? `закроется через ${left}${NB}${plural(left, 'неделю', 'недели', 'недель')}` : 'последняя неделя, в новом сезоне будут новые лоты'}</small>
         </span>
         <ShedChips s={s} />
       </header>
       <p class="fair-rival">
         <Face who={fairRival(s.loc).who} size={40} />
         <span>
-          {fairRival(s.loc).text}. Присматривается к одному лоту и в конце недели может его купить
-          {f.rival ? ` — уже купил ${f.rival} из ${RIVAL_MAX} за сезон` : ` (не больше ${RIVAL_MAX} за сезон)`}. Задаток держит лот за вами до конца следующей недели; не выкупили — задаток пропал.
+          {fairRival(s.loc).text}. Каждую неделю он присматривается к одному лоту и в конце недели может его купить. За сезон он может купить не больше {RIVAL_MAX} {plural(RIVAL_MAX, 'лота', 'лотов', 'лотов')}{f.rival ? `, уже купил ${f.rival}` : ''}.
+          Задаток оставляет лот за вами до конца следующей недели. Если лот не выкупить вовремя, задаток пропадёт.
         </span>
       </p>
       <div class="fair-lots">
         {open.map((l) => <LotCard s={s} l={l} act={act} />)}
-        {!open.length && <p class="small muted">Всё разобрали. Новые лоты — в новом сезоне.</p>}
+        {!open.length && <p class="small muted">Всё разобрали. Новые лоты появятся в новом сезоне.</p>}
       </div>
-      {open.some((l) => l.kind === 'worker') && <p class="small muted">{beds > 0 ? `Свободных кроватей: ${beds}.` : isHome(s) ? 'Свободных кроватей нет: растите дом, договоритесь о постое у соседей или постройте общежитие.' : 'Свободных кроватей нет: нанять можно, когда вырастет лагерь.'}</p>}
+      {open.some((l) => l.kind === 'worker') && <p class="small muted">{beds > 0 ? `Свободных кроватей: ${beds}.` : isHome(s) ? 'Свободных кроватей нет. Улучшите дом, договоритесь о постое у соседей или постройте общежитие.' : 'Свободных кроватей нет. Нанять работника можно, когда вы улучшите лагерь.'}</p>}
       {sold.length > 0 && <details class="fair-sold"><summary>Продано в этом сезоне: {sold.length}</summary>{sold.map((l) => <LotCard s={s} l={l} act={act} />)}</details>}
     </section>
   );

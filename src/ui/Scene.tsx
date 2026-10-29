@@ -912,7 +912,7 @@ export function Scene({
       )}
       {!hidePlants && showWarnings && scouts && thieves.size === 0 && (
         <g transform={`translate(${Math.round(Math.max(150, Math.min(cam.W / 2 - 76, cam.W - 160)))} ${yard - 3})`} class="scouts" role="button" tabindex={0}
-          aria-label="Дети из интерната что-то высматривают у поля" onClick={(e) => { e.stopPropagation(); onScouts?.(); }}
+          aria-label="Ребята из интерната что-то высматривают у поля" onClick={(e) => { e.stopPropagation(); onScouts?.(); }}
           onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onScouts?.(); } }}>
           <rect x={-40} y={-60} width={80} height={66} fill="transparent" />
           <g transform="scale(1.15)"><ScoutingKids /></g>

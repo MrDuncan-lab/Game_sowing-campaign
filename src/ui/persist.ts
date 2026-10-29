@@ -119,14 +119,14 @@ function read<T>(key: string, valid: (v: unknown) => v is T): T | null {
     try { recovered = backup === null ? null : JSON.parse(backup); } catch { /* keep both original strings */ }
     if (valid(recovered)) {
       invalid.delete(key);
-      issue(notice, `${label(key)}: повреждено сохранение, загружена резервная копия. Нажмите «Сохранить», чтобы восстановить основной слот.`);
+      issue(notice, `${label(key)}: сохранение повреждено, загружена резервная копия. Нажмите «Сохранить», чтобы записать её как основное сохранение.`);
       return recovered;
     }
     invalid.add(key);
-    issue(notice, `${label(key)}: сохранение повреждено. Данные сохранены; замена требует подтверждения.`);
+    issue(notice, `${label(key)}: сохранение повреждено и не читается. Мы его не стирали: заменить можно только с вашего подтверждения.`);
     return null;
   } catch {
-    issue(notice, `${label(key)}: хранилище недоступно. Прогресс остаётся в этой вкладке; повторите сохранение.`);
+    issue(notice, `${label(key)}: хранилище недоступно. Прогресс остаётся в этой вкладке. Повторите сохранение.`);
     return null;
   }
 }
@@ -147,7 +147,7 @@ function write<T>(key: string, value: T, valid: (v: unknown) => v is T, replaceI
         let recovered: unknown;
         try { recovered = backup === null ? null : JSON.parse(backup); } catch { /* no valid backup */ }
         if (!replaceInvalid && !valid(recovered)) {
-          issue(`${key}:write`, `${label(key)}: повреждённые данные сохранены. Подтвердите восстановление для замены.`);
+          issue(`${key}:write`, `${label(key)}: сохранение повреждено, но не стёрто. Подтвердите восстановление, чтобы заменить его.`);
           return false;
         }
         localStorage.setItem(`${key}.recovery`, old);
@@ -162,7 +162,7 @@ function write<T>(key: string, value: T, valid: (v: unknown) => v is T, replaceI
     if (issues.has(CLEARED) && key !== PROFILE) issue(CLEARED); // the progress is written again
     return true;
   } catch {
-    issue(`${key}:write`, `${label(key)} не ${key === PROFILE ? "сохранён" : "сохранена"}: запись недоступна или недостаточно места. Прогресс остаётся в этой вкладке; повторите сохранение.`);
+    issue(`${key}:write`, `${label(key)} не ${key === PROFILE ? "сохранён" : "сохранена"}: запись недоступна или недостаточно места. Прогресс остаётся в этой вкладке. Повторите сохранение.`);
     return false;
   }
 }

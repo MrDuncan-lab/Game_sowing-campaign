@@ -219,32 +219,32 @@ export function tutorialProblem(t: TutorialSession, a: Action): string | null {
   const area = AREA_ACTIONS[a.t];
   if (area && !areaOpen(t.step, area)) return CLOSED[area];
   const def = a.t === 'play' ? t.farm.hand.find((c) => c.uid === a.uid)?.def : null;
-  const one = (types: Action['t'][]) => types.includes(a.t) ? null : 'Сначала — то, что показывает Палыч. Свободное время будет в конце недели.';
+  const one = (types: Action['t'][]) => types.includes(a.t) ? null : 'Сначала сделайте то, что показывает Палыч. Свободное время будет в конце недели.';
   if (FREE_STEPS.includes(t.step) || t.step === 'solo') {
     // free time: anything a farmer does in a normal week; what a later lesson explains waits for it
-    if (!FREE_ACTIONS.includes(a.t)) return 'На учебной ферме Палыч покажет это в своё время. На своей — когда угодно.';
+    if (!FREE_ACTIONS.includes(a.t)) return 'На учебной ферме Палыч покажет это в своё время. На своей ферме это можно делать когда угодно.';
     // the money the next paid lessons need is kept (T01)
     const spend = a.t === 'buyCard' ? cardShopPrice(t.farm, a.def) : 0;
     const reserve = lessonReserve(t);
-    if (spend > 0 && t.farm.money - spend < reserve) return `Эти деньги отложим: на помощника, селекцию и полив нужно ещё ${money(reserve)}.`;
+    if (spend > 0 && t.farm.money - spend < reserve) return `Эти деньги отложим: они понадобятся на следующих уроках. Сохранить нужно ${money(reserve)}.`;
     return null;
   }
   // a paid step can always raise its money: sell, borrow, deliver an order
   if (PAID_STEPS.includes(t.step) && ['sell', 'borrow', 'deliver'].includes(a.t)) return null;
   switch (t.step) {
     case 'plant': return a.t === 'play' && def === 'seed_radish' ? null : 'Начнём с редиса: нажмите его карту, потом свободную грядку.';
-    case 'rotate': return 'Коснитесь выбранной фасоли ещё раз — фигура повернётся.';
+    case 'rotate': return 'Коснитесь выбранной фасоли ещё раз, и фигура повернётся.';
     case 'bean': return a.t === 'play' && def === 'seed_bean' ? null : 'Посадите повёрнутую фасоль на свободные грядки.';
     case 'night': return one(['endWeek']);
-    case 'sale': return a.t === 'sell' && a.crop === 'radish' && a.qty > 0 ? null : 'Сначала продадим урожай Палыча — он в амбаре.';
+    case 'sale': return a.t === 'sell' && a.crop === 'radish' && a.qty > 0 ? null : 'Сначала продадим урожай Палыча, он лежит в амбаре.';
     case 'water': {
       const dry = stillThirsty(t);
       const hits = (cells: [number, number][]) => cells.some((c) => dry.some((d) => same(c, d)));
       const ok = (a.t === 'waterHand' && hits(a.tiles)) || (a.t === 'play' && def === 'water' && !!a.tiles?.[0] && hits(workEffectCells(t.farm, 'water', ...a.tiles[0])));
       return ok ? null : 'Полейте ростки с красной каплей: лейкой из меню грядки или картой «Полив».';
     }
-    case 'visit': return 'К ферме идут гости — встретьте их.';
-    case 'village': return 'Заказ ждут в деревне — откройте её над полем.';
+    case 'visit': return 'К ферме идут гости, встретьте их.';
+    case 'village': return 'Заказ ждут в деревне. Откройте её: кнопка «Деревня» над полем.';
     case 'accept': return one(['accept']);
     case 'deliver': return one(['deliver']);
     case 'hail': {
@@ -254,10 +254,10 @@ export function tutorialProblem(t: TutorialSession, a: Action): string | null {
       return manual || cover ? null : 'Накройте фасоль картой «Укрытие» или щитом из меню её грядки.';
     }
     case 'chapter': return 'Глава I пройдена. Выберите, что дальше: своя ферма или вторая глава.';
-    case 'weeds': { const [wx, wy] = t.weedAt ?? [-1, -1]; return a.t === 'weed' && a.x === wx && a.y === wy ? null : 'Прополите грядку с сорняком — нажмите на неё.'; }
-    case 'compost': return a.t === 'play' && a.uid === t.compostUid && a.tiles?.[0] && workEffectCells(t.farm, 'compost', ...a.tiles[0]).some(([x, y]) => x === 1 && y === 2) ? null : 'Высыпьте компост на бедную грядку — она подсвечена.';
+    case 'weeds': { const [wx, wy] = t.weedAt ?? [-1, -1]; return a.t === 'weed' && a.x === wx && a.y === wy ? null : 'Прополите грядку с сорняком: нажмите на неё.'; }
+    case 'compost': return a.t === 'play' && a.uid === t.compostUid && a.tiles?.[0] && workEffectCells(t.farm, 'compost', ...a.tiles[0]).some(([x, y]) => x === 1 && y === 2) ? null : 'Высыпьте компост на бедную грядку. Она подсвечена.';
     case 'hire': return one(['hire']);
-    case 'lab': return a.t === 'labCell' ? null : 'Выберите семена в разделе «Селекция» и добавьте клетку к посеву.';
+    case 'lab': return a.t === 'labCell' ? null : 'Выберите семена в разделе «Селекция» и добавьте к их фигуре клетку.';
     case 'upgrade': return a.t === 'track' && a.track === 'irrigation' ? null : 'Улучшите бочку до капельного полива.';
     case 'place': return a.t === 'build' && a.item === 'drip' ? null : 'Поставьте готовую капельную линию на поле.';
     case 'practice': return one(['waterHand', 'play', 'accept', 'deliver', 'weed', 'sell', 'endWeek', 'pay', 'borrow', 'repay', 'exchangeCard', 'guard', 'buyCard']);

@@ -123,7 +123,7 @@ function Bubble({ s, o }: { s: GameState; o: OrgId }) {
 // they sit right under their building; while the village moves they fade out (see village.css).
 export const VILLAGE_LABELS: { k: string; text: string; cond?: string; x?: number }[] = [
   { k: 'house', text: 'Дом', x: 116 }, { k: 'barn', text: 'Амбар' },
-  { k: 'lab', text: 'Лаборатория', cond: 'lab' }, { k: 'lot-lab', text: 'Под лабораторию', cond: 'nolab' },
+  { k: 'lab', text: 'Лаборатория', cond: 'lab' }, { k: 'lot-lab', text: 'Место под лабораторию', cond: 'nolab' },
   { k: 'meteo', text: 'Метеостанция', cond: 'meteo' }, { k: 'hives', text: 'Пасека', cond: 'hives' },
   { k: 'board', text: 'Заказы' }, { k: 'fair', text: 'Ярмарка' }, { k: 'signpost', text: 'Дорога' },
   { k: 'council', text: 'Сельсовет' }, { k: 'college', text: 'Колледж' }, { k: 'orphanage', text: 'Интернат' },
