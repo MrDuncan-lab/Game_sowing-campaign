@@ -34,13 +34,19 @@ test('the year’s harvest is kept for the festival: units, crops, the best bed'
   assert.ok(show.best > 0 && show.best <= show.units);
 });
 
-test('no club, no festival; with the club it is held at the first week of winter and judged in three', () => {
+test('before the club a show on the square (small glory, no prize); with the club the festival, judged in three', () => {
   let s = home();
   toAutumnEnd(s);
   s.yearHarvest = { year: s.year, units: 999, kinds: ['potato', 'radish', 'wheat', 'cabbage', 'carrot', 'onion'], best: 30, bestCrop: 'potato' };
   let n = pass(json(s));
   assert.equal(n.season, 3);
-  assert.equal(n.fests, undefined);
+  assert.equal(n.fests?.length, 1);
+  assert.equal(n.fests![0].club, false);
+  assert.equal(n.fests![0].win, true);
+  assert.equal(n.fests![0].glory, 3 * F.SMOTR_CAT_GLORY + F.SMOTR_WIN_GLORY);
+  assert.equal(n.fair!.lots.some((l) => l.prize), false);
+  assert.ok(n.told?.includes('smotr-win'));
+  assert.equal(G.hasAntonovka(n), false);
   s.commons = ['club'];
   const g = s.glory;
   n = pass(s);
@@ -50,6 +56,7 @@ test('no club, no festival; with the club it is held at the first week of winter
   assert.equal(f.win, true);
   assert.equal(n.glory - g >= 3 * F.FEST_CAT_GLORY + F.FEST_WIN_GLORY, true);
   assert.ok(n.certs.includes(F.FEST_CERT));
+  assert.equal(G.hasAntonovka(n), true, 'Пряхин gives his antonovka at the first win in the club');
   // the prize at the winter fair: Пряхин never eyes it
   const prize = n.fair!.lots.find((l) => l.prize);
   assert.ok(prize);
@@ -78,8 +85,39 @@ test('the district: villages grow with the years; the farm climbs with its house
   s.levels.house = 6; s.levels.barn = 3; s.levels.greenhouse = 3; s.levels.irrigation = 4;
   s.yards = { zina: { stage: 3 }, savva: { stage: 3 }, efim: { stage: 2 }, miller: { stage: 2 }, karpov: { stage: 2 } };
   s.commons = ['club', 'bridge'];
-  s.fests = [{ year: 1, you: { units: 1, kinds: 1, best: 1 }, rival: { units: 0, kinds: 0, best: 0 }, won: ['units', 'kinds'], win: true, glory: 25 }];
+  s.fests = [{ club: true, year: 1, you: { units: 1, kinds: 1, best: 1 }, rival: { units: 0, kinds: 0, best: 0 }, won: ['units', 'kinds'], win: true, glory: 25 }];
   assert.ok(G.districtPlace(s) <= 2);
   s.year = 12;
   assert.ok(G.districtPlace(s) > 1, 'the villages keep growing');
+});
+
+test('29.10 · the chronicle closes with an epilogue once all six milestones are done', () => {
+  let s = home('CHRON');
+  assert.equal(G.chronicleDone(s), false);
+  s.owned = true; s.levels.house = 7;
+  s.yards = { zina: { stage: 2 }, savva: { stage: 2 }, efim: { stage: 2 }, miller: { stage: 2 }, karpov: { stage: 2 } };
+  s.commons = ['club'];
+  s.fests = [{ club: true, year: 1, you: { units: 1, kinds: 1, best: 1 }, rival: { units: 0, kinds: 0, best: 0 }, won: ['units', 'kinds'], win: true, glory: 25 }];
+  assert.equal(G.chronicle(s).filter((c) => !c.done).map((c) => c.id).join(), 'first');
+  s.told = [...(s.told ?? []), 'district-first'];
+  assert.equal(G.chronicleDone(s), true);
+  toAutumnEnd(s);
+  const g = s.glory;
+  s = pass(s);
+  assert.ok(s.told?.includes('epilogue'));
+  assert.ok(s.certs.includes(F.CHRONICLE_CERT));
+  assert.ok(s.glory >= g + F.CHRONICLE_GLORY);
+  assert.ok(validFarm(json(s)));
+});
+
+test('29.10 · story beats: the first morning at home, once; none on the lesson farm; the rival only at home and in Заречье', () => {
+  const s = home('BEATS');
+  assert.ok(s.told?.includes('start'));
+  assert.deepEqual(s.beats?.map((b) => b.id), ['start']);
+  const k = G.newGame({ loc: 'kuban', seed: 'B', run: { cond: 'lgota' } });
+  assert.ok(k.told?.includes('arrive-kuban'));
+  assert.equal(k.told?.includes('start'), false);
+  const old = json(s) as unknown as Record<string, unknown>;
+  delete old.told; delete old.beats;
+  assert.ok(validFarm(old));
 });

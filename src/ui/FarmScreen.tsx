@@ -13,9 +13,10 @@ import type { OrgId } from '../engine/data';
 import type { BuildItem } from '../engine/game';
 import { Icon } from '../art/icons';
 import { Btn, ClosedLayer, Dispatch, Money, Sheet, compactMoney, reducedMotionNow } from './common';
-import { ArrestLayer, HomeBankrupt, RunOver, VisitSheet } from './Run';
+import { ArrestLayer, HomeBankrupt, RivalSays, RunOver, VisitSheet } from './Run';
 import { BankScene } from '../art/bankScene';
 import { FestivalSheet, RatingSheet, festToShow, markFestSeen } from './Festival';
+import { StoryLayer } from './Story';
 import type { ExpeditionId } from '../engine/data';
 import { FieldView } from './FieldView';
 import type { VillageApi, VillageMode } from './Village';
@@ -91,6 +92,7 @@ function GameOver({ s, onMap, onRestart }: { s: GameState; onMap: () => void; on
   return (
     <ClosedLayer title="Ферма закрыта">
         {s.loc === 'chernozem' && s.over?.reason?.includes('Пряхин') && <BankScene mode="lost" level={lvl(s, 'house')} season={s.season} />}
+        {s.loc === 'chernozem' && s.over?.reason?.includes('Пряхин') && <RivalSays text="Записал: дом мой. Не держите зла — приезжайте в Заречье, в аренду пущу." />}
         <p>{s.over?.reason}</p>
         <div class="bank-grid">
           <div class="kv"><span>Прожито лет</span><b>{s.yearsCompleted}</b></div>
@@ -286,6 +288,7 @@ export function FarmScreen({ s, dispatch, profile, fast, onFast, onMap, onRestar
       </>}
       {festShut >= 0 && festToShow(s) && s.phase === 'week' && !tutorial && !menu && !paymentOpen && <FestivalSheet s={s} onClose={() => { markFestSeen(s, s.year); setFestShut(festShut + 1); }} />}
       {rating && <RatingSheet s={s} profile={profile} onClose={() => setRating(false)} />}
+      {!tutorial && !testing && s.phase === 'week' && <StoryLayer s={s} blocked={!!menu || paymentOpen || !!festToShow(s) || rating || (!!visitKey && visitShut !== visitKey)} />}
       {menu && (
         <Sheet title={`${loc.name} · ${loc.place}`} icon="map" onClose={() => setMenu(false)}>
           <div class="stack">

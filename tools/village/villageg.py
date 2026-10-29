@@ -638,6 +638,7 @@ def hill_F(r):
         H.person(r, 230, 1176, 1.1, coat=P['coat1'], kind='kid', scarf=P['coat4'])
     pop(r, 'F', 'g-orphanage', 142, 1196, lambda X, Y: Q.swing(r, X, Y, 1.2), 'Качели: подарок интерната', cond='g-orphanage')
     pop(r, 'F', 'g-college', 296, 1194, lambda X, Y: Q.desk(r, X, Y, 1.0), 'Учебный стол: подарок колледжа', cond='g-college')
+    pop(r, 'F', 'g-antonovka', 214, 1176, lambda X, Y: NB.antonovka(r, X, Y, .9), 'Пряхинская антоновка', cond='antonovka')
     # the fence with the gate down to the field; sunflowers along it; a bush the kids hide in
     H.palisade(r, -6, 368, 1216, .9, gate=(167, 205))
     pop(r, 'F', 'gate', 186, 1218, lambda X, Y: (r.add(f'<rect x="{X - 22}" y="{Y - 18}" width="44" height="20" fill="#fff" fill-opacity="0"/>'), r.see([(X - 22, Y - 18), (X + 22, Y + 2)])), 'Калитка: вниз, к полю', 'gate')

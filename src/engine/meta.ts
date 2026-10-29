@@ -5,7 +5,7 @@ import { CROPS, DECK_MIN, EXPEDITION_IDS, ExpeditionId, LOCATIONS, PetId, CropId
 // (bedsUsed and workerSlots: a returning worker may overfill the house; hiring then waits for a bed)
 import {
   Card, GameError, GameState, Worker, addMats, deckCount, deckList, infl, money, newGame, note, ownedTiles, plural, raiseSoil, returnCards,
-  round2, wakeHome, workerSlots, bedsUsed, lvl,
+  round2, wakeHome, workerSlots, bedsUsed, lvl, beat,
 } from './game';
 import { CONDITIONS, LOOT, LootId, PlotOffer, RELICS, plotOffers } from './run';
 
@@ -125,6 +125,7 @@ export function settleRun(home: GameState | null, run: GameState): { home: GameS
   if (w) welcome(h, w);
   const name = LOCATIONS[run.loc].name;
   delete h.away;
+  if (!res.bankrupt) beat(h, 'cart-back');
   if (h.phase === 'arrest' && h.arrest) {
     const pay = Math.min(cash, h.arrest.debt);
     h.arrest.debt = round2(h.arrest.debt - pay);

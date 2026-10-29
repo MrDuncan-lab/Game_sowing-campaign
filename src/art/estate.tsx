@@ -4,9 +4,9 @@
 // scarecrow, a water barrel, a weather mast, a compost box), so the picture itself says what the farm has.
 import { ES_SEASON_CSS, ES_SUMMER, ES_VIEW, ES_WINTER, type ESItem } from './village/estate';
 
-export interface EstateOwns { hive?: boolean; greenhouse?: boolean; scarecrow?: boolean; irrigation?: boolean; meteo?: boolean; compost?: boolean }
+export interface EstateOwns { hive?: boolean; greenhouse?: boolean; scarecrow?: boolean; irrigation?: boolean; meteo?: boolean; compost?: boolean; antonovka?: boolean }
 
-const ITEMS: [ESItem, keyof EstateOwns][] = [['hive', 'hive'], ['greenhouse', 'greenhouse'], ['scarecrow', 'scarecrow'], ['barrel', 'irrigation'], ['meteo', 'meteo'], ['compost', 'compost']];
+const ITEMS: [ESItem, keyof EstateOwns][] = [['hive', 'hive'], ['greenhouse', 'greenhouse'], ['scarecrow', 'scarecrow'], ['barrel', 'irrigation'], ['meteo', 'meteo'], ['compost', 'compost'], ['antonovka', 'antonovka']];
 
 export function Estate({ level, building, season, owns, camp = false, region }: { level: number; building: 0 | 1 | 2 | 3; season: number; owns: EstateOwns; camp?: boolean; region?: string }) {
   const d = season === 3 ? ES_WINTER : ES_SUMMER;

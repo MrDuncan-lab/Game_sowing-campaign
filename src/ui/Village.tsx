@@ -15,7 +15,7 @@ import type { ComponentChildren, RefObject } from 'preact';
 import { useEffect, useRef } from 'preact/hooks';
 import { V_ANCHORS, V_BOTTOM, V_CART, V_SEASON_CSS, V_SPOTS, V_SUMMER, V_VH, V_W, V_WINTER } from '../art/village/chernozem';
 import { ORGS, type OrgId } from '../engine/data';
-import { GameState, buildStage, deliverProblem, friends, hasCommon, locOf, lvl, nextPayment, paymentSchedule, thievesBlocked, yardStage, yearLen } from '../engine/game';
+import { GameState, buildStage, deliverProblem, friends, hasAntonovka, hasCommon, locOf, lvl, nextPayment, paymentSchedule, thievesBlocked, yardStage, yearLen } from '../engine/game';
 import { COMMON_IDS, YARD_IDS } from '../engine/neighbours';
 import { CropSprite } from '../art/crops';
 import { ScoutingKids } from '../art/scouts';
@@ -54,6 +54,7 @@ function villageClasses(s: GameState): string {
   for (const c of COMMON_IDS) on.push(hasCommon(s, c) ? `on-c-${c}` : `on-no${c}`);
   // Пряхин stands at the stall while he has his eye on a lot
   if (s.fair?.eye != null) on.push('on-pryakhin');
+  if (hasAntonovka(s)) on.push('on-antonovka');
   return on.join(' ');
 }
 

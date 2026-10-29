@@ -17,16 +17,35 @@ export const rivalShow = (k: number): Record<FestCat, number> => ({
 export const FEST_CAT_GLORY = 5;
 export const FEST_WIN_GLORY = 15;
 export const FEST_CERT = 'Победитель праздника урожая';
+/** 29.10 · before the club there is a smaller show on the square every winter, with smaller rewards */
+export const SMOTR_CAT_GLORY = 2;
+export const SMOTR_WIN_GLORY = 5;
+export const SMOTR_NAME = 'Смотр на площади';
+export const FEST_NAME = 'Праздник урожая';
+/** the farm's chronicle: six milestones of the home; all of them close it with an epilogue */
+export type ChronicleId = 'owned' | 'house7' | 'yards' | 'club' | 'beat' | 'first';
+export const CHRONICLE: { id: ChronicleId; name: string; hint: string }[] = [
+  { id: 'owned', name: 'Дом выкуплен', hint: 'три осенних взноса по залогу' },
+  { id: 'house7', name: 'Подворье', hint: 'дом 7-го уровня' },
+  { id: 'yards', name: 'Деревня на ногах', hint: 'все пять дворов на второй стадии' },
+  { id: 'club', name: 'Клуб в деревне', hint: 'общая постройка, толокой' },
+  { id: 'beat', name: 'Пряхин обыгран', hint: 'победа на празднике урожая в клубе' },
+  { id: 'first', name: 'Первые в районе', hint: 'первое место в районной сводке' },
+];
+export const CHRONICLE_GLORY = 50;
+export const CHRONICLE_CERT = 'Летопись хозяйства';
+export const DISTRICT_FIRST_GLORY = 20;
+export const DISTRICT_FIRST_CERT = 'Первые в районе';
 /** the prize lot at the winter fair after a win: the next level of an equipment line at this share of its price */
 export const FEST_PRIZE = 0.6;
 
 /** the district: neighbouring villages and the strength of their farms, growing a little every year */
 export interface DistrictVillage { name: string; base: number; growth: number; note: string }
 export const DISTRICT: DistrictVillage[] = [
-  { name: 'Подворье Пряхина', base: 60, growth: 16, note: 'скупает всё на ярмарке' },
+  { name: 'Подворье Пряхина', base: 60, growth: 16, note: 'Заречье, крепкий хозяин' },
   { name: 'Ольховка', base: 70, growth: 9, note: 'большое село, старый колхоз' },
   { name: 'Красный Яр', base: 45, growth: 11, note: 'молодые фермеры' },
-  { name: 'Заречье', base: 35, growth: 8, note: 'сдают землю в аренду' },
+  { name: 'Каменка', base: 35, growth: 8, note: 'карьер и три фермы' },
   { name: 'Берёзовка', base: 25, growth: 7, note: 'пасеки и сады' },
   { name: 'Сосновка', base: 15, growth: 5, note: 'три двора и школа' },
 ];

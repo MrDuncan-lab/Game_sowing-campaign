@@ -1,11 +1,13 @@
 // The season's fair (progression v3 §4): a few lots each season — equipment, building materials, a worker looking
-// for a job. Пряхин, the neighbour, eyes one lot a week and may buy it at the week's end; a deposit keeps a lot for
+// for a job. The region's rival (Пряхин at home and in Заречье, local dealers far away) eyes one lot a week and may buy it at the week's end; a deposit keeps a lot for
 // the player to the end of the next week.
 import { MATERIALS, MATERIAL_IDS, SEASON_GEN, TRACKS, WORKERS, type MaterialId } from '../engine/data';
 import {
   GameState, FairLot, fairBuyProblem, fairDeposit, fairHeld, fairHoldProblem, fairPayNow, lotName, lvl, matStock, matsList, money, plural,
-  RIVAL_MAX, seasonLen, workerSlots,
+  RIVAL_MAX, seasonLen, workerSlots, isHome,
 } from '../engine/game';
+import { fairRival } from '../content/story';
+import { Face } from './Story';
 import { Icon } from '../art/icons';
 import { Portrait, type PersonId } from '../art/portraits';
 import { Btn, Dispatch } from './common';
@@ -66,12 +68,12 @@ function LotCard({ s, l, act }: { s: GameState; l: FairLot; act: Dispatch }) {
         <span class="lot-tags">
           {l.prize ? <span class="tag good"><Icon name="trophy" size={14} /> приз праздника</span> : l.special && <span class="tag good">особый лот</span>}
           {l.used && <span class="tag">б/у</span>}
-          {eyed && <span class="tag warn"><Icon name="eye" size={14} /> Пряхин присматривается</span>}
+          {eyed && <span class="tag warn"><Icon name="eye" size={14} /> {fairRival(s.loc).name} присматривается</span>}
           {held && <span class="tag good">за вами до конца {l.hold === s.absWeek ? 'этой' : 'следующей'} недели · задаток {money(l.deposit ?? 0)}</span>}
         </span>
       </div>
       <div class="lot-side">
-        {l.sold === 'rival' ? <span class="lot-sold">купил Пряхин</span> : l.sold === 'player' ? <span class="lot-sold up">куплено</span> : (
+        {l.sold === 'rival' ? <span class="lot-sold">купил {fairRival(s.loc).name}</span> : l.sold === 'player' ? <span class="lot-sold up">куплено</span> : (
           <>
             <b class="lot-price">{money(fairPayNow(l))}</b>
             <Btn small tone="primary" disabled={why} onClick={() => act({ t: 'fairBuy', id: l.id })}>Купить</Btn>
@@ -100,9 +102,9 @@ export function FairPanel({ s, act }: { s: GameState; act: Dispatch }) {
         <ShedChips s={s} />
       </header>
       <p class="fair-rival">
-        <Portrait id="trader" size={36} />
+        <Face who={fairRival(s.loc).who} size={40} />
         <span>
-          <b>Аркадий Пряхин</b>, сосед, тоже ходит на ярмарку. Он присматривается к одному лоту и в конце недели может его купить
+          {fairRival(s.loc).text}. Присматривается к одному лоту и в конце недели может его купить
           {f.rival ? ` — уже купил ${f.rival} из ${RIVAL_MAX} за сезон` : ` (не больше ${RIVAL_MAX} за сезон)`}. Задаток держит лот за вами до конца следующей недели; не выкупили — задаток пропал.
         </span>
       </p>
@@ -110,7 +112,7 @@ export function FairPanel({ s, act }: { s: GameState; act: Dispatch }) {
         {open.map((l) => <LotCard s={s} l={l} act={act} />)}
         {!open.length && <p class="small muted">Всё разобрали. Новые лоты — в новом сезоне.</p>}
       </div>
-      {open.some((l) => l.kind === 'worker') && <p class="small muted">{beds > 0 ? `Свободных кроватей: ${beds}.` : 'Свободных кроватей нет: нанять можно, когда вырастет дом.'}</p>}
+      {open.some((l) => l.kind === 'worker') && <p class="small muted">{beds > 0 ? `Свободных кроватей: ${beds}.` : isHome(s) ? 'Свободных кроватей нет: растите дом, договоритесь о постое у соседей или постройте общежитие.' : 'Свободных кроватей нет: нанять можно, когда вырастет лагерь.'}</p>}
       {sold.length > 0 && <details class="fair-sold"><summary>Продано в этом сезоне: {sold.length}</summary>{sold.map((l) => <LotCard s={s} l={l} act={act} />)}</details>}
     </section>
   );

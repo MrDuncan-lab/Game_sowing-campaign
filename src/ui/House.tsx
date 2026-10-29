@@ -18,6 +18,8 @@ import { CardView, cardDescription } from './Card';
 import { useLessonWeeks } from './lesson';
 import { NeighbourRow, NeighbourSheet, COMMON_ICON, type NeighbourKey } from './Neighbours';
 import { COMMONS, YARDS, YARD_IDS } from '../engine/neighbours';
+import { Chronicle, FestivalStandings } from './Festival';
+import { districtPlace, hasAntonovka } from '../engine/game';
 
 const PLACE: Partial<Record<TrackId, BuildItem>> = { greenhouse: 'greenhouse', apiary: 'hive', irrigation: 'drip', guard: 'scarecrow', canal: 'canal', fires: 'fire' };
 
@@ -195,7 +197,7 @@ export function HouseView({ s, act, onPlace, onFair }: { s: GameState; act: Disp
       {/* the estate, big: the house at its level with what the farm owns around it, and the ways into the house */}
       <div class="hero house-hero estate-hero">
         <div class="estate-art">
-          <Estate level={house} camp={s.loc !== 'chernozem'} region={s.loc} building={buildStage(s, 'house')} season={s.season} owns={{ hive: lvl(s, 'apiary') > 0, greenhouse: lvl(s, 'greenhouse') > 0, scarecrow: lvl(s, 'guard') > 0, irrigation: lvl(s, 'irrigation') > 0, meteo: lvl(s, 'meteo') > 0, compost: lvl(s, 'compost') > 0 }} />
+          <Estate level={house} camp={s.loc !== 'chernozem'} region={s.loc} building={buildStage(s, 'house')} season={s.season} owns={{ hive: lvl(s, 'apiary') > 0, greenhouse: lvl(s, 'greenhouse') > 0, scarecrow: lvl(s, 'guard') > 0, irrigation: lvl(s, 'irrigation') > 0, meteo: lvl(s, 'meteo') > 0, compost: lvl(s, 'compost') > 0, antonovka: hasAntonovka(s) }} />
           <div class="estate-plaque"><h2>{hdef.levels[house - 1].name}</h2><Pips n={house} of={hmax} /></div>
           {houseProj && houseProj.kind === 'track' && <div class="estate-build"><span>Строим «{hdef.levels[houseProj.level - 1].name}» · ещё {weeksShort(houseProj.weeks)}{s.season === 3 ? ' · зимой вдвое медленнее' : ''}</span><Bar value={houseProj.total - houseProj.weeks} max={houseProj.total} tone="good" /></div>}
         </div>
@@ -255,6 +257,13 @@ export function HouseView({ s, act, onPlace, onFair }: { s: GameState; act: Disp
         {!ownedTracks.length && <p class="small muted">Пока ничего не построено.</p>}
         {newTracks.length > 0 && <Btn onClick={() => setCatalogue(true)}><Icon name="build" size={20} /> Новая постройка</Btn>}
       </Section>
+
+      {isHome(s) && (
+        <Section id="chronicle" title="Летопись хозяйства" icon="journal" extra={<span class="slots">район: {districtPlace(s)}-е место</span>}>
+          <Chronicle s={s} />
+          <FestivalStandings s={s} />
+        </Section>
+      )}
 
       {isHome(s) && (
         <Section id="neighbours" title="Соседи" icon="village" extra={helpers.length ? <span class="slots up">подмога: {helpers.length}</span> : undefined}>

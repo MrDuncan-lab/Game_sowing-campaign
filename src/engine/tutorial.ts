@@ -110,6 +110,8 @@ export function createTutorial(): TutorialSession {
   s.money = 250; s.peak = 250; s.guide = []; s.plan = []; s.temps = s.temps.map(() => 18);
   s.flags = { warm: false, rain: false, dry: false }; s.strikes = []; s.crows = null; s.thieves = null;
   s.levels.lab = 1; s.levels.irrigation = 1; s.candidates = ['foreman'];
+  // the lesson farm has no story: Палыч teaches, Пряхин waits for the player's own farm
+  delete s.told; delete s.beats;
   // v3 §8.1 · the lesson's crops are Палыч's own: known well enough for the lab's first extra cell
   s.knowBase = Object.fromEntries(SOWN_IDS.map((c) => [c, 60]));
   // v3 · no trees sprout on the lesson farm; the shed holds the logs the drip-line lesson needs

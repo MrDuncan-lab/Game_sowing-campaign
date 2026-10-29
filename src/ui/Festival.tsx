@@ -5,8 +5,9 @@
 import { createPortal } from 'preact/compat';
 import { useState } from 'preact/hooks';
 import { CROPS, LOCATIONS } from '../engine/data';
-import { GameState, districtPlace, districtTable, festOpen, festRival, festShow, isHome } from '../engine/game';
-import { FEST_CATS, FEST_CAT_GLORY, FEST_NAMES, FEST_UNITS, FEST_WIN_GLORY } from '../engine/festival';
+import { GameState, chronicle, districtPlace, districtTable, festClub, festInClub, festOpen, festRival, festShow, isHome, plural } from '../engine/game';
+import { FEST_CATS, FEST_CAT_GLORY, FEST_NAME, FEST_NAMES, FEST_UNITS, FEST_WIN_GLORY, SMOTR_CAT_GLORY, SMOTR_NAME, SMOTR_WIN_GLORY } from '../engine/festival';
+import { rivalVerdict } from '../content/story';
 import { PORTRAIT_IMAGES } from '../art/portraits';
 import { Icon } from '../art/icons';
 import { Btn, Sheet } from './common';
@@ -59,19 +60,21 @@ export function FestivalSheet({ s, onClose }: { s: GameState; onClose: () => voi
   const f = s.fests?.at(-1);
   if (!f) return null;
   return createPortal(
-    <Sheet title={`Праздник урожая · ${f.year}-й год`} icon="trophy" onClose={onClose}>
+    <Sheet title={`${festInClub(f) ? FEST_NAME : SMOTR_NAME} · ${f.year}-й год`} icon="trophy" onClose={onClose}>
       <div class="fest-sheet">
         <div class="nb-head">
           <Rival />
           <div class="nb-say">
-            <small>Пряхин, сосед-соперник</small>
-            <p>{f.win ? '«Ну… твой год. Запиши себе. Но на будущий — посмотрим.»' : f.won.length ? '«Недурно. Но смотр мой. Приходи на будущий год.»' : '«Кто ж так урожай собирает? Учись, пока я жив.»'}</p>
+            <small>Аркадий Семёнович Пряхин, Заречье</small>
+            <p>«{rivalVerdict(f.win, f.won.length > 0, f.year)}»</p>
           </div>
         </div>
         <Judging you={f.you} rival={f.rival} done />
         {f.bestCrop && <p class="small muted">Ваша лучшая грядка — {CROPS[f.bestCrop].name.toLowerCase()}, {f.you.best} ед.</p>}
         <p class={`fest-result ${f.win ? 'up' : ''}`}>
-          {f.win ? <>Победа! Слава +{f.glory} · грамота «Победитель праздника урожая» · на зимней ярмарке ждёт призовой лот — за 60% цены, Пряхин его не тронет.</>
+          {f.win ? (festInClub(f)
+            ? <>Победа! Слава +{f.glory} · грамота «Победитель праздника урожая» · на зимней ярмарке ждёт призовой лот — за 60% цены, Пряхин его не тронет.</>
+            : <>Смотр ваш: слава +{f.glory}. Настоящий праздник урожая — с грамотой и призом — будет, когда деревня построит клуб.</>)
             : f.won.length ? <>Одна номинация ваша: слава +{f.glory}. Для победы нужны две из трёх.</> : <>В этот раз без наград. Пряхин крепчает каждый год — растите урожай, культуры и лучшую грядку.</>}
         </p>
         <Btn tone="primary" onClick={onClose}>Дальше</Btn>
@@ -79,19 +82,39 @@ export function FestivalSheet({ s, onClose }: { s: GameState; onClose: () => voi
     </Sheet>, document.body);
 }
 
-/** this year's standings before the festival (the club's place in the village sheet) */
+/** this year's standings before the winter show: on the square, or the festival in the club */
 export function FestivalStandings({ s }: { s: GameState }) {
   if (!festOpen(s)) return null;
   const done = s.fests?.find((f) => f.year === s.year);
   const wins = (s.fests ?? []).filter((f) => f.win).length;
+  const club = festClub(s);
   return (
     <section class="nb-swap fest-standings">
-      <h3><Icon name="trophy" size={18} /> Праздник урожая</h3>
-      {done ? <p class="small">В этом году смотр прошёл: {done.win ? 'вы победили' : 'первый — Пряхин'}. Следующий — в первую неделю зимы.</p>
-        : <p class="small">В первую неделю зимы — смотр хозяйств. Нужно обойти Пряхина в двух номинациях из трёх: +{FEST_CAT_GLORY} славы за каждую и +{FEST_WIN_GLORY} за победу.</p>}
+      <h3><Icon name="trophy" size={18} /> {club ? FEST_NAME : SMOTR_NAME}</h3>
+      {done ? <p class="small">В этом году смотр прошёл: {done.win ? 'вы обошли Пряхина' : 'первый — Пряхин'}. Следующий — в первую неделю зимы.</p>
+        : <p class="small">В первую неделю зимы — смотр хозяйств. Обойдите Пряхина в двух номинациях из трёх: +{club ? FEST_CAT_GLORY : SMOTR_CAT_GLORY} славы за каждую и +{club ? FEST_WIN_GLORY : SMOTR_WIN_GLORY} за победу.{club ? ' Победа в клубе — грамота и призовой лот.' : ' С клубом смотр станет праздником урожая: грамота и призовой лот.'}</p>}
       <Judging you={done ? done.you : festShow(s)} rival={done ? done.rival : festRival(s)} done={!!done} />
-      {wins > 0 && <small class="muted">Побед на празднике: {wins}.</small>}
+      {wins > 0 && <small class="muted">Побед над Пряхиным: {wins}.</small>}
     </section>
+  );
+}
+
+/** 29.10 · «Летопись хозяйства»: the home's six milestones; all six close it with an epilogue */
+export function Chronicle({ s }: { s: GameState }) {
+  const items = chronicle(s);
+  const n = items.filter((c) => c.done).length;
+  return (
+    <div class="chronicle">
+      <ol class="chronicle-list">
+        {items.map((c) => (
+          <li class={c.done ? 'done' : ''}>
+            <span class="chronicle-mark" aria-hidden="true">{c.done ? '✓' : ''}</span>
+            <span><b>{c.name}</b><small>{c.hint}</small></span>
+          </li>
+        ))}
+      </ol>
+      <p class="small muted">{n === items.length ? 'Летопись закрыта. Игра продолжается: испытания крепнут, Пряхин тоже.' : `Записано ${n} из ${items.length}. Когда закроются все — эпилог, грамота и +50 славы.`}</p>
+    </div>
   );
 }
 
@@ -115,7 +138,7 @@ const GAME_URL = 'https://github.com/MrDuncan-lab/Game_sowing-campaign';
 const festWins = (p: Profile) => p.applied.filter((id) => id.includes('|fest-win-')).length;
 /** the result in a line, for the share */
 export function shareText(s: GameState, p: Profile) {
-  const parts = [`Посевная: слава ${p.glory}`, `лучший срок — ${p.best.years} ${p.best.years === 1 ? 'год' : p.best.years < 5 && p.best.years > 1 ? 'года' : 'лет'}`];
+  const parts = [`Посевная: слава ${p.glory}`, `лучший срок — ${p.best.years} ${plural(p.best.years, 'год', 'года', 'лет')}`];
   const w = festWins(p);
   if (w) parts.push(`праздников урожая выиграно: ${w}`);
   if (isHome(s)) parts.push(`${districtPlace(s)}-е место в районе`);

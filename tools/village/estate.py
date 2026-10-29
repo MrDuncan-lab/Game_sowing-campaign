@@ -14,6 +14,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import hy as H
 import pieces as Q
+import neigh as NB
 import villageg as G
 from hy import Hy, PAL, D, SD, fmt, mix, dark, light
 
@@ -23,7 +24,7 @@ VIEW = f'0 0 {W} {HH}'
 # the house: its centre x, the ground line it stands on, its scale (the village draws it at 1.25 on a 362 wide view)
 HX, HY, HS = 208, 163, 1.45
 CREST = 138               # the near ground's crest behind the house
-ITEMS = ('hive', 'greenhouse', 'scarecrow', 'barrel', 'meteo', 'compost')
+ITEMS = ('hive', 'greenhouse', 'scarecrow', 'barrel', 'meteo', 'compost', 'antonovka')
 
 
 def crest(x):
@@ -455,8 +456,9 @@ ITEM_AT = {   # where each thing stands: (x, ground y, scale); all clear of the 
     'scarecrow': (303, 178, 1.1),
     'meteo': (340, 172, 1.15),
     'barrel': (319, 201, 1.05),
+    'antonovka': (98, 200, 1.0),
 }
-ITEM_FN = {'hive': hive, 'greenhouse': greenhouse, 'scarecrow': scarecrow, 'barrel': barrel, 'meteo': meteo, 'compost': compost}
+ITEM_FN = {'hive': hive, 'greenhouse': greenhouse, 'scarecrow': scarecrow, 'barrel': barrel, 'meteo': meteo, 'compost': compost, 'antonovka': lambda r, x, y, k: NB.antonovka(r, x, y, k)}
 
 
 def front(r):
@@ -587,7 +589,7 @@ def write(out=OUT, preview=True):
            '// (stages 1..3), front. Ids in defs start with es-; ink',
            '// classes k, kf, kn want .estate-v { --vk } rules; spring and autumn recolour summer with ES_SEASON_CSS.',
            f'export const ES_VIEW = {json.dumps(VIEW)};',
-           "export type ESItem = 'hive' | 'greenhouse' | 'scarecrow' | 'barrel' | 'meteo' | 'compost';",
+           "export type ESItem = 'hive' | 'greenhouse' | 'scarecrow' | 'barrel' | 'meteo' | 'compost' | 'antonovka';",
            'export interface ESDrawing { defs: string; back: string; backs: { kuban: string; altai: string }; houses: string[]; camps: string[]; items: Record<ESItem, string>; scaffold: string[]; front: string }',
            f'export const ES_SUMMER: ESDrawing = {json.dumps(dr["summer"], ensure_ascii=False)};',
            f'export const ES_WINTER: ESDrawing = {json.dumps(dr["winter"], ensure_ascii=False)};',

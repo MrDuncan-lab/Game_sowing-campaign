@@ -2,6 +2,7 @@
 // three plots and the cart, the visitor at the camp, the run's finds, folding the farm and the return home; the
 // home's bankruptcy that can be worked off and its arrest.
 import { BankScene } from '../art/bankScene';
+import { Face } from './Story';
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import type { ComponentChildren } from 'preact';
 import { createPortal } from 'preact/compat';
@@ -232,10 +233,16 @@ export function HomeBankrupt({ s, onRestart, onWork, onMap }: { s: GameState; on
     <ClosedLayer title="За домом приехал банк">
       <BankScene mode="cart" level={lvl(s, 'house')} season={s.season} amount={compactMoney(s.over!.work!)} />
       <p>{s.over?.reason}. Дом в залоге, и Марат из банка разводит руками.</p>
+      <RivalSays text="Записал. Земля любит хозяина, а не мечтателя." />
       <p>Можно <b>начать заново</b> — дом снова в залоге, профиль и слава остаются. Или <b>уйти на заработки</b>: дом под арестом, долг {money(s.over!.work!)} гасится на вылазках, две попытки. Закроете — дом проснётся следующей весной.</p>
       <div class="btn-row"><Btn tone="primary" onClick={onWork}><Icon name="cart" size={20} /> Уйти на заработки</Btn><Btn onClick={onRestart}>Начать заново</Btn><Btn tone="ghost" onClick={onMap}>На карту</Btn></div>
     </ClosedLayer>
   );
+}
+
+/** Пряхин's line under a picture of the home's bad days */
+export function RivalSays({ text }: { text: string }) {
+  return <p class="rival-says"><Face who="pryakhin" size={40} /><span><b>Пряхин:</b> «{text}»</span></p>;
 }
 
 export function ArrestLayer({ s, glory, onExpedition, onMap, runFarm }: { s: GameState; glory: number; onExpedition: (l: ExpeditionId) => void; onMap: () => void; runFarm?: ComponentChildren }) {
@@ -243,6 +250,7 @@ export function ArrestLayer({ s, glory, onExpedition, onMap, runFarm }: { s: Gam
   return (
     <ClosedLayer title="Дом под арестом">
       <BankScene mode="arrest" level={lvl(s, 'house')} season={s.season} />
+      <RivalSays text="Дом подождёт. Я тоже подожду: две вылазки — и он мой." />
       <p>Долг банку <b>{money(a.debt)}</b>. Вылазок на погашение: <b>{a.runs}</b>. Свёрнутое хозяйство сначала закроет долг, остаток — в кассу дома.</p>
       {s.away ? <p>Обоз уже на вылазке: <b>{LOCATIONS[s.away.loc].name}</b>.</p> : <div class="btn-row">
         {EXPEDITION_IDS.map((l) => <Btn tone={l === 'rent' ? 'primary' : undefined} disabled={expeditionOpen(l, glory) ? null : `Слава ${LOCATIONS[l].glory}`} onClick={() => onExpedition(l)}>{LOCATIONS[l].name}</Btn>)}

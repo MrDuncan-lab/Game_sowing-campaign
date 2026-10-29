@@ -6,10 +6,12 @@ import type {SceneCue} from './useSceneQueue';
 import type {OrgId} from '../engine/data';
 import {readVoices,recordVoice,rememberOrder,heardOrder} from './voiceMemory';
 import {pendingOrderVoices} from '../content/orderDialogue';
+import {STORY} from '../content/story';
+import {markBeat,pendingBeats} from './Story';
 type Remark={key:string;who:PersonId;text:string;critical?:boolean;name?:string;org?:OrgId};
 const sceneLines:Record<SceneCue['kind'],Omit<Remark,'key'>>={
  dogThieves:{who:'palych',text:'Пёс гонит воров от грядок. Урожай под защитой.',critical:true},
- watchman:{who:'marat',text:'Сторож гонит чужаков. Урожай под защитой.',critical:true},
+ watchman:{who:'palych',text:'Сторож гонит чужаков. Урожай под защитой.',critical:true},
  thieves:{who:'zina',text:'Воры тащат урожай! Пёс или сторож защитят грядки.',critical:true},
  drone:{who:'vera',text:'Дрон отгоняет вредителей от грядок.'},
  geese:{who:'zina',text:'Гуси щиплют сорняки.'},
@@ -43,6 +45,8 @@ export function FieldVoice({s,active,onOpen,onOrder,cue=null,fallback,quiet=fals
     cue.kind==='thieves'&&first?{...base,text:`${first} раньше детей — но остальное они утащили.`}:cue.visit?.crows.length?{...base,text:'Дети разгоняют ворон — и сами лезут за урожаем.'}:base;next={...line,key:`${line.critical?'critical:':''}event:${cue.id}`};}
   else {
    const options:Remark[]=[];
+   // 29.10 · Пряхин's remarks (story beats) come first: one line, once per farm
+   for(const id of quiet?[]:pendingBeats(s,'remark')){const l=STORY[id].lines[0];options.push({key:`beat:${id}`,who:l.who,name:l.name,text:l.text,critical:true});}
    if(!quiet){
    if(crowsOpen(s))options.push({key:'crows',who:'zina',text:'Вороны уже на грядках. Надо прогнать.'});
    if(s.yard.length)options.push({key:'yard',who:'buyer',text:'Ящики остались во дворе. Освободите место или продайте урожай.'});
@@ -62,12 +66,13 @@ export function FieldVoice({s,active,onOpen,onOrder,cue=null,fallback,quiet=fals
   const selected=next;
   const markSeen=()=>{
    recordVoice(weekKey,selected.key);
+   if(selected.key.startsWith('beat:'))markBeat(s,selected.key.slice(5));
   };
   acknowledge.current=markSeen;
   const commit=window.setTimeout(markSeen,600);
   const hide=cue?undefined:window.setTimeout(()=>{if(selected.org)rememberOrder(s,selected.key);setRemark(null);setRevision(v=>v+1);},6500);
   return()=>{acknowledge.current=undefined;clearTimeout(commit);clearTimeout(hide);};
- },[s.seed,s.loc,s.absWeek,report,!!s.crows,s.yard.length,active,cue?.id,quiet,testReplay,revision]);
+ },[s.seed,s.loc,s.absWeek,report,!!s.crows,s.yard.length,active,cue?.id,quiet,testReplay,revision,(s.beats??[]).map(b=>b.id).join()]);
  if(!remark)return <>{fallback}</>;
  return <button class={`field-voice${remark.org?' order-voice':''}`} type="button" onClick={()=>{acknowledge.current?.();if(remark.org){rememberOrder(s,remark.key);onOrder?.(remark.org);}else onOpen();}} aria-label={remark.org?`${remark.name}: ${remark.text} Открыть заказ`:`${remark.text} Открыть события недели`}>
   <Portrait id={remark.who} size={34}/><span>{remark.name&&<strong>{remark.name}</strong>}{remark.text}</span>

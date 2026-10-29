@@ -517,3 +517,19 @@ def pryakhin(r, x, y, s=1.0):
     quad(r, x - 6 * s, y - 10 * s, x - 1.6 * s, y - 7 * s, '#fff8e6', .35 * s)
     r.line([(x - 5 * s, y - 8.6 * s), (x - 2.6 * s, y - 8.6 * s)], .25 * s, op=.6, jitter=False)
     r.line([(x - 1 * s, y - 9.6 * s), (x + 1 * s, y - 12 * s)], .4 * s, color=P['accent'], jitter=False)
+
+
+# ---------------------------------------------------------------- Пряхин's antonovka (29.10)
+def antonovka(r, x, y, s=1.0):
+    """The cutting of Пряхин's antonovka grown into a young apple tree: tied to a stake, a few yellow-green apples,
+    a little white picket ring round it."""
+    P = r.P
+    H.apple(r, x, y, 34 * s)
+    r.line([(x + 4 * s, y + 1 * s), (x + 4 * s, y - 16 * s)], .8 * s, color=P['logs_s'], jitter=False)
+    r.line([(x + 4 * s, y - 9 * s), (x + 1 * s, y - 9 * s)], .5 * s, color=P['straw'], jitter=False)
+    if not r.winter:
+        r.dots([(x - 5 * s, y - 22 * s, 1.6 * s, 1.6 * s), (x + 3 * s, y - 27 * s, 1.6 * s, 1.6 * s), (x + 7 * s, y - 20 * s, 1.6 * s, 1.6 * s)], '#d6d86a', .3 * s)
+    for k in range(7):
+        a = math.pi * (k / 6)
+        px, py = x + math.cos(a) * 9 * s, y + 2 * s + math.sin(a) * 2.6 * s
+        r.shape([(px - .9 * s, py), (px + .9 * s, py), (px + .9 * s, py - 5 * s), (px, py - 6 * s), (px - .9 * s, py - 5 * s)], P['white'], .3 * s)

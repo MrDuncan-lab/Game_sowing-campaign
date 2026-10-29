@@ -1698,6 +1698,7 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
   const onVillagePlace = (k: string) => {
     if ((locOf(s).orgs as string[]).includes(k)) { (onOrder ?? (() => onGo('orders')))(k as OrgId); return; }
     if (PLACE_NEIGHBOUR[k]) { setNeighbour(PLACE_NEIGHBOUR[k]); return; }
+    if (k === 'g-antonovka') { villageSay('Пряхинская антоновка: черенок от Аркадия Семёновича. Прижилась — значит, и вы тут свой.'); return; }
     if (k.startsWith('g-')) { const o = k.slice(2) as OrgId; villageSay(`${ORGS[o].short} дружит с вами: ${ORGS[o].perk.charAt(0).toLowerCase()}${ORGS[o].perk.slice(1)}.`); return; }
     const next = weatherOf(s, 1);
     const say: Record<string, string> = {

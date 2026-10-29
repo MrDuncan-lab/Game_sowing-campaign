@@ -31,7 +31,7 @@
 .village.on-miller0 .vc-miller0, .village.on-miller1 .vc-miller1, .village.on-miller2 .vc-miller2, .village.on-miller3 .vc-miller3,
 .village.on-karpov0 .vc-karpov0, .village.on-karpov1 .vc-karpov1, .village.on-karpov2 .vc-karpov2, .village.on-karpov3 .vc-karpov3,
 .village.on-c-bridge .vc-c-bridge, .village.on-nobridge .vc-nobridge, .village.on-c-club .vc-c-club, .village.on-noclub .vc-noclub, .village.on-c-hostel .vc-c-hostel, .village.on-nohostel .vc-nohostel, .village.on-c-pump .vc-c-pump, .village.on-nopump .vc-nopump,
-.village.on-pryakhin .vc-pryakhin { display: inline; }
+.village.on-pryakhin .vc-pryakhin, .village.on-antonovka .vc-antonovka { display: inline; }
 /* captions under the places with a use: a small paper tag, shown once the village stands open */
 .village .v-label { opacity: 0; transition: opacity .3s ease; pointer-events: none; }
 .village:not(.v-asleep) .v-label.shown { opacity: 1; }
