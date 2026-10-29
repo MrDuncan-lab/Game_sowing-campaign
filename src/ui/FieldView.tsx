@@ -1,13 +1,17 @@
 import { AnimationClock } from './animationClock';
 import type {PestHit} from '../engine/game';
 import { useLessonLock } from './lesson';
+import type {TrialNight as TrialNightT} from '../engine/game';
+import { TrialSky, SwarmCanvas, trialTimes, revealAt } from './TrialNight';
+import { TrialCard, TrialResultCard, TrialOmen, FireCall, fireCallNeeded, trialSeen, markTrialSeen, trialWhen } from './Trials';
+import { TRIALS } from '../engine/trials';
 import { useSceneQueue, chooseScene, finishScenes, completed, type SceneCue } from './useSceneQueue';
 import { buildWeekPlayback, CALENDAR_MS, theftStagger, eventKinds, pendingKinds, type WeekEvent } from './weekPlayback';
 import {readWeekResume,saveWeekResume,clearWeekResume,type WeekResume} from './weekResume';
 import { PrecisionLoupe } from './PrecisionLoupe';
 import { greenhouseYieldReady, hiveYieldReady, neighbors8, inGrid, wlvl, weeklyCosts, HOT_AIR } from '../engine/game';
 
-import { exchangeProblem, compostProblem, compostWeeks, growthMoisture, frostKills, wetCanals, idx, thievesBlocked, handMax as maxHand, exchangesUsed, exchangesPerWeek, nextDraw, exchangeDays, yardUsed, storageUsed, storageCap, deliverProblem } from '../engine/game';
+import { lotName, exchangeProblem, compostProblem, compostWeeks, growthMoisture, frostKills, wetCanals, idx, thievesBlocked, handMax as maxHand, exchangesUsed, exchangesPerWeek, nextDraw, exchangeDays, yardUsed, storageUsed, storageCap, deliverProblem } from '../engine/game';
 import type { JSX } from 'preact';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { CARDS, CROPS, GRID, ORGS, SEASON_NAMES, TRACKS, TRAITS } from '../engine/data';
@@ -17,7 +21,9 @@ import {
   cardCost, cardDays, clearDays, clearPrice, cropGrow, cropMinT, crowsOpen, drawProblem, expectedYield, frostVictims, growNote, guardPrice, guardable,
   trackCost, trackWeeks, trackProblem, handMax, handWaterMax, isGuarded, knownEpisodes, landPrice, lineCells, locOf, lookahead, money, neighbors4, ownedTiles, pidCells, placementYield,
   plantBlock, plantingYield, playableTargets, plural, ripenIn, seasonLen, shapeRotations, shapeTiles, soilMult, soilTemp, sowingSoil, tile, waterArea,
+  firePits, firesLit, lightFiresProblem, firewoodCost, fireLightDays, trialAhead, trialKnown, trialLead, trialEnd,
   weekDays, weekInfo, weekOutlook, weedsOnLine, yieldParts, cardNeedDays, cellReasons, sortiesPerSeason, weeklyDraw, episodesAt, mischiefOn, frostLimit, frostShield, lvl, deckCount, buildMoveSpots, winterCareTarget,
+  treeStage, TREE_NAMES, TREE_CHOP, TREE_YOUNG, TREE_GROWN, FELL_LOGS, STONE_BRICKS,
 } from '../engine/game';
 import { EPISODES } from '../engine/calendar';
 import type { Episode } from '../engine/calendar';
@@ -34,6 +40,7 @@ import { Btn, Dispatch, Sheet, weeksShort } from './common';
 import { SeasonFx } from './SeasonFx';
 import { FieldVoice } from './FieldVoice';
 import {OrderVisit} from './OrderVisit';
+import { NeighbourSheet, PLACE_NEIGHBOUR, type NeighbourKey } from './Neighbours';
 import { BedPopover } from './BedPopover';
 import { morningCellDelay, type MorningStep } from './Morning';
 import { kidsScouting, kidsAhead } from './foresight';
@@ -99,6 +106,8 @@ function planFor(a: Action, prev: GameState, next: GameState): Step[] {
       return a.tiles.map(([x, y], i) => at(x, y, 'water', 'water', 480, i === a.tiles.length - 1));
     case 'weed':
       return [at(a.x, a.y, 'care', 'weed', 650)];
+    case 'fell':
+      return [at(a.x, a.y, 'build', 'build', 800)];
     case 'plow':
       return [at(a.x, a.y, 'care', 'fert', 700)];
     case 'guard':
@@ -211,7 +220,7 @@ function summary(s: GameState): Chip[] {
   }
   for (const o of locOf(s).orgs) {
     const q = s.orgs[o]?.active;
-    if (q && q.deadline !== undefined && q.deadline - s.absWeek <= 1) out.push({ text: `${ORGS[o].short}: срок ${q.deadline - s.absWeek <= 0 ? 'сегодня' : 'неделя'}`, tone: 'bad', icon: 'orders' });
+    if (q && q.deadline !== undefined && q.deadline - s.absWeek <= 1) out.push({ text: `${ORGS[o].short}: срок — ${q.deadline - s.absWeek <= 0 ? 'на этой неделе' : 'через неделю'}`, tone: 'bad', icon: 'orders' });
   }
   if (s.yard.length) out.push({ text: `во дворе ${s.yard.reduce((a, l) => a + l.qty, 0)} ед.`, tone: 'bad', icon: 'barn' });
   return out;
@@ -244,6 +253,7 @@ function JournalNow(c: JournalCtx & {compact?:boolean}) {
       {quiet && <div class="book-calm"><SproutDoodle /><p>Срочных дел нет. Можно спокойно сажать и ухаживать за грядками.</p></div>}
       {deadlines.map(d => <p class="ink-line bad" key={d.text}>{d.text}</p>)}
       {s.weekInSeason === seasonLen(s) && <p class="ink-line">После этой недели сменится сезон. Несыгранные карты останутся в руке.</p>}
+      {s.trial && s.trial.year === s.year && !s.trial.result && <div class="book-note"><Icon name={s.trial.kind === 'frost' ? 'frost' : s.trial.kind === 'locust' ? 'locust' : 'sun'} size={30} /><div class="grow"><b>Испытание года: {TRIALS[s.trial.kind].name}</b><p>{trialWhen(s, s.trial).long}</p></div>{fireCallNeeded(s, s.trial) && !firesLit(s) && <div class="book-acts"><Btn small disabled={lightFiresProblem(s)} onClick={() => act({ t: 'lightFires' })}>Разжечь костры</Btn></div>}</div>}
       {crowsOpen(s) && <div class="book-note"><Icon name="crow" size={30} /><div class="grow"><b>Вороны на поле</b><p>Задержат рост молодых всходов или поклюют созревающий урожай. Теплицы и пугала защищают.</p></div><div class="book-acts"><Btn small disabled={s.days < 1 ? 'Нужен рабочий день' : null} onClick={() => act({ t: 'shoo' })}>Отогнать · 1 д.</Btn>{sortiesPerSeason(s) > s.dronesUsed && <Btn small onClick={() => act({ t: 'droneCrows' })}>Дрон</Btn>}</div></div>}
       {risky && outlook && <div class="book-note"><Icon name="thermo" size={28} /><div class="grow"><b>К концу этой недели</b>{outlook.frost > 0 && <p class="bad">Мороз угрожает {outlook.frost} грядкам. Проверьте укрытия.</p>}{outlook.dying > 0 && <p class="bad">Без полива погибнет {outlook.dying} грядок.</p>}{outlook.threats.map(t => <p class={t.guard === 'дрон' ? 'up' : 'bad'}>{t.name}: {t.beds} гр. · {t.guard === 'дрон' ? 'защитит дрон' : t.guard ? 'урожай пострадает; страховка выплатит деньги' : 'нужна защита'}.</p>)}</div><div class="book-acts"><Btn small onClick={onClose}>На поле</Btn></div></div>}
       {scouting && <div class="book-note"><Icon name="kids" size={28} /><div class="grow"><b>У поля крутятся дети</b><p>{thievesBlocked(s) ? 'Ребята из интерната приглядываются к спелым грядкам, но ферму охраняют — урожай не тронут.' : 'Ребята из интерната приглядываются к спелым грядкам. На следующей неделе могут прийти за урожаем. Защитят пёс, сторож или «Сторожка», а если придут — с ними можно поговорить.'}</p></div></div>}
@@ -354,7 +364,7 @@ function TileDetails({ s, x, y, act, onClose }: { s: GameState; x: number; y: nu
     <div class="tile-details">
       <div class="ts-head">
         {p && <CropIcon id={p.id} size={34} />}
-        <b>{p ? CROPS[p.id].name : t.weeds ? 'Сорняки' : t.canal ? 'Канал' : t.terrain === 'rock' ? 'Камни' : t.terrain === 'swamp' ? 'Болото' : 'Пустая грядка'}</b>
+        <b>{p ? CROPS[p.id].name : t.tree !== undefined ? TREE_NAMES[treeStage(t)] : t.weeds ? 'Сорняки' : t.canal ? 'Канал' : t.terrain === 'rock' ? 'Камни' : t.terrain === 'swamp' ? 'Болото' : 'Пустая грядка'}</b>
         {p?.traits?.map((tr) => <span class="tag">{TRAITS[tr].short}</span>)}
       </div>
       <div class="ts-grid">
@@ -370,6 +380,8 @@ function TileDetails({ s, x, y, act, onClose }: { s: GameState; x: number; y: nu
       {p && !note && <p class="small up">На этой неделе будет расти.{t.structure==='greenhouse' ? ' Теплица защищает и от перегрева.' : ''}</p>}
       {p && growthMoisture(s)[idx(x,y)]!==t.moisture && <p class="small">До роста дождь и орошение дадут влагу {growthMoisture(s)[idx(x,y)]}/3.</p>}
       {t.canal && !wetCanals(s).has(idx(x,y)) && <p class="small bad">Сухой канал: восстановите соединение с рекой.</p>}
+      {t.tree !== undefined && <p class="small">{treeText(t)}</p>}
+      {t.terrain === 'rock' && <p class="small muted">Камень пойдёт на фундамент: +{STONE_BRICKS} в счёт кирпича.</p>}
       {note && <p class={`ts-note${note === 'dormant' || note === 'rest' ? '' : ' bad'}`}>{note === 'dry' ? `Без воды не растёт. ${(p?.dry??0)+1 >= (p?.traits?.includes('drought')?3:2) ? 'Без полива погибнет в конце этой недели.' : `Сухих недель подряд: ${(p?.dry??0)+1} из ${p?.traits?.includes('drought')?3:2}.`}` : NOTE_TEXT[note]}</p>}
       {parts.some(q=>!q.label.startsWith('плодородие')) && <p class="small muted">Бонусы: {parts.filter(q=>!q.label.startsWith('плодородие')).map((q) => `${q.label} ×${String(q.mult).replace('.', ',')}`).join(' · ')}</p>}
       {p && k !== null && <p class="small muted">Срок — при поливе, с учётом известной погоды.</p>}
@@ -379,9 +391,22 @@ function TileDetails({ s, x, y, act, onClose }: { s: GameState; x: number; y: nu
         {isGuarded(s, x, y) && <span class="tag good">под защитой</span>}
         {p && CROPS[p.id].sidereal && p.grown >= 2 && s.season !== 3 && <Btn small disabled={s.days < 1 ? 'Нет рабочих дней' : null} onClick={() => doIt({ t: 'plow', x, y })}>Запахать всю посадку: почва +1</Btn>}
         {canClear(s, x, y) && <Btn small disabled={s.days < 1 ? 'Нет рабочих дней' : null} onClick={() => doIt({ t: 'clear', x, y })}>{t.terrain === 'rock' ? 'Убрать камни' : 'Осушить'} · {money(clearPrice(s, x, y))}</Btn>}
+        {t.tree !== undefined && <Btn small tone="primary" disabled={s.days < 1 ? 'Нет рабочих дней' : null} onClick={() => doIt({ t: 'fell', x, y })}>{fellLabel(t)}</Btn>}
       </div>
     </div>
   );
+}
+
+// v3 §4.5 · what a tree on a bed is and what taking it out gives
+function treeText(t: Tile): string {
+  const st = treeStage(t);
+  if (st === 1) return `Поросль на заросшей грядке. Через ${TREE_YOUNG - (t.tree ?? 0)} ${plural(TREE_YOUNG - (t.tree ?? 0), 'тёплую неделю', 'тёплые недели', 'тёплых недель')} станет молодым деревом. Выдернуть — 1 день; прополка ряда тоже убирает.`;
+  if (st === 2) return `Молодое дерево: соседи в его тени (×0,85). Срубить — 1 день, +${FELL_LOGS[2]} бревна. Через ${TREE_GROWN - (t.tree ?? 0)} ${plural(TREE_GROWN - (t.tree ?? 0), 'тёплую неделю', 'тёплые недели', 'тёплых недель')} вырастет — тогда ${FELL_LOGS[3]} брёвен.`;
+  return `Дерево: соседи в его тени (×0,85). Выкорчевать — ${TREE_CHOP} рабочих дня, можно по дню в неделю; сделано ${t.chop ?? 0} из ${TREE_CHOP}. Даст ${FELL_LOGS[3]} брёвен, плодородие грядки +1.`;
+}
+function fellLabel(t: Tile): string {
+  const st = treeStage(t);
+  return st === 1 ? 'Выдернуть · 1 день' : st === 2 ? `Срубить · 1 день · +${FELL_LOGS[2]} бревна` : `Корчевать · день ${(t.chop ?? 0) + 1} из ${TREE_CHOP}`;
 }
 
 // ---------- the build palette ----------
@@ -391,6 +416,7 @@ const BUILD_NAMES: Record<BuildItem, { name: string; icon: string; track: string
   drip: { name: 'Капельный полив', icon: 'drip', track: 'irrigation', place: 'ряд' },
   scarecrow: { name: 'Пугало', icon: 'scarecrow', track: 'guard', place: 'стык 4 грядок' },
   canal: { name: 'Канал', icon: 'canal', track: 'canal', place: 'у реки или канала' },
+  fire: { name: 'Кострище', icon: 'fire', track: 'fires', place: 'стык 4 грядок' },
 };
 
 // ---------- the dock's own glyphs ----------
@@ -477,12 +503,15 @@ function calendarPage(s: GameState, offset: number): CalPage {
       if (st.kind === 'beetle') add('beetle', 'жуки');
       if (st.kind === 'locust') add('locust', 'саранча');
       if (st.kind === 'weedsurge') add('weeds', 'сорняки');
+      if (st.kind === 'bear') add('bear', 'медведь');
+      if (st.kind === 'boars') add('boar', 'кабаны');
+      if (st.kind === 'fire') add('fire', 'пожар');
     }
   }
   return page;
 }
 
-export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment, onMap, villageApi, onVillageMode, placeRequest, testing=false, teaching=false, precheck, lessonVisit=false, onVisitDone, onPresent }: { s: GameState; dispatch: Dispatch; fast: boolean; active: boolean; onGo: (tab: string) => void; onOrder?:(org:OrgId)=>void; onPayment?:()=>void; onMap?:()=>void; villageApi?: { current: VillageApi | null }; onVillageMode?: (m: VillageMode) => void; placeRequest?: { item: BuildItem; key: number } | null; testing?:boolean; teaching?:boolean; precheck?:(a:Action)=>string|null; lessonVisit?:boolean; onVisitDone?:()=>void; /** PSV-028 · the week the field is showing while last week's events play (null when it shows the current one) */ onPresent?:(shown:GameState|null)=>void }) {
+export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment, onMap, onRoad, villageApi, onVillageMode, placeRequest, testing=false, teaching=false, precheck, lessonVisit=false, onVisitDone, onPresent }: { s: GameState; dispatch: Dispatch; fast: boolean; active: boolean; onGo: (tab: string) => void; onOrder?:(org:OrgId)=>void; onPayment?:()=>void; onMap?:()=>void; /** 29.10 · the signpost: where the cart can go */ onRoad?:()=>void; villageApi?: { current: VillageApi | null }; onVillageMode?: (m: VillageMode) => void; placeRequest?: { item: BuildItem; key: number } | null; testing?:boolean; teaching?:boolean; precheck?:(a:Action)=>string|null; lessonVisit?:boolean; onVisitDone?:()=>void; /** PSV-028 · the week the field is showing while last week's events play (null when it shows the current one) */ onPresent?:(shown:GameState|null)=>void }) {
   const [resume]=useState(()=>testing||teaching?null:readWeekResume(s));
   const playbackRecord=useRef<WeekResume|null>(resume);
   const playbackTimer=useRef<number|null>(null);
@@ -499,10 +528,15 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
   const [overCompost,setOverCompost]=useState(false);
   const [compostAt,setCompostAt]=useState<{top:number;right:number;tip:number}|null>(null);
   const [meetingOpen,setMeetingOpen]=useState(false);
+  const [neighbour,setNeighbour]=useState<NeighbourKey|null>(null);
   const [pestHits,setPestHits]=useState<PestHit[]>([]);
   const [weekPlaying,setWeekPlaying]=useState(!!resume);
   const [weekCue,setWeekCue]=useState<SceneCue|null>(null);
   const [morning,setMorning]=useState<MorningStep|null>(null);
+  // the night of the year's ordeal while it plays (TrialNight.tsx): its length and the part already gone
+  const [trialNight,setTrialNight]=useState<{n:TrialNightT;D:number;E:number}|null>(null);
+  // the ordeal's cards: the announcement, the same card opened from the omen, the tally
+  const [trialCard,setTrialCard]=useState<'intro'|'info'|'result'|null>(null);
   // W-05 · while the week plays: the troubles still to come, so their warnings stay on the field until then
   const [pending,setPending]=useState<Set<string>|null>(null);
   // the kinds whose first event has begun: a flock that flew down does not come back for the second crows event
@@ -812,7 +846,7 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
     running.current = false;
     setLeaving([]);setCompostFlight(null);setCompostArrival(null);setPestHits([]);
     setFloaters([]);
-    morningTimers.current.forEach(t=>clock.cancel(t));morningTimers.current=[];pendingEvents.current=[];morningHeld.current=new Set();setMorning(null);setWeekCue(null);setWeekPlaying(false);setPending(null);
+    morningTimers.current.forEach(t=>clock.cancel(t));morningTimers.current=[];pendingEvents.current=[];morningHeld.current=new Set();setMorning(null);setWeekCue(null);setTrialNight(null);setWeekPlaying(false);setPending(null);
     setHidden(new Map());
     setTileFx([]);
     setMarks(new Map());
@@ -868,7 +902,7 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
   }
   function runMorning(events: WeekEvent[],elapsed=0){
     morningTimers.current.forEach(t=>clock.cancel(t));morningTimers.current=[];
-    setMorning(null);setPestHits([]);setWeekCue(null);
+    setMorning(null);setPestHits([]);setWeekCue(null);setTrialNight(null);
     if(!events.length){finishHarvest();return;}
     const [event,...rest]=events;
     eventKinds(event).forEach(k=>startedKinds.current.add(k));
@@ -876,6 +910,26 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
     const h=pendingHarvest.current;
     if(h){playbackRecord.current={version:1,prev:h.prev,next:h.next,events,elapsed,hidden:[...hiddenRef.current]};playbackTimer.current=null;}
     setWeekCue(event.cue?{...event.cue,elapsed:(event.cue.elapsed??0)+elapsed*(event.cue.rate??1)}:null);
+    if(event.trial){
+      const n=event.trial, D=event.duration;
+      setTrialNight({n,D,E:elapsed});
+      // each bed shows what the night did to it a moment after the blow reaches it
+      const shown=pendingHarvest.current?.prev??sRef.current;
+      const times=trialTimes(shown,n);
+      const notes:Floater[]=[];
+      for(const c of n.cells){
+        if(!['killed','bitten','eaten','dried'].includes(c.out))continue;
+        const t=times.get(key(c.x,c.y));if(t===undefined)continue;
+        const at=revealAt(t,c.out)*D;
+        const show=()=>{
+          setHidden(h=>{const m=new Map(h);m.set(key(c.x,c.y),{...tile(sRef.current,c.x,c.y),crop:c.after??null});return m;});
+          const f:Floater={key:floaterKey++,x:c.x,y:c.y,text:c.out==='bitten'?'прихватило':c.out==='dried'?'засохло':`−${c.lost??0} ед.`,tone:'bad'};
+          notes.push(f);setFloaters(fl=>[...fl.filter(x=>!(x.x===c.x&&x.y===c.y&&x.tone==='bad')),f]);
+          later(2100,()=>setFloaters(fl=>fl.filter(x=>x.key!==f.key)));
+        };
+        if(at>elapsed)morningTimers.current.push(clock.schedule(show,at-elapsed));else show();
+      }
+    }
     if(event.morning){
       const st=event.morning;
       if(!elapsed)setHidden(h=>{const m=new Map(h);st.cells.forEach(c=>{if(c.before)m.set(key(c.x,c.y),{...tile(sRef.current,c.x,c.y),crop:c.before});});return m;});
@@ -906,7 +960,7 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
     // The skip button becomes End week in place. Absorb the second tap of that gesture.
     endGuardUntil.current=performance.now()+500;
     morningTimers.current.forEach(t=>clock.cancel(t));morningTimers.current=[];pendingEvents.current=[];
-    setMorning(null);setPestHits([]);setWeekCue(null);setFloaters([]);setTileFx([]);finishHarvest();
+    setMorning(null);setPestHits([]);setWeekCue(null);setTrialNight(null);setFloaters([]);setTileFx([]);finishHarvest();
   }
   function endWeek() {
     if(performance.now()<endGuardUntil.current)return;
@@ -1035,7 +1089,7 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
     if (buildItem) {
       const st = buildStock(s)[buildItem];
       const valid = moveFrom ? buildMoveSpots(s, buildItem, moveFrom) : st.used < st.have ? buildSpots(s, buildItem) : [];
-      if (buildItem !== 'scarecrow') for (const [x, y] of valid) {
+      if (buildItem !== 'scarecrow' && buildItem !== 'fire') for (const [x, y] of valid) {
         if (buildItem === 'drip') for (const [, a, b] of ownedTiles(s).filter(([, , b]) => b === y)) spots.add(key(a,b));
         else spots.add(key(x,y));
       }
@@ -1044,7 +1098,7 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
         else removable.add(key(...moveFrom));
       }
     }
-    return { item: buildItem ?? '', spots, rows: buildItem === 'drip', corners: buildItem === 'scarecrow', removable };
+    return { item: buildItem ?? '', spots, rows: buildItem === 'drip', corners: buildItem === 'scarecrow' || buildItem === 'fire', removable };
   }, [s, build, moveFrom]);
 
   const highlight: Highlight = useMemo(() => {
@@ -1056,9 +1110,9 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
       return h;
     }
     if(info) h.selected.add(key(...info));
-    if (buildItem === 'scarecrow') {
-      const st = buildStock(s).scarecrow;
-      h.corners = moveFrom ? buildMoveSpots(s, 'scarecrow', moveFrom) : st.used < st.have ? buildSpots(s, 'scarecrow') : [];
+    if (buildItem === 'scarecrow' || buildItem === 'fire') {
+      const st = buildStock(s)[buildItem];
+      h.corners = moveFrom ? buildMoveSpots(s, buildItem, moveFrom) : st.used < st.have ? buildSpots(s, buildItem) : [];
       if (hover?.startsWith('corner:')) h.block = hover.slice(7).split(',').map(Number) as [number, number];
       return h;
     }
@@ -1190,11 +1244,15 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
   function onCorner(x: number, y: number) {
     if(ending.current)return;
     if (!build) return;
-    if (s.scarecrows.some(([a, b]) => a === x && b === y)) {
+    if (!moveFrom && s.scarecrows.some(([a, b]) => a === x && b === y)) {
       setBuild('scarecrow'); setMoveFrom([x, y]); return;
     }
-    if (buildItem !== 'scarecrow') return;
-    const a: Action = moveFrom ? { t: 'moveBuild', item: 'scarecrow', from: moveFrom, to: [x, y] } : { t: 'build', item: 'scarecrow', x, y };
+    if (!moveFrom && firePits(s).some(([a, b]) => a === x && b === y)) {
+      setBuild('fire'); setMoveFrom([x, y]); return;
+    }
+    if (buildItem !== 'scarecrow' && buildItem !== 'fire') return;
+    if (moveFrom && moveFrom[0] === x && moveFrom[1] === y) { setMoveFrom(null); setBuild('menu'); return; }
+    const a: Action = moveFrom ? { t: 'moveBuild', item: buildItem, from: moveFrom, to: [x, y] } : { t: 'build', item: buildItem, x, y };
     if (act(a)) { setMoveFrom(null); setBuild('menu'); }
   }
   function pickCard(uid: number) {
@@ -1584,6 +1642,19 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
     if (previewOk && flash) setFlash(null);
   }, [previewOk]);
 
+  // the year's ordeal: announced once when the field is quiet, its tally once after its last night has played
+  const yearTrial = s.trial && s.trial.year === s.year ? s.trial : null;
+  const fieldQuiet = active && !weekPlaying && night === 'off' && !teaching && s.phase === 'week' && !sheet && !meetingOpen;
+  useEffect(() => {
+    if (!fieldQuiet || trialCard || !yearTrial) return;
+    if (!yearTrial.result && !trialSeen(s, yearTrial, 'announce', testing)) setTrialCard('intro');
+    else if (yearTrial.result && s.lastReport?.trial?.result && !trialSeen(s, yearTrial, 'result', testing)) setTrialCard('result');
+  }, [fieldQuiet, yearTrial?.id, !!yearTrial?.result, trialCard]);
+  const closeTrialCard = () => {
+    if (yearTrial && trialCard === 'intro') markTrialSeen(s, yearTrial, 'announce', testing);
+    if (yearTrial && trialCard === 'result') { markTrialSeen(s, yearTrial, 'result', testing); markTrialSeen(s, yearTrial, 'announce', testing); }
+    setTrialCard(null);
+  };
   const endText = (() => {
     if (!outlook) return '';
     const parts: string[] = [];
@@ -1627,6 +1698,8 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
   };
   const onVillagePlace = (k: string) => {
     if ((locOf(s).orgs as string[]).includes(k)) { (onOrder ?? (() => onGo('orders')))(k as OrgId); return; }
+    if (PLACE_NEIGHBOUR[k]) { setNeighbour(PLACE_NEIGHBOUR[k]); return; }
+    if (k === 'g-antonovka') { villageSay('Пряхинская антоновка: черенок от Аркадия Семёновича. Прижилась — значит, и вы тут свой.'); return; }
     if (k.startsWith('g-')) { const o = k.slice(2) as OrgId; villageSay(`${ORGS[o].short} дружит с вами: ${ORGS[o].perk.charAt(0).toLowerCase()}${ORGS[o].perk.slice(1)}.`); return; }
     const next = weatherOf(s, 1);
     const now = weatherOf(s, 0);
@@ -1645,21 +1718,24 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
       farhouse: 'Дальние дома: там живут соседи с хуторов.', farhouse2: 'Дальние дома: там живут соседи с хуторов.', farhouse3: 'Дальние дома: там живут соседи с хуторов.',
       izba1: 'Дом соседей.', izba2: 'Дом соседей.', izba3: s.season === 3 ? 'Дом соседей: во дворе снеговик.' : 'Дом соседей: бельё сохнет на верёвке.',
       lot: 'Свободный участок: пока здесь никто не живёт.', 'lot-school': 'Свободный участок: пока здесь никто не живёт.', 'lot-tower': 'Свободный участок: пока здесь никто не живёт.',
+      pryakhin: (() => { const l = s.fair?.lots.find((x) => x.id === s.fair?.eye); return l ? `Пряхин приглядывается: «${lotName(l)}». Не опередите — купит в конце недели.` : 'Пряхин ходит по рынку с тетрадкой.'; })(),
     };
     switch (k) {
       case 'house': case 'meteo': case 'hives': onGo('house'); return;
-      case 'barn': case 'fair': onGo('barn'); return;
+      case 'barn': onGo('barn'); return;
+      case 'fair': onGo('fair'); return;
       case 'lab': case 'lot-lab': onGo('lab'); return;
       case 'board': onGo('orders'); return;
-      case 'signpost': if (onMap) onMap(); else villageSay('Указатель: дороги на Кубань и на Алтай.'); return;
+      case 'signpost': if (onRoad) onRoad(); else if (onMap) onMap(); else villageSay('Указатель: дороги в Заречье, на Кубань и на Алтай.'); return;
       case 'gate': village.toField(); return;
       default: if (say[k]) villageSay(say[k]);
     }
   };
 
   return (
-    <div style={{['--arn' as string]:String(cam.W/cam.H)}} data-week-event={weekCue?.kind??morning?.kind??(pestHits.length?'pests':'')} data-busy={night!=='off'||weekPlaying||!!morning||!!pestHits.length||farmer.walking||farmer.action!=='idle'} data-drag-active={drag?.active ? 'true' : 'false'} data-peek-uid={peek ?? ''} data-building={!!build} data-build-item={build??''} data-build-moving={!!moveFrom} data-bed-menu={info?.join(',')??''} data-water-cells={watering?.map(p=>p.join(',')).join(';')??''} data-card-rotation={rot} ref={viewRef} class={`field-view${!active||!pageVisible||!!sheet||meetingOpen?' scene-paused':''}${drag ? ' dragging' : ''}${card ? ' picking' : ''}${villageOn ? ` has-village v-${vmode}` : ''}`}>
+    <div style={{['--arn' as string]:String(cam.W/cam.H)}} data-week-event={trialNight?`trial-${trialNight.n.kind}`:weekCue?.kind??morning?.kind??(pestHits.length?'pests':'')} data-busy={night!=='off'||weekPlaying||!!morning||!!pestHits.length||farmer.walking||farmer.action!=='idle'} data-drag-active={drag?.active ? 'true' : 'false'} data-peek-uid={peek ?? ''} data-building={!!build} data-build-item={build??''} data-build-moving={!!moveFrom} data-bed-menu={info?.join(',')??''} data-water-cells={watering?.map(p=>p.join(',')).join(';')??''} data-card-rotation={rot} ref={viewRef} class={`field-view${!active||!pageVisible||!!sheet||meetingOpen?' scene-paused':''}${drag ? ' dragging' : ''}${card ? ' picking' : ''}${villageOn ? ` has-village v-${vmode}` : ''}`}>
       {villageOn && <Village s={s} rootRef={villageRoot} onPlace={onVillagePlace} />}
+      {neighbour && <NeighbourSheet s={s} who={neighbour} act={dispatch} onClose={() => setNeighbour(null)} onFair={() => { setNeighbour(null); onGo('fair'); }} />}
       <div class={`field-wrap${!active||!pageVisible||!!sheet||meetingOpen?' scene-paused':''}${room.fanMin ? ' balanced' : ''}${rails ? ' rails' : ''}`} style={{ ['--sky-h' as string]: `${skyPx}px`, ['--vpeek' as string]: `${vpeek}px`, ...(rails ? { ['--rail' as string]: `${rails}px`, ['--rail2' as string]: `${rails * 2}px` } : {}) }} ref={fieldRef}>
         {/* the sky with the forecast stays on top; the field slides down under it when the village opens */}
         {/* the sky in four stacked pictures: its fade over the village is the compositor's (see Village's pager) */}
@@ -1667,7 +1743,7 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
           {(['solid', 'land', 'veil', 'front'] as const).map((part) => (
             <svg key={part} class={`sky-svg sb-${part}`} viewBox={`${-skyExt} 0 ${cam.W + 2 * skyExt} ${SKY_H}`} style={{ width: `${(cam.W + 2 * skyExt) * px}px`, height: `${skyPx}px` }}
               aria-hidden={part === 'front' ? undefined : 'true'} aria-label={part === 'front' ? 'Небо: погода на эту и следующие недели' : undefined}>
-              <SkyBand part={part} W={cam.W} season={fieldState.season} tokens={skyView.tokens} signs={skyView.signs} meteoMax={skyView.meteoMax} px={px} onToken={skyView.onToken} onFog={skyView.onFog} onSign={skyView.onSign} clear={skyView.clear} ext={skyExt} />
+              <SkyBand region={s.loc} part={part} W={cam.W} season={fieldState.season} tokens={skyView.tokens} signs={skyView.signs} meteoMax={skyView.meteoMax} px={px} onToken={skyView.onToken} onFog={skyView.onFog} onSign={skyView.onSign} clear={skyView.clear} ext={skyExt} />
             </svg>
           ))}
         </div>
@@ -1698,7 +1774,7 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
               lifeActive={lifeActive&&pageVisible}
               showWarnings={weekPlaying||night==='off'} pending={weekPlaying?pending:null}
               sceneCue={sceneCue}
-              pestHits={pestHits} morning={morning}
+              pestHits={pestHits} morning={morning} trial={trialNight}
               scouts={scouting && kidsAhead(s) <= 1}
               onScouts={() => say(thievesBlocked(s) ? 'Дети высматривают спелые грядки, но ферма под охраной.' : `Дети высматривают грядки: ${kidsAhead(s) >= 2 ? 'через две недели' : 'на следующей неделе'} могут прийти за урожаем.`)}
               sky={skyView} skyOutside
@@ -1708,6 +1784,10 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
           </div>
         </div>
         </div>
+        {yearTrial && !weekPlaying && night === 'off' && !build && !lens && (!villageOn || vmode === 'field') && (!yearTrial.result || s.lastReport?.trial?.result) && <TrialOmen s={s} t={yearTrial} onOpen={() => setTrialCard(yearTrial.result ? 'result' : 'info')} />}
+        {!weekPlaying && night === 'off' && !build && !teaching && fireCallNeeded(s, yearTrial) && <FireCall s={s} act={act} />}
+        {trialNight && <TrialSky n={trialNight.n} D={trialNight.D} E={trialNight.E} key={`${trialNight.n.id}:${trialNight.n.wave ?? 0}`} />}
+        {trialNight?.n.kind === 'locust' && <SwarmCanvas n={trialNight.n} D={trialNight.D} E={trialNight.E} anchor={() => viewRef.current?.querySelector('.tn-anchor') ?? null} key={`sw:${trialNight.n.id}:${trialNight.n.wave ?? 0}`} />}
         {/* the way to the sections: the village on the horizon (pulling the sky down works too) */}
         {villageOn && vmode === 'field' && <button type="button" class={`v-sign${sectionNews ? ' news' : ''}`} style={{ top: "4px" }} onClick={() => village.toggle()} aria-label="Деревня: разделы фермы">
           <span>Деревня<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 8 L6 4 L10 8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg></span>
@@ -1737,7 +1817,8 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
             {tile(s,...info).owned && !tile(s,...info).canal && winterCareTarget(s,...info) && <button type="button" class="bed-action" disabled={s.days<1 || tile(s,...info).moisture>=3} aria-label={tile(s,...info).moisture>=3?'Грядка уже полита':'Выбрать грядки для полива'} onClick={()=>setWatering([info])}><Icon name="water" size={28}/><small>{tile(s,...info).moisture>=3?'3/3':'1 д.'}</small></button>}
             {tile(s,...info).owned && <span class="bed-moisture"><Icon name="drop" size={13}/>{tile(s,...info).moisture}/3</span>}
             {guardable(s,...info) && <button type="button" class="bed-action" aria-label={`Защитить на эту неделю: 1 день и ${money(guardPrice(s))}`} disabled={s.days<1||s.money<guardPrice(s)} onClick={()=>{if(act({t:'guard',x:info[0],y:info[1]}))closeContext();}}><Icon name="shield" size={25}/><small>1 д. · {money(guardPrice(s))}</small></button>}
-            {tile(s,...info).weeds && <button type="button" class="bed-action" aria-label="Прополоть за 1 день" disabled={s.days<1} onClick={()=>{if(act({t:'weed',x:info[0],y:info[1]}))closeContext();}}><Icon name="weeding" size={25}/><small>1 д.</small></button>}
+            {tile(s,...info).weeds && <button type="button" class="bed-action" aria-label="Прополоть за 1 день" disabled={s.days<1} onClick={()=>{if(act({t:'weed',x:info[0],y:info[1]}))closeContext();}}><Icon name="weeding" size={25}/><small>1 д.</small></button>}
+            {tile(s,...info).owned && tile(s,...info).tree!==undefined && <button type="button" class="bed-action" aria-label={fellLabel(tile(s,...info))} disabled={s.days<1} onClick={()=>{if(act({t:'fell',x:info[0],y:info[1]}))closeContext();}}><Icon name="axe" size={25}/><small>{treeStage(tile(s,...info))===3?`${(tile(s,...info).chop??0)+1}/${TREE_CHOP}`:'1 д.'}</small></button>}
             <button type="button" class="bed-action bed-info" aria-label="Подробнее о грядке" onClick={()=>{setDetails(info);closeContext();setSheet('bed');}}>i</button>
           </>}
         </BedPopover>}
@@ -1792,7 +1873,7 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
             {weekPlaying ? <FieldVoice s={s} active={lifeActive&&pageVisible} cue={weekCue} quiet={true} testReplay={testing} onOpen={()=>openSheet('journal')} fallback={<span />}/>
               : exchanging ? <><span class="say-two"><strong>{exchanging==='compost'?'Что заменит компост?':'Какую обменять?'}</strong><small>{exchanging==='compost'?'карта уйдёт в сброс':`коснитесь карты${exDays ? ' · 1 день' : ''}`}</small></span><button class="exchange-cancel" onClick={()=>setExchanging(false)}>Отмена</button></>
               : watering ? <><strong>Полив {watering.length}/{handWaterMax(s)}</strong><small>отметьте соседние грядки</small></>
-              : build ? <><span class="say-two"><strong>{buildItem ? BUILD_NAMES[buildItem].name : 'Постройки'}</strong><small>{buildItem === 'scarecrow' ? 'коснитесь угла грядки' : moveFrom || buildItem ? 'коснитесь подсветки' : 'коснитесь постройки'}</small></span>
+              : build ? <><span class="say-two"><strong>{buildItem ? BUILD_NAMES[buildItem].name : 'Постройки'}</strong><small>{buildItem === 'scarecrow' || buildItem === 'fire' ? 'коснитесь угла грядки' : moveFrom || buildItem ? 'коснитесь подсветки' : 'коснитесь постройки'}</small></span>
                   <button type="button" class="say-done" onClick={() => { setBuild(null); setMoveFrom(null); }}>Готово</button></>
               : lens ? <>
                   <span class="lens-switch" role="group" aria-label="Линзы">{(['water', 'soil', 'temp'] as const).map((l) => <button type="button" class={lens === l ? 'on' : ''} aria-pressed={lens === l} aria-label={l === 'water' ? 'Влага' : l === 'soil' ? 'Плодородие' : 'Температура почвы'} onClick={() => setLens(l)}><Icon name={l === 'water' ? 'drop' : l === 'soil' ? 'compost' : 'thermo'} size={18} /></button>)}</span>
@@ -1877,6 +1958,8 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
       {sheet === 'bed' && details && <Sheet title="Грядка" variant="info" onClose={()=>setSheet(null)}><TileDetails s={s} x={details[0]} y={details[1]} act={act} onClose={()=>setSheet(null)}/></Sheet>}
       {sheet === 'forecast' && <ForecastSheet s={fieldState} onClose={() => setSheet(null)} />}
       {sheet === 'journal' && <JournalSheet s={s} act={act} onGo={onGo} onClose={() => setSheet(null)} />}
+      {yearTrial && (trialCard === 'intro' || trialCard === 'info') && <TrialCard s={s} t={yearTrial} intro={trialCard === 'intro'} act={act} onClose={closeTrialCard} onWorkshop={() => onGo('house')} />}
+      {yearTrial?.result && trialCard === 'result' && <TrialResultCard s={s} t={yearTrial} onClose={closeTrialCard} />}
       {false && onGo}
     </div>
   );

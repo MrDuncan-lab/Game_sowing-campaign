@@ -232,6 +232,7 @@ test('laboratory projects and completed shapes preserve negative relative coordi
   let state = farm('negative-lab-cell');
   state.money = 10000;
   state.levels.lab = 1;
+  state.knowBase = { radish: 600, potato: 600, bean: 600, carrot: 600, onion: 600, cabbage: 600, wheat: 600, buckwheat: 600, pumpkin: 600, cranberry: 600 };
   const seed = state.draw.find((c) => isSeed(c.def))!;
   const cell = upgradeSpots(state, seed).find(([x, y]) => x < 0 || y < 0)!;
   assert.ok(cell, 'a shape can grow above or left of its original origin');

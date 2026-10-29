@@ -2,13 +2,16 @@
 import * as G from '../src/engine/game';
 import * as D from '../src/engine/data';
 import { writeFileSync } from 'node:fs';
+import { plotOffers, type CondId } from '../src/engine/run';
+// v3 · AUDIT_RUN=random (or a condition id) plays an expedition run: the region's plot, hazards and visitors
+const RUN=process.env.AUDIT_RUN, FOLD=Number(process.env.AUDIT_FOLD||0);
 const modes=['market','orders_accept','orders_ready','greenhouse','compost','exchange','jobs','regional','regional_pets','regional_goat','regional_guardpets','regional_soil','forage'] as const;
 type Mode=typeof modes[number];
 const horizon=Number(process.env.AUDIT_WEEKS||46),seeds=Number(process.env.AUDIT_SEEDS||12);
 const selectedModes=(process.env.AUDIT_MODES?process.env.AUDIT_MODES.split(','):modes) as readonly Mode[];
 const results:any[]=[];
 function run(loc:D.LocationId,seed:string,mode:Mode){
- const pets: D.PetId[]=mode==='regional_pets'?['cat','dog','geese','hedgehog','goat']:mode==='regional_goat'?['goat']:mode==='regional_guardpets'?['cat','dog','geese','hedgehog']:[]; let s=G.newGame({loc,seed,pets});const regional=mode.startsWith('regional'); const jobCard=mode==='forage'?'forage':'sidejob'; const jobMode=mode==='jobs'||mode==='forage';const count:Record<string,number>={accepted:0,delivered:0,failed:0,exchange:0,compost:0,claimed:0,emergency:0,restructured:0};
+ const pets: D.PetId[]=mode==='regional_pets'?['cat','dog','geese','hedgehog','goat']:mode==='regional_goat'?['goat']:mode==='regional_guardpets'?['cat','dog','geese','hedgehog']:[]; const offer=RUN&&loc!=='chernozem'?(RUN==='random'?plotOffers(loc as D.ExpeditionId,seed)[0]:{cond:RUN as CondId,relic:plotOffers(loc as D.ExpeditionId,seed)[0].relic}):null;let s=G.newGame({loc,seed,pets,...(offer?{run:{cond:offer.cond,relics:[offer.relic]}}:{})});const regional=mode.startsWith('regional'); const jobCard=mode==='forage'?'forage':'sidejob'; const jobMode=mode==='jobs'||mode==='forage';const count:Record<string,number>={accepted:0,delivered:0,failed:0,exchange:0,compost:0,claimed:0,emergency:0,restructured:0};
  const soilTime=[0,0,0,0,0,0];const log:any[]=[];let weeks=0,maxNet=0,firstHouse4:number|null=null;
  const act=(a:G.Action)=>{try{const n=G.apply(s,a);s=n;return true;}catch(e){if(e instanceof G.GameError)return false;throw e;}};
  const orderMode=mode==='orders_accept'||mode==='orders_ready';
@@ -102,7 +105,10 @@ function run(loc:D.LocationId,seed:string,mode:Mode){
   for(const[t,x,y]of G.ownedTiles(s))if(t.weeds)actions.push({a:{t:'weed',x,y},score:4});
   actions.sort((a,b)=>b.score-a.score);return actions;
  }
+ let folded:any=null;
  while(s.phase!=='gameover'&&weeks<horizon){
+  // v3 · AUDIT_FOLD=k folds an expedition after its k-th autumn payment, taking the first finds offered
+  if(FOLD&&s.run&&s.run.autumns>=FOLD&&!G.foldProblem(s)){const offers=G.lootOffers(s);if(act({t:'fold',picks:offers.slice(0,Math.min(G.lootCount(s),offers.length))})){folded={cash:s.run!.result!.cash,finds:s.run!.result!.loot.length,week:s.absWeek};break;}}
   if(s.phase==='shortfall'){
    orders();sell(true);if(act({t:'pay'}))continue;
    if(act({t:'emergency'})){count.emergency++;continue;}
@@ -111,6 +117,7 @@ function run(loc:D.LocationId,seed:string,mode:Mode){
   }
   orders();sell();improvements();for(const[t]of G.ownedTiles(s))soilTime[t.soil]++;
   if((mode==='compost'||mode==='regional_soil')&&s.compostReady&&s.hand.length<G.handMax(s)){if(act({t:'claimCompost'}))count.claimed++;}
+  if(s.run?.visit&&s.run.visit.week===s.absWeek){const i=G.visitOptions(s).findIndex(o=>!o.problem);act({t:'answer',choice:i});}
   for(let i=0;i<18&&s.days>0;i++){
    if(mode==='regional_soil'&&s.compostReady&&s.hand.length<G.handMax(s)&&act({t:'claimCompost'}))count.claimed++;
    const options=choose();let done=false;for(const o of options)if(o.score>0&&act(o.a)){done=true;break;}
@@ -129,9 +136,9 @@ function run(loc:D.LocationId,seed:string,mode:Mode){
   maxNet=Math.max(maxNet,s.money-G.outstanding(s));if(G.lvl(s,'house')>=4&&!firstHouse4)firstHouse4=s.absWeek;
   if(seed.endsWith('-0'))log.push({week:prior.absWeek,season:prior.season,cash:s.money,debt:G.outstanding(s),harvest:s.lastReport?.harvests.reduce((n,l)=>n+l.qty,0),lost:s.lastReport?.lost,phase:s.phase});
  }
- return {loc,seed,mode,weeks,soilTime,survived:weeks===horizon&&s.phase!=='gameover',money:s.money,net:s.money-G.outstanding(s),maxNet,harvested:s.stats.harvested,lost:s.stats.lostUnits,sales:s.stats.sales,orderRevenue:s.stats.orders,levels:s.levels,pets:s.pets.length,finalDeck:G.deckList(s).map(c=>c.def),chains:Object.values(s.orgs).reduce((n,o)=>n+(o?.step??0),0),...count,log};
+ return {loc,seed,mode,weeks,soilTime,folded,survived:!!folded||weeks===horizon&&s.phase!=='gameover',money:s.money,net:s.money-G.outstanding(s),maxNet,harvested:s.stats.harvested,lost:s.stats.lostUnits,sales:s.stats.sales,orderRevenue:s.stats.orders,levels:s.levels,pets:s.pets.length,finalDeck:G.deckList(s).map(c=>c.def),chains:Object.values(s.orgs).reduce((n,o)=>n+(o?.step??0),0),...count,log};
 }
 for(const loc of (process.env.AUDIT_LOCATIONS?.split(',')??D.LOCATION_IDS) as D.LocationId[])for(let seed=0;seed<seeds;seed++)for(const mode of selectedModes){const r=run(loc,`MATCHED-${seed}`,mode);results.push(r);if(results.length%36===0)console.log('Completed',results.length);}
-const summary=([...new Set(results.map(r=>r.loc))] as D.LocationId[]).flatMap(loc=>selectedModes.map(mode=>{const a=results.filter(r=>r.loc===loc&&r.mode===mode);const mean=(k:string)=>Math.round(a.reduce((n,r)=>n+r[k],0)/a.length*100)/100;return{loc,mode,runs:a.length,survived:a.filter(r=>r.survived).length,weeks:mean('weeks'),net:mean('net'),harvested:mean('harvested'),orders:mean('orderRevenue'),accepted:mean('accepted'),delivered:mean('delivered'),failed:mean('failed'),exchange:mean('exchange'),compost:mean('compost'),claimed:mean('claimed')};}));
+const summary=([...new Set(results.map(r=>r.loc))] as D.LocationId[]).flatMap(loc=>selectedModes.map(mode=>{const a=results.filter(r=>r.loc===loc&&r.mode===mode);const mean=(k:string)=>Math.round(a.reduce((n,r)=>n+r[k],0)/a.length*100)/100;const f=a.filter(r=>r.folded),med=(xs:number[])=>xs.length?[...xs].sort((x,y)=>x-y)[Math.floor(xs.length/2)]:0;return{loc,mode,runs:a.length,survived:a.filter(r=>r.survived).length,folded:f.length,foldCash:med(f.map(r=>r.folded.cash)),finds:med(f.map(r=>r.folded.finds)),weeks:mean('weeks'),net:mean('net'),harvested:mean('harvested'),orders:mean('orderRevenue'),accepted:mean('accepted'),delivered:mean('delivered'),failed:mean('failed'),exchange:mean('exchange'),compost:mean('compost'),claimed:mean('claimed')};}));
 writeFileSync(`../qa/${process.env.AUDIT_OUTPUT||'strategy-results.json'}`,JSON.stringify({method:`${results.length} matched-seed legal-action runs, ${horizon} weeks, 70 starting money. Explicit regional_* pet ablations use newGame pets; other modes no bonuses. Forage mode converts winter deck to eight forage cards legally. Heuristic bots, not optimum strategies or human win rates.`,summary,results},null,2));console.table(summary);
 

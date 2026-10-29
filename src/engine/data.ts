@@ -1,15 +1,18 @@
 // Посевная v4 — static game data. Numbers are starting values, not a calibrated balance.
 
 // ---------- locations ----------
-export type LocationId = 'chernozem' | 'kuban' | 'altai';
-export const LOCATION_IDS: LocationId[] = ['chernozem', 'kuban', 'altai'];
+export type LocationId = 'chernozem' | 'kuban' | 'altai' | 'rent';
+export const LOCATION_IDS: LocationId[] = ['chernozem', 'kuban', 'altai', 'rent'];
+/** the regions an expedition goes to from the home farm (v3 §3.4) */
+export type ExpeditionId = 'rent' | 'kuban' | 'altai';
+export const EXPEDITION_IDS: ExpeditionId[] = ['rent', 'kuban', 'altai'];
 
 export type Terrain = 'plain' | 'river' | 'sand' | 'rock' | 'forest' | 'swamp';
 export const TERRAIN: Record<Terrain, { name: string; text: string; plantable: boolean; buyable: boolean }> = {
   plain: { name: 'Поле', text: '', plantable: true, buyable: true },
   river: { name: 'Река', text: 'Грядки у воды к новой неделе не пересыхают ниже 1. Весной река может разлиться.', plantable: false, buyable: false },
   sand: { name: 'Песок', text: 'Прогревается на 2° сильнее. В засуху теряет на 1 влагу больше. Бахча и гречка на песке дают на треть больше.', plantable: true, buyable: true },
-  rock: { name: 'Камни', text: 'Камни нужно расчистить: рабочий день и немного денег. Под ними хорошая почва.', plantable: false, buyable: true },
+  rock: { name: 'Камни', text: 'Камни нужно расчистить: рабочий день и немного денег. Под ними хорошая почва, а камень идёт на фундамент — в счёт кирпича.', plantable: false, buyable: true },
   forest: { name: 'Тайга', text: 'Лес холодит соседние грядки на 2°. На заимке его можно раскорчевать — под ним жирная лесная почва.', plantable: false, buyable: false },
   swamp: { name: 'Болото', text: 'На болоте растёт только клюква. Можно осушить за день и деньги.', plantable: false, buyable: true },
 };
@@ -141,130 +144,164 @@ export const CARDS: Record<string, CardDef> = {
 };
 export const isSeed = (def: string) => CARDS[def]?.kind === 'seed';
 
+// ---------- building materials (progression v3 §4.2) ----------
+export type MaterialId = 'logs' | 'bricks' | 'glass';
+export const MATERIAL_IDS: MaterialId[] = ['logs', 'bricks', 'glass'];
+export const MATERIALS: Record<MaterialId, { name: string; one: string; gen: string; short: string; price: number; lot: [number, number] }> = {
+  logs: { name: 'Брёвна', one: 'бревно', gen: 'брёвен', short: 'Б', price: 2, lot: [8, 14] },
+  bricks: { name: 'Кирпич', one: 'кирпич', gen: 'кирпича', short: 'К', price: 4, lot: [6, 10] },
+  glass: { name: 'Стекло', one: 'стекло', gen: 'стекла', short: 'С', price: 7, lot: [3, 5] },
+};
+export type Mats = Partial<Record<MaterialId, number>>;
+
 // ---------- workshop ----------
-export type TrackId = 'house' | 'irrigation' | 'greenhouse' | 'apiary' | 'drone' | 'barn' | 'meteo' | 'machinery' | 'guard' | 'planning' | 'compost' | 'lab' | 'canal' | 'clearing';
-export interface TrackLevel { name: string; cost: number; weeks: number; text: string; needHouse?: number }
-export interface TrackDef { id: TrackId; name: string; icon: string; text: string; levels: TrackLevel[]; place?: 'tile' | 'row' | 'corner' }
+export type TrackId = 'house' | 'irrigation' | 'greenhouse' | 'apiary' | 'drone' | 'barn' | 'meteo' | 'machinery' | 'guard' | 'fires' | 'planning' | 'compost' | 'lab' | 'canal' | 'clearing';
+export interface TrackLevel { name: string; cost: number; weeks: number; text: string; needHouse?: number; mat?: Mats }
+/** equipment: bought ready-made at the season's fair (v3 §4.1), never built in the workshop */
+export interface TrackDef { id: TrackId; name: string; icon: string; text: string; levels: TrackLevel[]; place?: 'tile' | 'row' | 'corner'; equipment?: boolean }
 // levels[0] is level 1 (level 0 = nothing built)
 export const TRACKS: Record<TrackId, TrackDef> = {
   house: {
-    id: 'house', name: 'Дом', icon: 'house', text: 'Уровень дома: места в команде, лимит колоды, слоты мастерской.',
+    id: 'house', name: 'Дом', icon: 'house', text: 'Уровень дома: кровати для работников, лимит колоды, слоты бригады.',
     levels: [
-      { name: 'Изба', cost: 0, weeks: 0, text: '1 работник · колода до 14 карт · 3 рабочих дня' },
-      { name: 'Погреб', cost: 35, weeks: 1, text: '2 работника · колода до 16 · томаты хранятся на неделю дольше' },
-      { name: 'Мастерская', cost: 70, weeks: 2, text: '3 работника · колода до 18 · +1 рабочий день' },
-      { name: 'Кабинет', cost: 120, weeks: 2, text: '4 работника · колода до 20 · второй слот мастерской, 4 заказа в работе' },
-      { name: 'Усадьба', cost: 220, weeks: 3, text: '5 работников · колода до 22 · +1 обмен в неделю' },
+      { name: 'Изба', cost: 0, weeks: 0, text: '1 кровать · колода до 14 карт · 3 рабочих дня' },
+      { name: 'Погреб', cost: 25, weeks: 4, mat: { logs: 6, bricks: 6 }, text: 'колода до 16 · скоропорт хранится на неделю дольше' },
+      { name: 'Мастерская', cost: 50, weeks: 6, mat: { logs: 12, bricks: 6, glass: 2 }, text: '2 кровати · колода до 18 · +1 рабочий день' },
+      { name: 'Светёлка', cost: 90, weeks: 8, mat: { logs: 14, bricks: 10, glass: 4 }, text: 'колода до 20 · второй слот бригады · 4 заказа в работе' },
+      { name: 'Усадьба', cost: 150, weeks: 10, mat: { logs: 18, bricks: 16, glass: 6 }, text: '3 кровати · колода до 22 · +1 обмен в неделю' },
+      { name: 'Флигель', cost: 240, weeks: 12, mat: { logs: 24, bricks: 22, glass: 8 }, text: '4 кровати · колода до 24 · гостевая: 5 заказов в работе' },
+      { name: 'Подворье', cost: 360, weeks: 14, mat: { logs: 30, bricks: 30, glass: 12 }, text: '5 кроватей · третий слот бригады' },
     ],
   },
   lab: {
     id: 'lab', name: 'Лаборатория', icon: 'flask', text: 'Селекция культур, новые сорта, препараты для почвы.',
     levels: [
-      { name: 'Лаборатория', cost: 50, weeks: 3, text: '1 проект · +1 клетка и 1 признак на карту' },
-      { name: 'Селекционный отдел', cost: 90, weeks: 3, text: '2 проекта · до 2 клеток и 2 признаков', needHouse: 2 },
-      { name: 'Научный центр', cost: 160, weeks: 4, text: 'проекты на неделю быстрее · до 3 клеток и 3 признаков', needHouse: 3 },
+      { name: 'Лаборатория', cost: 40, weeks: 6, mat: { logs: 6, bricks: 4, glass: 2 }, text: '1 проект · +1 клетка и 1 признак на карту' },
+      { name: 'Селекционный отдел', cost: 80, weeks: 8, mat: { logs: 8, bricks: 8, glass: 4 }, text: '2 проекта · до 2 клеток и 2 признаков', needHouse: 3 },
+      { name: 'Научный центр', cost: 140, weeks: 10, mat: { logs: 10, bricks: 12, glass: 8 }, text: 'проекты на неделю быстрее · до 3 клеток и 3 признаков', needHouse: 4 },
     ],
   },
   irrigation: {
     id: 'irrigation', name: 'Полив', icon: 'water', text: 'От ведра до автоматики.', place: 'row',
     levels: [
       { name: 'Бочка и шланг', cost: 20, weeks: 1, text: 'ручной полив: выберите до 3 соседних грядок в линию' },
-      { name: 'Капельный полив', cost: 45, weeks: 2, text: '2 капельные линии: ряд не сохнет от обычного испарения, жара и засуха всё равно сушат (ставятся в режиме построек)' },
-      { name: 'Дождеватель', cost: 90, weeks: 3, text: 'каждую неделю всем грядкам +1 влага', needHouse: 2 },
-      { name: 'Автоматика', cost: 160, weeks: 3, text: 'капельных линий 4, сухие грядки сами получают +2', needHouse: 3 },
+      { name: 'Капельный полив', cost: 45, weeks: 3, mat: { logs: 4 }, text: '2 капельные линии: ряд не сохнет от обычного испарения, жара и засуха всё равно сушат (ставятся в режиме построек)' },
+      { name: 'Дождеватель', cost: 90, weeks: 5, mat: { bricks: 6 }, text: 'каждую неделю всем грядкам +1 влага', needHouse: 2 },
+      { name: 'Автоматика', cost: 160, weeks: 6, mat: { bricks: 8, glass: 4 }, text: 'капельных линий 4, сухие грядки сами получают +2', needHouse: 3 },
     ],
   },
   greenhouse: {
     id: 'greenhouse', name: 'Теплица', icon: 'greenhouse', text: 'Защищает от града, вредителей и перегрева. Дождь не поливает.', place: 'tile',
     levels: [
-      { name: 'Парник', cost: 30, weeks: 2, text: '1 теплица: почва внутри теплее на 8°, град и вредители не страшны' },
-      { name: 'Две теплицы', cost: 50, weeks: 2, text: '2 теплицы' },
-      { name: 'Отопление', cost: 90, weeks: 3, text: 'внутри не ниже +18° даже зимой (2 ₽ в неделю за теплицу зимой)', needHouse: 2 },
-      { name: 'Тепличный комплекс', cost: 140, weeks: 3, text: '3 теплицы, урожай в них ×1,5', needHouse: 3 },
+      { name: 'Парник', cost: 25, weeks: 3, mat: { logs: 4, glass: 3 }, text: '1 теплица: почва внутри теплее на 8°, град и вредители не страшны' },
+      { name: 'Две теплицы', cost: 40, weeks: 4, mat: { logs: 4, glass: 4 }, text: '2 теплицы' },
+      { name: 'Отопление', cost: 80, weeks: 6, mat: { bricks: 6, glass: 2 }, text: 'внутри не ниже +18° даже зимой (2 ₽ в неделю за теплицу зимой)', needHouse: 2 },
+      { name: 'Тепличный комплекс', cost: 120, weeks: 8, mat: { logs: 8, bricks: 6, glass: 8 }, text: '3 теплицы, урожай в них ×1,5', needHouse: 3 },
     ],
   },
   apiary: {
     id: 'apiary', name: 'Пасека', icon: 'hive', text: 'Ульи опыляют цветущие культуры.', place: 'tile',
     levels: [
       { name: 'Улей', cost: 32, weeks: 1, text: '1 улей: гречка рядом ×1,5, тыква и подсолнечник ×1,25' },
-      { name: 'Пасека', cost: 45, weeks: 1, text: '2 улья' },
-      { name: 'Медогонка', cost: 80, weeks: 2, text: 'улей даёт 2 ед. мёда за летнюю неделю, если рядом растёт медонос' },
+      { name: 'Пасека', cost: 40, weeks: 2, mat: { logs: 6 }, text: '2 улья' },
+      { name: 'Медогонка', cost: 70, weeks: 4, mat: { logs: 4, glass: 2 }, text: 'улей даёт 2 ед. мёда за летнюю неделю, если рядом растёт медонос' },
     ],
   },
   drone: {
-    id: 'drone', name: 'Дрон', icon: 'drone', text: 'Разведка и защита с воздуха.',
+    id: 'drone', name: 'Дрон', icon: 'drone', text: 'Разведка и защита с воздуха. Продаётся на ярмарке.', equipment: true,
     levels: [
-      { name: 'Разведчик', cost: 25, weeks: 2, text: 'набеги видны за 2 недели, зона града — за неделю' },
-      { name: 'Защитник', cost: 50, weeks: 2, text: '1 вылет за сезон: жук, саранча или вороны' },
-      { name: 'Опрыскиватель', cost: 100, weeks: 3, text: '2 вылета за сезон', needHouse: 3 },
+      { name: 'Разведчик', cost: 25, weeks: 0, text: 'набеги видны за 2 недели, зона града — за неделю' },
+      { name: 'Защитник', cost: 50, weeks: 0, text: '1 вылет за сезон: жук, саранча или вороны' },
+      { name: 'Опрыскиватель', cost: 100, weeks: 0, text: '2 вылета за сезон', needHouse: 3 },
     ],
   },
   barn: {
     id: 'barn', name: 'Амбар', icon: 'barn', text: 'Сколько урожая можно хранить.',
     levels: [
-      { name: 'Пристройка', cost: 30, weeks: 1, text: 'амбар на 60 ед.' },
-      { name: 'Сусеки', cost: 60, weeks: 2, text: 'амбар на 90 ед., мыши больше не грызут зерно' },
-      { name: 'Холодильник', cost: 110, weeks: 2, text: 'амбар на 130 ед., скоропорт хранится на 2 недели дольше', needHouse: 2 },
-      { name: 'Элеватор', cost: 180, weeks: 3, text: 'амбар на 180 ед.', needHouse: 3 },
+      { name: 'Пристройка', cost: 25, weeks: 2, mat: { logs: 8 }, text: 'амбар на 60 ед.' },
+      { name: 'Сусеки', cost: 45, weeks: 3, mat: { logs: 10, bricks: 4 }, text: 'амбар на 90 ед., мыши больше не грызут зерно' },
+      { name: 'Холодильник', cost: 90, weeks: 5, mat: { bricks: 6, glass: 4 }, text: 'амбар на 130 ед., скоропорт хранится на 2 недели дольше', needHouse: 2 },
+      { name: 'Элеватор', cost: 150, weeks: 8, mat: { logs: 12, bricks: 16 }, text: 'амбар на 180 ед.', needHouse: 3 },
     ],
   },
   meteo: {
-    id: 'meteo', name: 'Метеостанция', icon: 'sensor', text: 'Насколько далеко видно погоду и угрозы.',
+    id: 'meteo', name: 'Метеостанция', icon: 'sensor', text: 'Насколько далеко видно погоду и угрозы. Приборы продаются на ярмарке.', equipment: true,
     levels: [
-      { name: 'Барометр', cost: 15, weeks: 1, text: 'прогноз на 2 недели вперёд' },
-      { name: 'Метеостанция', cost: 40, weeks: 2, text: 'прогноз на 4 недели, видны рыночные окна' },
-      { name: 'Агрометеоцентр', cost: 80, weeks: 2, text: 'погода и известные рыночные события на 6 недель; случайные цены не предсказывает', needHouse: 3 },
+      { name: 'Барометр', cost: 15, weeks: 0, text: 'прогноз на 2 недели вперёд' },
+      { name: 'Метеостанция', cost: 40, weeks: 0, text: 'прогноз на 4 недели, видны рыночные окна' },
+      { name: 'Агрометеоцентр', cost: 80, weeks: 0, text: 'погода и известные рыночные события на 6 недель; случайные цены не предсказывает', needHouse: 3 },
     ],
   },
   machinery: {
-    id: 'machinery', name: 'Техника', icon: 'tractor', text: 'Машины экономят деньги и дни.',
+    id: 'machinery', name: 'Техника', icon: 'tractor', text: 'Машины экономят деньги и дни. Продаются на ярмарке.', equipment: true,
     levels: [
-      { name: 'Сеялка', cost: 22, weeks: 1, text: 'семена на треть дешевле' },
-      { name: 'Трактор', cost: 45, weeks: 2, text: 'первый посев недели на 1 день быстрее' },
-      { name: 'Комбайн', cost: 100, weeks: 3, text: 'весь урожай +10%, ранний сбор без потерь', needHouse: 3 },
+      { name: 'Сеялка', cost: 22, weeks: 0, text: 'семена на треть дешевле' },
+      { name: 'Трактор', cost: 45, weeks: 0, text: 'первый посев недели на 1 день быстрее' },
+      { name: 'Комбайн', cost: 100, weeks: 0, text: 'весь урожай +10%, ранний сбор без потерь', needHouse: 3 },
     ],
   },
   guard: {
     id: 'guard', name: 'Охрана', icon: 'scarecrow', text: 'Пугала и сторожка.', place: 'corner',
     levels: [
       { name: 'Пугало', cost: 12, weeks: 1, text: '1 пугало: квадрат 2×2 без ворон' },
-      { name: 'Два пугала', cost: 25, weeks: 1, text: '2 пугала' },
-      { name: 'Сторожка', cost: 60, weeks: 2, text: 'воры не заходят, одна стая ворон за лето улетает сама' },
+      { name: 'Два пугала', cost: 22, weeks: 1, text: '2 пугала' },
+      { name: 'Сторожка', cost: 50, weeks: 4, mat: { logs: 10, bricks: 4 }, text: 'воры не заходят, одна стая ворон за лето улетает сама' },
+    ],
+  },
+  fires: {
+    id: 'fires', name: 'Костры', icon: 'fire', text: 'Кострища на стыке четырёх грядок. В холодную ночь их разжигают: у огня теплее, а дым гонит саранчу.', place: 'corner',
+    levels: [
+      { name: 'Дымовые кучи', cost: 18, weeks: 1, text: '2 кострища: у огня +5°, рядом +2°; дым гонит саранчу' },
+      { name: 'Печки-буржуйки', cost: 40, weeks: 2, text: '4 печки: у огня +7°, рядом +3°' },
+      { name: 'Тепловые пушки', cost: 90, weeks: 2, text: '6 пушек: у огня +9°, рядом +4°; разжигаются без рабочего дня', needHouse: 2 },
     ],
   },
   planning: {
     id: 'planning', name: 'Планёрка', icon: 'calendar', text: 'Несыгранные карты остаются в руке, каждую неделю рука добирается до 7 карт. Планёрка помогает менять ненужные.',
     levels: [
       { name: 'Блокнот', cost: 30, weeks: 1, text: 'обмен карты без рабочего дня' },
-      { name: 'Доска планов', cost: 60, weeks: 2, text: 'два обмена в неделю' },
-      { name: 'Штаб', cost: 110, weeks: 2, text: 'видна следующая карта колоды · +1 рабочий день', needHouse: 3 },
+      { name: 'Доска планов', cost: 50, weeks: 2, mat: { logs: 4 }, text: 'два обмена в неделю' },
+      { name: 'Штаб', cost: 90, weeks: 5, mat: { logs: 6, bricks: 6, glass: 2 }, text: 'видна следующая карта колоды · +1 рабочий день', needHouse: 3 },
     ],
   },
   compost: {
     id: 'compost', name: 'Компостная яма', icon: 'soil', text: 'Готовый компост хранится здесь, пока вы его не заберёте.',
     levels: [
       { name: 'Яма', cost: 18, weeks: 1, text: 'компост созревает за 3 недели; заберите карту, когда она нужна' },
-      { name: 'Вермикомпост', cost: 40, weeks: 2, text: 'компост созревает за 2 недели; готовая порция ждёт в яме' },
+      { name: 'Вермикомпост', cost: 35, weeks: 3, mat: { logs: 6 }, text: 'компост созревает за 2 недели; готовая порция ждёт в яме' },
     ],
   },
   canal: {
     id: 'canal', name: 'Каналы', icon: 'flood', text: 'Арыки от реки заливают соседние грядки.', place: 'tile',
     levels: [
       { name: 'Арык', cost: 0, weeks: 0, text: '2 клетки канала' },
-      { name: 'Оросительная сеть', cost: 40, weeks: 2, text: '4 клетки канала' },
-      { name: 'Шлюзы', cost: 90, weeks: 3, text: '7 клеток канала, весенний паводок не заливает поле', needHouse: 2 },
+      { name: 'Оросительная сеть', cost: 35, weeks: 3, mat: { bricks: 6 }, text: '4 клетки канала' },
+      { name: 'Шлюзы', cost: 80, weeks: 5, mat: { logs: 6, bricks: 10 }, text: '7 клеток канала, весенний паводок не заливает поле', needHouse: 2 },
     ],
   },
   clearing: {
     id: 'clearing', name: 'Раскорчёвка', icon: 'axe', text: 'Как отвоёвывать землю у тайги.',
     levels: [
-      { name: 'Топор и пила', cost: 0, weeks: 0, text: 'раскорчевать клетку леса: 2 дня и деньги' },
-      { name: 'Бензопила', cost: 45, weeks: 2, text: 'раскорчёвка за 1 день и дешевле' },
-      { name: 'Тёплые грядки', cost: 80, weeks: 2, text: 'почва на раскорчёванной земле теплее на 3°' },
+      { name: 'Топор и пила', cost: 0, weeks: 0, text: 'раскорчевать клетку леса: 2 дня и деньги, 4 бревна' },
+      { name: 'Бензопила', cost: 40, weeks: 2, text: 'раскорчёвка за 1 день и дешевле' },
+      { name: 'Тёплые грядки', cost: 70, weeks: 4, mat: { logs: 8, bricks: 4 }, text: 'почва на раскорчёванной земле теплее на 3°' },
     ],
   },
 };
-export const COMMON_TRACKS: TrackId[] = ['irrigation', 'greenhouse', 'apiary', 'drone', 'barn', 'meteo', 'machinery', 'guard', 'planning', 'compost'];
+/** The house on an expedition is a camp (v3 §3.4): three levels, the same rules by level. */
+export const CAMP: TrackDef = {
+  id: 'house', name: 'Лагерь', icon: 'house', text: 'Лагерь вместо дома: кровати, лимит колоды, рабочий день.',
+  levels: [
+    { name: 'Палатка', cost: 0, weeks: 0, text: '1 кровать · колода до 14 карт · 3 рабочих дня' },
+    { name: 'Времянка', cost: 20, weeks: 3, mat: { logs: 8 }, text: 'колода до 16 · скоропорт хранится на неделю дольше' },
+    { name: 'Полевой стан', cost: 45, weeks: 5, mat: { logs: 10, bricks: 6 }, text: '2 кровати · колода до 18 · +1 рабочий день' },
+  ],
+};
+/** The equipment lines the fair sells (v3 §4.1). */
+export const EQUIPMENT: TrackId[] = ['machinery', 'drone', 'meteo'];
+/** Beds by house (or camp) level: workers are hired onto a free bed. */
+export const HOUSE_BEDS = [1, 1, 2, 2, 3, 4, 5];
+export const COMMON_TRACKS: TrackId[] = ['irrigation', 'greenhouse', 'apiary', 'drone', 'barn', 'meteo', 'machinery', 'guard', 'fires', 'planning', 'compost'];
 export const BARN_CAP = [40, 60, 90, 130, 180];
 
 // ---------- workers ----------
@@ -276,7 +313,7 @@ export const WORKERS: Record<WorkerId, WorkerDef> = {
   irrigator: { id: 'irrigator', name: 'Айдар', gender: 'm', title: 'Поливальщик', price: 22, salary: 1, portrait: 'irrigator', color: '#3f8fbf', levels: ['полив — весь ряд и столбец', 'засуха сушит на 1 меньше', 'каждую неделю сам поливает 3 самые сухие посадки'] },
   beekeeper: { id: 'beekeeper', name: 'Пётр', gender: 'm', title: 'Пчеловод', price: 22, salary: 1, portrait: 'beekeeper', color: '#e9c45c', levels: ['улей действует на 8 соседей', 'мёда вдвое больше', 'бонус улья ещё ×1,2'] },
   marketer: { id: 'marketer', name: 'Ксения', gender: 'f', title: 'Продавец', price: 24, salary: 2, portrait: 'marketer', color: '#e0607a', levels: ['рынок +10%', 'рынок +15%', 'рынок +20%, награды заказов +10%'] },
-  mechanic: { id: 'mechanic', name: 'Руслан', gender: 'm', title: 'Механик', price: 28, salary: 2, portrait: 'mechanic', color: '#56616b', levels: ['стройки на неделю быстрее', 'стройки дешевле на 15%', 'ещё один слот мастерской'] },
+  mechanic: { id: 'mechanic', name: 'Руслан', gender: 'm', title: 'Механик', price: 28, salary: 2, portrait: 'mechanic', color: '#56616b', levels: ['стройки на 15% быстрее', 'стройки дешевле на 15%', 'ещё одно место в бригаде'] },
   breeder: { id: 'breeder', name: 'Мария', gender: 'f', title: 'Селекционер', price: 30, salary: 2, portrait: 'breeder', color: '#9fb86b', levels: ['проекты лаборатории на неделю быстрее', 'ещё один слот лаборатории', '+1 признак на карту'] },
   soilsci: { id: 'soilsci', name: 'Олег', gender: 'm', title: 'Почвовед', price: 26, salary: 1, portrait: 'soilsci', color: '#8c6a43', levels: ['фасоль оживляет почву на 2', 'компост и биопрепарат +2', 'подсолнечник не истощает почву'] },
   watchman: { id: 'watchman', name: 'Михалыч', gender: 'm', title: 'Сторож', price: 16, salary: 1, portrait: 'logist', color: '#3a6b4a', levels: ['воры обходят ферму стороной', 'отгоняет одну стаю ворон за лето', 'каждую неделю сам защищает 2 грядки под ударом'] },
@@ -299,7 +336,8 @@ export const PET_IDS = Object.keys(PETS) as PetId[];
 export type OrgId =
   | 'orphanage' | 'council' | 'bakery' | 'restaurant' | 'college'
   | 'cannery' | 'ricemill' | 'stanitsa' | 'beekeepers'
-  | 'camp' | 'forestry' | 'apiarists' | 'sanatorium';
+  | 'camp' | 'forestry' | 'apiarists' | 'sanatorium'
+  | 'teahouse' | 'school' | 'steward' | 'club';
 export type Mischief = 'thieves' | 'fine' | 'silence' | 'review' | 'training';
 export interface Reward { money?: number; pet?: PetId; cert?: string; seeds?: CropId; worker?: WorkerId; glory?: number; card?: string }
 export interface StepDef { title: string; crops: CropId[]; qty: number; lines?: number; weeks: number; pay: number; reward?: Reward; text: string }
@@ -318,7 +356,7 @@ export const ORGS: Record<OrgId, OrgDef> = {
       { title: 'Витамины к обеду', crops: ['radish', 'carrot', 'onion'], qty: 6, weeks: 4, pay: 0.9, text: 'Ребятам не хватает свежих овощей. Поможете?' },
       { title: 'Овощи на месяц', crops: ['potato', 'cabbage'], qty: 14, weeks: 5, pay: 1, reward: { cert: 'Благодарность интерната' }, text: 'Столовая просит запас на месяц.' },
       { title: 'Экскурсия на ферму', crops: ['carrot', 'radish', 'pumpkin'], qty: 8, lines: 2, weeks: 5, pay: 1, reward: { pet: 'dog' }, text: 'Ребята хотят увидеть, где растёт еда, и привезут вам щенка из приюта.' },
-      { title: 'Праздник урожая', crops: ['pumpkin', 'strawberry', 'potato', 'cabbage'], qty: 12, lines: 2, weeks: 6, pay: 1.2, reward: { cert: 'Шеф интерната «Солнышко»', glory: 20 }, text: 'Большой праздник — и вы почётный гость.' },
+      { title: 'Осенний утренник', crops: ['pumpkin', 'strawberry', 'potato', 'cabbage'], qty: 12, lines: 2, weeks: 6, pay: 1.2, reward: { cert: 'Шеф интерната «Солнышко»', glory: 20 }, text: 'Большой праздник — и вы почётный гость.' },
     ],
     perk: 'Ребята летом помогают — +1 рабочий день в неделю',
     mischief: 'thieves', mischiefText: 'Голодные ребята лазают в огород и таскают урожай',
@@ -400,7 +438,7 @@ export const ORGS: Record<OrgId, OrgDef> = {
     steps: [
       { title: 'Базарный день', crops: ['radish', 'onion', 'bean'], qty: 6, lines: 2, weeks: 4, pay: 1.1, text: 'Станица любит свежее.' },
       { title: 'Семечки к празднику', crops: ['sunflower'], qty: 12, weeks: 7, pay: 1.2, reward: { cert: 'Грамота станицы' }, text: 'Какой праздник без семечек.' },
-      { title: 'Арбузная ярмарка', crops: ['watermelon'], qty: 14, weeks: 7, pay: 1.3, reward: { pet: 'goat', glory: 20 }, text: 'Собираем партию для ярмарки. Нужны арбузы и другие продукты к столу.' },
+      { title: 'Арбузная ярмарка', crops: ['watermelon'], qty: 14, weeks: 7, pay: 1.3, reward: { pet: 'goat', glory: 20 }, text: 'Собираем партию для ярмарки. Нужны арбузы — самые сладкие, к столу.' },
       { title: 'Казачья ярмарка', crops: ['watermelon', 'tomato', 'sunflower', 'onion'], qty: 10, lines: 3, weeks: 8, pay: 1.4, reward: { cert: 'Арбузный король Кубани', glory: 30 }, text: 'Главная ярмарка года.' },
     ],
     perk: 'Земля на 30% дешевле', mischief: 'fine', mischiefText: 'Станичный совет штрафует за самозахват воды',
@@ -461,6 +499,51 @@ export const ORGS: Record<OrgId, OrgDef> = {
     ],
     perk: 'Клюква, облепиха и капуста на рынке +10%', mischief: 'review', mischiefText: 'Главврач пожаловалась в район — рынок 3 недели платит на 10% меньше',
   },
+  // ---- Заречье (Аренда у Пряхина): docs/CHARACTERS-v3.md §2
+  teahouse: {
+    id: 'teahouse', name: 'Чайная «Самовар»', short: 'Чайная', who: 'Хозяйка Варвара Кузьминична', emblem: 'samovar', color: '#c8553d',
+    wants: ['potato', 'cabbage', 'onion', 'pumpkin', 'carrot'],
+    steps: [
+      { title: 'Пирожки для трассы', crops: ['potato', 'cabbage', 'onion'], qty: 10, weeks: 5, pay: 1.2, text: 'Голубчик, у меня фура к обеду, а начинка кончилась.' },
+      { title: 'Борщ на сто тарелок', crops: ['cabbage', 'potato', 'carrot', 'onion'], qty: 14, lines: 2, weeks: 6, pay: 1.2, reward: { money: 40 }, text: 'Трасса голодная: ставлю самую большую кастрюлю.' },
+      { title: 'Свадьба племянницы', crops: ['pumpkin', 'potato', 'cabbage', 'carrot'], qty: 12, lines: 3, weeks: 7, pay: 1.3, reward: { cert: 'Друг чайной «Самовар»', glory: 10 }, text: 'Гуляем всем селом — Пряхина тоже позвала, пусть видит.' },
+      { title: 'Чайная в путеводителе', crops: ['potato', 'cabbage', 'onion', 'pumpkin'], qty: 16, lines: 3, weeks: 8, pay: 1.4, reward: { glory: 25, money: 60 }, text: 'Про нас напишут в путеводителе по трассе. На вывеске будет ваша ферма.' },
+    ],
+    perk: 'Картофель и капуста на рынке +15%', mischief: 'review', mischiefText: 'Варвара рассказала всей трассе: рынок 3 недели платит на 10% меньше',
+  },
+  school: {
+    id: 'school', name: 'Кружок юннатов', short: 'Юннаты', who: 'Учительница Нелли Марковна', emblem: 'book', color: '#4f8a5b',
+    wants: ['bean', 'corn', 'sunflower', 'buckwheat', 'radish'],
+    steps: [
+      { title: 'Образцы для практикума', crops: ['bean', 'radish', 'carrot'], qty: 5, lines: 2, weeks: 4, pay: 1.2, text: 'Гипотеза: фасоль рядом с кукурузой даст больше. Начнём с образцов.' },
+      { title: 'Опытная делянка', crops: ['bean', 'corn', 'sunflower'], qty: 8, weeks: 6, pay: 1.2, reward: { card: 'bio' }, text: 'Дети подписали каждую грядку. Поделимся школьным биопрепаратом.' },
+      { title: 'Районная олимпиада', crops: ['sunflower', 'corn', 'buckwheat', 'bean'], qty: 10, lines: 2, weeks: 7, pay: 1.3, reward: { cert: 'Наставник юннатов', glory: 10 }, text: 'Нужен контрольный образец. То есть самый обычный. Не надо его хвалить.' },
+      { title: 'Школьный сорт', crops: ['corn', 'sunflower', 'bean', 'pumpkin'], qty: 10, lines: 3, weeks: 8, pay: 1.3, reward: { glory: 25, money: 50 }, text: 'Выводим свой сорт вместе с вами. Название придумают дети.' },
+    ],
+    perk: 'Юннаты летом помогают: +1 рабочий день в неделю', mischief: 'silence', mischiefText: 'Нелли Марковна увела кружок на другую ферму',
+  },
+  steward: {
+    id: 'steward', name: 'Приказчик Лёва', short: 'Лёва', who: 'Приказчик Лёва Пряхин', emblem: 'abacus', color: '#5d6fa8',
+    wants: ['wheat', 'buckwheat', 'rye', 'sunflower'],
+    steps: [
+      { title: 'Пробная партия', crops: ['wheat', 'buckwheat'], qty: 12, weeks: 6, pay: 1.15, text: 'Дядя сказал взять подешевле. Я записал среднюю цену.' },
+      { title: 'Контракт на крупу', crops: ['buckwheat', 'wheat', 'rye'], qty: 18, weeks: 7, pay: 1.2, reward: { money: 40 }, text: 'Ровные крупные поставки — дядя такое уважает.' },
+      { title: 'Тайная поставка', crops: ['wheat', 'sunflower', 'buckwheat'], qty: 16, lines: 2, weeks: 7, pay: 1.3, reward: { cert: 'Поставщик лавки Лёвы', glory: 10 }, text: 'Это для моей лавки в райцентре. Только дяде ни слова.' },
+      { title: 'Открытие лавки', crops: ['wheat', 'buckwheat', 'potato', 'sunflower'], qty: 18, lines: 3, weeks: 9, pay: 1.4, reward: { glory: 25, money: 80 }, text: 'Лавка открывается. Дядя обещал прийти. Кажется.' },
+    ],
+    perk: 'Земля на 30% дешевле', mischief: 'fine', mischiefText: 'Дядя узнал о просрочке: штраф по договору аренды',
+  },
+  club: {
+    id: 'club', name: 'Сельский клуб', short: 'Клуб', who: 'Завклубом Роза Ахметовна', emblem: 'mask', color: '#b0477a',
+    wants: ['pumpkin', 'sunflower', 'strawberry', 'tomato', 'cabbage'],
+    steps: [
+      { title: 'Осенний концерт', crops: ['sunflower', 'pumpkin'], qty: 6, weeks: 5, pay: 1.2, text: 'Без подсолнухов сцена — как без занавеса!' },
+      { title: 'Спектакль «Репка»', crops: ['radish', 'carrot', 'potato'], qty: 8, lines: 2, weeks: 5, pay: 1.2, reward: { money: 30 }, text: 'Нужна настоящая репа. То есть редис! Зритель не заметит.' },
+      { title: 'Вечёрка в клубе', crops: ['pumpkin', 'sunflower', 'strawberry', 'cabbage'], qty: 12, lines: 3, weeks: 7, pay: 1.3, reward: { cert: 'Душа праздника', glory: 15 }, text: 'Самая большая тыква. Самая! Это не каприз, это декорация.' },
+      { title: 'Смотр с Пряхиным', crops: ['pumpkin', 'sunflower', 'tomato', 'strawberry'], qty: 12, lines: 3, weeks: 8, pay: 1.5, reward: { glory: 30, money: 60 }, text: 'Пряхин записался в жюри. Он всегда ставит четвёрки. Даже себе.' },
+    ],
+    perk: 'Тыква и подсолнечник на рынке +15%', mischief: 'silence', mischiefText: 'Клуб обиделся и вычеркнул вас из афиши',
+  },
 };
 export const ORG_IDS = Object.keys(ORGS) as OrgId[];
 // relationship tiers
@@ -474,14 +557,17 @@ export const REL_TIERS: { min: number; name: string; tone: 'bad' | 'cold' | 'ok'
 export const relTier = (rel: number) => [...REL_TIERS].reverse().find((t) => rel >= t.min)!;
 
 // ---------- ranks ----------
-export const RANKS: { min: number; name: string }[] = [
-  { min: 0, name: 'Новичок' },
-  { min: 40, name: 'Хозяин' },
-  { min: 120, name: 'Крепкий хозяин' },
-  { min: 250, name: 'Мастер урожая' },
-  { min: 450, name: 'Лучший садовод района' },
-  { min: 750, name: 'Гордость области' },
+/** profile ranks by glory, and what each opens (29.10: every rank gives something) */
+export const RANKS: { min: number; name: string; opens: string }[] = [
+  { min: 0, name: 'Новичок', opens: 'родной дом и вылазка в Заречье' },
+  { min: 40, name: 'Хозяин', opens: 'вылазка на Кубань' },
+  { min: 120, name: 'Крепкий хозяин', opens: 'вылазка на Алтай' },
+  { min: 250, name: 'Мастер урожая', opens: 'на телегу обоза — 4 карты' },
+  { min: 450, name: 'Лучший садовод района', opens: 'подъёмные в обоз — вдвое больше' },
+  { min: 750, name: 'Гордость области', opens: 'высшее звание' },
 ];
+/** where glory comes from, in a line */
+export const GLORY_SOURCES = 'заказы и цепочки заказчиков, первые урожаи культур, каждый прожитый год, стройки дома, выкуп дома, дворы соседей и общие постройки, смотр и праздник урожая, испытания года, своё знание культур';
 export const rankOf = (glory: number) => {
   let i = 0;
   for (let k = 0; k < RANKS.length; k++) if (glory >= RANKS[k].min) i = k;
@@ -491,9 +577,9 @@ export const rankOf = (glory: number) => {
 // ---------- the three farms ----------
 export const LOCATIONS: Record<LocationId, LocationDef> = {
   chernozem: {
-    id: 'chernozem', name: 'Черноземье', place: 'Родная деревня', tagline: 'Жирная земля и мягкий климат',
-    text: 'Ровное поле с живой почвой. Здесь учатся всему: температуре, воде, соседству культур и отношениям с людьми.',
-    unique: ['почва живее с самого начала', 'соседство: морковь с луком, «три сёстры»', 'пять организаций деревни'],
+    id: 'chernozem', name: 'Черноземье', place: 'Родной дом', tagline: 'Жирная земля, дом в залоге',
+    text: 'Родной дом в залоге у банка: три осенних взноса — и он ваш. Живая почва, пять заказчиков, соседи, которым нужна помощь, ярмарка раз в сезон — и Пряхин из Заречья, который присматривал этот дом на торгах.',
+    unique: ['дом выкупается за три осени', 'соседи, клуб и праздник урожая', 'отсюда уходит обоз на вылазки'],
     map: ['......', '......', '......', '......', '......', '......'],
     soil: 3, seasons: [4, 12, 4, 3],
     temp: { spring: [6, 16], summer: [18, 27], autumn: [13, 3], winter: [-6, -12] },
@@ -507,7 +593,7 @@ export const LOCATIONS: Record<LocationId, LocationDef> = {
   kuban: {
     id: 'kuban', name: 'Кубанская пойма', place: 'Хутор у реки', tagline: 'Жара, река и арыки',
     text: 'Длинное жаркое лето. Без воды здесь ничего не растёт, зато каналы от реки заливают рис, а на песке зреют арбузы.',
-    unique: ['каналы от реки: арыки заливают соседние грядки', 'бахча на песке', 'в жару редис и капуста стоят'],
+    unique: ['каналы от реки: копайте арыки, заливайте рис', 'бахча на песке', 'в жару редис и капуста стоят'],
     map: ['....~.', '....~.', '....~.', '....~~', 'ss...~', 'sss..~'],
     soil: 2, seasons: [3, 14, 4, 2],
     temp: { spring: [10, 19], summer: [20, 30], autumn: [17, 7], winter: [-1, -5] },
@@ -532,20 +618,38 @@ export const LOCATIONS: Record<LocationId, LocationDef> = {
     orgs: ['camp', 'forestry', 'apiarists', 'sanatorium'],
     extra: ['clearing'],
   },
+  rent: {
+    id: 'rent', name: 'Заречье', place: 'Аренда у Пряхина', tagline: 'Чужая земля, своё село',
+    text: 'Полоса Аркадия Семёновича Пряхина за рекой. Климат как дома, но земля чужая: аренда по лестнице, хозяин обходит поле с тетрадкой, а заказчики — люди Заречья.',
+    unique: ['открыто всегда', 'четыре заказчика Заречья', 'свёрнутое хозяйство отдаёт домой 70%'],
+    map: ['......', '......', '......', '......', '......', '~~~...'],
+    soil: 3, seasons: [4, 12, 4, 3],
+    temp: { spring: [6, 16], summer: [18, 27], autumn: [13, 3], winter: [-6, -12] },
+    glory: 0, mild: true, payMult: 1.15,
+    starter: ['seed_radish', 'seed_radish', 'seed_potato', 'seed_potato', 'seed_bean', 'seed_carrot', 'seed_onion', 'seed_cabbage', 'seed_wheat', 'water', 'water', 'fertilizer', 'mulch', 'shelter'],
+    shop: ['radish', 'bean', 'potato', 'buckwheat', 'pumpkin', 'wheat', 'carrot', 'onion', 'cabbage'],
+    lab: ['tomato', 'corn', 'sunflower', 'garlic', 'rye'],
+    orgs: ['teahouse', 'school', 'steward', 'club'],
+    extra: [],
+  },
 };
 
 // where a rare crop from the profile's seed bank can be grown
 export const SEED_BANK_OK: Partial<Record<CropId, LocationId[]>> = {
-  strawberry: ['chernozem', 'kuban', 'altai'],
-  seabuckthorn: ['chernozem', 'altai'],
+  strawberry: ['chernozem', 'kuban', 'altai', 'rent'],
+  seabuckthorn: ['chernozem', 'altai', 'rent'],
   cranberry: ['altai'],
-  watermelon: ['kuban', 'chernozem'],
+  watermelon: ['kuban', 'chernozem', 'rent'],
   rice: ['kuban'],
 };
 
 export const SEASON_NAMES = ['Весна', 'Лето', 'Осень', 'Зима'] as const;
 export const SEASON_GEN = ['весны', 'лета', 'осени', 'зимы'] as const;
 export const PAYMENT_NAMES = ['Аренда', 'Поставщики', 'Годовой платёж', ''] as const;
+/** v3 §3.1–3.2 · the home farm: the third autumn payment buys it out; a bought-out home pays a yearly tax */
+export const BUYOUT_YEARS = 3;
+export const BUYOUT_NAME = 'Выкуп дома';
+export const TAX_NAME = 'Налог';
 export const BASE_PAYMENTS: [number, number, number] = [32, 62, 112];
 
 export const RATINGS = ['D', 'C', 'B', 'A', 'AA', 'AAA'] as const;
@@ -554,5 +658,5 @@ export const RATING_LIMIT = [0, 1, 1.5, 2, 2.5, 3];
 
 export const GRID = 6;
 export const HAND_BASE = 7;
-export const DECK_LIMIT = [14, 16, 18, 20, 22];
+export const DECK_LIMIT = [14, 16, 18, 20, 22, 24, 24];
 export const DECK_MIN = 8;

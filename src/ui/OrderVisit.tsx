@@ -1,6 +1,6 @@
 import {useEffect,useState,useRef} from 'preact/hooks';
 import {createPortal} from 'preact/compat';
-import {PORTRAIT_IMAGES} from '../art/portraits';
+import {Portrait,PORTRAIT_IMAGES} from '../art/portraits';
 import {BUYERS,orderDialogue,pendingOrderVoices} from '../content/orderDialogue';
 import {ORGS,OrgId} from '../engine/data';
 import type {GameState,Quest} from '../engine/game';
@@ -46,7 +46,7 @@ export function OrderVisit({s,canStart,onVisible,onOrder,lesson=false,onDone}:{s
  return createPortal(<Sheet variant="visit" title={buyer.name} onClose={()=>close()}>
   <div class={`order-meeting${children?' with-children':''}`}>
    <div class="meeting-stage" aria-hidden="true">
-    <img class="meeting-person" src={PORTRAIT_IMAGES[buyer.person]} alt=""/>
+    {PORTRAIT_IMAGES[buyer.person]?<img class="meeting-person" src={PORTRAIT_IMAGES[buyer.person]} alt=""/>:<span class="meeting-person vector"><Portrait id={buyer.person} size={170} ring={false}/></span>}
     {children&&<><img class="meeting-child katya" src={PORTRAIT_IMAGES.katya} alt=""/><img class="meeting-child misha" src={PORTRAIT_IMAGES.misha} alt=""/></>}
    </div>
    <section class="meeting-speech">

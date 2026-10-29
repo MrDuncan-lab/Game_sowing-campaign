@@ -1,10 +1,13 @@
-import { repairOpenOffers } from '../engine/game';
+import { SCENE_KINDS, ensureV3, repairOpenOffers } from '../engine/game';
+import { CONDITIONS, LOOT, RELICS, VISITS } from '../engine/run';
 // Saves: one profile shared by every farm (glory, certificates, pets, the seed bank, records) and one slot per farm.
 import type { CropId, LocationId, PetId } from '../engine/data';
 import { CARDS, CROPS, LOCATION_IDS, ORGS, PETS, SEED_BANK_OK, TERRAIN, TRACKS, TRAITS, WORKERS } from '../engine/data';
 import type { GameState } from '../engine/game';
 import { newGame } from '../engine/game';
 import { EPISODES } from '../engine/calendar';
+import { TRIALS } from '../engine/trials';
+import { COMMONS, YARDS } from '../engine/neighbours';
 import { canWriteSession, managedSaveSession, saveSession } from './saveSession';
 
 const PROFILE = 'posevnaya.v4.profile';
@@ -78,6 +81,8 @@ export interface Profile {
   best: { years: number; money: number; harvest: number };
   history: FarmRecord[];
   settings: { fast: boolean; intro: boolean; guide?: boolean };
+  /** v3 §8.1 · knowledge of the crops: units harvested, by farm (its run id), so a farm adds only its own */
+  know?: Record<string, Partial<Record<CropId, number>>>;
 }
 export const emptyProfile = (): Profile => ({
   v: 1, glory: 0, applied: [], pets: [], certs: [], seedBank: [], best: { years: 0, money: 0, harvest: 0 }, history: [], settings: { fast: false, intro: false },
@@ -167,7 +172,8 @@ function validProfile(v: unknown): v is Profile {
     && arr(v.pets, (x) => member(PETS, x)) && arr(v.certs, (x) => obj(x) && typeof x.name === 'string' && loc(x.loc) && num(x.year))
     && arr(v.seedBank, (x) => member(CROPS, x)) && obj(v.best) && ['years', 'money', 'harvest'].every((k) => num(v.best[k]))
     && arr(v.history, (x) => obj(x) && loc(x.loc) && ['years', 'glory', 'at'].every((k) => num(x[k])) && typeof x.reason === 'string')
-    && obj(v.settings) && typeof v.settings.fast === 'boolean' && typeof v.settings.intro === 'boolean' && (v.settings.guide === undefined || typeof v.settings.guide === 'boolean');
+    && obj(v.settings) && typeof v.settings.fast === 'boolean' && typeof v.settings.intro === 'boolean' && (v.settings.guide === undefined || typeof v.settings.guide === 'boolean')
+    && (v.know === undefined || (obj(v.know) && Object.values(v.know).every((m) => obj(m) && Object.entries(m).every(([k, n]) => member(CROPS, k) && num(n) && (n as number) >= 0))));
 }
 
 // Match every mandatory scalar/object against an engine-created state. Empty
@@ -185,33 +191,84 @@ const card = (v: any) => obj(v) && Number.isInteger(v.uid) && member(CARDS, v.de
 const lot = (v: any) => obj(v) && member(CROPS, v.crop) && num(v.qty) && v.qty >= 0 && num(v.age);
 const cell = (x: unknown, y: unknown) => Number.isInteger(x) && Number.isInteger(y) && (x as number) >= 0 && (x as number) < 6 && (y as number) >= 0 && (y as number) < 6;
 const plant = (p: any) => obj(p) && member(CROPS, p.id) && ['grown', 'bonus', 'mult', 'planted', 'pid'].every((k) => num(p[k]));
-const DAMAGE = ['frost', 'dry', 'hail', 'flood', 'crows', 'thieves'];
+const DAMAGE = ['frost', 'dry', 'hail', 'flood', 'crows', 'thieves', 'bear', 'boars', 'fire'];
+const STRIKES = ['hail', 'flood', 'beetle', 'locust', 'weedsurge', 'bear', 'boars', 'fire'];
+const int = (v: unknown, min = 0) => Number.isInteger(v) && (v as number) >= min;
+const worker = (x: any) => obj(x) && member(WORKERS, x.id) && Number.isInteger(x.level) && x.level >= 1 && x.level <= WORKERS[x.id as keyof typeof WORKERS].levels.length && Number.isInteger(x.away) && x.away >= 0
+  && (x.leaves === undefined || int(x.leaves)) && (x.free === undefined || typeof x.free === 'boolean');
+// v3 · an expedition's run and the home's cart, arrest and buyout: optional, checked on their own
+const runResult = (x: any) => obj(x) && num(x.cash) && x.cash >= 0 && arr(x.loot, (l) => member(LOOT, l)) && mats(x.mats) && arr(x.cards, card) && (x.worker === undefined || worker(x.worker)) && typeof x.bankrupt === 'boolean' && (x.settled === undefined || typeof x.settled === 'boolean');
+const run = (r: any) => obj(r) && member(CONDITIONS, r.cond) && arr(r.relics, (x) => member(RELICS, x)) && (r.home === undefined || typeof r.home === 'string') && (r.work === undefined || typeof r.work === 'boolean')
+  && obj(r.carried) && arr(r.carried.uids, Number.isInteger) && (r.carried.worker === undefined || member(WORKERS, r.carried.worker)) && num(r.carried.cash)
+  && (r.visit === null || obj(r.visit) && member(VISITS, r.visit.id) && int(r.visit.week) && (r.visit.relic === undefined || member(RELICS, r.visit.relic)) && (r.visit.price === undefined || num(r.visit.price)))
+  && int(r.nextVisit) && arr(r.seen, (x) => typeof x === 'string') && arr(r.used, (x) => typeof x === 'string') && int(r.autumns)
+  && (r.dig === undefined || obj(r.dig) && cell(r.dig.x, r.dig.y) && int(r.dig.until)) && (r.calm === undefined || obj(r.calm) && ['bear', 'boars'].every((k) => r.calm[k] === undefined || int(r.calm[k])))
+  && (r.cones === undefined || int(r.cones)) && (r.surcharge === undefined || num(r.surcharge) && r.surcharge >= 0) && (r.result === undefined || runResult(r.result));
+const away = (a: any) => obj(a) && ['rent', 'kuban', 'altai'].includes(a.loc) && typeof a.seed === 'string' && arr(a.cards, card) && (a.worker === undefined || worker(a.worker)) && num(a.cash) && a.cash >= 0 && int(a.week);
 const quest = (v: any) => v === null || obj(v) && (v.createdWeek === undefined || Number.isInteger(v.createdWeek) && v.createdWeek >= 0) && member(ORGS, v.org) && ['id', 'step', 'pay', 'rel', 'weeks'].every((k) => num(v[k])) && typeof v.title === 'string' && typeof v.text === 'string' && arr(v.lines, (x) => obj(x) && member(CROPS, x.crop) && num(x.qty));
+const MAT_KEYS = ['logs', 'bricks', 'glass'];
+const mats = (v: any) => obj(v) && Object.entries(v).every(([k, n]) => MAT_KEYS.includes(k) && Number.isInteger(n) && (n as number) >= 0);
+const fairLot = (l: any) => obj(l) && Number.isInteger(l.id) && ['equip', 'mat', 'worker'].includes(l.kind) && num(l.price) && l.price >= 0
+  && (l.kind !== 'equip' || member(TRACKS, l.track) && Number.isInteger(l.level) && l.level >= 1 && l.level <= TRACKS[l.track as keyof typeof TRACKS].levels.length)
+  && (l.kind !== 'mat' || mats(l.mats)) && (l.kind !== 'worker' || member(WORKERS, l.worker))
+  && (l.sold === undefined || ['player', 'rival'].includes(l.sold)) && ['hold', 'deposit', 'wlevel'].every((k) => l[k] === undefined || num(l[k]))
+  && ['used', 'special', 'prize'].every((k) => l[k] === undefined || typeof l[k] === 'boolean');
+const fair = (f: any) => f === undefined || obj(f) && ['year', 'season', 'eyeWeek', 'rival', 'nextId'].every((k) => num(f[k])) && (f.eye === null || Number.isInteger(f.eye)) && arr(f.lots, fairLot);
 export function validFarm(v: unknown): v is GameState {
-  if (!obj(v) || v.v !== 5 || !loc(v.loc) || typeof v.seed !== 'string' || !v.seed || !['week', 'shortfall', 'gameover'].includes(v.phase)) return false;
-  if (!templates.has(v.loc)) templates.set(v.loc, newGame({ loc: v.loc, seed: 'validation' }));
+  if (!obj(v) || v.v !== 5 || !loc(v.loc) || typeof v.seed !== 'string' || !v.seed || !['week', 'shortfall', 'gameover', 'arrest'].includes(v.phase)) return false;
+  // v3 fields are optional (old saves lack them) and checked on their own: the template leaves them out
+  if (!templates.has(v.loc)) {
+    const { mats: _m, fair: _f, equipSeen: _e, paidYears: _p, crops: _c, told: _t, beats: _b, trips: _tr, ...base } = newGame({ loc: v.loc, seed: 'validation' });
+    templates.set(v.loc, base as GameState);
+  }
+  if (v.mats !== undefined && (!mats(v.mats) || MAT_KEYS.some((k) => !Number.isInteger(v.mats[k])))) return false;
+  if (!fair(v.fair) || (v.equipSeen !== undefined && !(obj(v.equipSeen) && Object.entries(v.equipSeen).every(([k, n]) => member(TRACKS, k) && Number.isInteger(n))))) return false;
+  if (['helpWeek'].some((k) => v[k] !== undefined && !Number.isInteger(v[k])) || (v.quiet !== undefined && typeof v.quiet !== 'boolean')) return false;
+  if (['paidYears', 'skipYears'].some((k) => v[k] !== undefined && !int(v[k])) || (v.owned !== undefined && typeof v.owned !== 'boolean')) return false;
+  if ((v.run !== undefined && !run(v.run)) || (v.away !== undefined && !away(v.away))) return false;
+  if (v.arrest !== undefined && !(obj(v.arrest) && num(v.arrest.debt) && v.arrest.debt >= 0 && int(v.arrest.runs))) return false;
+  if (v.phase === 'arrest' && v.arrest === undefined) return false;
+  // v3 §7 · the neighbours
+  if (v.yards !== undefined && !(obj(v.yards) && Object.entries(v.yards).every(([k, y]: [string, any]) => member(YARDS, k) && obj(y) && int(y.stage) && y.stage >= 0 && y.stage <= 3
+    && ['swap', 'help', 'cand'].every((f) => y[f] === undefined || int(y[f]))))) return false;
+  if (v.commons !== undefined && !arr(v.commons, (c) => member(COMMONS, c))) return false;
+  const cropMap = (m: any) => obj(m) && Object.entries(m).every(([k, n]) => member(CROPS, k) && num(n) && (n as number) >= 0);
+  if ((v.crops !== undefined && !cropMap(v.crops)) || (v.knowBase !== undefined && !cropMap(v.knowBase))) return false;
+  // v3 §9.1 · the festival
+  const cats = (m: any) => obj(m) && ['units', 'kinds', 'best'].every((k) => num(m[k]));
+  if (v.yearHarvest !== undefined && !(obj(v.yearHarvest) && int(v.yearHarvest.year, 1) && num(v.yearHarvest.units) && num(v.yearHarvest.best) && arr(v.yearHarvest.kinds, (c) => member(CROPS, c)) && (v.yearHarvest.bestCrop === undefined || member(CROPS, v.yearHarvest.bestCrop)))) return false;
+  if (v.told !== undefined && !arr(v.told, (x) => typeof x === 'string')) return false;
+  if (v.beats !== undefined && !arr(v.beats, (b) => obj(b) && typeof b.id === 'string' && int(b.week))) return false;
+  if (v.trips !== undefined && !arr(v.trips, (t) => obj(t) && ['rent', 'kuban', 'altai'].includes(t.loc) && int(t.year, 1) && arr(t.loot, (l) => member(LOOT, l)))) return false;
+  if (v.fests !== undefined && !arr(v.fests, (f) => obj(f) && (f.club === undefined || typeof f.club === 'boolean') && int(f.year, 1) && cats(f.you) && cats(f.rival) && arr(f.won, (c) => ['units', 'kinds', 'best'].includes(c)) && typeof f.win === 'boolean' && num(f.glory) && (f.bestCrop === undefined || member(CROPS, f.bestCrop)))) return false;
+  if (v.forge !== undefined && !(obj(v.forge) && member(TRACKS, v.forge.track) && int(v.forge.level) && v.forge.level >= 1 && v.forge.level <= TRACKS[v.forge.track as keyof typeof TRACKS].levels.length && int(v.forge.week) && (v.forge.price === undefined || num(v.forge.price)))) return false;
+  if (v.over && v.over.work !== undefined && !(num(v.over.work) && v.over.work > 0)) return false;
   const base = templates.get(v.loc)!;
   if(v.guide!==undefined && !arr(v.guide,x=>typeof x==='string' && ['plant','rotate','water','harvest','sale','payment','order','delivery','soil'].includes(x))) return false;
   if(['compostReady','shortfallBorrowed'].some(k=>v[k]!==undefined && typeof v[k]!=='boolean')) return false;
   if(v.exchangeWeek!==undefined && (!Number.isInteger(v.exchangeWeek) || v.exchangeWeek<0)) return false;
-  if(v.scenes!==undefined && !arr(v.scenes,e=>obj(e) && typeof e.id==='string' && Number.isInteger(e.week) && e.week>=0 && (e.at===undefined||coords([e.at])) && (e.visit===undefined || obj(e.visit) && ['stolen','empty'].includes(e.visit.outcome) && coords(e.visit.targets) && coords(e.visit.crows)) && ['dogThieves','thieves','watchman','drone','geese'].includes(e.kind))) return false;
+  // the ordeal of the year and the fire pits (absent in older saves)
+  if(v.fires!==undefined && !coords(v.fires)) return false;
+  if(v.firesLit!==undefined && (!Number.isInteger(v.firesLit) || v.firesLit<0)) return false;
+  if(v.trial!==undefined && !(obj(v.trial) && typeof v.trial.id==='string' && member(TRIALS,v.trial.kind) && ['year','power','from','to','week','len'].every(k=>Number.isInteger(v.trial[k])) && (v.trial.dir===undefined || ['w','e','n','s'].includes(v.trial.dir)) && ['temp','beds','risk','lostValue','lostUnits'].every(k=>v.trial[k]===undefined || num(v.trial[k])) && (v.trial.result===undefined || obj(v.trial.result) && [0,1,2,3].includes(v.trial.result.grade) && ['saved','beds','risk','lostValue','lostUnits','glory'].every(k=>num(v.trial.result[k]))))) return false;
+  if(v.scenes!==undefined && !arr(v.scenes,e=>obj(e) && typeof e.id==='string' && Number.isInteger(e.week) && e.week>=0 && (e.at===undefined||coords([e.at])) && (e.visit===undefined || obj(e.visit) && ['stolen','empty'].includes(e.visit.outcome) && coords(e.visit.targets) && coords(e.visit.crows)) && (SCENE_KINDS as string[]).includes(e.kind))) return false;
 
   if (!shape(v, base) || !Number.isInteger(v.season) || v.season < 0 || v.season > 3 || v.year < 1 || v.week < 0 || v.week > base.temps.length || v.absWeek < 0) return false;
-  if (!Array.isArray(v.tiles) || v.tiles.length !== 36 || !v.tiles.every((t: any) => shape(t, base.tiles[0]) && (t.greenhousePlacedWeek===undefined || Number.isInteger(t.greenhousePlacedWeek) && t.greenhousePlacedWeek>=0 && t.greenhousePlacedWeek<=v.absWeek) && (t.hivePlacedWeek===undefined || Number.isInteger(t.hivePlacedWeek) && t.hivePlacedWeek>=0 && t.hivePlacedWeek<=v.absWeek) && Number.isInteger(t.soil) && t.soil >= 1 && t.soil <= 5 && Number.isInteger(t.moisture) && t.moisture >= 0 && t.moisture <= 3 && member(TERRAIN, t.terrain) && (t.last === null || member(CROPS, t.last)) && [null, 'greenhouse', 'hive'].includes(t.structure) && (t.crop === null || obj(t.crop) && member(CROPS, t.crop.id) && ['grown', 'bonus', 'mult', 'planted', 'pid'].every((k) => num(t.crop[k])) && (t.crop.traits === undefined || arr(t.crop.traits, (x) => member(TRAITS, x)))))) return false;
+  if (!Array.isArray(v.tiles) || v.tiles.length !== 36 || !v.tiles.every((t: any) => shape(t, base.tiles[0]) && (t.greenhousePlacedWeek===undefined || Number.isInteger(t.greenhousePlacedWeek) && t.greenhousePlacedWeek>=0 && t.greenhousePlacedWeek<=v.absWeek) && (t.hivePlacedWeek===undefined || Number.isInteger(t.hivePlacedWeek) && t.hivePlacedWeek>=0 && t.hivePlacedWeek<=v.absWeek) && (t.tree === undefined || Number.isInteger(t.tree) && t.tree >= 0) && (t.chop === undefined || Number.isInteger(t.chop) && t.chop >= 0) && Number.isInteger(t.soil) && t.soil >= 1 && t.soil <= 5 && Number.isInteger(t.moisture) && t.moisture >= 0 && t.moisture <= 3 && member(TERRAIN, t.terrain) && (t.last === null || member(CROPS, t.last)) && [null, 'greenhouse', 'hive'].includes(t.structure) && (t.crop === null || obj(t.crop) && member(CROPS, t.crop.id) && ['grown', 'bonus', 'mult', 'planted', 'pid'].every((k) => num(t.crop[k])) && (t.crop.traits === undefined || arr(t.crop.traits, (x) => member(TRAITS, x)))))) return false;
   if (!['draw', 'hand', 'discard', 'spare'].every((k) => arr(v[k], card)) || !['storage', 'yard'].every((k) => arr(v[k], lot))) return false;
   if (!arr(v.pets, (x) => member(PETS, x)) || !arr(v.certs, (x) => typeof x === 'string') || !['unlocked', 'harvestedKinds'].every((k) => arr(v[k], (x) => member(CROPS, x)))) return false;
   if (!obj(v.levels) || !Object.entries(v.levels).every(([k, n]) => member(TRACKS, k) && Number.isInteger(n) && (n as number) >= (k === 'house' ? 1 : 0) && (n as number) <= TRACKS[k as keyof typeof TRACKS].levels.length) || !coords(v.guards) || !coords(v.scarecrows)) return false;
-  if (!arr(v.team, (x) => obj(x) && member(WORKERS, x.id) && Number.isInteger(x.level) && x.level >= 1 && x.level <= WORKERS[x.id as keyof typeof WORKERS].levels.length && Number.isInteger(x.away) && x.away >= 0) || !['candidates', 'freeHire'].every((k) => arr(v[k], (x) => member(WORKERS, x)))) return false;
+  if (!arr(v.team, worker) || !['candidates', 'freeHire'].every((k) => arr(v[k], (x) => member(WORKERS, x)))) return false;
   // PSV-022 · a story step is a whole number from 0; relations stay within −100…100
   if (!obj(v.orgs) || !Object.entries(v.orgs).every(([k, x]) => member(ORGS, k) && obj(x) && ['rel', 'step', 'wait', 'idle', 'lastMischief'].every((n) => num(x[n])) && Number.isInteger(x.step) && x.step >= 0 && x.rel >= -100 && x.rel <= 100 && quest(x.offer) && quest(x.active))) return false;
-  if (!arr(v.projects, (x) => obj(x) && num(x.weeks) && num(x.total) && (x.kind === 'track' ? member(TRACKS, x.track) && Number.isInteger(x.level) && x.level >= 1 && x.level <= TRACKS[x.track as keyof typeof TRACKS].levels.length : x.kind === 'cell' ? card(x.card) && points([x.cell]) : x.kind === 'trait' ? card(x.card) && member(TRAITS, x.trait) : x.kind === 'variety' ? member(CROPS, x.crop) : x.kind === 'train' ? member(WORKERS, x.worker) : x.kind === 'bio'))) return false;
+  if (!arr(v.projects, (x) => obj(x) && num(x.weeks) && num(x.total) && (x.kind === 'track' ? member(TRACKS, x.track) && Number.isInteger(x.level) && x.level >= 1 && x.level <= TRACKS[x.track as keyof typeof TRACKS].levels.length : x.kind === 'cell' ? card(x.card) && points([x.cell]) : x.kind === 'trait' ? card(x.card) && member(TRAITS, x.trait) : x.kind === 'variety' ? member(CROPS, x.crop) : x.kind === 'train' ? member(WORKERS, x.worker) : x.kind === 'yard' ? member(YARDS, x.yard) && int(x.stage) && x.stage >= 1 && x.stage <= 3 : x.kind === 'common' ? member(COMMONS, x.id) : x.kind === 'bio'))) return false;
   if (!Number.isInteger(v.rating) || v.rating < 0 || v.rating > 5) return false;
   // every card is one object: a uid seen twice would play or move the wrong card
   const uids = [...['draw', 'hand', 'discard', 'spare'].flatMap((k) => v[k]), ...v.projects.flatMap((x: any) => x.kind === 'cell' || x.kind === 'trait' ? [x.card] : [])].map((c: any) => c.uid);
   if (new Set(uids).size !== uids.length) return false;
   if (!arr(v.plan, (x) => obj(x) && member(EPISODES, x.kind) && ['id', 'start', 'len'].every((k) => num(x[k]))) || !arr(v.temps, num) || v.temps.length !== base.temps.length) return false;
   if (!arr(v.loans, (x) => obj(x) && ['id', 'principal', 'rate'].every((k) => num(x[k]))) || !arr(v.effects, (x) => obj(x) && x.kind === 'review' && num(x.mult) && num(x.weeks))) return false;
-  if (!arr(v.strikes, (x) => obj(x) && ['hail', 'flood', 'beetle', 'locust', 'weedsurge'].includes(x.kind) && num(x.ep) && num(x.week) && typeof x.zone === 'boolean' && arr(x.cells, (c) => Array.isArray(c) && c.length === 3 && c.every(num) && cell(c[0], c[1])))) return false;
+  if (!arr(v.strikes, (x) => obj(x) && (x.trial===undefined || typeof x.trial==='boolean') && STRIKES.includes(x.kind) && num(x.ep) && num(x.week) && typeof x.zone === 'boolean' && arr(x.cells, (c) => Array.isArray(c) && c.length === 3 && c.every(num) && cell(c[0], c[1])))) return false;
   if (!(v.crows === null || obj(v.crows) && num(v.crows.week) && typeof v.crows.shoo === 'boolean' && typeof v.crows.drone === 'boolean' && arr(v.crows.targets, (x) => obj(x) && ['x', 'y', 'pid'].every((k) => num(x[k])) && cell(x.x, x.y) && ['young', 'ripe'].includes(x.type)))) return false;
   if (!['crowWarn', 'crowRolled', 'kidsWarn', 'kidsRolled'].every((k) => v[k] === undefined || arr(v[k], num))) return false;
   if (!(v.thieves === null || obj(v.thieves) && num(v.thieves.week) && typeof v.thieves.talked === 'boolean' && arr(v.thieves.targets, (x) => obj(x) && ['x', 'y', 'pid'].every((k) => num(x[k])) && cell(x.x, x.y)))) return false;
@@ -236,10 +293,21 @@ export const saveFarm = (s: GameState, replaceInvalid = false) => write(FARM(s.l
 export function hasFarmData(loc: LocationId): boolean {
   try { return localStorage.getItem(FARM(loc)) !== null; } catch { return true; }
 }
+/** what the profile's other farms know of each crop (v3 §8.1) */
+export function knowElsewhere(p: Profile, s: GameState): Partial<Record<CropId, number>> {
+  const me = farmRunId(s), out: Partial<Record<CropId, number>> = {};
+  for (const [id, m] of Object.entries(p.know ?? {})) if (id !== me) for (const [c, n] of Object.entries(m)) out[c as CropId] = (out[c as CropId] ?? 0) + (n ?? 0);
+  return out;
+}
+const sameCounts = (a: Partial<Record<CropId, number>> = {}, b: Partial<Record<CropId, number>> = {}) =>
+  Object.keys(a).length === Object.keys(b).length && Object.entries(a).every(([k, n]) => b[k as CropId] === n);
 export function syncFarm(p: Profile, s: GameState): GameState {
   const unlocked = [...new Set([...s.unlocked, ...p.seedBank.filter((c) => SEED_BANK_OK[c]?.includes(s.loc))])];
   const pets = [...new Set([...s.pets, ...p.pets])];
-  return repairOpenOffers(unlocked.length === s.unlocked.length && pets.length === s.pets.length ? s : { ...s, unlocked, pets });
+  const knowBase = knowElsewhere(p, s);
+  const sameKnow = sameCounts(knowBase, s.knowBase);
+  if (unlocked.length === s.unlocked.length && pets.length === s.pets.length && sameKnow) return ensureV3(repairOpenOffers(s));
+  return ensureV3(repairOpenOffers({ ...s, unlocked, pets, ...(sameKnow ? {} : { knowBase }) }));
 }
 export const allFarms = (): Partial<Record<LocationId, GameState>> =>
   Object.fromEntries(LOCATION_IDS.map((l) => [l, loadFarm(l)]).filter(([, s]) => s)) as Partial<Record<LocationId, GameState>>;
@@ -262,6 +330,12 @@ export function syncProfile(p: Profile, s: GameState): Profile {
   if (s.money > next.best.money) (next.best.money = Math.round(s.money)), (changed = true);
   if (s.yearsCompleted > next.best.years) (next.best.years = s.yearsCompleted), (changed = true);
   if (s.stats.harvested > next.best.harvest) (next.best.harvest = s.stats.harvested), (changed = true);
+  // v3 §8.1 · this farm's harvest by crop, under its own id (a lesson farm teaches nothing for keeps)
+  const id = farmRunId(s);
+  if (s.crops && Object.keys(s.crops).length && !s.seed.startsWith('atlas-tutorial') && !sameCounts(s.crops, p.know?.[id])) {
+    next.know = { ...(p.know ?? {}), [id]: { ...s.crops } };
+    changed = true;
+  }
   return changed ? next : p;
 }
 export const farmRunId = (s: GameState) => `${s.loc}|${s.seed}`;

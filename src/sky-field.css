@@ -48,6 +48,11 @@
 @keyframes sky-gnat {from{transform:translate(-1px,1px)}to{transform:translate(1.5px,-1.5px)}}
 .sky-swarm {animation:sky-drift 3.2s ease-in-out infinite alternate;}
 .sky-kids {animation:sky-peek 4s ease-in-out infinite;}
+.sky-smoke circle {animation:sky-smoke 3.8s ease-out infinite;transform-box:fill-box;transform-origin:50% 50%;}
+@keyframes sky-smoke {0%{transform:translateY(4px) scale(.7);opacity:0}30%{opacity:.6}100%{transform:translateY(-14px) scale(1.4);opacity:0}}
+.sky-beast {animation:sky-peek 5s ease-in-out infinite;}
+.sky-gust path {animation:sky-gust 2.4s ease-in-out infinite;}
+@keyframes sky-gust {0%,100%{transform:translateX(0)}50%{transform:translateX(5px)}}
 @keyframes sky-peek {0%,60%,100%{transform:translateY(0)}70%,90%{transform:translateY(5px)}}
 
 /* trouble on the beds */
@@ -64,6 +69,15 @@
 @keyframes omen-sprout {0%,40%{transform:scaleY(0)}70%,100%{transform:scaleY(1)}}
 .omen-crawl {animation:omen-crawl 7s ease-in-out infinite;}
 @keyframes omen-crawl {0%{transform:translateX(0)}40%{transform:translateX(18px)}50%{transform:translateX(18px) scaleX(-1)}90%{transform:translateX(0) scaleX(-1)}100%{transform:translateX(0)}}
+/* v3 · a bear's prints appear one after another, boars' hooves stamp, smoke rolls in from the taiga */
+.omen-print {animation:omen-print 3.2s ease-out infinite;}
+@keyframes omen-print {0%{opacity:0}20%,80%{opacity:.85}100%{opacity:0}}
+.omen-hoof {animation:omen-hoof 1.4s ease-in-out infinite;}
+@keyframes omen-hoof {0%,100%{transform:translateY(0)}50%{transform:translateY(-2px)}}
+.omen-smoke {animation:omen-smoke 3.6s ease-out infinite;transform-box:fill-box;transform-origin:50% 50%;}
+@keyframes omen-smoke {0%{transform:translateY(6px) scale(.6);opacity:0}30%{opacity:1}100%{transform:translateY(-26px) scale(1.5);opacity:0}}
+.omen-spark {animation:omen-spark 1.6s ease-out infinite;}
+@keyframes omen-spark {0%{transform:translateY(0);opacity:1}100%{transform:translate(6px,-22px);opacity:0}}
 
 /* the coming week's page of the tear-off calendar tells what is already known about it */
 .wt-cal {height:186px;}
@@ -80,7 +94,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .frost-crystal, .fx .heat-haze i {animation:none !important;}
-  .sky-band *, .omen-hail *, .omen-weeds *, .omen-beetles *, .omen-flood * {animation:none !important;}
+  .sky-band *, .omen-hail *, .omen-weeds *, .omen-beetles *, .omen-flood *, .omen-bear *, .omen-boars *, .omen-fire * {animation:none !important;}
   .sky-token, .sky-token-scale {transition:none;}
 }
 

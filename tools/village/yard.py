@@ -15,6 +15,8 @@ sys.path.insert(0, HERE)
 import hy as H
 from hy import Hy, PAL, D, SD, fmt, mix, dark, light, roof_cap
 import villageg as G
+import pieces as Q
+import estate as ES
 
 OUT = os.path.join(HERE, '..', '..', 'src', 'art', 'yard.ts')
 INK_SCALE = 1.7
@@ -138,10 +140,36 @@ def sunflower(r, h, lean):
     r.dots([(cx - 1, cy - 1, .7, .7)], light(P['soil'], .25))
 
 
+def melons(r):
+    """three striped water melons on the ground (the Kuban camp's patch, the Kuban haul at home)"""
+    P = r.P
+    if r.winter:
+        return
+    r.add('<ellipse cx="9" cy="1.2" rx="16" ry="2.2" fill="url(#fyS)" fill-opacity=".45"/>')
+    for x, rx in ((0, 6.2), (11, 5.2), (19, 4.4)):
+        r.blob(x, -rx * .62, rx, rx * .7, '#4f8a3a', .6, n=10, wob=.03)
+        r.lines([[(x - rx * .6, -rx * .9), (x - rx * .3, -rx * .1)], [(x, -rx * 1.25), (x + .2, -rx * .05)], [(x + rx * .55, -rx * .95), (x + rx * .3, -rx * .1)]], .6, color='#2f5a24', op=.8)
+    r.lines([[(-6, -2), (-10, -6), (-13, -4)], [(23, -1), (27, -5)]], .6, color=P['leaf_s'])
+
+
+def stones(r):
+    """grey stones of the taiga camp"""
+    P = r.P
+    r.add('<ellipse cx="8" cy="1.2" rx="14" ry="2" fill="url(#fyS)" fill-opacity=".4"/>')
+    r.blob(0, -3.6, 6, 4, mix(P['grey_s'], P['plaster'], .3), .7, n=9, wob=.12)
+    r.blob(10, -2.4, 4, 2.8, P['grey'], .6, n=8, wob=.12)
+    if r.winter:
+        r.blob(0, -7, 5, 1.2, P['snow'], .3, n=7)
+
+
 PIECES = {
     'barrel': barrel, 'fence': fence, 'gate': gate, 'well': well_base, 'sweep': well_sweep,
     'hen0': lambda r: hen_body(r, 0), 'hen1': lambda r: hen_body(r, 1), 'legs': hen_legs,
     'sun26': lambda r: sunflower(r, 26, 2.4), 'sun32': lambda r: sunflower(r, 32, -2.0),
+    # 29.10 · the camp over an expedition's field (and the hauls a home keeps): from the village kit
+    'tent': lambda r: Q.tent(r, 0, 0, 1.25), 'fire': lambda r: Q.campfire(r, 0, 0, 1.25), 'woodstack': lambda r: Q.woodstack(r, 0, 0, .85),
+    'poplar': lambda r: ES.poplar(r, 0, 0, 62), 'spruce': lambda r: H.spruce(r, 0, 0, 44), 'spruce_s': lambda r: H.spruce(r, 0, 0, 30),
+    'birch': lambda r: H.birch(r, 0, 0, 46, .06), 'haystack': lambda r: H.haystack(r, 0, 0, 1.0), 'melons': melons, 'stones': stones,
 }
 
 

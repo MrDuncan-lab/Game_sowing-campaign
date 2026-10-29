@@ -12,6 +12,7 @@ import hy as H
 import pieces as Q
 import roads5
 import life as LV
+import neigh as NB
 from hy import Hy, PAL, D, SD, fmt, mix, dark, light
 
 W = 362
@@ -445,13 +446,26 @@ def hill_A(r):
     far_fields(r)
     for x, hgt in ((112, 22), (124, 26), (276, 24), (290, 20)):
         birch(r, x, crest_at('A', x) + 74, hgt)
-    pop(r, 'A', 'mill', 74, 240, lambda X, Y: Q.windmill(r, X, Y, 1.0), 'Мельница на дальнем холме')
+    # the brook at the hill's foot, just over the next crest; the path to the mill crosses it by stones, then a bridge
+    brook_pts = [(x, crest_at('B', x) - 6.5) for x in range(-10, 376, 12)]
+    NB.brook(r, brook_pts)
+    keep = r.rng.getstate()
+    bx = 83
+    by = crest_at('B', bx) - 6.5
+    svg, _ = r.capture(lambda: NB.stepping_stones(r, bx, by, 1.0))
+    r.add(f'<g class="vc vc-nobridge">{svg}</g>')
+    r.rng.setstate(keep)
+    pop(r, 'A', 'c-bridge', bx, by + 1, lambda X, Y: NB.bridge(r, X, Y - 1, 1.0), 'Мост через ручей', cond='c-bridge')
+    # the miller's yard at its four looks (root class on-millerN)
+    for st in range(4):
+        pop(r, 'A', 'n-miller', 74, 240, lambda X, Y, st=st: NB.mill_yard(r, X, Y, 1.0, st, r.winter), 'Мельник Матвей', cond=f'miller{st}')
     for key, x, base, roof, frame in (('farhouse', 150, 236, 'tes', 'blue'), ('farhouse2', 198, 232, 'iron_r', 'white'), ('farhouse3', 246, 240, 'iron_g', 'green')):
         H.garden(r, [(x - 30, base - 26), (x - 2, base - 27), (x, base - 19), (x - 31, base - 18)], rows=3)
         pop(r, 'A', key, x, base, lambda X, Y, roof=roof, frame=frame: (
             Q.izba_c(r, X, Y, .36, roof=roof, frame=P[frame], porch=False, lit=r.winter, smoke_on=(X == 198) or None),
             H.palisade(r, X - 18, X + 18, Y + 4, .4)), 'Дом на дальнем холме')
-    pop(r, 'A', 'lot-tower', 306, 246, lambda X, Y: Q.lot(r, X, Y, 40, 18), 'Участок на вырост')
+    pop(r, 'A', 'c-pump', 306, 246, lambda X, Y: Q.lot(r, X, Y, 40, 18), 'Место под водокачку', cond='nopump')
+    pop(r, 'A', 'c-pump', 306, 246, lambda X, Y: NB.pump_tower(r, X, Y, 1.0), 'Водокачка', cond='c-pump')
     anchor('flock', 'A', 290, 182)
     LV.hill_A(r, crest_at)
     haze(r, 96, 262, .32)
@@ -465,7 +479,8 @@ def hill_B(r):
     birch(r, 102, 380, 40)
     spruce(r, 352, 356, 46)
     spruce(r, 338, 352, 30)
-    h = pop(r, 'B', 'lot-school', 60, 392, lambda X, Y: Q.lot(r, X, Y, 50, 22), 'Участок на вырост')
+    h = pop(r, 'B', 'c-club', 60, 392, lambda X, Y: Q.lot(r, X, Y, 50, 22), 'Пустырь: место под клуб', cond='noclub')
+    pop(r, 'B', 'c-club', 62, 392, lambda X, Y: NB.club(r, X, Y, .9, r.winter), 'Клуб', cond='c-club')
     pop(r, 'B', 'council', 186, 394, lambda X, Y: Q.council_c(r, X, Y, 1.0, lit=r.winter), 'Сельсовет')
     bubble_over(r, 'bubble-council', 'B')
     pop(r, 'B', 'college', 313, 398, lambda X, Y: Q.college(r, X, Y, .74, lit=r.winter), 'Агроколледж')
@@ -494,10 +509,12 @@ def hill_C(r):
     H.palisade(r, 144, 210, 538, .5)
     pop(r, 'C', 'orphanage', 92, 542, lambda X, Y: Q.orphanage(r, X, Y, .78, lit=r.winter), 'Интернат «Солнышко»')
     bubble_over(r, 'bubble-orphanage', 'C')
-    pop(r, 'C', 'izba1', 250, 536, lambda X, Y: (Q.izba_c(r, X, Y, .78, roof='tes', frame=P['blue'], lit=r.winter, smoke_on=True),
-                                                  H.palisade(r, X - 38, X + 40, Y + 7, .5, gate=(X + 14, X + 24))), 'Дом соседей')
-    pop(r, 'C', 'izba2', 334, 548, lambda X, Y: (Q.izba_c(r, X, Y, .7, roof='iron_r', frame=P['white'], shutters=True, lit=r.winter),
-                                                  H.palisade(r, X - 34, X + 34, Y + 6, .46)), 'Дом соседей')
+    # Зина's izba and Savva's smithy, each at its four looks (root classes on-zinaN, on-savvaN)
+    for st in range(4):
+        pop(r, 'C', 'n-zina', 250, 536, lambda X, Y, st=st: (NB.zina_yard(r, X, Y, .78, st, r.winter),
+                                                              H.palisade(r, X - 38, X + 40, Y + 7, .5, gate=(X + 14, X + 24))), 'Зина, соседка', cond=f'zina{st}')
+    for st in range(4):
+        pop(r, 'C', 'n-savva', 318, 548, lambda X, Y, st=st: NB.forge(r, X, Y, .85, st, r.winter), 'Кузня Саввы', cond=f'savva{st}')
     if not r.winter:
         Q.chick(r, 206, 552, 1.0, 1, 0)
         Q.chick(r, 214, 555, 1.0, -1, .7)
@@ -534,6 +551,8 @@ def hill_D(r):
         H.person(r, 206, 708, 1.1, coat=P['coat2'], scarf=P['coat4'])
         H.sled(r, 112, 718, 1.0)
     pop(r, 'D', 'fair', 246, 722, lambda X, Y: Q.fair_stall(r, X, Y, 1.1), 'Рынок')
+    # Пряхин at the stall while he has his eye on a lot (root class on-pryakhin)
+    pop(r, 'D', 'pryakhin', 275, 731, lambda X, Y: NB.pryakhin(r, X, Y, 1.0), 'Пряхин на рынке', cond='pryakhin')
     # a woman with a basket crosses the square and back
     stroll = r.capture(lambda: (H.person(r, 0, 0, 1.3, coat=P['coat2'], kind='woman', pose='walk', scarf=P['coat4']),
                                 r.blob(4.6, -6.5, 2.6, 1.8, P['straw'], .4, n=8, wob=.04)))[0]
@@ -549,15 +568,20 @@ def hill_E(r):
     apple(r, 226, 770, 44)
     birch(r, 346, 774, 50)
     lilac(r, 300, 762, 15)
-    H.garden(r, [(214, 786), (262, 784), (266, 808), (212, 810)], rows=4)
-    if not r.winter:
-        H.scarecrow(r, 240, 806, .9)
-    pop(r, 'E', 'lot', 146, 790, lambda X, Y: Q.lot(r, X, Y, 50, 24), 'Участок на вырост')
+    # the garden where the hostel will stand
+    keep = r.rng.getstate()
+    svg, _ = r.capture(lambda: (H.garden(r, [(214, 786), (262, 784), (266, 808), (212, 810)], rows=4), None if r.winter else H.scarecrow(r, 240, 806, .9)))
+    r.add(f'<g class="vc vc-nohostel">{svg}</g>')
+    r.rng.setstate(keep)
+    pop(r, 'E', 'c-hostel', 234, 806, lambda X, Y: NB.hostel(r, X, Y, .7, r.winter), 'Общежитие', cond='c-hostel')
+    # Ефим's yard on the empty plot (root class on-efimN)
+    for st in range(4):
+        pop(r, 'E', 'n-efim', 146, 792, lambda X, Y, st=st: NB.carpenter(r, X, Y, 1.0, st, r.winter), 'Двор плотника Ефима', cond=f'efim{st}')
     pop(r, 'E', 'hay', 286, 800, lambda X, Y: H.haystack(r, X, Y, 1.1), 'Стог')
     if not r.winter:
         Q.laundry(r, 108, 140, 846, 26)
-    pop(r, 'E', 'izba3', 62, 860, lambda X, Y: (Q.izba_c(r, X, Y, 1.0, roof='iron_g', frame=P['green'], shutters=False, lit=r.winter, smoke_on=True),
-                                                 H.palisade(r, X - 54, X + 58, Y + 9, .75, gate=(X + 34, X + 50))), 'Дом соседей')
+    for st in range(4):
+        pop(r, 'E', 'n-karpov', 62, 860, lambda X, Y, st=st: NB.karpov_yard(r, X, Y, 1.0, st, r.winter), 'Карповы', cond=f'karpov{st}')
     if not r.winter:
         Q.chick(r, 124, 870, 1.1, 1, .2)
         Q.chick(r, 132, 873, 1.1, -1, 1.0)
@@ -582,7 +606,7 @@ def hill_F(r):
     if r.winter:
         H.woodcutter(r, 84, 1080, 1.2)
     # the player's house at each of its five levels; the game shows the one its level names (root class on-houseN)
-    for lv in range(1, 6):
+    for lv in range(1, 8):
         pop(r, 'F', 'house', 108, 1052, lambda X, Y, lv=lv: Q.homestead(r, X, Y, 1.25, lit=r.winter, level=lv), 'Ваша усадьба', cond=f'house{lv}')
     # the house under construction: scaffolding over whichever house stands, by stage (root class on-buildN); it
     # lets taps through to the house under it
@@ -614,6 +638,7 @@ def hill_F(r):
         H.person(r, 230, 1176, 1.1, coat=P['coat1'], kind='kid', scarf=P['coat4'])
     pop(r, 'F', 'g-orphanage', 142, 1196, lambda X, Y: Q.swing(r, X, Y, 1.2), 'Качели: подарок интерната', cond='g-orphanage')
     pop(r, 'F', 'g-college', 296, 1194, lambda X, Y: Q.desk(r, X, Y, 1.0), 'Учебный стол: подарок колледжа', cond='g-college')
+    pop(r, 'F', 'g-antonovka', 214, 1176, lambda X, Y: NB.antonovka(r, X, Y, .9), 'Пряхинская антоновка', cond='antonovka')
     # the fence with the gate down to the field; sunflowers along it; a bush the kids hide in
     H.palisade(r, -6, 368, 1216, .9, gate=(167, 205))
     pop(r, 'F', 'gate', 186, 1218, lambda X, Y: (r.add(f'<rect x="{X - 22}" y="{Y - 18}" width="44" height="20" fill="#fff" fill-opacity="0"/>'), r.see([(X - 22, Y - 18), (X + 22, Y + 2)])), 'Калитка: вниз, к полю', 'gate')

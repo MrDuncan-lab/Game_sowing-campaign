@@ -360,3 +360,13 @@ test('T11 · the certificate\'s own-farm notes come from a real new farm',()=>{
  assert.equal(d.money,G.newGame({loc:'chernozem',seed:'x'}).money);
  assert.ok(d.lessonMoney>d.money);assert.ok(d.lessonCan>d.can);assert.ok(d.projectWeeks>1);
 });
+
+test('review 28.10 · a lesson saved before crop knowledge still passes the lab', async () => {
+  const T = await import('../src/engine/tutorial');
+  const t = T.createTutorial();
+  delete (t.farm as { knowBase?: unknown }).knowBase;
+  if (t.checkpoint) delete (t.checkpoint.farm as { knowBase?: unknown }).knowBase;
+  const n = T.normalizeTutorial(t);
+  assert.ok((n.farm.knowBase?.radish ?? 0) >= 60);
+  assert.ok((n.checkpoint?.farm.knowBase?.potato ?? 0) >= 60);
+});

@@ -31,7 +31,7 @@ test('PSV-002 · the shop, the card face and the engine agree on a card\'s day c
 
 test('PSV-018 · an Altai cranberry extension that can never be planted is refused and not charged', () => {
   const s = fresh('altai');
-  s.money = 10000; s.levels.lab = 1; s.unlocked.push('cranberry');
+  s.money = 10000; s.levels.lab = 1; s.unlocked.push('cranberry'); s.knowBase = { radish: 600, potato: 600, bean: 600, carrot: 600, onion: 600, cabbage: 600, wheat: 600, buckwheat: 600, pumpkin: 600, cranberry: 600 };
   for (const t of s.tiles) if (t.terrain === 'swamp') t.owned = true;
   const c = { uid: s.nextUid++, def: 'seed_cranberry' };
   s.spare.push(c);
@@ -44,7 +44,7 @@ test('PSV-018 · an Altai cranberry extension that can never be planted is refus
   }
   assert.equal(s.money, 10000);
   // an ordinary extension elsewhere still works
-  const p = fresh('chernozem'); p.money = 10000; p.levels.lab = 1;
+  const p = fresh('chernozem'); p.money = 10000; p.levels.lab = 1; p.knowBase = { radish: 600, potato: 600, bean: 600, carrot: 600, onion: 600, cabbage: 600, wheat: 600, buckwheat: 600, pumpkin: 600, cranberry: 600 };
   const pc = { uid: p.nextUid++, def: 'seed_potato' }; p.spare.push(pc);
   const cell = G.upgradeSpots(p, pc)[0];
   assert.ok(G.spotFits(p, pc, cell));

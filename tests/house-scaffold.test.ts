@@ -15,7 +15,8 @@ const quiet = () => {
 test('the house project goes through scaffold stages 1, 2, 3 and comes out of them finished', () => {
   let s = quiet();
   assert.equal(G.buildStage(s, 'house'), 0, 'nothing is being built');
-  // build up to the cellar first so the next level takes several weeks
+  // the cellar: four weeks (v3), so every stage shows
+  s.mats = { logs: 20, bricks: 20, glass: 4 };
   s = G.apply(s, { t: 'track', track: 'house' });
   const p = s.projects.find((x) => x.kind === 'track' && x.track === 'house')!;
   assert.ok(p, 'the house is being built');
@@ -27,6 +28,7 @@ test('the house project goes through scaffold stages 1, 2, 3 and comes out of th
   assert.equal(seen[0], 1, 'the work starts with the materials brought');
   assert.equal(seen[seen.length - 1], 0, 'the scaffolding comes down when the level is finished');
   for (let i = 1; i < seen.length - 1; i++) assert.ok(seen[i] >= seen[i - 1], 'stages only go up');
+  for (const st of [1, 2, 3]) assert.ok(seen.includes(st), `stage ${st} is shown on the way`);
 });
 
 test('stages follow the share of the weeks done', () => {

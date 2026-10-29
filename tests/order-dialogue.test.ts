@@ -7,7 +7,7 @@ import {testOrderFixture} from '../src/engine/testLab';
 
 test('every organisation has its own named customer and all story steps have short dialogue',()=>{
  assert.deepEqual(Object.keys(BUYERS).sort(),[...ORG_IDS].sort());
- assert.equal(new Set(ORG_IDS.map(o=>BUYERS[o].person)).size,13);
+ assert.equal(new Set(ORG_IDS.map(o=>BUYERS[o].person)).size,ORG_IDS.length);
  for(const o of ORG_IDS){const b=BUYERS[o];assert.equal(b.story.length,ORGS[o].steps.length);assert.ok(b.arrival.length<=45);
   for(let step=0;step<=b.story.length;step++){const s=testOrderFixture(o,step),q=s.orgs[o]!.offer!,before=JSON.stringify(s),lines=orderDialogue(q);assert.equal(lines[0].who,b.person);assert.ok(lines.every(l=>l.text.length<130&&l.text.length>15));assert.equal(JSON.stringify(s),before);assert.equal(pendingOrderVoices(s)[0].org,o);}
  }

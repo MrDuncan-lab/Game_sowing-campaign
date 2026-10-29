@@ -21,7 +21,7 @@ const LEVEL: Partial<Record<TrackId, Record<number, string>>> = {
   },
   house: {
     // B-14б: the cellar keeps every perishable crop a week longer, not only tomatoes
-    1: `2 работника · колода до 16 · скоропорт (${PERISHABLE}) хранится на неделю дольше`,
+    1: `колода до 16 · скоропорт (${PERISHABLE}) хранится на неделю дольше`,
   },
   apiary: {
     // PSV-021: like a moved greenhouse, a hive pollinates from the week after it was set down
