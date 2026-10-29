@@ -9,7 +9,7 @@ import { GameState, chronicle, tripDone, districtPlace, districtTable, festClub,
 import { FEST_CATS, FEST_CAT_GLORY, FEST_CERT, FEST_NAME, FEST_NAMES, FEST_PRIZE, FEST_UNITS, FEST_WIN_GLORY, SMOTR_CAT_GLORY, SMOTR_NAME, SMOTR_WIN_GLORY } from '../engine/festival';
 import { rivalVerdict } from '../content/story';
 import { LOOT } from '../engine/run';
-import { PORTRAIT_IMAGES } from '../art/portraits';
+import { PORTRAIT_IMAGES, Portrait } from '../art/portraits';
 import { Icon } from '../art/icons';
 import { Btn, Sheet } from './common';
 import type { Profile } from './persist';
@@ -33,7 +33,7 @@ export const festToShow = (s: GameState) => {
 };
 
 function Rival({ size = 88 }: { size?: number }) {
-  return PORTRAIT_IMAGES.pryakhin ? <img class="nb-face fest-face" src={PORTRAIT_IMAGES.pryakhin} alt="" width={size} height={size} /> : <Icon name="trophy" size={size} />;
+  return PORTRAIT_IMAGES.pryakhin ? <span class="nb-face fest-face" style={{ width: `${size}px`, height: `${size}px` }}><Portrait id="pryakhin" size={size} ring={false} /></span> : <Icon name="trophy" size={size} />;
 }
 
 /** the three judgings side by side: you and Пряхин */
