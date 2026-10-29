@@ -85,8 +85,8 @@ export const VISITS: Record<VisitId, VisitDef> = {
   },
   hunter: {
     id: 'hunter', gone: 'Афанасьич свистнул Пургу и ушёл в тайгу.', where: ['altai'], who: 'Афанасьич', name: 'Охотник с лайкой', portrait: 'afanasich', once: true,
-    text: 'Восемьдесят лет в тайге. Лайка Пурга обнюхивает ваш сапог и садится. «Хромой к ручью ходит. Могу пару ночей посторожить. Или щенка от Пурги бери — за мёд».',
-    choices: [{ label: 'Нанять на две ночи', note: 'деньги: 3 недели медведь не подойдёт' }, { label: 'Щенка за 4 ед. мёда или ягод', note: 'находка «Лайка Пурга»' }, { label: 'Не надо', note: '' }],
+    text: 'Восемьдесят лет в тайге. Лайка Пурга обнюхивает ваш сапог и садится. «Хромой к ручью ходит. Могу недели три посторожить. Или щенка от Пурги бери — за мёд».',
+    choices: [{ label: 'Нанять сторожить', note: 'деньги: 3 недели медведь не подойдёт' }, { label: 'Щенка за 4 ед. мёда или ягод', note: 'находка «Лайка Пурга»' }, { label: 'Не надо', note: '' }],
   },
   geologist: {
     id: 'geologist', gone: 'Геолог переночевала у костра и ушла к перевалу.', where: ['altai'], who: 'Алла Викторовна', name: 'Геолог', portrait: 'alla', once: true,
@@ -234,7 +234,7 @@ export const LOOT: Record<LootId, LootDef> = {
   logs24: { id: 'logs24', loc: 'altai', name: 'Кедровые брёвна ×24', text: 'сплавом по реке до самого дома', value: 48, mats: { logs: 24 } },
   swarm: { id: 'swarm', loc: 'altai', name: 'Улей с роем', text: 'пасека дома на уровень выше, без стройки', value: 40 },
   seedSeabuckthorn: { id: 'seedSeabuckthorn', loc: 'altai', name: 'Саженцы облепихи', text: 'в семенной фонд: облепиха растёт и дома', value: 40, seed: 'seabuckthorn' },
-  settlerSoilsci: { id: 'settlerSoilsci', loc: 'altai', name: 'Переселенец: почвовед', text: 'Ксения поедет с вами: наём без платы', value: 50, worker: 'soilsci' },
+  settlerSoilsci: { id: 'settlerSoilsci', loc: 'altai', name: 'Переселенец: почвовед', text: 'Олег поедет с вами: наём без платы', value: 50, worker: 'soilsci' },
   settlerGreenhouser: { id: 'settlerGreenhouser', loc: 'altai', name: 'Переселенец: тепличница', text: 'Лиза поедет с вами: наём без платы', value: 50, worker: 'greenhouser' },
   litter: { id: 'litter', loc: 'altai', name: 'Таёжная подстилка', text: '3 разовые карты компоста в колоду дома', value: 30 },
   nutCash: { id: 'nutCash', loc: 'altai', name: 'Кедровый орех', text: '30 ₽ сверх доли (с инфляцией)', value: 30, cash: 30 },

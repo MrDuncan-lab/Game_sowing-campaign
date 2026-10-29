@@ -11,7 +11,7 @@ import {
   GameState, Card, buyoutPrice, foldProblem, foldValue, infl, lootCount, lootOffers, money, plural, visitOptions, randomSeed, matsList, chainsDone, lvl,
 } from '../engine/game';
 import { CONDITIONS, LOOT, RELICS, VISITS, runMap, type LootId, type PlotOffer, type RelicId } from '../engine/run';
-import { CART_CARDS, cartCards, cartCashMax, cartWorkers, departProblem, departureOffers, expeditionOpen, type Cart } from '../engine/meta';
+import { cartCardLimit, cartCards, cartCashMax, cartWorkers, departProblem, departureOffers, expeditionOpen, type Cart } from '../engine/meta';
 import { Icon } from '../art/icons';
 import { Portrait, PORTRAIT_IMAGES, type PersonId } from '../art/portraits';
 import { Btn, ClosedLayer, Dispatch, Sheet, compactMoney, reducedMotionNow } from './common';
@@ -54,7 +54,8 @@ export function Departure({ home, loc, glory, onCancel, onGo }: { home: GameStat
   const [step, setStep] = useState<'plot' | 'cart' | 'go'>('plot');
   const [uids, setUids] = useState<number[]>([]);
   const [worker, setWorker] = useState<string | undefined>(undefined);
-  const max = cartCashMax(home);
+  const max = cartCashMax(home, glory);
+  const CART_CARDS = cartCardLimit(glory);
   const [cash, setCash] = useState(Math.min(max, Math.round(max / 2 / 5) * 5));
   const cart: Cart = { uids, cash, ...(worker ? { worker: worker as Cart['worker'] } : {}) };
   const why = departProblem(home, loc, glory, cart);
@@ -93,7 +94,7 @@ export function Departure({ home, loc, glory, onCancel, onGo }: { home: GameStat
         <div class="btn-row"><Btn tone="primary" disabled={pick === null ? 'Выберите участок' : null} onClick={() => setStep('cart')}>Дальше: обоз</Btn><Btn tone="ghost" onClick={onCancel}>Отмена</Btn></div>
       </>}
       {step === 'cart' && <>
-        <p class="small muted">На телегу помещается {CART_CARDS} карты из колоды дома, один работник и подъёмные. Всё вернётся домой, когда хозяйство свернёте; работник и карты дома пока не нужны.</p>
+        <p class="small muted">На телегу помещается {CART_CARDS} {plural(CART_CARDS, 'карта', 'карты', 'карт')} из колоды дома, один работник и подъёмные. Всё вернётся домой, когда хозяйство свернёте; работник и карты дома пока не нужны.</p>
         <h3 class="cart-h">Карты <small>{uids.length}/{CART_CARDS}</small></h3>
         <div class="card-grid cart-cards">
           {cards.map((c) => {
@@ -285,4 +286,27 @@ export function AwayNote({ s }: { s: GameState }) {
   const a = s.away;
   if (!a) return null;
   return <p class="deed away"><Icon name="cart" size={22} /><span><b>Обоз на вылазке: {LOCATIONS[a.loc].name}.</b> {[a.cards.length ? `${a.cards.length} ${plural(a.cards.length, 'карта', 'карты', 'карт')}` : '', a.worker ? WORKERS[a.worker.id].name : '', a.cash ? money(a.cash) : ''].filter(Boolean).join(', ') || 'Налегке'}. Вернётся, когда хозяйство там свернут.</span></p>;
+}
+
+/** 29.10 · the signpost in the village: where a cart can go from home, what is still closed and why */
+export function RoadSheet({ home, glory, onGo, onMap, onClose }: { home: GameState; glory: number; onGo: (l: ExpeditionId) => void; onMap: () => void; onClose: () => void }) {
+  return createPortal(
+    <Sheet title="Указатель у дороги" icon="cart" onClose={onClose}>
+      <div class="stack road-sheet">
+        <p class="small">Отсюда уходит обоз: до {cartCardLimit(glory)} карт, один работник и подъёмные. Свернёте хозяйство после первой осени — обоз вернётся с добычей.</p>
+        {EXPEDITION_IDS.map((l) => {
+          const L = LOCATIONS[l], open = expeditionOpen(l, glory), why = departProblem(home, l, glory), away = home.away?.loc === l;
+          return (
+            <div class={`road-row${open ? '' : ' locked'}`}>
+              <span class="road-name"><b>{L.name}</b><small>{L.place} · {L.tagline}</small></span>
+              {away ? <span class="tag good">обоз там</span>
+                : !open ? <span class="tag"><Icon name="lock" size={14} /> слава {L.glory} · ещё {L.glory - glory}</span>
+                : <Btn small tone={why ? undefined : 'primary'} disabled={why} onClick={() => { onClose(); onGo(l); }}>Собрать обоз</Btn>}
+            </div>
+          );
+        })}
+        {home.away && <p class="small muted">Одна вылазка за раз: сначала сверните хозяйство, где сейчас обоз.</p>}
+        <Btn tone="ghost" onClick={() => { onClose(); onMap(); }}><Icon name="map" size={18} /> Карта ферм</Btn>
+      </div>
+    </Sheet>, document.body);
 }

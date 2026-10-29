@@ -285,3 +285,7 @@ button.link:focus-visible { outline: 2px solid var(--leaf-dark); outline-offset:
 .chronicle-list li.done .chronicle-mark { background: #8bbf5c; border-color: #4f7d2b; }
 .rival-says { display: flex; align-items: center; gap: 10px; margin: 0 0 8px; padding: 6px 10px; border-radius: 12px; background: #f3ece0; border: 1.5px solid var(--hair); font-size: 14px; }
 .rival-says .story-face { width: 40px; height: 40px; flex: none; border: 2px solid var(--wood-light); }
+.road-row { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 12px; background: #fff8e6; border: 1.5px solid var(--hair); }
+.road-row.locked { opacity: .75; }
+.road-name { display: flex; flex-direction: column; min-width: 0; }
+.road-name small { color: var(--ink-soft); font-size: 12px; }

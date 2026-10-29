@@ -25,7 +25,7 @@ export const EPISODES: Record<EpisodeKind, EpisodeDef> = {
   locust: { kind: 'locust', name: 'Саранча', icon: 'locust', row: 'threat', bad: true, biotic: true, text: 'Стая видна за неделю до каждого из двух ударов по самой большой посадке.' },
   weedsurge: { kind: 'weedsurge', name: 'Сорняки', icon: 'weeds', row: 'threat', bad: true, biotic: true, text: 'Ветер несёт семена сорняков: пустые грядки зарастут к концу следующей недели.' },
   export: { kind: 'export', name: 'Спрос на зерно', icon: 'up', row: 'market', bad: false, text: 'Пшеница и рис дороже в 1,6 раза.' },
-  fair: { kind: 'fair', name: 'Ярмарка', icon: 'up', row: 'market', bad: false, text: 'Тыква, томаты, клубника и мёд дороже в 1,4 раза.' },
+  fair: { kind: 'fair', name: 'Базарный день', icon: 'up', row: 'market', bad: false, text: 'Тыква, томаты, клубника и мёд дороже в 1,4 раза.' },
   glut: { kind: 'glut', name: 'Падение цены', icon: 'down', row: 'market', bad: true, text: 'Одна культура на 40% дешевле.' },
   seeds: { kind: 'seeds', name: 'Семена дешевле', icon: 'seed', row: 'market', bad: false, text: 'Семена одной культуры на 25% дешевле.' },
   helpers: { kind: 'helpers', name: 'Соседи помогают', icon: 'hand', row: 'help', bad: false, text: 'На этой неделе на один рабочий день больше.' },

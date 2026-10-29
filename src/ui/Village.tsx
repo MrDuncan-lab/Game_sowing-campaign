@@ -125,7 +125,7 @@ export const VILLAGE_LABELS: { k: string; text: string; cond?: string; x?: numbe
   { k: 'house', text: 'Дом', x: 116 }, { k: 'barn', text: 'Амбар' },
   { k: 'lab', text: 'Лаборатория', cond: 'lab' }, { k: 'lot-lab', text: 'Под лабораторию', cond: 'nolab' },
   { k: 'meteo', text: 'Метеостанция', cond: 'meteo' }, { k: 'hives', text: 'Пасека', cond: 'hives' },
-  { k: 'board', text: 'Заказы' }, { k: 'fair', text: 'Рынок' }, { k: 'signpost', text: 'Карта ферм' },
+  { k: 'board', text: 'Заказы' }, { k: 'fair', text: 'Ярмарка' }, { k: 'signpost', text: 'Карта ферм' },
   { k: 'council', text: 'Сельсовет' }, { k: 'college', text: 'Колледж' }, { k: 'orphanage', text: 'Интернат' },
   { k: 'bakery', text: 'Пекарня' }, { k: 'restaurant', text: 'Ресторан' },
   // v3 §7 · the neighbours and the shared buildings

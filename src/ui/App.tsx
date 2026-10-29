@@ -1,7 +1,8 @@
 import {Tutorial} from './Tutorial';
 import {TestLab} from './TestLab';
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { EXPEDITION_IDS, type ExpeditionId, type LocationId } from '../engine/data';
+import { EXPEDITION_IDS, rankOf, type ExpeditionId, type LocationId } from '../engine/data';
+import { RankUp } from './RankUp';
 import { Action, GameError, GameState, apply, newGame, randomSeed, startArrest } from '../engine/game';
 import { depart as departRun, recallCart, settleRun, type Cart } from '../engine/meta';
 import type { PlotOffer } from '../engine/run';
@@ -59,6 +60,7 @@ function OwnedApp() {
   const farmsRef = useRef(farms);
   const setFarms = (f: typeof farms) => { farmsRef.current = f; setFarmsState(f); };
   const [departFor, setDepartFor] = useState<{ loc: ExpeditionId; key: number } | null>(null);
+  const [rankUp, setRankUp] = useState<number | null>(null);
   const [s, setS] = useState<GameState | null>(null);
   const [saveStatus, setSaveStatus] = useState(persistenceStatus);
   const [recoverProfile, setRecoverProfile] = useState(false);
@@ -71,6 +73,8 @@ function OwnedApp() {
 
   function commitProfile(p: Profile) {
     if (!checkSaveSession()) return false;
+    // 29.10 · a new rank tells what it opens
+    if (rankOf(p.glory).index > rankOf(profRef.current.glory).index) setRankUp(rankOf(p.glory).index);
     if (p !== profRef.current) {
       profRef.current = p;
       setProfile(p);
@@ -259,7 +263,9 @@ function OwnedApp() {
         onTest={()=>{setTestRegion(s.loc);setTesting(true);}}
       />
     );
-  if(tutorial)return <Tutorial profile={profile} onExit={()=>{commitProfile({...profRef.current,settings:{...profRef.current.settings,intro:true}});setTutorial(false);if(window.location.hash==='#learn')history.replaceState(null,'',location.pathname+location.search);}}/>;
+  const leaveTutorial=()=>{commitProfile({...profRef.current,settings:{...profRef.current.settings,intro:true}});setTutorial(false);if(window.location.hash==='#learn')history.replaceState(null,'',location.pathname+location.search);};
+  // 29.10 · «Своя ферма» after the lesson goes straight home: the home that is there, or a new one (its first morning)
+  if(tutorial)return <Tutorial profile={profile} onExit={leaveTutorial} onOwn={()=>{leaveTutorial();const home=farmsRef.current.chernozem;if(home&&home.phase!=='gameover')open('chernozem');else startNew('chernozem');}}/>;
   if(testing)return <TestLab initialLoc={testRegion} onExit={()=>{setTesting(false);if(window.location.hash==='#test')window.history.replaceState(null,'',window.location.pathname+window.location.search);}}/>;
   return (
     <>
@@ -275,6 +281,7 @@ function OwnedApp() {
         </aside>}
         <div class="app-screen">{screen}</div>
       </div>
+      {rankUp !== null && <RankUp index={rankUp} onClose={() => setRankUp(null)} />}
       {recoverProfile && <Sheet title="Восстановление профиля" onClose={() => setRecoverProfile(false)}>
         <p>Повреждённый профиль не удалось прочитать. Сохраним его отдельной копией и запишем текущий профиль. Ранее заработанные награды могут отсутствовать в текущем профиле.</p>
         <div class="btn-row"><Btn tone="danger" onClick={() => { if (saveProfile(profRef.current, true)) setRecoverProfile(false); }}>Записать текущий профиль</Btn><Btn tone="ghost" onClick={() => setRecoverProfile(false)}>Отмена</Btn></div>

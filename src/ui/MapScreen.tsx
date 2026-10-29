@@ -162,7 +162,7 @@ export function MapScreen({ profile, farms, onOpen, onNew, onTest, onTutorial, o
         <div class="atlas-title">
           <small class="atlas-kicker">атлас хозяйств</small>
           <h1>Посевная</h1>
-          <p>карточная ферма: сажай фигурами, следи за погодой, дружи с соседями</p>
+          <p>карточная ферма: выкупите родной дом, поднимите деревню и обойдите Пряхина</p>
         </div>
       </header>
       <div class="atlas-grid">
@@ -179,7 +179,7 @@ export function MapScreen({ profile, farms, onOpen, onNew, onTest, onTutorial, o
               <div class="rank-scale" role="progressbar" aria-valuemin={r.min} aria-valuemax={r.next.min} aria-valuenow={profile.glory} aria-label={`До звания «${r.next.name}»`}>
                 <i style={{ ['--p' as string]: `${Math.max(0, Math.min(1, got / span)) * 100}%` }} />
               </div>
-              <div class="rank-ticks"><span>{r.min}</span><em>до «{r.next.name}» — ещё {r.next.min - profile.glory}</em><span>{r.next.min}</span></div>
+              <div class="rank-ticks"><span>{r.min}</span><em>до «{r.next.name}» — ещё {r.next.min - profile.glory}: {r.next.opens}</em><span>{r.next.min}</span></div>
             </> : <div class="rank-ticks"><em>высшее звание</em></div>}
           </div>
           {profile.pets.length > 0 && <div class="rank-pets">{profile.pets.slice(0, 3).map((p) => <span class="rank-pet"><Pet id={p} size={30} /></span>)}</div>}

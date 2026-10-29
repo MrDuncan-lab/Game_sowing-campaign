@@ -349,7 +349,7 @@ test('ORG-06 · relation thresholds 25 and −40 act exactly at the boundary', (
 test('UP-01 · a full workshop or lab refuses new projects without charging; no duplicate project', () => {
   let s = quiet(); s = G.apply(s, { t: 'track', track: 'irrigation' });
   const snap = JSON.stringify(s);
-  assert.throws(() => G.apply(s, { t: 'track', track: 'barn' }), /Мастерская занята/); assert.throws(() => G.apply(s, { t: 'track', track: 'irrigation' }), /Уже строится/);
+  assert.throws(() => G.apply(s, { t: 'track', track: 'barn' }), /Бригада занята/); assert.throws(() => G.apply(s, { t: 'track', track: 'irrigation' }), /Уже строится/);
   assert.equal(JSON.stringify(s), snap);
   s.levels.lab = 1; s = G.apply(s, { t: 'labBio' }); const lab = JSON.stringify(s);
   assert.throws(() => G.apply(s, { t: 'labBio' }), /заняты/); assert.throws(() => G.apply(s, { t: 'labVariety', crop: G.labCrops(s)[0] }), /заняты/);
@@ -372,7 +372,7 @@ test('UP-02 · a building that finishes in a payment week (also the last before 
 test('UP-03/UP-04 · hire, train, fire mid-training, upgrade the house: never more workers than places', () => {
   let s = quiet(); s.candidates = ['foreman', 'agronomist', 'irrigator'];
   s = G.apply(s, { t: 'hire', id: 'foreman' });
-  assert.throws(() => G.apply(s, { t: 'hire', id: 'agronomist' }), /места/);
+  assert.throws(() => G.apply(s, { t: 'hire', id: 'agronomist' }), /кроватей/);
   const price = G.trainPrice(s, 'foreman'), cash = s.money;
   s = G.apply(s, { t: 'train', id: 'foreman' }); assert.equal(s.money, cash - price); assert.equal(s.team[0].away, 2); assert.equal(G.wlvl(s, 'foreman'), 0);
   // v3 · the house takes materials, and the second bed comes with the third level (beds 1, 1, 2, …)
@@ -386,7 +386,7 @@ test('UP-03/UP-04 · hire, train, fire mid-training, upgrade the house: never mo
   }
   s.candidates = ['agronomist', 'irrigator', 'foreman'];
   s = G.apply(s, { t: 'hire', id: 'agronomist' }); s = G.apply(s, { t: 'hire', id: 'irrigator' });
-  assert.throws(() => G.apply(s, { t: 'hire', id: 'foreman' }), /места/); assert.equal(s.team.length, G.workerSlots(s));
+  assert.throws(() => G.apply(s, { t: 'hire', id: 'foreman' }), /кроватей/); assert.equal(s.team.length, G.workerSlots(s));
 });
 
 test('FIX UP-05 · moving a settled greenhouse onto its own cell does not silently reset its yield bonus', () => {

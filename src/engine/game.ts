@@ -469,6 +469,8 @@ export function paymentDue(s: GameState, season: number, year = s.year): number 
 export function paymentName(s: GameState, season: number, year = s.year): string {
   if (isHome(s) && s.owned) return TAX_NAME;
   if (isHome(s) && season === 2 && (s.paidYears ?? 0) === BUYOUT_YEARS - 1 && year === s.year) return BUYOUT_NAME;
+  // 29.10 · the mortgaged home pays its pledge, not a rent
+  if (isHome(s)) return season === 2 ? `Осенний взнос по залогу (${Math.min(BUYOUT_YEARS, (s.paidYears ?? 0) + 1)} из ${BUYOUT_YEARS})` : 'Взнос по залогу';
   return PAYMENT_NAMES[season];
 }
 export const paymentNow = (s: GameState) => paymentSchedule(s).find((p) => p.week === s.week) ?? null;
@@ -2615,7 +2617,7 @@ function resolvePayment(s: GameState, amount: number, name: string, seasonEnd: b
       if (s.cleanSeasons >= 3 && s.rating < 5) {
         s.rating += 1;
         s.cleanSeasons = 0;
-        feed(s, 'Рейтинг фермы вырос.', 'good');
+        feed(s, 'Кредитный рейтинг вырос.', 'good');
       }
     }
     if (seasonEnd) s.incident = false;
@@ -2702,7 +2704,7 @@ export function trackProblem(s: GameState, t: TrackId): string | null {
   if (TRACKS[t].equipment) return 'Продаётся на ярмарке';
   if (s.projects.some((p) => p.kind === 'track' && p.track === t)) return 'Уже строится';
   if (L.needHouse && lvl(s, 'house') < L.needHouse) return `Нужен ${isHome(s) ? 'дом' : 'лагерь'} ${L.needHouse}-го уровня`;
-  if (workshopBusy(s) >= workshopSlots(s)) return 'Мастерская занята';
+  if (workshopBusy(s) >= workshopSlots(s)) return 'Бригада занята';
   if (s.money < trackCost(s, t, next)) return `Нужно ${money(trackCost(s, t, next))}`;
   const short = matsShort(s, L.mat ?? {});
   if (short) return `Не хватает: ${short}`;
@@ -2805,7 +2807,7 @@ export type ZinaCard = (typeof ZINA_CARDS)[number];
 export function swapProblem(s: GameState, y: YardId, crop?: CropId): string | null {
   if (!isHome(s)) return 'Соседи — дома, в Черноземье';
   if (!Object.hasOwn(YARDS, y)) return 'Нет такого соседа';
-  if (yardStage(s, y) < 1) return 'Обмен откроется после первой стадии';
+  if (yardStage(s, y) < 1) return 'Мена откроется после первой стадии';
   const st = s.yards?.[y];
   if (st?.swap === swapKey(s, y)) return swapWeekly(s, y) ? 'На этой неделе уже менялись' : 'В этом сезоне уже менялись';
   const sw = YARDS[y].swap;
@@ -2863,7 +2865,7 @@ function finishYard(s: GameState, y: YardId, stage: number): string {
   const D = YARDS[y];
   if (stage === 3 && (y === 'zina' || y === 'karpov') && st.cand !== s.year) yardCandidate(s, y);
   if (stage === 3 && y === 'savva') yardCandidate(s, 'savva', SAVVA_APPRENTICE);
-  const opens = stage === 1 ? `открылся обмен: ${D.swap.give}` : stage === 2 ? D.second : D.third;
+  const opens = stage === 1 ? `открылась мена: ${D.swap.give}` : stage === 2 ? D.second : D.third;
   return `${D.name}: готово «${D.stages[stage - 1].name}» — ${opens}`;
 }
 /** the smith's work is ready on its week */
@@ -3149,7 +3151,7 @@ function visitMorning(s: GameState) {
   r.visit = v;
   r.seen.push(visitKey(s, id));
   r.nextVisit = s.absWeek + 2 + randInt(w, 3);
-  feed(s, `К лагерю пришли: ${VISITS[id].name.toLowerCase()} (${VISITS[id].who}).`, 'info');
+  feed(s, `У лагеря гость: ${VISITS[id].name} (${VISITS[id].who}).`, 'info');
 }
 function finishDig(s: GameState) {
   const r = s.run!, d = r.dig!;
@@ -3283,7 +3285,7 @@ function answerVisit(s: GameState, v: RunVisit, choice: number) {
     case 'postwoman': {
       const gift = randInt(w, 3);
       if (gift === 0) { const pay = Math.round(8 * k); s.money = round2(s.money + pay); s.earned = round2(s.earned + pay); feed(s, `Письмо из дома: соседи передали ${money(pay)} и банку варенья.`, 'good'); }
-      else if (gift === 1) { s.discard.push({ uid: s.nextUid++, def: 'helpers', temp: true }); feed(s, 'Письмо из дома: «Пришлём помощников на недельку» — разовая карта «Помощники».', 'good'); }
+      else if (gift === 1) { s.discard.push({ uid: s.nextUid++, def: 'helpers', temp: true }); feed(s, 'Письмо из дома: «Пришлём помощников на недельку» — разовая карта «Помощь соседей».', 'good'); }
       else { s.discard.push({ uid: s.nextUid++, def: 'compost', temp: true }); feed(s, 'Письмо из дома и мешок перегноя с родного двора — разовая карта компоста.', 'good'); }
       break;
     }
@@ -3847,7 +3849,7 @@ export function apply(state: GameState, a: Action): GameState {
       if (why) fail(why);
       s.yards![a.yard]!.help = seasonKey(s);
       s.days += 1;
-      feed(s, `${YARDS[a.yard].name} пришли подсобить: +1 рабочий день на этой неделе.`, 'good');
+      feed(s, `Подмога от ${YARDS[a.yard].gen}: +1 рабочий день на этой неделе.`, 'good');
       break;
     }
     case 'forge': {
@@ -3928,7 +3930,7 @@ export function apply(state: GameState, a: Action): GameState {
       if (!s.candidates.includes(a.id)) fail('Этого человека нет среди кандидатов');
       if (s.team.some((w) => w.id === a.id)) fail('Уже в команде');
       if (s.away?.worker?.id === a.id) fail('Этот работник уехал с обозом');
-      if (bedsUsed(s) >= workerSlots(s)) fail('Все места в доме заняты: нужен дом побольше');
+      if (bedsUsed(s) >= workerSlots(s)) fail('Свободных кроватей нет: растите дом, договоритесь о постое у соседей или постройте общежитие');
       spend(s, hirePrice(s, a.id), 'build');
       s.team.push({ id: a.id, level: 1, away: 0 });
       s.candidates = s.candidates.filter((x) => x !== a.id);

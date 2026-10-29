@@ -6,7 +6,7 @@
 export const KNOW_AT = [20, 60, 150, 300, 600];
 export const KNOW_NAMES = ['не знаком', 'знаком', 'умеет', 'знаток', 'мастер', 'свой сорт'];
 /** what a level opens, in words */
-export const KNOW_OPENS = ['', '1-й признак', '1-я лишняя клетка', '2-й признак · семена −20%', '2-я лишняя клетка', '3-й признак и 3-я клетка · грамота и +15 славы'];
+export const KNOW_OPENS = ['', '1-й признак', '1-я дополнительная клетка', '2-й признак · семена −20%', '2-я дополнительная клетка', '3-й признак и 3-я клетка · грамота и +15 славы'];
 export const knowLevelOf = (units: number) => KNOW_AT.filter((t) => units >= t).length;
 /** how many traits / extra cells the knowledge of a crop lets the lab give a card of it */
 export const knowTraits = (level: number) => (level >= 5 ? 3 : level >= 3 ? 2 : level >= 1 ? 1 : 0);

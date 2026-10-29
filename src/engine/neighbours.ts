@@ -65,8 +65,8 @@ export const YARDS: Record<YardId, YardDef> = {
       { name: 'Печь', text: 'печь переложена кирпичом', cost: 30, mat: { bricks: 8 }, crop: cabbage(12), weeks: 4 },
       { name: 'Теплица', text: 'теплица у избы', cost: 50, mat: { logs: 6, glass: 4 }, weeks: 5 },
     ],
-    swap: { take: { crops: VEG, qty: 8, name: 'овощей' }, give: 'карта работы на выбор: компост, мульча или укрытие', verb: 'Обменять' },
-    second: 'обмен каждую неделю, а не раз в сезон',
+    swap: { take: { crops: VEG, qty: 8, name: 'овощей' }, give: 'карта работы на выбор: компост, мульча или укрытие', verb: 'Меняться' },
+    second: 'мена каждую неделю, а не раз в сезон',
     third: 'раз в год Зина сосватает работника (внук Миша знает всех в районе); каждый сезон — 2 стекла от теплицы',
     lines: [
       'Крыша течёт, милок, а мне на неё уже не залезть. Подсобишь — я в долгу не останусь.',
@@ -83,7 +83,7 @@ export const YARDS: Record<YardId, YardDef> = {
       { name: 'Навес и мехи', text: 'навес над наковальней, кожаные мехи', cost: 35, mat: { logs: 12, bricks: 4 }, crop: grain(20), weeks: 4 },
       { name: 'Инструментальная', text: 'кирпичная мастерская с окном', cost: 60, mat: { bricks: 10, glass: 6 }, weeks: 6 },
     ],
-    swap: { take: { crops: GRAIN, qty: 10, name: 'зерна' }, give: '5 кирпичей со старой кузни', verb: 'Обменять' },
+    swap: { take: { crops: GRAIN, qty: 10, name: 'зерна' }, give: '5 кирпичей со старой кузни', verb: 'Меняться' },
     second: 'оборудование на ярмарке дешевле на 15%; следующий уровень любой линии Савва скуёт сам: +30% к цене, 4 недели',
     third: 'подмастерье Саввы просится в механики',
     lines: [
@@ -101,8 +101,8 @@ export const YARDS: Record<YardId, YardDef> = {
       { name: 'Пилорама', text: 'пилорама и штабеля брёвен', cost: 40, mat: { logs: 12, bricks: 6 }, weeks: 5 },
       { name: 'Столярка', text: 'столярная мастерская', cost: 70, mat: { logs: 16, bricks: 6, glass: 2 }, weeks: 6 },
     ],
-    swap: { take: { crops: VEG, qty: 10, name: 'урожая' }, give: '4 бревна (с пилорамой — 6)', verb: 'Обменять' },
-    second: 'обмен даёт 6 брёвен; все стройки на 20% быстрее',
+    swap: { take: { crops: VEG, qty: 10, name: 'урожая' }, give: '4 бревна (с пилорамой — 6)', verb: 'Меняться' },
+    second: 'мена даёт 6 брёвен; все стройки на 20% быстрее',
     third: 'Ефим со своими ребятами — ещё один слот бригады',
     lines: [
       'Руки есть, топор есть, а крыши над верстаком нет. Дождь — и стою, курю.',
@@ -137,7 +137,7 @@ export const YARDS: Record<YardId, YardDef> = {
       { name: 'Пристройка', text: 'пристройка к дому', cost: 35, mat: { logs: 12, bricks: 4 }, weeks: 4 },
       { name: 'Новый дом', text: 'новый дом', cost: 80, mat: { logs: 20, bricks: 16, glass: 4 }, weeks: 8 },
     ],
-    swap: { take: { crops: VEG, qty: 8, name: 'овощей' }, give: 'дети помогут на поле: карта «Помощь соседей» в руку', verb: 'Обменять' },
+    swap: { take: { crops: VEG, qty: 8, name: 'овощей' }, give: 'дети помогут на поле: карта «Помощь соседей» в руку', verb: 'Меняться' },
     second: 'постой: в пристройке 2 кровати для ваших работников',
     third: 'каждый год старшие дети приводят в работники кого-нибудь из своих — любой профессии',
     lines: [
@@ -153,7 +153,7 @@ export interface CommonDef { id: CommonId; name: string; text: string; cost: num
 /** the shared buildings of the village: built by the whole village (толока, −30% weeks) once three yards stand */
 export const COMMONS: Record<CommonId, CommonDef> = {
   bridge: { id: 'bridge', name: 'Мост', text: 'на ярмарку приезжают из-за реки: ещё один лот каждый сезон', cost: 60, mat: { logs: 14, bricks: 6 }, weeks: 6, place: 'через овраг к большаку' },
-  club: { id: 'club', name: 'Клуб', text: 'осенью — праздник урожая: смотр хозяйств, Пряхин против вас', cost: 90, mat: { logs: 16, bricks: 10, glass: 4 }, weeks: 8, place: 'на пустыре у сельсовета' },
+  club: { id: 'club', name: 'Клуб', text: 'смотр на площади становится праздником урожая: грамота и призовой лот за победу над Пряхиным', cost: 90, mat: { logs: 16, bricks: 10, glass: 4 }, weeks: 8, place: 'на пустыре у сельсовета' },
   hostel: { id: 'hostel', name: 'Общежитие', text: '+2 кровати для работников', cost: 80, mat: { logs: 14, bricks: 12, glass: 2 }, weeks: 8, place: 'у дороги' },
   pump: { id: 'pump', name: 'Водокачка', text: 'в жаркую неделю всем грядкам +1 влаги', cost: 70, mat: { logs: 8, bricks: 12 }, weeks: 6, place: 'на холме за деревней' },
 };

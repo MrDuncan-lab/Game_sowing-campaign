@@ -313,7 +313,7 @@ export const WORKERS: Record<WorkerId, WorkerDef> = {
   irrigator: { id: 'irrigator', name: 'Айдар', title: 'Поливальщик', price: 22, salary: 1, portrait: 'irrigator', color: '#3f8fbf', levels: ['полив — весь ряд и столбец', 'засуха сушит на 1 меньше', 'каждую неделю сам поливает 3 самые сухие посадки'] },
   beekeeper: { id: 'beekeeper', name: 'Пётр', title: 'Пчеловод', price: 22, salary: 1, portrait: 'beekeeper', color: '#e9c45c', levels: ['улей действует на 8 соседей', 'мёда вдвое больше', 'бонус улья ещё ×1,2'] },
   marketer: { id: 'marketer', name: 'Ксения', title: 'Продавец', price: 24, salary: 2, portrait: 'marketer', color: '#e0607a', levels: ['рынок +10%', 'рынок +15%', 'рынок +20%, награды заказов +10%'] },
-  mechanic: { id: 'mechanic', name: 'Руслан', title: 'Механик', price: 28, salary: 2, portrait: 'mechanic', color: '#56616b', levels: ['стройки на неделю быстрее', 'стройки дешевле на 15%', 'ещё один слот мастерской'] },
+  mechanic: { id: 'mechanic', name: 'Руслан', title: 'Механик', price: 28, salary: 2, portrait: 'mechanic', color: '#56616b', levels: ['стройки на 15% быстрее', 'стройки дешевле на 15%', 'ещё одно место в бригаде'] },
   breeder: { id: 'breeder', name: 'Мария', title: 'Селекционер', price: 30, salary: 2, portrait: 'breeder', color: '#9fb86b', levels: ['проекты лаборатории на неделю быстрее', 'ещё один слот лаборатории', '+1 признак на карту'] },
   soilsci: { id: 'soilsci', name: 'Олег', title: 'Почвовед', price: 26, salary: 1, portrait: 'soilsci', color: '#8c6a43', levels: ['фасоль оживляет почву на 2', 'компост и биопрепарат +2', 'подсолнечник не истощает почву'] },
   watchman: { id: 'watchman', name: 'Михалыч', title: 'Сторож', price: 16, salary: 1, portrait: 'logist', color: '#3a6b4a', levels: ['воры обходят ферму стороной', 'отгоняет одну стаю ворон за лето', 'каждую неделю сам защищает 2 грядки под ударом'] },
@@ -356,7 +356,7 @@ export const ORGS: Record<OrgId, OrgDef> = {
       { title: 'Витамины к обеду', crops: ['radish', 'carrot', 'onion'], qty: 6, weeks: 4, pay: 0.9, text: 'Ребятам не хватает свежих овощей. Поможете?' },
       { title: 'Картошка на месяц', crops: ['potato', 'cabbage'], qty: 14, weeks: 5, pay: 1, reward: { cert: 'Благодарность интерната' }, text: 'Столовая просит запас на месяц.' },
       { title: 'Экскурсия на ферму', crops: ['carrot', 'radish', 'pumpkin'], qty: 8, lines: 2, weeks: 5, pay: 1, reward: { pet: 'dog' }, text: 'Ребята хотят увидеть, где растёт еда, и привезут вам щенка из приюта.' },
-      { title: 'Праздник урожая', crops: ['pumpkin', 'strawberry', 'potato', 'cabbage'], qty: 12, lines: 2, weeks: 6, pay: 1.2, reward: { cert: 'Шеф интерната «Солнышко»', glory: 20 }, text: 'Большой праздник — и вы почётный гость.' },
+      { title: 'Осенний утренник', crops: ['pumpkin', 'strawberry', 'potato', 'cabbage'], qty: 12, lines: 2, weeks: 6, pay: 1.2, reward: { cert: 'Шеф интерната «Солнышко»', glory: 20 }, text: 'Большой праздник — и вы почётный гость.' },
     ],
     perk: 'Ребята летом помогают: +1 рабочий день в неделю',
     mischief: 'thieves', mischiefText: 'Голодные ребята лазают в огород и таскают урожай',
@@ -438,7 +438,7 @@ export const ORGS: Record<OrgId, OrgDef> = {
     steps: [
       { title: 'Базарный день', crops: ['radish', 'onion', 'bean'], qty: 6, lines: 2, weeks: 4, pay: 1.1, text: 'Станица любит свежее.' },
       { title: 'Семечки к празднику', crops: ['sunflower'], qty: 12, weeks: 7, pay: 1.2, reward: { cert: 'Грамота станицы' }, text: 'Какой праздник без семечек.' },
-      { title: 'Арбузная ярмарка', crops: ['watermelon'], qty: 14, weeks: 7, pay: 1.3, reward: { pet: 'goat', glory: 20 }, text: 'Собираем партию для ярмарки. Нужны арбузы и другие продукты к столу.' },
+      { title: 'Арбузная ярмарка', crops: ['watermelon'], qty: 14, weeks: 7, pay: 1.3, reward: { pet: 'goat', glory: 20 }, text: 'Собираем партию для ярмарки. Нужны арбузы — самые сладкие, к столу.' },
       { title: 'Казачья ярмарка', crops: ['watermelon', 'tomato', 'sunflower', 'onion'], qty: 10, lines: 3, weeks: 8, pay: 1.4, reward: { cert: 'Арбузный король Кубани', glory: 30 }, text: 'Главная ярмарка года.' },
     ],
     perk: 'Земля на 30% дешевле', mischief: 'fine', mischiefText: 'Станичный совет штрафует за самозахват воды',
@@ -539,7 +539,7 @@ export const ORGS: Record<OrgId, OrgDef> = {
     steps: [
       { title: 'Осенний концерт', crops: ['sunflower', 'pumpkin'], qty: 6, weeks: 5, pay: 1.2, text: 'Без подсолнухов сцена — как без занавеса!' },
       { title: 'Спектакль «Репка»', crops: ['radish', 'carrot', 'potato'], qty: 8, lines: 2, weeks: 5, pay: 1.2, reward: { money: 30 }, text: 'Нужна настоящая репа. То есть редис! Зритель не заметит.' },
-      { title: 'Праздник урожая', crops: ['pumpkin', 'sunflower', 'strawberry', 'cabbage'], qty: 12, lines: 3, weeks: 7, pay: 1.3, reward: { cert: 'Душа праздника', glory: 15 }, text: 'Самая большая тыква. Самая! Это не каприз, это декорация.' },
+      { title: 'Вечёрка в клубе', crops: ['pumpkin', 'sunflower', 'strawberry', 'cabbage'], qty: 12, lines: 3, weeks: 7, pay: 1.3, reward: { cert: 'Душа праздника', glory: 15 }, text: 'Самая большая тыква. Самая! Это не каприз, это декорация.' },
       { title: 'Смотр с Пряхиным', crops: ['pumpkin', 'sunflower', 'tomato', 'strawberry'], qty: 12, lines: 3, weeks: 8, pay: 1.5, reward: { glory: 30, money: 60 }, text: 'Пряхин записался в жюри. Он всегда ставит четвёрки. Даже себе.' },
     ],
     perk: 'Тыква и подсолнечник на рынке +15%', mischief: 'silence', mischiefText: 'Клуб обиделся и вычеркнул вас из афиши',
@@ -557,14 +557,17 @@ export const REL_TIERS: { min: number; name: string; tone: 'bad' | 'cold' | 'ok'
 export const relTier = (rel: number) => [...REL_TIERS].reverse().find((t) => rel >= t.min)!;
 
 // ---------- ranks ----------
-export const RANKS: { min: number; name: string }[] = [
-  { min: 0, name: 'Новичок' },
-  { min: 40, name: 'Хозяин' },
-  { min: 120, name: 'Крепкий хозяин' },
-  { min: 250, name: 'Мастер урожая' },
-  { min: 450, name: 'Лучший садовод района' },
-  { min: 750, name: 'Гордость области' },
+/** profile ranks by glory, and what each opens (29.10: every rank gives something) */
+export const RANKS: { min: number; name: string; opens: string }[] = [
+  { min: 0, name: 'Новичок', opens: 'родной дом и вылазка в Заречье' },
+  { min: 40, name: 'Хозяин', opens: 'вылазка на Кубань' },
+  { min: 120, name: 'Крепкий хозяин', opens: 'вылазка на Алтай' },
+  { min: 250, name: 'Мастер урожая', opens: 'на телегу обоза — 4 карты' },
+  { min: 450, name: 'Лучший садовод района', opens: 'подъёмные в обоз — вдвое больше' },
+  { min: 750, name: 'Гордость области', opens: 'высшее звание' },
 ];
+/** where glory comes from, in a line */
+export const GLORY_SOURCES = 'заказы и цепочки заказчиков, первые урожаи культур, каждый прожитый год, стройки дома, выкуп дома, дворы соседей и общие постройки, смотр и праздник урожая, испытания года, своё знание культур';
 export const rankOf = (glory: number) => {
   let i = 0;
   for (let k = 0; k < RANKS.length; k++) if (glory >= RANKS[k].min) i = k;
@@ -574,9 +577,9 @@ export const rankOf = (glory: number) => {
 // ---------- the three farms ----------
 export const LOCATIONS: Record<LocationId, LocationDef> = {
   chernozem: {
-    id: 'chernozem', name: 'Черноземье', place: 'Родная деревня', tagline: 'Жирная земля и мягкий климат',
-    text: 'Ровное поле с живой почвой. Здесь учатся всему: температуре, воде, соседству культур и отношениям с людьми.',
-    unique: ['почва живее с самого начала', 'соседство: морковь с луком, «три сёстры»', 'пять организаций деревни'],
+    id: 'chernozem', name: 'Черноземье', place: 'Родной дом', tagline: 'Жирная земля, дом в залоге',
+    text: 'Родной дом в залоге у банка: три осенних взноса — и он ваш. Живая почва, пять заказчиков, соседи, которым нужна помощь, ярмарка раз в сезон — и Пряхин из Заречья, который присматривал этот дом на торгах.',
+    unique: ['дом выкупается за три осени', 'соседи, клуб и праздник урожая', 'отсюда уходит обоз на вылазки'],
     map: ['......', '......', '......', '......', '......', '......'],
     soil: 3, seasons: [4, 12, 4, 3],
     temp: { spring: [6, 16], summer: [18, 27], autumn: [13, 3], winter: [-6, -12] },
@@ -590,7 +593,7 @@ export const LOCATIONS: Record<LocationId, LocationDef> = {
   kuban: {
     id: 'kuban', name: 'Кубанская пойма', place: 'Хутор у реки', tagline: 'Жара, река и арыки',
     text: 'Длинное жаркое лето. Без воды здесь ничего не растёт, зато каналы от реки заливают рис, а на песке зреют арбузы.',
-    unique: ['каналы от реки: копай арыки, заливай рис', 'бахча на песке', 'в жару редис и капуста стоят'],
+    unique: ['каналы от реки: копайте арыки, заливайте рис', 'бахча на песке', 'в жару редис и капуста стоят'],
     map: ['....~.', '....~.', '....~.', '....~~', 'ss...~', 'sss..~'],
     soil: 2, seasons: [3, 14, 4, 2],
     temp: { spring: [10, 19], summer: [20, 30], autumn: [17, 7], winter: [-1, -5] },
@@ -616,8 +619,8 @@ export const LOCATIONS: Record<LocationId, LocationDef> = {
     extra: ['clearing'],
   },
   rent: {
-    id: 'rent', name: 'Аренда у Пряхина', place: 'Заречье', tagline: 'Чужая земля, своё село',
-    text: 'Полоса Пряхина за рекой. Климат как дома, но земля чужая: аренду платят по лестнице, а заказчики — люди Заречья.',
+    id: 'rent', name: 'Заречье', place: 'Аренда у Пряхина', tagline: 'Чужая земля, своё село',
+    text: 'Полоса Аркадия Семёновича Пряхина за рекой. Климат как дома, но земля чужая: аренда по лестнице, хозяин обходит поле с тетрадкой, а заказчики — люди Заречья.',
     unique: ['открыто всегда', 'четыре заказчика Заречья', 'свёрнутое хозяйство отдаёт домой 70%'],
     map: ['......', '......', '......', '......', '......', '~~~...'],
     soil: 3, seasons: [4, 12, 4, 3],

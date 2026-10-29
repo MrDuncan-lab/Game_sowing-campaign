@@ -164,7 +164,7 @@ export function RatingSheet({ s, profile, onClose }: { s: GameState; profile: Pr
     try { await navigator.clipboard.writeText(`${text} ${GAME_URL}`); setCopied(true); } catch { setCopied(false); }
   };
   return createPortal(
-    <Sheet title="Рейтинг" icon="trophy" onClose={onClose}>
+    <Sheet title="Район и рекорды" icon="trophy" onClose={onClose}>
       <div class="stack rating-sheet">
         {isHome(s) && <>
           <h3>Район · {districtPlace(s)}-е место</h3>

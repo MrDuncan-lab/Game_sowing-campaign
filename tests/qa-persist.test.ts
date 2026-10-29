@@ -185,7 +185,7 @@ function oldLessonAction(E: any, T: any, t: any): any {
 // window is a per-tab EventTarget, so managedSaveSession is true there and the ownership fence is live.
 const HARNESS = String.raw`
 import { isMainThread } from 'node:worker_threads';
-const STUBS = { './FarmScreen': 'FarmScreen', './MapScreen': 'MapScreen', './Intro': 'Intro', './Tutorial': 'Tutorial', './TestLab': 'TestLab', './common': 'common' };
+const STUBS = { './FarmScreen': 'FarmScreen', './MapScreen': 'MapScreen', './Intro': 'Intro', './Tutorial': 'Tutorial', './TestLab': 'TestLab', './common': 'common', './RankUp': 'RankUp' };
 const tabOf = (u) => { const i = u.indexOf('?tab='); return i < 0 ? null : u.slice(i + 5).split('&')[0]; };
 export async function resolve(spec, ctx, next) {
   const parent = ctx.parentURL || '';

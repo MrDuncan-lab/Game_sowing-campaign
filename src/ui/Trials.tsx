@@ -5,6 +5,7 @@ import type { GameState, Trial } from '../engine/game';
 import { SEASON_GEN } from '../engine/data';
 import {
   deckList, firePits, firesLit, firewoodCost, fireLightDays, lightFiresProblem, lvl, money, trialEnd, trialKnown, trialLead, frostVictims, weekInfo, buildStock, dripRows,
+  plural,
 } from '../engine/game';
 import { TRIALS, TRIAL_GLORY, TRIAL_GRADE_NAME, TRIAL_PASS, TRIAL_HOLD } from '../engine/trials';
 import { Icon } from '../art/icons';
@@ -54,7 +55,7 @@ function readiness(s: GameState, t: Trial): { ok: boolean; text: string }[] {
   const out: { ok: boolean; text: string }[] = [];
   if (t.kind !== 'drought') out.push(have
     ? { ok: pits > 0, text: pits ? `Кострищ на поле: ${pits} из ${have}` : `Кострища построены, но не поставлены на поле (${have})` }
-    : { ok: false, text: 'Кострищ нет — их строят в мастерской («Костры»)' });
+    : { ok: false, text: 'Кострищ нет — их строят в «Доме» → «Стройки» («Костры»)' });
   if (t.kind === 'frost') {
     out.push({ ok: count('shelter') > 0, text: `Укрытий в колоде: ${count('shelter')}` });
     out.push({ ok: lvl(s, 'greenhouse') > 0, text: lvl(s, 'greenhouse') ? 'Теплицы стоят: внутри на 8° теплее' : 'Теплиц нет' });
@@ -131,11 +132,11 @@ export function TrialResultCard({ s, t, onClose }: { s: GameState; t: Trial; onC
             <div>
               <span class={`ta-result-stamp g${r.grade}`}>{TRIAL_GRADE_NAME[r.grade]}</span>
               <p class="ta-omen" style={{ marginTop: '8px' }}>{r.grade === 0
-                ? `На поле было ${r.beds} ${r.beds === 1 ? 'грядка' : 'грядки'} — испытание прошло мимо.`
-                : `Под ударом было ${r.beds} грядок с урожаем на ${money(Math.round(r.risk))}. Потеряно ${r.lostUnits} ед. на ${money(Math.round(r.lostValue))}.`}</p>
+                ? `На поле было ${r.beds} ${plural(r.beds, 'грядка', 'грядки', 'грядок')} — испытание прошло мимо.`
+                : `Под ударом было ${r.beds} ${plural(r.beds, 'грядка', 'грядки', 'грядок')} с урожаем на ${money(Math.round(r.risk))}. Потеряно ${r.lostUnits} ед. на ${money(Math.round(r.lostValue))}.`}</p>
             </div>
           </div>
-          <p class="ta-reward">{r.glory ? <>Слава хозяйства: <b>+{r.glory}</b>.</> : 'Славы за это испытание нет.'} {r.grade < 3 ? 'Следующий год принесёт новое испытание — готовьтесь заранее: костры, укрытия, сорта.' : 'Округа заговорила о вашей ферме.'}</p>
+          <p class="ta-reward">{r.glory ? <>Слава: <b>+{r.glory}</b>.</> : 'Славы за это испытание нет.'} {r.grade < 3 ? 'Следующий год принесёт новое испытание — готовьтесь заранее: костры, укрытия, сорта.' : 'Округа заговорила о вашей ферме.'}</p>
           {r.cert && <div class="ta-cert"><Icon name="cert" size={32} />Грамота «{r.cert}»: ещё +15 славы</div>}
           <div class="ta-acts"><Btn tone="primary" onClick={onClose}>Дальше</Btn></div>
         </div>

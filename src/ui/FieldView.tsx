@@ -220,7 +220,7 @@ function summary(s: GameState): Chip[] {
   }
   for (const o of locOf(s).orgs) {
     const q = s.orgs[o]?.active;
-    if (q && q.deadline !== undefined && q.deadline - s.absWeek <= 1) out.push({ text: `${ORGS[o].short}: срок ${q.deadline - s.absWeek <= 0 ? 'сегодня' : 'неделя'}`, tone: 'bad', icon: 'orders' });
+    if (q && q.deadline !== undefined && q.deadline - s.absWeek <= 1) out.push({ text: `${ORGS[o].short}: срок — ${q.deadline - s.absWeek <= 0 ? 'на этой неделе' : 'через неделю'}`, tone: 'bad', icon: 'orders' });
   }
   if (s.yard.length) out.push({ text: `во дворе ${s.yard.reduce((a, l) => a + l.qty, 0)} ед.`, tone: 'bad', icon: 'barn' });
   return out;
@@ -511,7 +511,7 @@ function calendarPage(s: GameState, offset: number): CalPage {
   return page;
 }
 
-export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment, onMap, villageApi, onVillageMode, placeRequest, testing=false, teaching=false, precheck, lessonVisit=false, onVisitDone, onPresent }: { s: GameState; dispatch: Dispatch; fast: boolean; active: boolean; onGo: (tab: string) => void; onOrder?:(org:OrgId)=>void; onPayment?:()=>void; onMap?:()=>void; villageApi?: { current: VillageApi | null }; onVillageMode?: (m: VillageMode) => void; placeRequest?: { item: BuildItem; key: number } | null; testing?:boolean; teaching?:boolean; precheck?:(a:Action)=>string|null; lessonVisit?:boolean; onVisitDone?:()=>void; /** PSV-028 · the week the field is showing while last week's events play (null when it shows the current one) */ onPresent?:(shown:GameState|null)=>void }) {
+export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment, onMap, onRoad, villageApi, onVillageMode, placeRequest, testing=false, teaching=false, precheck, lessonVisit=false, onVisitDone, onPresent }: { s: GameState; dispatch: Dispatch; fast: boolean; active: boolean; onGo: (tab: string) => void; onOrder?:(org:OrgId)=>void; onPayment?:()=>void; onMap?:()=>void; /** 29.10 · the signpost: where the cart can go */ onRoad?:()=>void; villageApi?: { current: VillageApi | null }; onVillageMode?: (m: VillageMode) => void; placeRequest?: { item: BuildItem; key: number } | null; testing?:boolean; teaching?:boolean; precheck?:(a:Action)=>string|null; lessonVisit?:boolean; onVisitDone?:()=>void; /** PSV-028 · the week the field is showing while last week's events play (null when it shows the current one) */ onPresent?:(shown:GameState|null)=>void }) {
   const [resume]=useState(()=>testing||teaching?null:readWeekResume(s));
   const playbackRecord=useRef<WeekResume|null>(resume);
   const playbackTimer=useRef<number|null>(null);
@@ -1634,8 +1634,8 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
       if(card.def==='care')return {text:`Урожай ряда ${pv.before} → ${pv.after} ед. · ${pv.days} дн.`,tone:'up'};
       if(card.def==='early')return {text:`Сейчас ${Math.round(pv.before*(lvl(s,'machinery')>=3?1:.7))} ед. вместо ${pv.before}`,tone:'up'};
     }
-    const hint: Record<string, string> = { row: 'Выбери ряд', line: `Прополка: весь ${rot % 2 ? 'столбец' : 'ряд'} · ещё касание — ${rot % 2 ? 'ряд' : 'столбец'}`, none: 'Нажми «Сыграть»', block: 'Квадрат 2×2: выбери его левую верхнюю грядку' };
-    return { text: hint[def.target] ?? 'Перетащи на поле или коснись грядки', tone: 'instr' };
+    const hint: Record<string, string> = { row: 'Выберите ряд', line: `Прополка: весь ${rot % 2 ? 'столбец' : 'ряд'} · ещё касание — ${rot % 2 ? 'ряд' : 'столбец'}`, none: 'Нажмите «Сыграть»', block: 'Квадрат 2×2: выберите его левую верхнюю грядку' };
+    return { text: hint[def.target] ?? 'Перетащите на поле или коснитесь грядки', tone: 'instr' };
   }
   const previewOk = !!highlight.preview && highlight.preview.why.every((w) => !w);
   useEffect(() => {
@@ -1715,7 +1715,7 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
       case 'fair': onGo('fair'); return;
       case 'lab': case 'lot-lab': onGo('lab'); return;
       case 'board': onGo('orders'); return;
-      case 'signpost': if (onMap) onMap(); else villageSay('Указатель: дороги на Кубань и на Алтай.'); return;
+      case 'signpost': if (onRoad) onRoad(); else if (onMap) onMap(); else villageSay('Указатель: дороги в Заречье, на Кубань и на Алтай.'); return;
       case 'gate': village.toField(); return;
       default: if (say[k]) villageSay(say[k]);
     }

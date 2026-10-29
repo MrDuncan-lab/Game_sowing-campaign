@@ -19,7 +19,7 @@ import { useLessonWeeks } from './lesson';
 import { NeighbourRow, NeighbourSheet, COMMON_ICON, type NeighbourKey } from './Neighbours';
 import { COMMONS, YARDS, YARD_IDS } from '../engine/neighbours';
 import { Chronicle, FestivalStandings } from './Festival';
-import { districtPlace, hasAntonovka } from '../engine/game';
+import { districtPlace, hasAntonovka, plural } from '../engine/game';
 
 const PLACE: Partial<Record<TrackId, BuildItem>> = { greenhouse: 'greenhouse', apiary: 'hive', irrigation: 'drip', guard: 'scarecrow', canal: 'canal', fires: 'fire' };
 
@@ -49,7 +49,7 @@ function WorkerSheet({ s, id, act, onClose }: { s: GameState; id: WorkerId; act:
         {next && <><dt>{w ? 'После учёбы' : 'Умеет'}</dt><dd>{next}</dd></>}
       </dl>
       {!w && (
-        <Btn tone="primary" disabled={s.team.length >= workerSlots(s) ? 'Все места в доме заняты' : s.money < price ? `Нужно ${money(price)}` : null} onClick={() => { if (act({ t: 'hire', id })) onClose(); }}>
+        <Btn tone="primary" disabled={s.team.length >= workerSlots(s) ? 'Свободных кроватей нет' : s.money < price ? `Нужно ${money(price)}` : null} onClick={() => { if (act({ t: 'hire', id })) onClose(); }}>
           Нанять · {price ? money(price) : 'бесплатно'}
         </Btn>
       )}
@@ -103,7 +103,7 @@ function Interior({ s, onWorker, onHire }: { s: GameState; onWorker: (id: Worker
         <p class="room-lodge">
           <Icon name="village" size={18} /> На постое у соседей:{' '}
           {lodgers.map((w) => <button type="button" class="link" onClick={() => onWorker(w.id)}>{WORKERS[w.id].name}</button>)}
-          {lodgeFree > 0 && <button type="button" class="link" onClick={onHire}>{lodgeFree} {lodgeFree === 1 ? 'свободная кровать' : 'свободных кровати'}</button>}
+          {lodgeFree > 0 && <button type="button" class="link" onClick={onHire}>{lodgeFree} {plural(lodgeFree, 'свободная кровать', 'свободные кровати', 'свободных кроватей')}</button>}
         </p>
       )}
     </div>
@@ -203,7 +203,7 @@ export function HouseView({ s, act, onPlace, onFair }: { s: GameState; act: Disp
         </div>
         <nav class="estate-links" aria-label="Разделы дома">
             <button type="button" onClick={() => jump('hire')}><Icon name="team" size={18} /><span>Кровати</span><b>{s.team.length}/{workerSlots(s)}</b></button>
-            <button type="button" onClick={() => jump('workshop')}><Icon name="build" size={18} /><span>Мастерская</span><b>{busy}/{workshopSlots(s)}</b></button>
+            <button type="button" onClick={() => jump('workshop')}><Icon name="build" size={18} /><span>Стройки</span><b>{busy}/{workshopSlots(s)}</b></button>
             <button type="button" onClick={() => jump('inventory')}><Icon name="seeds" size={18} /><span>Колода</span><b>{deckSize}/{deckLimit(s)}</b></button>
         </nav>
         <div class="hero-text">
@@ -248,7 +248,7 @@ export function HouseView({ s, act, onPlace, onFair }: { s: GameState; act: Disp
 
       <Interior s={s} onWorker={setWorker} onHire={() => document.getElementById('hire')?.scrollIntoView({ behavior: scrollBehavior(), block: 'start' })} />
 
-      <Section id="workshop" title="Мастерская" icon="build" extra={<span class={`slots${busy >= workshopSlots(s) ? ' full' : ''}`}>бригада {busy}/{workshopSlots(s)}</span>}>
+      <Section id="workshop" title="Стройки" icon="build" extra={<span class={`slots${busy >= workshopSlots(s) ? ' full' : ''}`}>бригада {busy}/{workshopSlots(s)}</span>}>
         <div class="shed-row"><span>В сарае</span><ShedChips s={s} /><button type="button" class="link" onClick={onFair}>Ярмарка</button></div>
         <p class="small muted">Стройке нужны деньги, материалы и время; зимой стройки идут вдвое медленнее. Технику, дрон и метеоприборы продают на ярмарке.</p>
         <div class="tracks">
@@ -267,13 +267,13 @@ export function HouseView({ s, act, onPlace, onFair }: { s: GameState; act: Disp
 
       {isHome(s) && (
         <Section id="neighbours" title="Соседи" icon="village" extra={helpers.length ? <span class="slots up">подмога: {helpers.length}</span> : undefined}>
-          <p class="small muted">Пять дворов деревни. Каждую стадию строит ваша бригада — за деньги, материалы и урожай; сосед отвечает обменом, кроватью для работника и подмогой. Три двора на ногах — и деревня возьмётся за общее.</p>
+          <p class="small muted">Пять дворов деревни. Каждую стадию строит ваша бригада — за деньги, материалы и урожай; сосед отвечает меной, кроватью для работника и подмогой. Три двора на ногах — и деревня возьмётся за общее.</p>
           <NeighbourRow s={s} onOpen={setNeighbour} />
         </Section>
       )}
 
       <Section title="Команда" icon="team" id="hire" extra={<span class="slots">{s.team.length}/{workerSlots(s)}</span>}>
-        <p class="small muted">Работники приходят с ярмарки и за заказы. Нанять можно только на свободную кровать: кроватей прибавляется с домом и у соседей на постое.</p>
+        <p class="small muted">Работники приходят с ярмарки, за заказы, от соседей и с вылазок. Нанять можно только на свободную кровать: кроватей прибавляется с домом и у соседей на постое.</p>
         <div class="candidates">
           {s.candidates.map((id) => (
             <button type="button" class="candidate" onClick={() => setWorker(id)}>

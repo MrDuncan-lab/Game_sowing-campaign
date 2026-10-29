@@ -17,7 +17,7 @@ import {BUYERS} from '../content/orderDialogue';
 import {weekDate} from '../content/rules';
 import {visibleCardFocus} from './coachGeometry';
 import {useModal} from './common';
-export interface TutorialControls {session:TutorialSession;onNext:()=>void;onExit:()=>void;onRetry:()=>void;onReset:()=>void;onHideHint:(hidden:boolean)=>void;error?:string|null;precheck?:(a:Action)=>string|null}
+export interface TutorialControls {session:TutorialSession;onNext:()=>void;onExit:()=>void;onOwn?:()=>void;onRetry:()=>void;onReset:()=>void;onHideHint:(hidden:boolean)=>void;error?:string|null;precheck?:(a:Action)=>string|null}
 const visible=(e:Element)=>{const r=e.getBoundingClientRect();return r.width>0&&r.height>0&&r.right>0&&r.left<innerWidth&&r.bottom>75&&r.top<innerHeight;};
 const located=(e:Element)=>{const r=e.getBoundingClientRect();return r.width>0&&r.height>0&&r.right>0&&r.left<innerWidth;};
 const q=(s:string)=>{const es=Array.from(document.querySelectorAll(s));return es.find(visible)??es.find(located)??null;};
@@ -156,7 +156,7 @@ function hint(t:TutorialSession,tab:TabId,visitLate=false,village:VillageMode='f
         const at=anchors.find(([x,y])=>x>=1&&x<=2&&y>=1&&y<=2&&workEffectCells(s,'shelter',x,y).some(([a,b])=>a===st[0]&&b===st[1]))??[st[0],st[1]];
         return{text:'Накройте подсвеченный квадрат.',target:bed(at[0],at[1]),gesture:'tap',more:'Нажмите на его верхнюю левую грядку. Укрытие держится 3 недели.',area:workEffectCells(s,'shelter',...at).map(([x,y])=>bed(x,y)).filter((e):e is Element=>!!e)};
       }
-      return{text:'Выберите «Укрытие» — накроем фасоль.',target:e??(st?bed(st[0],st[1]):q('.sky-token.bad')),gesture:'tap',more:'Град видно на грядке и в небе над полем. Можно и щитом из меню грядки.',hello:'Ночью обещают град, если не накроем, то фасоль потеряет половину урожая.'};
+      return{text:'Выберите «Укрытие» — накроем фасоль.',target:e??(st?bed(st[0],st[1]):q('.sky-token.bad')),gesture:'tap',more:'Град видно на грядке и в небе над полем. Можно и щитом из меню грядки.',hello:'Ночью обещают град: не накроем — фасоль потеряет половину урожая.'};
     }
     case 'visit':return{text:'К ферме идут гости…',target:null,hello:'Продано! Слух о редисе Палыча дошёл до деревни.',more:'Гости приходят с заказами: урожай за деньги и дружбу.',...(visitLate?{next:true,nextLabel:'К заказам'}:{})};
     case 'accept':{
@@ -171,11 +171,11 @@ function hint(t:TutorialSession,tab:TabId,visitLate=false,village:VillageMode='f
       const check:[string,boolean][]=[['Посадить',g.planted],['Полить',g.watered],...(g.sell?[['Продать урожай',g.sold] as [string,boolean]]:[])];
       const left=check.filter(([,ok])=>!ok).map(([l])=>l);
       const pay=nextPayment(s);
-      const rent=`В конце весны — аренда ${money(pay.amount)}: сумма вверху, деньги спишутся сами.`;
+      const rent=`В конце весны — взнос по залогу ${money(pay.amount)}: сумма вверху, деньги спишутся сами.`;
       const stuck=s.days<1&&left.every(l=>l!=='Продать урожай');
       if(!left.length||stuck)return tab!=='field'?{...goto('field'),check}
         :{text:stuck?'Дни закончились. Завершите неделю.':'Всё сделано. Завершите неделю.',target:q('.end-week'),gesture:'tap',check,more:rent,area:[q('.tb-pay')].filter((e):e is Element=>!!e)};
-      if(again)return{text:`Ещё неделя: осталось — ${left.join(', ').toLowerCase()}.`,target:null,free:true,check,hello:'Не беда, попробуем ещё раз. Если что, то я рядом.',more:'Полить — значит полить посадку: сухая земля без ростков не в счёт.'};
+      if(again)return{text:`Ещё неделя: осталось — ${left.join(', ').toLowerCase()}.`,target:null,free:true,check,hello:'Не беда, попробуем ещё раз. Если что — я рядом.',more:'Полить — значит полить посадку: сухая земля без ростков не в счёт.'};
       return{text:'Неделя ваша: посадите, полейте, продайте.',target:null,free:true,check,hello:g.planted||g.watered||g.sold?undefined:'Дальше вы уже сами. Если что, то я рядом.',more:'Рука теперь полная: 7 карт, а дней по-прежнему 3. И обмен открыт.'};
     }
     case 'weeds':{
@@ -286,9 +286,9 @@ function Certificate({chapter,soloPassed=true,onPrimary,primary,onSecondary,seco
         <li>Денег на старте {money(o.money)} — здесь Палыч дал {money(o.lessonMoney)}.</li>
         <li>Лейка поливает {o.can} грядки за раз — у Палыча бочка на {o.lessonCan}.</li>
         <li>Погода настоящая: заморозки, жара, град. Прогноз — в небе над полем.</li>
-        {chapter==='II'&&<li>Стройки и селекция идут от {o.projectWeeks} недель, а не одну.</li>}
+        {chapter==='II'&&<li>Стройки и селекция идут от {o.projectWeeks} недель, а не за одну неделю.</li>}
       </ul></div>
-      <div class="cc-palych"><img src={PORTRAIT_IMAGES.palych} alt=""/><p>{chapter==='I'?'«Хозяйство ваше — можно на свою ферму. А хотите — покажу землю, помощников и селекцию. Вернуться можно в любой момент с карты ферм.»':'«Дальше в настоящей игре — вороны и воры, зима, ярмарки и новые регионы. Журнал всегда подскажет.»'}</p></div>
+      <div class="cc-palych"><img src={PORTRAIT_IMAGES.palych} alt=""/><p>{chapter==='I'?'«Хозяйство ваше — можно на свою ферму. А хотите — покажу землю, помощников и селекцию. Вернуться можно в любой момент с карты ферм.»':'«Дальше — свой дом. Он в залоге: три осени на выкуп. Ярмарка, соседи, смотр урожая с Пряхиным, а окрепнете — обоз в Заречье, на Кубань и Алтай. Журнал всегда подскажет.»'}</p></div>
       <div class="cc-actions"><button type="button" class="guide-next primary" onClick={onPrimary}>{primary}</button>{secondary&&<button type="button" class="guide-next" onClick={onSecondary}>{secondary}</button>}</div>
     </div>
   </div>;
@@ -305,7 +305,7 @@ const pressPoint=(r:DOMRect):[number,number]=>[r.width>130?r.left+r.width*.72:r.
 const handInteracting=()=>!!document.querySelector('.field-view[data-drag-active="true"], .field-view[data-peek-uid]:not([data-peek-uid=""])');
 
 export function GuideHint({controls,tab,village='field',flyTo}:{controls:TutorialControls;tab:TabId;village?:VillageMode;flyTo?:(k:string)=>void}){
-  const {session:t,onNext,onExit,onRetry,onReset,onHideHint,error}=controls;
+  const {session:t,onNext,onExit,onOwn,onRetry,onReset,onHideHint,error}=controls;
   const [,tick]=useState(0),[help,setHelp]=useState(false);
   const [cheer,setCheer]=useState<{text:string;x:number;y:number;key:number}|null>(null);
   const opening=useRef<TutorialArea[]>([]),openTimer=useRef(0);
@@ -464,8 +464,8 @@ export function GuideHint({controls,tab,village='field',flyTo}:{controls:Tutoria
     const pos=tab==='field'&&stage?{left:`${stage.left+8}px`,top:`${stage.top+8}px`}:{left:`${(farm?.left??0)+10}px`,bottom:'calc(12px + env(safe-area-inset-bottom, 0px))'};
     return <>{layers}<button class="guide-restore" style={pos} onClick={()=>onHideHint(false)}><img src={PORTRAIT_IMAGES.palych} alt=""/>Показать подсказку</button></>;
   }
-  if(t.step==='chapter')return <>{layers}<Certificate chapter="I" soloPassed={t.soloPassed!==false} primary="Своя ферма" onPrimary={onExit} secondary="Ещё у Палыча · глава II" onSecondary={onNext}/>{cheer&&<Cheer c={cheer}/>}</>;
-  if(t.step==='done')return <>{layers}<Certificate chapter="II" soloPassed={t.soloPassed!==false} primary="На карту ферм" onPrimary={onExit} secondary="Ещё осмотрюсь" onSecondary={()=>onHideHint(true)}/>{cheer&&<Cheer c={cheer}/>}</>;
+  if(t.step==='chapter')return <>{layers}<Certificate chapter="I" soloPassed={t.soloPassed!==false} primary="Своя ферма" onPrimary={onOwn??onExit} secondary="Ещё у Палыча · глава II" onSecondary={onNext}/>{cheer&&<Cheer c={cheer}/>}</>;
+  if(t.step==='done')return <>{layers}<Certificate chapter="II" soloPassed={t.soloPassed!==false} primary="Своя ферма" onPrimary={onOwn??onExit} secondary="Ещё осмотрюсь" onSecondary={()=>onHideHint(true)}/>{cheer&&<Cheer c={cheer}/>}</>;
 
   const r=h.target?.getBoundingClientRect();
   const field=tab==='field'&&stage;

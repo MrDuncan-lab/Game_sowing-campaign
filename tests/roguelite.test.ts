@@ -207,7 +207,7 @@ test('the first visitor comes in the third week; a visitor waits one week; nobod
   assert.equal(s.absWeek, 3);
   const v = s.run!.visit!;
   assert.ok(v && R.VISITS[v.id].where.includes('kuban'));
-  assert.ok(s.feed.some((f) => f.text.startsWith('К лагерю пришли')));
+  assert.ok(s.feed.some((f) => f.text.startsWith('У лагеря гость')));
   assert.ok(s.run!.nextVisit >= s.absWeek + 2 && s.run!.nextVisit <= s.absWeek + 4);
   const n = G.endWeek(s);
   assert.equal(n.run!.visit, null);

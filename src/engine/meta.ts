@@ -14,8 +14,11 @@ const fail = (m: string): never => { throw new GameError(m); };
 
 /** profile glory that opens a region for expeditions (the rent is always open) */
 export const expeditionOpen = (loc: ExpeditionId, glory: number) => glory >= LOCATIONS[loc].glory;
-export const cartCashMax = (home: GameState) => Math.max(0, Math.min(Math.floor(home.money), Math.round(60 * infl(home.year))));
+/** the cart's cash: up to 60 ₽ (inflated), twice that from the rank «Лучший садовод района» (glory 450) */
+export const cartCashMax = (home: GameState, glory = 0) => Math.max(0, Math.min(Math.floor(home.money), Math.round(60 * infl(home.year) * (glory >= 450 ? 2 : 1))));
 export const CART_CARDS = 3;
+/** cards on the cart: 3, four from the rank «Мастер урожая» (glory 250) */
+export const cartCardLimit = (glory = 0) => CART_CARDS + (glory >= 250 ? 1 : 0);
 export interface Cart { uids: number[]; worker?: WorkerId; cash: number }
 
 /** the three plots on offer for this departure (a condition and a find each), fixed for the home's week */
@@ -33,13 +36,13 @@ export function departProblem(home: GameState, loc: ExpeditionId, glory: number,
   if (!expeditionOpen(loc, glory)) return `Откроется со славой ${LOCATIONS[loc].glory}`;
   if (!cart) return null;
   const uids = [...new Set(cart.uids)];
-  if (uids.length > CART_CARDS) return `В обоз помещается ${CART_CARDS} карты`;
+  if (uids.length > cartCardLimit(glory)) return `В обоз помещается ${cartCardLimit(glory)} ${plural(cartCardLimit(glory), 'карта', 'карты', 'карт')}`;
   const own = cartCards(home);
   if (!uids.every((u) => own.some((c) => c.uid === u))) return 'Такой карты в колоде нет';
   const fromDeck = uids.filter((u) => deckList(home).some((c) => c.uid === u)).length;
   if (deckCount(home) - fromDeck < DECK_MIN) return `Дома в колоде должно остаться хотя бы ${DECK_MIN} карт`;
   if (cart.worker && !cartWorkers(home).some((w) => w.id === cart.worker)) return 'Этот работник сейчас не может уехать';
-  if (!(cart.cash >= 0) || cart.cash > cartCashMax(home)) return `С собой можно взять до ${money(cartCashMax(home))}`;
+  if (!(cart.cash >= 0) || cart.cash > cartCashMax(home, glory)) return `С собой можно взять до ${money(cartCashMax(home, glory))}`;
   return null;
 }
 

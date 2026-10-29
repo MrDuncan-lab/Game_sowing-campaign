@@ -13,7 +13,7 @@ import type { OrgId } from '../engine/data';
 import type { BuildItem } from '../engine/game';
 import { Icon } from '../art/icons';
 import { Btn, ClosedLayer, Dispatch, Money, Sheet, compactMoney, reducedMotionNow } from './common';
-import { ArrestLayer, HomeBankrupt, RivalSays, RunOver, VisitSheet } from './Run';
+import { ArrestLayer, HomeBankrupt, RivalSays, RoadSheet, RunOver, VisitSheet } from './Run';
 import { BankScene } from '../art/bankScene';
 import { FestivalSheet, RatingSheet, festToShow, markFestSeen } from './Festival';
 import { StoryLayer } from './Story';
@@ -97,7 +97,7 @@ function GameOver({ s, onMap, onRestart }: { s: GameState; onMap: () => void; on
         <div class="bank-grid">
           <div class="kv"><span>Прожито лет</span><b>{s.yearsCompleted}</b></div>
           <div class="kv"><span>Заработано</span><b>{money(s.earned)}</b></div>
-          <div class="kv"><span>Слава фермы</span><b>{s.glory}</b></div>
+          <div class="kv"><span>Слава с этой фермы</span><b>{s.glory}</b></div>
           <div class="kv"><span>Собрано урожая</span><b>{s.stats.harvested} ед.</b></div>
         </div>
         <p class="small muted">Грамоты, питомцы, семенной фонд и слава остаются в профиле — со следующей фермой будет легче.</p>
@@ -130,6 +130,7 @@ export function FarmScreen({ s, dispatch, profile, fast, onFast, onMap, onRestar
   const visitKey = s.run?.visit ? `${s.run.visit.id}:${s.run.visit.week}` : '';
   const [visitShut, setVisitShut] = useState('');
   const [rating, setRating] = useState(false);
+  const [road, setRoad] = useState(false);
   const [festShut, setFestShut] = useState(0);
   const pager = useRef<HTMLDivElement>(null);
   const tabRef = useRef<TabId>('field');
@@ -270,7 +271,7 @@ export function FarmScreen({ s, dispatch, profile, fast, onFast, onMap, onRestar
       <LessonLocks.Provider value={lockOf}><QuickProjects.Provider value={!!tutorial}><div class="pager" ref={pager}>
         <section class="pane" {...paneProps('lab')}><Peek area="lab" onBack={() => go('field')}><LabView s={s} act={dispatch} active={tab === 'lab' && !menu && !paymentOpen && !suspended && !tabLock('lab')} teaching={tutorial?.session.step === 'lab'} /></Peek></section>
         <section class="pane" {...paneProps('house')}><Peek area="house" onBack={() => go('field')}><HouseView s={s} act={dispatch} onFair={() => openBarn('fair')} onPlace={(item) => { setPlaceRequest({ item, key: Date.now() }); go('field'); }} /></Peek></section>
-        <section class="pane field-pane" {...paneProps('field')}><FieldView onPresent={setPresent} teaching={!!tutorial} precheck={tutorial?.precheck} lessonVisit={tutorial?.session.step==='visit'} onVisitDone={()=>{if(tutorial?.session.step==='visit')tutorial.onNext();}} onOrder={org=>{setOrderTarget({org,key:Date.now()});go('orders');}} onPayment={()=>setPaymentOpen(true)} onMap={onMap} villageApi={villageApi} onVillageMode={setFieldMode} testing={testing} s={s} dispatch={dispatch} fast={fast} active={tab === 'field' && !menu && !paymentOpen && !suspended} placeRequest={placeRequest} onGo={(t) => t === 'barn' ? openBarn() : t === 'fair' ? openBarn('fair') : go(t as TabId)} /></section>
+        <section class="pane field-pane" {...paneProps('field')}><FieldView onPresent={setPresent} teaching={!!tutorial} precheck={tutorial?.precheck} lessonVisit={tutorial?.session.step==='visit'} onVisitDone={()=>{if(tutorial?.session.step==='visit')tutorial.onNext();}} onOrder={org=>{setOrderTarget({org,key:Date.now()});go('orders');}} onPayment={()=>setPaymentOpen(true)} onMap={onMap} onRoad={!tutorial && onExpedition && s.loc === 'chernozem' ? () => setRoad(true) : undefined} villageApi={villageApi} onVillageMode={setFieldMode} testing={testing} s={s} dispatch={dispatch} fast={fast} active={tab === 'field' && !menu && !paymentOpen && !suspended} placeRequest={placeRequest} onGo={(t) => t === 'barn' ? openBarn() : t === 'fair' ? openBarn('fair') : go(t as TabId)} /></section>
         <section class="pane" {...paneProps('barn')}><Peek area="barn" onBack={() => go('field')}><BarnView s={s} act={dispatch} target={barnTarget} onPayment={()=>setPaymentOpen(true)} /></Peek></section>
         <section class="pane" {...paneProps('orders')}><Peek area="orders" onBack={() => go('field')}><OrdersView teaching={!!tutorial} target={orderTarget} s={s} act={dispatch} profile={profile} /></Peek></section>
       </div></QuickProjects.Provider></LessonLocks.Provider>
@@ -288,6 +289,7 @@ export function FarmScreen({ s, dispatch, profile, fast, onFast, onMap, onRestar
       </>}
       {festShut >= 0 && festToShow(s) && s.phase === 'week' && !tutorial && !menu && !paymentOpen && <FestivalSheet s={s} onClose={() => { markFestSeen(s, s.year); setFestShut(festShut + 1); }} />}
       {rating && <RatingSheet s={s} profile={profile} onClose={() => setRating(false)} />}
+      {road && onExpedition && <RoadSheet home={s} glory={profile.glory} onGo={onExpedition} onMap={onMap} onClose={() => setRoad(false)} />}
       {!tutorial && !testing && s.phase === 'week' && <StoryLayer s={s} blocked={!!menu || paymentOpen || !!festToShow(s) || rating || (!!visitKey && visitShut !== visitKey)} />}
       {menu && (
         <Sheet title={`${loc.name} · ${loc.place}`} icon="map" onClose={() => setMenu(false)}>
@@ -301,7 +303,7 @@ export function FarmScreen({ s, dispatch, profile, fast, onFast, onMap, onRestar
             {!tabs && villageApi.current?.available && <p class="small muted">Те же разделы стоят в деревне: потяните небо вниз или нажмите «Деревня».</p>}
             <Btn tone="primary" onClick={() => { setMenu(false); onMap(); }}><Icon name="map" size={20} /> Карта ферм</Btn>
             {s.run && <Btn onClick={() => { setMenu(false); openBarn('run'); }}><Icon name="cart" size={20} /> Вылазка: находки и свернуть</Btn>}
-            {!tutorial && !testing && <Btn onClick={() => { setMenu(false); setRating(true); }}><Icon name="trophy" size={20} /> Рейтинг и район</Btn>}
+            {!tutorial && !testing && <Btn onClick={() => { setMenu(false); setRating(true); }}><Icon name="trophy" size={20} /> Район и рекорды</Btn>}
             <Btn onClick={onFast}>{fast ? '⏩ Быстрая анимация' : '▶ Обычная анимация'}</Btn>
             {onTest&&<Btn onClick={()=>{setMenu(false);onTest();}}>Режим проверки</Btn>}
             <p class="small muted">{loc.text}</p>

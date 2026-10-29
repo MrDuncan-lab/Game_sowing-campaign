@@ -51,7 +51,7 @@ export function FieldVoice({s,active,onOpen,onOrder,cue=null,fallback,quiet=fals
    if(crowsOpen(s))options.push({key:'crows',who:'zina',text:'Вороны уже на грядках. Надо прогнать.'});
    if(s.yard.length)options.push({key:'yard',who:'buyer',text:'Ящики остались во дворе. Освободите место или продайте урожай.'});
    if(s.lastReport?.dried)options.push({key:'dry',who:'vera',text:'Часть посадок засохла. Остальным ещё можно помочь.'});
-   if(s.lastReport?.done.length)options.push({key:'done',who:'marat',text:'Работа закончена. Загляните в мастерскую.'});
+   if(s.lastReport?.done.length)options.push({key:'done',who:'palych',text:'Стройка или проект готовы. Загляните в «Дом» или в лабораторию.'});
    if(s.lastReport?.harvests.length)options.push({key:'harvest',who:'palych',text:'Урожай в амбаре. Можно приберечь для заказа.'});
    }
    next=options.find(x=>!seen.includes(x.key));

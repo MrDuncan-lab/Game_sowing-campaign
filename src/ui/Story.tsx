@@ -68,3 +68,4 @@ export function StoryLayer({ s, blocked }: { s: GameState; blocked: boolean }) {
   if (!id) return null;
   return <StorySheet id={id} onClose={() => { markBeat(s, id); setTick((t) => t + 1); }} />;
 }
+

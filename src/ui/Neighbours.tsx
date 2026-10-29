@@ -67,7 +67,7 @@ function YardBody({ s, y, act, onFair }: { s: GameState; y: YardId; act: Dispatc
               <span class="nb-step">{i < now ? '✓' : i + 1}</span>
               <span class="nb-stage-text">
                 <b>{st.name}</b>
-                <small>{i === 0 ? `обмен: ${D.swap.give}` : i === 1 ? D.second : D.third}</small>
+                <small>{i === 0 ? `мена: ${D.swap.give}` : i === 1 ? D.second : D.third}</small>
                 {state === 'next' && (
                   <span class="nb-need">
                     <ShedChips s={s} need={st.mat} />
@@ -91,7 +91,7 @@ function YardBody({ s, y, act, onFair }: { s: GameState; y: YardId; act: Dispatc
       )}
       {now >= 1 && (
         <section class="nb-swap">
-          <h3>Обмен{y === 'zina' && now >= 2 ? ' · каждую неделю' : ' · раз в сезон'}</h3>
+          <h3>Мена{y === 'zina' && now >= 2 ? ' · каждую неделю' : ' · раз в сезон'}</h3>
           <p class="small">{D.swap.take.qty} ед. {D.swap.take.name} одной культуры → {D.swap.give}</p>
           {y === 'zina' && (
             <div class="seg" role="radiogroup" aria-label="Какую карту взять">
@@ -215,7 +215,7 @@ export function NeighbourRow({ s, onOpen }: { s: GameState; onOpen: (k: Neighbou
             <Person id={D.person} size={56} />
             <b>{D.name.split(' ').at(-1)}</b>
             <Pips n={st} of={3} />
-            <small>{busy ? 'строим' : swap ? 'обмен' : help ? 'подмога' : st === 3 ? 'двор стоит' : D.stages[st].name}</small>
+            <small>{busy ? 'строим' : swap ? 'мена' : help ? 'подмога' : st === 3 ? 'двор стоит' : D.stages[st].name}</small>
           </button>
         );
       })}
