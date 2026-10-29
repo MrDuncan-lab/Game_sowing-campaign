@@ -410,10 +410,10 @@ function fellLabel(t: Tile): string {
 }
 
 // ---------- the build palette ----------
-const BUILD_NAMES: Record<BuildItem, { name: string; icon: string; track: string; place: string }> = {
+const BUILD_NAMES: Record<BuildItem, { name: string; icon: string; track: string; place: string; short?: string }> = {
   greenhouse: { name: 'Теплица', icon: 'greenhouse', track: 'greenhouse', place: 'свободная грядка' },
   hive: { name: 'Улей', icon: 'hive', track: 'apiary', place: 'пустая грядка' },
-  drip: { name: 'Капельный полив', icon: 'drip', track: 'irrigation', place: 'ряд' },
+  drip: { name: 'Капельный полив', short: 'Капельница', icon: 'drip', track: 'irrigation', place: 'ряд' },
   scarecrow: { name: 'Пугало', icon: 'scarecrow', track: 'guard', place: 'стык 4 грядок' },
   canal: { name: 'Канал', icon: 'canal', track: 'canal', place: 'у реки или канала' },
   fire: { name: 'Кострище', icon: 'fire', track: 'fires', place: 'стык 4 грядок' },
@@ -1082,6 +1082,11 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
   });
 
   const buildItem = build && build !== 'menu' ? build : null;
+  // 29.10 · what is built but not on the field yet (a fire pit, a scarecrow, a greenhouse…): the build mode offers it
+  // right here, so a new piece is placed from the field, not only from the House's «Ждут места на поле»
+  const waiting = (Object.keys(BUILD_NAMES) as BuildItem[]).map((item) => { const st = buildStock(s)[item]; return [item, st.have - st.used] as const; }).filter(([item, n]) => n > 0 && buildSpots(s, item).length > 0);
+  // after a piece is placed the mode stays on it while more of it wait in stock and there is still a free place for one
+  const moreOf = (n: GameState, item: BuildItem) => { const st = buildStock(n)[item]; return st.have - st.used > 0 && buildSpots(n, item).length > 0; };
   const buildView: BuildView | null = useMemo(() => {
     if (!build) return null;
     const spots = new Set<string>();
@@ -1222,7 +1227,8 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
       }
       if (buildItem && buildView?.spots.has(key(x, y))) {
         const a: Action = moveFrom ? { t: 'moveBuild', item: buildItem, from: moveFrom, to: [x, y] } : { t: 'build', item: buildItem, x, y };
-        if (act(a)) { setMoveFrom(null); setBuild(teaching ? null : 'menu'); }
+        const n = act(a);
+        if (n) { const more = !moveFrom && moreOf(n, buildItem); setMoveFrom(null); setBuild(teaching ? null : more ? buildItem : 'menu'); }
         else say('Сюда не поставить');
         return;
       }
@@ -1253,7 +1259,8 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
     if (buildItem !== 'scarecrow' && buildItem !== 'fire') return;
     if (moveFrom && moveFrom[0] === x && moveFrom[1] === y) { setMoveFrom(null); setBuild('menu'); return; }
     const a: Action = moveFrom ? { t: 'moveBuild', item: buildItem, from: moveFrom, to: [x, y] } : { t: 'build', item: buildItem, x, y };
-    if (act(a)) { setMoveFrom(null); setBuild('menu'); }
+    const n = act(a);
+    if (n) { const more = !moveFrom && moreOf(n, buildItem); setMoveFrom(null); setBuild(more ? buildItem : 'menu'); }
   }
   function pickCard(uid: number) {
     // PSV-005 · while the week's events play, the hand is the next week's: nothing in it can be played yet,
@@ -1814,7 +1821,7 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
         {flash && <div class="flash" role="status">{flash}</div>}
       </div>
 
-      <footer ref={dockRef} class={`dock${card ? ' picking' : ''}${shown ? ' reading' : ''}${room.read ? ' roomy' : ''}${room.read > 40 ? ' roomy-2' : ''}${build || lens ? ' viewing' : ''}`}>
+      <footer ref={dockRef} class={`dock${card ? ' picking' : ''}${shown ? ' reading' : ''}${room.read ? ' roomy' : ''}${room.read > 40 ? ' roomy-2' : ''}${build || lens ? ' viewing' : ''}${build && !buildItem && !moveFrom && waiting.length > 0 ? ' tray-open' : ''}`}>
         {lockNote && <div class="lock-say" role="status"><Icon name="lock" size={14} /><span>{lockNote}</span></div>}
         <div class="dock-top">
           <button type="button" class={`deck-pile dock exchange-deck${exchanging?' choosing':''}${deckLock?' locked':''}`} disabled={weekPlaying} aria-pressed={exchanging==='card'} onClick={()=>{
@@ -1834,7 +1841,7 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
                 : [
                   { k: 'journal', icon: 'journal', name: 'Журнал', label: 'Журнал фермы', urgent: urgent, run: () => { setTools(false); openSheet('journal'); } },
                   { k: 'lens', icon: 'lens', name: 'Линзы', label: 'Линзы', urgent: false, run: () => { setBuild(null); setMoveFrom(null); setSelected(null); closeContext(); setLensMenu(true); } },
-                  { k: 'build', icon: 'build', name: 'Постройки', label: 'Постройки', urgent: false, run: () => { setLens(null); setLensMenu(false); setMoveFrom(null); setSelected(null); closeContext(); setTools(false); setBuild('menu'); } },
+                  { k: 'build', icon: 'build', name: 'Постройки', label: waiting.length ? `Постройки: ждут места — ${waiting.map(([item, n]) => `${BUILD_NAMES[item].name} ${n}`).join(', ')}` : 'Постройки', urgent: waiting.length > 0, run: () => { setLens(null); setLensMenu(false); setMoveFrom(null); setSelected(null); closeContext(); setTools(false); setBuild('menu'); } },
                 ]).map((t, i) => (
                 <button type="button" key={t.k} class={`tool-btn arc-btn${t.urgent ? ' urgent' : ''}`} style={{ ['--i' as string]: String(i) }} aria-label={t.label} tabIndex={tools ? 0 : -1} aria-hidden={!tools} disabled={weekPlaying && t.k !== 'journal'} onClick={t.run}>
                   <Icon name={t.icon} size={23} /><small>{t.name}</small>{t.urgent && <i aria-hidden="true" />}
@@ -1862,7 +1869,9 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
             {weekPlaying ? <FieldVoice s={s} active={lifeActive&&pageVisible} cue={weekCue} quiet={true} testReplay={testing} onOpen={()=>openSheet('journal')} fallback={<span />}/>
               : exchanging ? <><span class="say-two"><strong>{exchanging==='compost'?'Что заменит компост?':'Какую обменять?'}</strong><small>{exchanging==='compost'?'карта уйдёт в сброс':`коснитесь карты${exDays ? ' · 1 день' : ''}`}</small></span><button class="exchange-cancel" onClick={()=>setExchanging(false)}>Отмена</button></>
               : watering ? <><strong>Полив {watering.length}/{handWaterMax(s)}</strong><small>отметьте соседние грядки</small></>
-              : build ? <><span class="say-two"><strong>{buildItem ? BUILD_NAMES[buildItem].name : 'Постройки'}</strong><small>{buildItem === 'scarecrow' || buildItem === 'fire' ? 'коснитесь угла грядки' : moveFrom || buildItem ? 'коснитесь подсветки' : 'коснитесь постройки'}</small></span>
+              : build ? <>{!buildItem && !moveFrom && waiting.length > 0
+                  ? <span class="say-two"><strong>Ждут места</strong><small>что поставить?</small></span>
+                  : <span class="say-two"><strong>{buildItem ? `${BUILD_NAMES[buildItem].name}${!moveFrom && buildStock(s)[buildItem].have - buildStock(s)[buildItem].used > 1 ? ` · ${buildStock(s)[buildItem].have - buildStock(s)[buildItem].used}` : ''}` : 'Постройки'}</strong><small>{buildItem === 'scarecrow' || buildItem === 'fire' ? (moveFrom ? 'коснитесь другого угла' : 'коснитесь угла грядок') : moveFrom || buildItem ? 'коснитесь подсветки' : 'коснитесь постройки, чтобы перенести'}</small></span>}
                   <button type="button" class="say-done" onClick={() => { setBuild(null); setMoveFrom(null); }}>Готово</button></>
               : lens ? <>
                   <span class="lens-switch" role="group" aria-label="Линзы">{(['water', 'soil', 'temp'] as const).map((l) => <button type="button" class={lens === l ? 'on' : ''} aria-pressed={lens === l} aria-label={l === 'water' ? 'Влага' : l === 'soil' ? 'Плодородие' : 'Температура почвы'} onClick={() => setLens(l)}><Icon name={l === 'water' ? 'drop' : l === 'soil' ? 'compost' : 'thermo'} size={18} /></button>)}</span>
@@ -1875,6 +1884,9 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
             <button type="button" class="icon-btn tool-x" onClick={() => setSelected(null)} aria-label="Отменить выбор">✕</button>
           </div>}
         </div>
+        {build && !buildItem && !moveFrom && waiting.length > 0 && <div class="build-tray" role="group" aria-label="Ждут места на поле">
+          <div class="build-tray-row">{waiting.map(([item, n]) => <button type="button" class="tray-piece" onClick={() => { setMoveFrom(null); setBuild(item); }} aria-label={`Поставить: ${BUILD_NAMES[item].name}, ещё ${n}`}><Icon name={BUILD_NAMES[item].icon} size={26} /><span>{BUILD_NAMES[item].short ?? BUILD_NAMES[item].name}</span><small>{BUILD_NAMES[item].place}</small><b>{n}</b></button>)}</div>
+        </div>}
         <div class={`hand-row${weekPlaying ? ' upcoming' : ''}`} style={{ ['--cw' as string]: `${fan.cw}px` }}>
           <div
             class={`hand fan${fan.tight ? ' tight' : ''}${peek !== null ? ' peeking' : ''}`}

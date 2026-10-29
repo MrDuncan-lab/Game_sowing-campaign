@@ -771,3 +771,17 @@ button.hero { appearance: none; text-align: left; cursor: pointer; color: var(--
 .estate-scene.winter .cellar-turf { fill: #eef4f8; }
 .estate-scene.winter .house-flowers { display: none; }
 .estate-scene.autumn .cellar-turf { fill: #9a9a52; }
+/* 29.10 · test mode «Поселения»: a card per place's rule, «Когда / Как / Зачем» */
+.test-places{display:flex;flex-direction:column;gap:10px;}
+.test-place-group{display:flex;flex-direction:column;gap:7px;}
+.test-place-group>h4{margin:6px 0 0;font-size:.84rem;color:#6a4321;}
+.test-place{display:flex;flex-direction:column;gap:6px;padding:9px 10px;border:1.5px solid #ad8b61;border-radius:10px;background:#fff8e8;}
+.test-place.chosen{border-color:#5b8839;background:#edf4d8;}
+.test-place-go{display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:0;border:0;background:none;color:var(--ink);font:inherit;text-align:left;cursor:pointer;}
+.test-place-go>b{font-size:.88rem;text-decoration:underline;text-decoration-color:#c9a878;text-underline-offset:3px;}
+.test-place-go>span{flex:none;font-size:.7rem;color:var(--ink-soft);}
+.test-place dl{display:grid;grid-template-columns:auto 1fr;gap:3px 8px;margin:0;font-size:.73rem;line-height:1.3;}
+.test-place dt{font-weight:700;color:#7a5a33;}
+.test-place dd{margin:0;color:var(--ink-soft);}
+.seg.test-tabs{display:flex;flex-wrap:wrap;}
+.seg.test-tabs>button{flex:1 1 auto;font-size:.8rem;padding:6px 8px;}

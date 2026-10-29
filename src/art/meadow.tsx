@@ -19,6 +19,106 @@ export function hash2(x: number, y: number, k = 0) {
 // spots away from the centre of the plot, so the "for sale" sign in the middle stays clear
 const SPOTS: [number, number][] = [[29, 70], [71, 68], [30, 31], [70, 33]];
 
+/** 29.10 · the ground of each region: the home's hill, Заречье's lush river meadow, the Kuban's sun-bleached
+ *  steppe, the Altai's dark taiga floor (needles and moss). `forest` is the ground under the trees of a taiga plot. */
+export interface Ground { grass: string; dark: string; hatch: string; buy: string; tuft: string; forest: string }
+export const GROUND: Record<string, Ground> = {
+  chernozem: { grass: P.grass, dark: P.grassDark, hatch: '#4f8a30', buy: '#97b267', tuft: P.grassDark, forest: '#4f7d3a' },
+  rent: { grass: '#86a957', dark: '#62873e', hatch: '#4a8530', buy: '#97b768', tuft: '#5a843a', forest: '#4a7638' },
+  kuban: { grass: '#a2a856', dark: '#818a42', hatch: '#6e7a2c', buy: '#b0b267', tuft: '#868a46', forest: '#5f7f3e' },
+  altai: { grass: '#5e8a4c', dark: '#43673a', hatch: '#33573a', buy: '#6c9657', tuft: '#3d6034', forest: '#2f4f36' },
+};
+export const ground = (region?: string): Ground => GROUND[region ?? 'chernozem'] ?? GROUND.chernozem;
+
+// ---- the taiga floor: ferns, moss, cones, lingonberries
+function Fern({ k }: { k: number }) {
+  const fronds: [number, number][] = [[-24, -1], [-8, 1], [10, 1], [26, -1]];
+  return (
+    <g>
+      <ellipse cx={0} cy={6} rx={15} ry={3} fill="rgba(0,0,0,0.14)" />
+      {fronds.map(([a, l], i) => (
+        <g transform={`rotate(${a + (k % 2 ? 6 : -6)})`}>
+          <path d={`M0 6 Q${l * 2} -8 ${l} -20`} stroke="#2f6a2a" stroke-width={1.6} fill="none" stroke-linecap="round" />
+          {[-16, -11, -6, -1].map((y, j) => <path d={`M${l * (1 - (y + 20) / 30)} ${y} l${-5 + j * .6} ${-2 - (i % 2)} M${l * (1 - (y + 20) / 30)} ${y} l${5 - j * .6} ${-2 - (i % 2)}`} stroke={i % 2 ? '#4c8a34' : '#3f7a2c'} stroke-width={1.7} stroke-linecap="round" />)}
+        </g>
+      ))}
+    </g>
+  );
+}
+function Moss() {
+  return (
+    <g>
+      <path d="M-16 6 Q-14 -3 -6 -2 Q-2 -7 5 -3 Q12 -6 16 2 Q17 7 10 7 H-12 Q-17 8 -16 6 Z" fill="#6f9a4c" stroke="#3f6234" stroke-width={1.2} stroke-linejoin="round" />
+      <path d="M-10 2 q2 -2 4 0 M0 0 q2 -2 4 0 M8 3 q2 -2 4 0" stroke="#9cc46a" stroke-width={1.2} fill="none" stroke-linecap="round" />
+      <circle cx={-3} cy={-1} r={1.2} fill="#c9d98a" /><circle cx={9} cy={0} r={1} fill="#c9d98a" />
+    </g>
+  );
+}
+function Cones() {
+  const cone = (x: number, y: number, r: number) => (
+    <g transform={`translate(${x} ${y}) rotate(${r})`}>
+      <path d="M0 -6 Q4 -3 3.4 2 Q0 6 -3.4 2 Q-4 -3 0 -6 Z" fill="#8a5a33" stroke={INK} stroke-width={1} />
+      <path d="M-2.6 -1 l2.6 1.4 l2.6 -1.4 M-2.8 2 l2.8 1.4 l2.8 -1.4" stroke="#c48a55" stroke-width={.7} fill="none" />
+    </g>
+  );
+  return (
+    <g>
+      <ellipse cx={1} cy={6} rx={13} ry={2.6} fill="rgba(0,0,0,0.12)" />
+      {cone(-7, 1, -30)}{cone(4, 3, 70)}{cone(10, -3, 20)}
+      <path d="M-14 6 l4 -2 M-12 7 l5 0 M12 6 l4 -1 M8 7 l3 -2" stroke="#7a6038" stroke-width={.9} stroke-linecap="round" />
+    </g>
+  );
+}
+function Lingonberry() {
+  return (
+    <g>
+      {[[-9, 0], [-2, -5], [6, -1], [12, -6], [2, 4]].map(([x, y], i) => (
+        <g transform={`translate(${x} ${y})`}>
+          <ellipse rx={2.6} ry={1.6} fill="#2f6a2a" stroke="#1f4a20" stroke-width={.4} transform={`rotate(${i * 40})`} />
+          <ellipse cx={2} cy={1} rx={2.6} ry={1.6} fill="#3f7a2c" stroke="#1f4a20" stroke-width={.4} transform={`rotate(${-i * 30})`} />
+          {i % 2 === 0 && <circle cx={0} cy={-2.4} r={1.8} fill="#c42f2a" stroke="#7a1f1a" stroke-width={.5} />}
+        </g>
+      ))}
+    </g>
+  );
+}
+// ---- the steppe: feather grass, wormwood, thistle
+function FeatherGrass({ k }: { k: number }) {
+  return (
+    <g class="m-sway" style={{ animationDelay: `${-k * 1.1}s` }}>
+      {[[-10, -24, -9], [-4, -30, -4], [2, -32, 3], [8, -26, 9], [13, -20, 13]].map(([x, h, lean]) => (
+        <g>
+          <path d={`M${x} 6 Q${x + lean * .2} ${h * .4} ${x + lean} ${h}`} stroke="#8a8a48" stroke-width={1.3} fill="none" stroke-linecap="round" />
+          <path d={`M${x + lean} ${h} q${lean * .6 + 4} 4 ${lean * 1.2 + 8} 12`} stroke="#f2ecd0" stroke-width={2.2} fill="none" stroke-linecap="round" opacity={.9} />
+        </g>
+      ))}
+    </g>
+  );
+}
+function Wormwood() {
+  return (
+    <g>
+      <ellipse cx={0} cy={6} rx={14} ry={3} fill="rgba(0,0,0,0.12)" />
+      {[[-8, -10, -14], [-2, -16, -4], [5, -14, 8], [11, -8, 16]].map(([x, h, lean]) => (
+        <g>
+          <path d={`M${x} 6 Q${x + lean * .3} ${h * .5} ${x + lean * .5} ${h}`} stroke="#8fa08a" stroke-width={1.5} fill="none" stroke-linecap="round" />
+          {[0.3, 0.6, 0.9].map((f) => <path d={`M${x + lean * .5 * f} ${6 + (h - 6) * f} l-3 -2 M${x + lean * .5 * f} ${6 + (h - 6) * f} l3 -2`} stroke="#b9c7b0" stroke-width={1.6} stroke-linecap="round" />)}
+        </g>
+      ))}
+    </g>
+  );
+}
+function Thistle() {
+  return (
+    <g>
+      <path d="M0 8 V-12" stroke="#6f8a4a" stroke-width={1.6} />
+      <path d="M0 -2 l-7 -3 l3 3 l-5 1 M0 2 l7 -3 l-3 3 l5 1" stroke="#6f8a4a" stroke-width={1.3} fill="none" stroke-linejoin="round" />
+      <path d="M-3.4 -12 Q0 -16 3.4 -12 Q2 -9 0 -9 Q-2 -9 -3.4 -12 Z" fill="#7f9a5a" stroke={INK} stroke-width={.7} />
+      {[-40, -20, 0, 20, 40].map((a) => <path d="M0 -14 l0 -5" stroke="#b05aa8" stroke-width={1.6} stroke-linecap="round" transform={`rotate(${a} 0 -14)`} />)}
+    </g>
+  );
+}
+
 function Tuft({ x, y, s = 1, c = P.grassDark }: { x: number; y: number; s?: number; c?: string }) {
   return <path d={`M${x} ${y} l${-3 * s} ${-7 * s} M${x} ${y} l0 ${-9 * s} M${x} ${y} l${3 * s} ${-7 * s}`} stroke={c} stroke-width={1.9} stroke-linecap="round" />;
 }
@@ -216,14 +316,20 @@ export function propPlot(cands: [number, number][]): string | null {
 }
 
 /** What grows on a free plot: a hash picks the kind, the season picks how it looks. */
-export function MeadowDecor({ x, y, season, prop }: { x: number; y: number; season: Season; prop?: boolean }) {
+export function MeadowDecor({ x, y, season, prop, region = 'chernozem' }: { x: number; y: number; season: Season; prop?: boolean; region?: string }) {
   const r = hash2(x, y), r2 = hash2(y + 7, x + 3), k = Math.floor(hash2(x, y, 5) * 4);
   const [sx, sy] = SPOTS[Math.floor(r2 * 4) % 4];
   const winter = season === 3;
-  const tuftC = winter ? '#b9cbd6' : P.grassDark;
+  const tuftC = winter ? '#b9cbd6' : ground(region).tuft;
   const tufts = [[18, 30], [64, 22], [40, 72], [80, 76], [22, 84], [86, 44]] as const;
   let el: JSX.Element | null = null;
   if (prop) el = winter ? <Snowman /> : season === 0 ? <Seedlings /> : <HayBale />;
+  // 29.10 · the taiga floor in the Altai, the steppe on the Kuban
+  else if (!winter && region === 'altai') {
+    el = r < .2 ? <Fern k={k} /> : r < .32 ? <Moss /> : r < .42 ? (season === 0 ? <Fern k={k + 1} /> : <Mushrooms />) : r < .5 ? <Cones /> : r < .58 ? <Stump /> : r < .68 ? (season === 2 ? <Lingonberry /> : <Moss />) : r < .74 ? <Stones /> : null;
+  } else if (!winter && region === 'kuban') {
+    el = r < .18 ? <FeatherGrass k={k} /> : r < .3 ? <Wormwood /> : r < .38 ? <Thistle /> : r < .46 ? <Stones /> : r < .56 ? (season === 0 ? <Dandelions k={k} /> : season === 1 ? <Poppies /> : <Leaves k={k} />) : r < .62 ? <Molehill /> : r < .7 ? <FeatherGrass k={k + 2} /> : null;
+  }
   else if (winter) {
     if (r < .3) el = <SnowMound />;
     else if (r < .38) el = <Stump />;
@@ -237,25 +343,33 @@ export function MeadowDecor({ x, y, season, prop }: { x: number; y: number; seas
   return (
     <g class="meadow-decor" pointer-events="none">
       {tufts.map(([a, b], i) => ((i + k) % 3 === 0 ? null : <Tuft x={a + (r2 - .5) * 6} y={b} s={.8 + ((i * 7 + k) % 4) * .1} c={tuftC} />))}
-      {!winter && !prop && r >= .8 && <g transform={`translate(${sx} ${sy})`}>{season === 0 ? <Dandelions k={k + 1} /> : season === 1 ? <Chamomile k={k} /> : <Leaves k={k + 2} />}</g>}
+      {!winter && !prop && r >= .8 && region !== 'altai' && region !== 'kuban' && <g transform={`translate(${sx} ${sy})`}>{season === 0 ? <Dandelions k={k + 1} /> : season === 1 ? <Chamomile k={k} /> : <Leaves k={k + 2} />}</g>}
       {el && <g transform={`translate(${sx} ${sy})`}>{el}</g>}
     </g>
   );
 }
 
 /** The grass under everything: varied tufts, seed dots and a little engraver's hatching. */
-/** 29.10 · each region's grass: the Kuban steppe yellower, the Altai cooler and deeper */
-const REGION_GRASS: Record<string, [string, string, string]> = { kuban: ['#9fa956', '#7f8a40', '#6e7a2c'], altai: ['#76a05c', '#527a3f', '#3f7a3a'] };
 export function GrassPattern({ winter, region = 'chernozem' }: { winter: boolean; region?: string }) {
-  const tint = REGION_GRASS[region];
-  const base = winter ? '#e8f1f6' : tint?.[0] ?? P.grass, dark = winter ? '#c9dbe6' : tint?.[1] ?? P.grassDark, hatch = winter ? '#9fb6c4' : tint?.[2] ?? '#4f8a30';
+  const g = ground(region);
+  const base = winter ? '#e8f1f6' : g.grass, dark = winter ? '#c9dbe6' : g.dark, hatch = winter ? '#9fb6c4' : g.hatch;
   return (
     <pattern id="grass-tex" width="120" height="120" patternUnits="userSpaceOnUse">
       <rect width="120" height="120" fill={base} />
       <path d="M10 14 l-2 -6 M10 14 l2 -6 M40 44 l-2 -6 M40 44 l2 -6 M48 12 l-2 -5 M86 26 l-2 -6 M86 26 l1 -7 M86 26 l3 -5 M22 92 l-2 -5 M22 92 l2 -6 M70 84 l-3 -5 M70 84 l1 -6 M104 70 l-2 -5 M104 70 l2 -5 M58 108 l-2 -6 M58 108 l2 -5" stroke={dark} stroke-width={2} stroke-linecap="round" opacity={0.5} />
       <path d="M96 100 l6 -6 M99 103 l6 -6 M102 106 l5 -5 M28 58 l5 -5 M31 61 l5 -5 M34 64 l4 -4 M70 46 l4 -4 M73 49 l4 -4" stroke={hatch} stroke-width={.9} stroke-linecap="round" opacity={0.28} />
       <g fill={dark} opacity={0.45}><circle cx="62" cy="64" r="1.1" /><circle cx="16" cy="40" r=".9" /><circle cx="110" cy="16" r="1" /><circle cx="40" cy="114" r=".9" /><circle cx="94" cy="56" r=".8" /></g>
-      {!winter && <g fill="#fbf3ff" opacity={0.75}><circle cx="78" cy="102" r="1.3" /><circle cx="8" cy="66" r="1.1" /></g>}
+      {!winter && region !== 'altai' && region !== 'kuban' && <g fill="#fbf3ff" opacity={0.75}><circle cx="78" cy="102" r="1.3" /><circle cx="8" cy="66" r="1.1" /></g>}
+      {/* 29.10 · the taiga floor: fallen needles and moss; the steppe: dry stalks and feather grass */}
+      {!winter && region === 'altai' && <>
+        <path d="M14 20 l5 -1.4 M15 23 l4.6 1 M52 58 l5 -1.6 M53 61 l4.4 1.2 M96 34 l-5 -1.2 M95 37 l-4 1.4 M30 100 l5 -1 M74 88 l-4.6 -1.6 M108 106 l4 -2" stroke="#7a6438" stroke-width={1.1} stroke-linecap="round" opacity={0.55} />
+        <g fill="#7da55a" opacity={0.35}><circle cx="40" cy="20" r="5" /><circle cx="88" cy="70" r="6" /><circle cx="14" cy="88" r="4" /></g>
+      </>}
+      {!winter && region === 'kuban' && <>
+        <path d="M24 16 l-1 -7 M27 16 l1 -6 M70 54 l-1.4 -7 M73 54 l1 -6 M100 96 l-1 -6 M14 64 l1 -6" stroke="#d2bf72" stroke-width={1.4} stroke-linecap="round" opacity={0.6} />
+        <path d="M48 36 q6 -2 10 3 M86 100 q6 -2 10 3 M6 108 q6 -2 10 3" stroke="#f2ecd0" stroke-width={1.6} fill="none" stroke-linecap="round" opacity={0.55} />
+      </>}
+      {!winter && region === 'rent' && <g opacity={0.8}><circle cx="34" cy="48" r="1.4" fill="#f5d6e2" /><circle cx="96" cy="80" r="1.3" fill="#fbf3ff" /><circle cx="60" cy="112" r="1.2" fill="#f5d6e2" /></g>}
     </pattern>
   );
 }
@@ -381,9 +495,9 @@ export function YardDecor({ W, yard, season, region = 'chernozem', hauls = [] }:
 }
 
 /** Tufts and a few flowers along the edges of the board, between the beds and the frame. */
-export function EdgeDecor({ W, H, yard, season }: { W: number; H: number; yard: number; season: Season }) {
+export function EdgeDecor({ W, H, yard, season, region }: { W: number; H: number; yard: number; season: Season; region?: string }) {
   const winter = season === 3;
-  const c = winter ? '#b9cbd6' : P.grassDark;
+  const c = winter ? '#b9cbd6' : ground(region).dark;
   const items: JSX.Element[] = [];
   const n = Math.max(3, Math.round(W / 70));
   for (let i = 0; i < n; i++) {
