@@ -1,6 +1,7 @@
 import { render } from 'preact';
 import { App } from './ui/App';
 import favicon from './assets/favicon.png';
+import { initTelegram } from './ui/telegram';
 import './fonts.css';
 import './legacy.css';
 import './styles.css';
@@ -29,6 +30,8 @@ import './progression.css';
 import './lesson-locks.css';
 // the year's ordeal and the fire pits
 import './trials.css';
+
+initTelegram();
 
 // favicon is set from code so the single-file build keeps it inlined
 if (!document.querySelector('link[rel="icon"]')) {
