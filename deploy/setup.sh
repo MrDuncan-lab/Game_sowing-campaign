@@ -53,6 +53,8 @@ chmod 644 "$WEBROOT/index.html.gz.new"
 mv -f "$WEBROOT/index.html.new" "$WEBROOT/index.html"
 mv -f "$WEBROOT/index.html.gz.new" "$WEBROOT/index.html.gz"
 rm -f "\$TMP"
+# номер сборки — после самой игры: открытые копии увидят его и перезагрузятся уже на новый файл
+curl -fsSL --retry 3 -o "$WEBROOT/version.json.new" "$REPO_RAW/version.json" && chmod 644 "$WEBROOT/version.json.new" && mv -f "$WEBROOT/version.json.new" "$WEBROOT/version.json" || echo "version.json не скачался: автообновление в открытых копиях не сработает до следующего раза"
 echo "Игра обновлена: \$(date '+%F %T'), \$((SIZE/1024)) КБ"
 EOF
   chmod 755 /usr/local/bin/posevnaya-update
@@ -77,6 +79,12 @@ server {
     gzip_static on;
     gzip on;
     gzip_types text/css application/javascript;
+
+    # номер сборки для автообновления: никогда не из кэша
+    location = /version.json {
+        add_header Cache-Control "no-store" always;
+        add_header Access-Control-Allow-Origin "*" always;
+    }
 
     location / {
         try_files \$uri /index.html;

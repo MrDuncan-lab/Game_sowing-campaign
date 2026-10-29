@@ -102,3 +102,11 @@ test('taking over while a polite request is still pending leaves exactly one own
 test('takeOver without Web Locks fails closed', async () => {
   const s = createSaveSession(); assert.equal(await s.takeOver(), false); assert.equal(s.status().state, 'unsupported');
 });
+
+test('a frozen Cloudflare upload address points the bot to the project main address', async () => {
+  const { frozenDeploymentOrigin } = await import('../src/ui/autoUpdate');
+  assert.equal(frozenDeploymentOrigin('d59a8da1.posevnaya-game.pages.dev'), 'https://posevnaya-game.pages.dev');
+  assert.equal(frozenDeploymentOrigin('posevnaya-game.pages.dev'), null);
+  assert.equal(frozenDeploymentOrigin('main.posevnaya-game.pages.dev'), null);
+  assert.equal(frozenDeploymentOrigin('1-2-3-4.sslip.io'), null);
+});

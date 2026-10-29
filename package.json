@@ -8,7 +8,8 @@
     "build": "vite build",
     "test": "node --import tsx --test tests/*.test.ts",
     "sim": "tsx tools/sanity.ts",
-    "showcase": "tsx tools/showcase.ts"
+    "showcase": "tsx tools/showcase.ts",
+    "release": "node tools/release.mjs"
   },
   "dependencies": {
     "preact": "10.29.3"
