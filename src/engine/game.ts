@@ -3137,7 +3137,7 @@ function addGlory(s: GameState, n: number, id: string) {
 export const relClamp = (n: number) => Math.max(-100, Math.min(100, n));
 
 // ---------- visitors at the camp (v3 · docs/CHARACTERS-v3.md §5) ----------
-const visitKey = (s: GameState, id: VisitId) => (VISITS[id].once ? id : id === 'inspection' ? `${id}-${s.year}-${s.season}` : `${id}-${s.year}`);
+export const visitKey = (s: GameState, id: VisitId) => (VISITS[id].once ? id : id === 'inspection' ? `${id}-${s.year}-${s.season}` : `${id}-${s.year}`);
 /** empty beds the archaeologists could dig */
 export const digSpots = (s: GameState): [number, number][] =>
   ownedTiles(s).filter(([t]) => !t.crop && !t.structure && !t.canal && t.tree === undefined && TERRAIN[t.terrain].plantable && t.terrain !== 'swamp').map(([, x, y]) => [x, y]);

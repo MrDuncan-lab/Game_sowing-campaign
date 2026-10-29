@@ -2,6 +2,7 @@
 import * as G from './game';
 import * as D from './data';
 import {EpisodeKind,baseTemp} from './calendar';
+import * as R from './run';
 export const TEST_SCENARIOS=[
  ['planting','Посадка и поворот','Выберите карту. Повторное нажатие поворачивает фигуру.'],
  ['fullfield','Полное поле и полная рука','Перетащите карту: прицел выше пальца, на маленьких клетках появляется увеличение.'],
@@ -47,7 +48,7 @@ export const TEST_SCENARIOS=[
  ['trialFrost','Испытание: чёрный заморозок','Ночью будет −6°. Два кострища уже стоят: разожгите их, укройте грядки и завершите неделю.'],
  ['trialLocust','Испытание: великая саранча','Первая волна идёт с запада. Разожгите дымовые костры, поставьте охрану и завершите неделю.'],
  ['trialDrought','Испытание: великая сушь','Сушь: открытые грядки сохнут за неделю. Полейте, замульчируйте и завершите неделю.'],
- ['fires','Костры','Кострища построены: поставьте их на стык грядок в режиме построек и разожгите перед заморозком.'],
+ ['fires','Костры','Два кострища на складе, ночью будет −2°. Откройте ящик инструментов, затем «Постройки», выберите кострище и коснитесь угла между грядками. Над картами появится кнопка «Разжечь костры» (1 рабочий день): огонь согреет 4 соседние грядки.'],
  ['normal','Обычный старт','Чистая партия выбранного региона. Кнопки теста по-прежнему доступны.'],
 ] as const;
 export type TestScenario=typeof TEST_SCENARIOS[number][0];
@@ -244,4 +245,182 @@ export function testOrderFixture(org:D.OrgId,step=0):G.GameState{
  const q:G.Quest={id:s.nextQuestId++,org,step,title:story?.title??'Поставка к сроку',text:story?.text??'',lines:crops.slice(0,story?.lines??1).map(c=>({crop:c,qty:story?.qty??8})),pay:40,rel:18,weeks:story?.weeks??6,reward:story?.reward,createdWeek:s.absWeek,expires:s.absWeek+6};
  s.orgs[org]!.step=step;s.orgs[org]!.offer=q;
  return s;
+}
+
+// ---------- 29.10 · the settlements: each place's own rules, when they come and what they are for ----------
+// A scenario is a ready farm of its region (an expedition is a real expedition farm: camp, conditions, finds,
+// visitors, the region's troubles). `when` — when it happens in an ordinary game; `how` — what to do; `why` — what it
+// gives. Isolated like the rest of the test mode: no saves, no rewards.
+export interface SettlementTest { id: string; loc: D.LocationId; group: string; name: string; when: string; how: string; why: string }
+export const SETTLEMENT_TESTS: SettlementTest[] = [
+ {id:'home-start',loc:'chernozem',group:'Черноземье — родной дом',name:'Первое утро',when:'В начале каждой новой своей фермы.',how:'Марат из банка, Пряхин у ворот и Палыч приходят по очереди. «Дальше» — следующий.',why:'Ставит цель: выкупить дом за три осени и обойти Пряхина.'},
+ {id:'home-fair',loc:'chernozem',group:'Черноземье — родной дом',name:'Ярмарка сезона',when:'Открывается в первую неделю каждого сезона и стоит весь сезон.',how:'«Амбар → Ярмарка»: купить лот или дать задаток 25% (лот держится 2 недели). Пряхин присматривает один лот и в конце недели может его купить.',why:'Техника, стройматериалы и работники — то, чего нет в лавке.'},
+ {id:'home-buyout',loc:'chernozem',group:'Черноземье — родной дом',name:'Третья осень: выкуп дома',when:'Осенний взнос третьего года называется «Выкуп дома».',how:'Завершите неделю: взнос спишется, придёт Марат («Дом ваш»), Пряхин и Зина.',why:'Конец залога: дальше только налог раз в год, открываются соседи и клуб.'},
+ {id:'home-bank',loc:'chernozem',group:'Черноземье — родной дом',name:'Банк приезжает за домом',when:'Если взнос по залогу не оплачен и кредита нет.',how:'Выберите: начать заново или уйти на заработки (дом под арестом, две вылазки на долг).',why:'Цена ошибки в залоге — понятна без текста.'},
+ {id:'home-neighbours',loc:'chernozem',group:'Черноземье — родной дом',name:'Соседи и толока',when:'После выкупа дома.',how:'«Дом → Соседи»: стадия двора — стройка бригадой за деньги, материалы и урожай; мена с соседом; «Позвать соседа» +1 день. Три двора на ногах — общие постройки толокой.',why:'Поздняя игра наружу: кровати, услуги, клуб для праздника урожая.'},
+ {id:'home-show',loc:'chernozem',group:'Черноземье — родной дом',name:'Смотр урожая на площади',when:'Первая неделя каждой зимы, пока в деревне нет клуба.',how:'Завершите последнюю неделю осени: урожай года, число культур и лучшая грядка против Пряхина. Ничья — его.',why:'Слава и ежегодная дуэль с соперником.'},
+ {id:'home-festival',loc:'chernozem',group:'Черноземье — родной дом',name:'Праздник урожая в клубе',when:'Первая неделя зимы, когда клуб построен.',how:'Завершите неделю: первая победа в клубе — черенок антоновки и «сосед».',why:'Грамота, призовой лот на зимней ярмарке, веха летописи.'},
+ {id:'home-chronicle',loc:'chernozem',group:'Черноземье — родной дом',name:'Летопись закрывается',when:'Когда все семь вех записаны (в том числе «Три края»).',how:'Завершите неделю: на новом сезоне — эпилог (Палыч, Зина, Пряхин), грамота и +50 славы.',why:'Итог партии; игра продолжается.'},
+ {id:'home-road',loc:'chernozem',group:'Черноземье — родной дом',name:'Указатель у дороги',when:'Всегда в родном доме; края открываются славой (Кубань 40, Алтай 120).',how:'Деревня → табличка «Дорога»: что привезёт каждый край (жирным — чего дома нет), «Собрать обоз».',why:'Связь дома и вылазок.'},
+ {id:'rent-inspection',loc:'rent',group:'Заречье — аренда у Пряхина',name:'Пряхин с проверкой',when:'Раз в сезон на участке «Пряхинская полоса».',how:'Показать поле — за каждую заросшую грядку аренда +5%; угостить чаем — надбавка вдвое меньше. Прополите до ответа.',why:'Чистое поле дешевле; Пряхин — хозяин земли.'},
+ {id:'rent-camp',loc:'rent',group:'Заречье — аренда у Пряхина',name:'Лагерь: палатка → времянка',when:'С первой недели любой вылазки.',how:'«Дом → Стройки»: времянка за деньги и 8 брёвен (3 недели), потом полевой стан.',why:'Колода больше, скоропорт дольше, кровати и рабочий день.'},
+ {id:'kuban-boars',loc:'kuban',group:'Кубань — пойма',name:'Кабаны',when:'Лето–осень, раз в год (дважды у «Бахчи» со 2-го года); следы видны за неделю.',how:'Караул на грядке (1 день), пёс (в половине случаев), казачий разъезд, сторож. Завершите неделю.',why:'Корнеплоды и бахча на краю поля под угрозой.'},
+ {id:'kuban-wind',loc:'kuban',group:'Кубань — пойма',name:'Суховей',when:'Раз за лето (дважды у «Песчаной косы» со 2-го года), +4°.',how:'Открытые грядки теряют ещё 1 влагу, сухие гибнут сразу. Спасают мульча, укрытие, теплица, лес или дерево рядом.',why:'Учит держать влагу в жару.'},
+ {id:'kuban-fold',loc:'kuban',group:'Кубань — пойма',name:'Свернуть хозяйство и добыча',when:'После первого осеннего платежа вылазки.',how:'«Амбар → Вылазка → Свернуть»: выберите находки (по одной за осень и за цепочку заказов). Доля денег и обоз вернутся домой.',why:'Добыча для дома: семена, люди, материалы, «Три края» в летописи.'},
+ {id:'altai-bear',loc:'altai',group:'Алтай — заимка',name:'Медведь у пасеки',when:'Лето–осень (дважды у «Кедровника» и «Пасеки» со 2-го года); следы за неделю.',how:'Медведь идёт к улью и клубнике (метки на поле). Караул на грядке — 1 день, с Трещоткой бесплатно; ещё спасают охотник Афанасьич, Лайка Пурга, пёс, сторож.',why:'Беда края: защищайте ульи и ягодники.'},
+ {id:'altai-fire',loc:'altai',group:'Алтай — заимка',name:'Лесной пожар',when:'Летом после засухи или тепла (50% в 1-й год, 80% потом).',how:'Огонь берёт до 4 грядок у тайги. Не горят: полив до краёв (влага 3), окоп (караул), теплица.',why:'Тайга — и подспорье, и опасность; гарь становится землёй с почвой 4.'},
+ {id:'altai-taiga',loc:'altai',group:'Алтай — заимка',name:'Тайга: раскорчёвка и грибы',when:'Всегда на заимке.',how:'Коснитесь клетки тайги с топором — раскорчёвка за дни и деньги. Карта «Поход в лес» даёт грибы летом и осенью. Клюква растёт на болоте.',why:'Земля и урожай края; брёвна для лагеря.'},
+ {id:'visitor',loc:'kuban',group:'Встречные у лагеря',name:'Встречный (выберите кого)',when:'С 3-й недели вылазки, раз в 2–4 недели, зимой никого. Гость ждёт до конца недели.',how:'Ответьте на выбор в листе гостя: каждый встречный предлагает своё (см. список).',why:'Находки, защита от бед, люди и деньги — ценой урожая или грядок.'},
+ {id:'arrest',loc:'chernozem',group:'Вылазки и дом',name:'Дом под арестом',when:'После «Уйти на заработки».',how:'Долг ×1,2, две вылазки. Свёрнутое хозяйство сначала гасит долг. Не успели — дом покупает Пряхин.',why:'Второй шанс без потери профиля.'},
+];
+/** where a visitor of the «Встречный» scenario is met: the first region on its list */
+export const visitorLoc = (id: R.VisitId): D.ExpeditionId => R.VISITS[id].where[0];
+
+function expedition(loc: D.ExpeditionId, cond: R.CondId, relic: R.RelicId = 'kettle'): G.GameState {
+ const s = G.newGame({ loc, seed: `TEST-RUN-${loc}-${Date.now()}-${++serial}`, run: { cond, relics: [relic], home: 'TEST-HOME' } });
+ s.money = 600; s.days = 8; s.plan = []; s.strikes = []; s.crows = null; s.thieves = null;
+ for (const o of Object.values(s.orgs)) if (o) { o.offer = null; o.active = null; o.wait = 1000; }
+ return s;
+}
+const raid = (s: G.GameState, kind: G.StrikeKind, cells: [number, number][]) => {
+ s.plan.push({ id: 960, kind: kind as EpisodeKind, start: s.absWeek, len: 1 });
+ s.strikes.push({ kind, ep: 960, week: s.absWeek, cells: cells.map(([x, y]) => [x, y, G.tile(s, x, y).crop?.pid ?? 0] as [number, number, number]), zone: kind === 'fire' });
+};
+const ownedPlain = (s: G.GameState) => G.ownedTiles(s).filter(([t]) => D.TERRAIN[t.terrain].plantable && !t.canal && !t.structure);
+
+export function settlementFixture(id: string, visitor = 'shepherd'): G.GameState {
+ const s = placeFarm(id, visitor);
+ // the story shows only what the scenario itself raises (the first morning's scene belongs to «Первое утро»)
+ if (id !== 'home-start') s.beats = [];
+ return s;
+}
+/** a plain expedition farm of a region, for the test mode's road and arrest buttons */
+export const testExpedition = (loc: D.ExpeditionId) => settlementFixture(`run-${loc}`);
+function placeFarm(id: string, visitor: string): G.GameState {
+ if (id.startsWith('run-') && (D.EXPEDITION_IDS as string[]).includes(id.slice(4))) { const loc = id.slice(4) as D.ExpeditionId; return expedition(loc, R.REGION_CONDS[loc][0]); }
+ if (id === 'home-start') return G.newGame({ loc: 'chernozem', seed: `TEST-START-${Date.now()}-${++serial}` });
+ if (id === 'home-fair') { const s = testFixture('normal', 'chernozem'); s.money = 400; s.mats = { logs: 0, bricks: 0, glass: 0 }; return s; }
+ if (id === 'home-buyout' || id === 'home-show' || id === 'home-festival' || id === 'home-chronicle') {
+  const s = testFixture('normal', 'chernozem');
+  const se = D.LOCATIONS.chernozem.seasons;
+  testDate(s, 2, id === 'home-buyout' ? 3 : 5);
+  s.week = se[0] + se[1] + se[2]; s.absWeek = s.yearStart + s.week - 1; s.weekInSeason = se[2];
+  s.money = 3000; s.days = 8;
+  for (const o of Object.values(s.orgs)) if (o) { o.offer = null; o.active = null; o.wait = 1000; }
+  if (id === 'home-buyout') { s.paidYears = 2; delete s.owned; return s; }
+  s.owned = true; s.paidYears = 3; s.levels.house = 5;
+  s.yearHarvest = { year: s.year, units: 900, kinds: ['potato', 'radish', 'wheat', 'cabbage', 'carrot', 'onion', 'bean', 'pumpkin', 'buckwheat'], best: 50, bestCrop: 'potato' };
+  if (id === 'home-festival' || id === 'home-chronicle') s.commons = ['club'];
+  if (id === 'home-chronicle') {
+   s.levels.house = 7;
+   s.yards = { zina: { stage: 2 }, savva: { stage: 2 }, efim: { stage: 2 }, miller: { stage: 2 }, karpov: { stage: 2 } };
+   s.fests = [{ club: true, year: s.year - 1, you: { units: 800, kinds: 9, best: 40 }, rival: { units: 500, kinds: 8, best: 32 }, won: ['units', 'kinds', 'best'], win: true, glory: 30 }];
+   s.told = [...(s.told ?? []), 'fest-pact', 'district-first'];
+   s.trips = [{ loc: 'rent', year: 2, loot: ['rentLogs'] }, { loc: 'kuban', year: 3, loot: ['seedWatermelon'] }, { loc: 'altai', year: 4, loot: ['logs24'] }];
+  }
+  return s;
+ }
+ if (id === 'home-bank') {
+  const s = testFixture('normal', 'chernozem');
+  s.money = 0; s.storage = []; s.phase = 'gameover'; s.over = { reason: 'Не хватило на осенний взнос по залогу', work: 120 };
+  return s;
+ }
+ if (id === 'home-neighbours') {
+  const s = testFixture('normal', 'chernozem');
+  testDate(s, 1, 4); s.owned = true; s.paidYears = 3; s.levels.house = 3; s.money = 2500; s.days = 8;
+  s.mats = { logs: 40, bricks: 40, glass: 20 };
+  s.yards = { zina: { stage: 1 }, savva: { stage: 1 }, efim: { stage: 0 }, miller: { stage: 0 }, karpov: { stage: 1 } };
+  s.storage = [{ crop: 'potato', qty: 40, age: 0 }, { crop: 'cabbage', qty: 30, age: 0 }, { crop: 'wheat', qty: 40, age: 0 }, { crop: 'carrot', qty: 20, age: 0 }, { crop: 'radish', qty: 20, age: 0 }];
+  s.levels.barn = 4;
+  return s;
+ }
+ if (id === 'home-road') { const s = testFixture('normal', 'chernozem'); s.money = 500; return s; }
+ if (id === 'arrest') {
+  const s = testFixture('normal', 'chernozem');
+  s.phase = 'arrest'; s.arrest = { debt: 140, runs: 2 }; s.over = null;
+  return s;
+ }
+ if (id === 'rent-inspection') {
+  const s = expedition('rent', 'strip');
+  testDate(s, 1); s.money = 600; s.days = 8;
+  const beds = ownedPlain(s);
+  beds.slice(0, 4).forEach(([, x, y], i) => crop(s, x, y, i % 2 ? 'potato' : 'cabbage', 2));
+  for (const [t] of beds.slice(4, 6)) t.weeds = true;
+  s.storage = [{ crop: 'potato', qty: 10, age: 0 }];
+  s.run!.visit = { id: 'inspection', week: s.absWeek };
+  s.run!.seen.push(G.visitKey(s, 'inspection')); s.run!.nextVisit = s.absWeek + 3;
+  return s;
+ }
+ if (id === 'rent-camp') { const s = expedition('rent', 'road'); s.mats = { logs: 10, bricks: 6, glass: 0 }; return s; }
+ if (id === 'kuban-boars') {
+  const s = expedition('kuban', 'melons');
+  testDate(s, 1, 2); s.money = 600; s.days = 8;
+  const beds = ownedPlain(s);
+  beds.forEach(([, x, y], i) => crop(s, x, y, (['potato', 'watermelon', 'carrot', 'onion', 'pumpkin', 'radish'] as D.CropId[])[i % 6], 2));
+  raid(s, 'boars', beds.slice(0, 3).map(([, x, y]) => [x, y]));
+  testHand(s, ['water', 'mulch', 'early']);
+  return s;
+ }
+ if (id === 'kuban-wind') {
+  const s = expedition('kuban', 'spit');
+  testDate(s, 1, 2); s.money = 600; s.days = 8;
+  const beds = ownedPlain(s);
+  beds.forEach(([t, x, y], i) => { crop(s, x, y, i % 2 ? 'watermelon' : 'corn', 2); t.moisture = i % 3 ? 1 : 0; });
+  s.plan.push({ id: 961, kind: 'sukhovey', start: s.absWeek, len: 1 }); s.temps[s.week - 1] = 33; s.flags.dry = true;
+  testHand(s, ['water', 'water', 'mulch', 'shelter']);
+  return s;
+ }
+ if (id === 'kuban-fold') {
+  const s = expedition('kuban', 'aryks');
+  testDate(s, 2, 2); s.run!.autumns = 1; s.money = 900; s.mats = { logs: 6, bricks: 4, glass: 2 };
+  s.storage = [{ crop: 'watermelon', qty: 18, age: 0 }, { crop: 'rice', qty: 20, age: 0 }];
+  return s;
+ }
+ if (id === 'altai-bear') {
+  const s = expedition('altai', 'oldhives', 'rattle');
+  testDate(s, 1, 2); s.money = 600; s.days = 8;
+  const beds = ownedPlain(s);
+  // the old apiary's hive stands on the plot's last bed; the bear comes for it and the berries
+  const [ht, hx, hy] = beds[beds.length - 1];
+  beds.slice(0, -1).forEach(([, x, y], i) => crop(s, x, y, i % 3 === 0 ? 'strawberry' : i % 3 === 1 ? 'potato' : 'cabbage', 2));
+  if (G.buildStock(s).hive.have > G.buildStock(s).hive.used) { ht.structure = 'hive'; ht.hivePlacedWeek = s.absWeek - 2; }
+  raid(s, 'bear', [[hx, hy], ...beds.filter(([t]) => t.crop?.id === 'strawberry').slice(0, 2).map(([, x, y]) => [x, y] as [number, number])]);
+  return s;
+ }
+ if (id === 'altai-fire') {
+  const s = expedition('altai', 'cedar');
+  testDate(s, 1, 2); s.money = 600; s.days = 8;
+  const beds = ownedPlain(s);
+  beds.forEach(([t, x, y], i) => { crop(s, x, y, i % 2 ? 'potato' : 'cabbage', 2); t.moisture = 1; });
+  const near = beds.filter(([, x, y]) => G.neighbors4(x, y).some(([a, b]) => G.inGrid(a, b) && G.tile(s, a, b).terrain === 'forest'));
+  raid(s, 'fire', (near.length ? near : beds).slice(0, 4).map(([, x, y]) => [x, y]));
+  testHand(s, ['water', 'water', 'water']);
+  return s;
+ }
+ if (id === 'altai-taiga') {
+  const s = expedition('altai', 'spring', 'axe');
+  testDate(s, 1); s.money = 600; s.days = 8; s.levels.clearing = 1;
+  testHand(s, ['forage', 'forage', 'seed_cranberry', 'seed_potato']);
+  s.unlocked.push('cranberry');
+  // a bog of two cells on the plot, so the cranberry has somewhere to go
+  const pair = ownedPlain(s).find(([, x, y]) => G.inGrid(x + 1, y) && G.tile(s, x + 1, y).owned && D.TERRAIN[G.tile(s, x + 1, y).terrain].plantable && !G.tile(s, x + 1, y).structure);
+  if (pair) for (const dx of [0, 1]) Object.assign(G.tile(s, pair[1] + dx, pair[2]), { terrain: 'swamp', weeds: false, crop: null });
+  return s;
+ }
+ if (id === 'visitor') {
+  const vid = (R.VISITS[visitor as R.VisitId] ? visitor : 'shepherd') as R.VisitId;
+  const where = visitorLoc(vid);
+  const cond: R.CondId = where === 'rent' ? 'strip' : where === 'altai' ? 'cedar' : 'floodplain';
+  const s = expedition(where, cond);
+  testDate(s, 1); s.money = 600; s.days = 8;
+  const beds = ownedPlain(s);
+  beds.slice(0, 3).forEach(([, x, y]) => crop(s, x, y, 'potato', 2));
+  s.storage = [{ crop: 'potato', qty: 12, age: 0 }, { crop: 'strawberry', qty: 6, age: 0 }];
+  const v: G.RunVisit = { id: vid, week: s.absWeek };
+  if (vid === 'peddler') { v.relic = 'vane'; v.price = 16; }
+  s.run!.visit = v;
+  s.run!.seen.push(G.visitKey(s, vid)); s.run!.nextVisit = s.absWeek + 3;
+  return s;
+ }
+ return testFixture('normal', 'chernozem');
 }

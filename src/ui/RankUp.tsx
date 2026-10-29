@@ -1,9 +1,7 @@
 // A new rank on the profile (29.10): what it opens, told by Палыч. Its own module so the app's tests can stub it.
-import { createPortal } from 'preact/compat';
 import { RANKS } from '../engine/data';
-import { Icon } from '../art/icons';
-import { Btn, Sheet } from './common';
-import { Face } from './Story';
+import { Btn } from './common';
+import { VisitLine } from './Story';
 
 /** a new rank on the profile (glory crossed a threshold): what it opens, told by Палыч */
 const RANK_LINES: Record<number, string> = {
@@ -16,15 +14,10 @@ const RANK_LINES: Record<number, string> = {
 export function RankUp({ index, onClose }: { index: number; onClose: () => void }) {
   const r = RANKS[index];
   if (!r) return null;
-  return createPortal(
-    <Sheet title={`Новое звание: «${r.name}»`} icon="trophy" onClose={onClose}>
-      <div class="story-sheet">
-        <div class="nb-head story-line">
-          <Face who="palych" size={96} />
-          <div class="nb-say"><small>Палыч</small><p>{RANK_LINES[index] ?? `Звание «${r.name}»: ${r.opens}.`}</p></div>
-        </div>
-        <p class="story-note"><Icon name="star" size={18} /> Открылось: {r.opens}.</p>
-        <div class="btn-row"><Btn tone="primary" onClick={onClose}>Понятно</Btn></div>
-      </div>
-    </Sheet>, document.body);
+  // 29.10 · announced the way the game's dialogues are: Палыч steps up at the bottom (a visual-novel visit)
+  return (
+    <VisitLine who="palych" name="Палыч" caption={`Новое звание: «${r.name}»`} text={RANK_LINES[index] ?? `Звание «${r.name}»: ${r.opens}.`} note={`Открылось: ${r.opens}.`} onClose={onClose}>
+      <Btn tone="primary" onClick={onClose}>Понятно</Btn>
+    </VisitLine>
+  );
 }
