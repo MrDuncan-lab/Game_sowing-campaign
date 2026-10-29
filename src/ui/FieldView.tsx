@@ -1181,7 +1181,9 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
     if (!c) return false;
     const d = CARDS[c.def];
     const block = cardBlockReason(st, c);
-    if (block) return say(block), false;
+    // the selected card already shows why it cannot be played (the note over the field's top edge):
+    // a tap on a bed must not repeat it as a second, bigger toast in the sky
+    if (block) return selectedRef.current === uid ? false : (say(block), false);
     if (d.kind === 'seed') {
       const cells = shapeTiles(c, x, y, rotRef.current);
       const why = plantBlock(st, c, cells);
@@ -1955,7 +1957,7 @@ export function FieldView({ s, dispatch, fast, active, onGo, onOrder, onPayment,
         )}
       </div>
 
-      <OrderVisit s={s} lesson={teaching} onDone={onVisitDone} canStart={(teaching?lessonVisit:true)&&visitReady&&!running.current&&!ending.current} onVisible={setMeetingOpen} onOrder={onOrder??(()=>onGo('orders'))}/>
+      <OrderVisit s={s} lesson={teaching} onDone={onVisitDone} canStart={(teaching?lessonVisit:true)&&visitReady&&!running.current&&!ending.current} onVisible={setMeetingOpen} onOrder={onOrder??(()=>onGo('orders'))} fieldActive={active}/>
       {sheet === 'bed' && details && <Sheet title="Грядка" variant="info" onClose={()=>setSheet(null)}><TileDetails s={s} x={details[0]} y={details[1]} act={act} onClose={()=>setSheet(null)}/></Sheet>}
       {sheet === 'forecast' && <ForecastSheet s={fieldState} onClose={() => setSheet(null)} />}
       {sheet === 'journal' && <JournalSheet s={s} act={act} onGo={onGo} onClose={() => setSheet(null)} />}

@@ -9,7 +9,9 @@ import {heardOrder,rememberOrder,readVoices,recordVoice,weekVoiceKey} from './vo
 
 // One visual-novel visit per week shares the two-remark budget with field events.
 // lesson: the training farm's guests always come for their order, whatever was heard before; onDone tells the lesson they left
-export function OrderVisit({s,canStart,onVisible,onOrder,lesson=false,onDone}:{s:GameState;canStart:boolean;onVisible:(v:boolean)=>void;onOrder:(o:OrgId)=>void;lesson?:boolean;onDone?:()=>void}){
+// fieldActive: the guest stands on the field; when the player leaves it (another section, the menu), the guest leaves too,
+// as on «Позже» — the offer waits in «Заказы»
+export function OrderVisit({s,canStart,onVisible,onOrder,lesson=false,onDone,fieldActive=true}:{s:GameState;canStart:boolean;onVisible:(v:boolean)=>void;onOrder:(o:OrgId)=>void;lesson?:boolean;onDone?:()=>void;fieldActive?:boolean}){
  const touchedWeek=useRef('');
  const currentWeek=useRef(weekVoiceKey(s));currentWeek.current=weekVoiceKey(s);
  useEffect(()=>{const touch=()=>{touchedWeek.current=currentWeek.current;};document.addEventListener('pointerdown',touch,true);document.addEventListener('keydown',touch,true);return()=>{document.removeEventListener('pointerdown',touch,true);document.removeEventListener('keydown',touch,true);};},[]);
@@ -40,6 +42,7 @@ export function OrderVisit({s,canStart,onVisible,onOrder,lesson=false,onDone}:{s
   return()=>clearTimeout(timer);
  },[canStart,signature,s.seed,s.loc,s.absWeek,s.phase,quest,lesson]);
  useEffect(()=>()=>onVisible(false),[]);
+ useEffect(()=>{if(quest&&!fieldActive)close();},[fieldActive]);
  function close(open=false){const org=quest?.org;setQuest(null);onVisible(false);if(open&&org)onOrder(org);onDone?.();}
  if(!quest)return null;
  const buyer=BUYERS[quest.org],lines=orderDialogue(quest),children=quest.org==='orphanage';
