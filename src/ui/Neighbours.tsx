@@ -9,7 +9,7 @@ import {
   lvl, money, plural, seasonKey, stockOf, swapProblem, yardCost, yardHelpProblem, yardProblem, yardStage, yardWeeks, yardsStanding,
 } from '../engine/game';
 import { COMMONS, COMMONS_NEED, COMMON_IDS, CommonId, FORGE_WEEKS, TOLOKA, YARDS, YARD_IDS, YardId } from '../engine/neighbours';
-import { PORTRAIT_IMAGES, Portrait, PersonId } from '../art/portraits';
+import { Portrait, PersonId } from '../art/portraits';
 import { CropIcon } from '../art/crops';
 import { Icon } from '../art/icons';
 import { Bar, Btn, Dispatch, Pips, Sheet } from './common';
@@ -31,9 +31,10 @@ export const PLACE_NEIGHBOUR: Record<string, NeighbourKey> = {
   'c-bridge': 'commons', 'c-club': 'commons', 'c-hostel': 'commons', 'c-pump': 'commons',
 };
 
+/** a neighbour's face in a circle: through Portrait, which frames the painted figure on the head (portraitFrames.ts) —
+ *  drawn whole, the figure's cut-off shoulders and a hat brim stuck out at the rim */
 function Person({ id, size }: { id: string; size: number }) {
-  const img = PORTRAIT_IMAGES[id];
-  return img ? <img class="nb-face" src={img} alt="" width={size} height={size} /> : <Portrait id={id as PersonId} size={size} />;
+  return <span class="nb-face" style={{ width: `${size}px`, height: `${size}px` }}><Portrait id={id as PersonId} size={size} ring={false} /></span>;
 }
 
 /** a crop need in a chip: have / need, the crops it can be */
@@ -222,7 +223,8 @@ export function NeighbourRow({ s, onOpen }: { s: GameState; onOpen: (k: Neighbou
             <Person id={D.person} size={56} />
             <b>{D.name.split(' ').at(-1)}</b>
             <Pips n={st} of={3} />
-            <small>{busy ? 'строим' : swap ? 'мена' : help ? 'подмога' : st === 3 ? 'двор стоит' : D.stages[st].name}</small>
+            <small>{busy ? `строим: ${D.stages[st].name.toLowerCase()}` : st < 3 ? D.stages[st].task : 'двор отстроен'}</small>
+            {(swap || help) && <small class="nb-perk">{swap ? 'можно меняться' : 'можно позвать на помощь'}</small>}
           </button>
         );
       })}

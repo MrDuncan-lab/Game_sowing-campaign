@@ -4,6 +4,7 @@ type SpecialistId = 'beekeeper' | 'soilsci' | 'coop' | 'mechanic' | 'greenhouser
 import { P } from './palette';
 import { icons } from './icons';
 import { CarlaFace } from './crows';
+import { AUTO_FRAMES } from './portraitFrames';
 
 export type CustomerPersonId = 'olga' | 'anna' | 'timofey' | 'arseniy' | 'boris' | 'irina' | 'georgiy' | 'ivan' | 'zakhar' | 'svetlana' | 'egor' | 'fedor' | 'lidiya'
   | 'varvara' | 'nelli' | 'leva' | 'roza';
@@ -91,8 +92,10 @@ export const PORTRAIT_IMAGES: Record<string, string> = Object.fromEntries(
 
 const ink = P.ink;
 
-// how each painted portrait sits inside the round frame: [x, y, size] in a 100-unit box
+// how each painted portrait sits inside the round frame: [x, y, size] in a 100-unit box; the big figure portraits
+// are framed on the head by tools/portraits/frames.py, the hand-set ones below win
 const FRAMES: Record<string, [number, number, number]> = {
+  ...AUTO_FRAMES,
   beekeeper: [5, 10, 90],
   riskman: [1, 6, 98],
   vera: [0, 5, 100],

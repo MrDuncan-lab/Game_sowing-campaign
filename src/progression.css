@@ -157,6 +157,8 @@ button.link:focus-visible { outline: 2px solid var(--leaf-dark); outline-offset:
 .nb-sheet { display: flex; flex-direction: column; gap: 10px; }
 .nb-meeting .meeting-person, .nb-meeting .nb-face { width: 170px; height: 170px; object-fit: cover; }
 .nb-face { border-radius: 50%; object-fit: cover; background: var(--paper-2); }
+span.nb-face { display: block; flex: none; overflow: hidden; }
+span.nb-face > svg.portrait { display: block; width: 100%; height: 100%; }
 .nb-stages { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .nb-stage { display: grid; grid-template-columns: 30px 1fr; gap: 8px; align-items: start; padding: 8px 10px; border-radius: 12px; border: 2px solid var(--hair); background: #fff8e6; }
 .nb-stage.got { background: #e4f1d4; border-color: #9cc27a; }
@@ -195,6 +197,7 @@ button.link:focus-visible { outline: 2px solid var(--leaf-dark); outline-offset:
 .nb-card b { font-family: var(--display); font-size: .95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .nb-card small { color: var(--ink-soft); font-size: 12px; text-align: center; line-height: 1.2; }
 .nb-card.busy { border-color: var(--leaf-dark); }
+.nb-card .nb-perk { color: var(--leaf-dark); font-weight: 700; font-size: 11px; }
 .nb-card .nb-face { width: 56px; height: 56px; }
 .nb-commons-icon { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 50%; background: var(--paper-2); }
 .room-lodge { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin: 4px 8px 0; font-size: 14px; }

@@ -20,6 +20,8 @@ const grain = (qty: number): CropNeed => ({ crops: GRAIN, qty, name: 'зерна
 
 export interface YardStage {
   name: string;
+  /** what the player is asked to do, as the neighbour card says it: «починить крылья мельницы» */
+  task: string;
   /** what stands once it is done, in a line */
   text: string;
   /** rubles of the first year (× inflation) */
@@ -61,9 +63,9 @@ export const YARDS: Record<YardId, YardDef> = {
     id: 'zina', name: 'Зина', person: 'zina', who: 'соседка через забор', gen: 'Зины',
     looks: ['Изба покосилась, крыша течёт, печь дымит в избу.', 'Крыша из тёса новая, больше не течёт.', 'Печь переложена, в избе тепло.', 'У избы стоит теплица, в ней растут помидоры.'],
     stages: [
-      { name: 'Крыша', text: 'крыша из тёса больше не течёт', cost: 15, mat: { logs: 8 }, crop: potato(10), weeks: 3 },
-      { name: 'Печь', text: 'печь переложена кирпичом', cost: 30, mat: { bricks: 8 }, crop: cabbage(12), weeks: 4 },
-      { name: 'Теплица', text: 'теплица у избы', cost: 50, mat: { logs: 6, glass: 4 }, weeks: 5 },
+      { name: 'Новая крыша', task: 'починить крышу', text: 'крыша из тёса больше не течёт', cost: 15, mat: { logs: 8 }, crop: potato(10), weeks: 3 },
+      { name: 'Печь', task: 'переложить печь', text: 'печь переложена кирпичом', cost: 30, mat: { bricks: 8 }, crop: cabbage(12), weeks: 4 },
+      { name: 'Теплица', task: 'поставить теплицу', text: 'теплица у избы', cost: 50, mat: { logs: 6, glass: 4 }, weeks: 5 },
     ],
     swap: { take: { crops: VEG, qty: 8, name: 'овощей' }, give: 'карта работы на выбор (компост, мульча или укрытие)', verb: 'Меняться' },
     second: 'мена каждую неделю, а не раз в сезон',
@@ -79,9 +81,9 @@ export const YARDS: Record<YardId, YardDef> = {
     id: 'savva', name: 'Кузнец Савва', person: 'savva', who: 'кузнец', gen: 'Саввы',
     looks: ['Кузня брошена, горн холодный, крыша провалилась.', 'Горн сложен, в кузне горит огонь.', 'Есть навес и мехи, Савва куёт с утра до ночи.', 'В инструментальной подмастерье при деле.'],
     stages: [
-      { name: 'Горн', text: 'горн сложен заново', cost: 20, mat: { bricks: 10 }, weeks: 3 },
-      { name: 'Навес и мехи', text: 'навес над наковальней, кожаные мехи', cost: 35, mat: { logs: 12, bricks: 4 }, crop: grain(20), weeks: 4 },
-      { name: 'Инструментальная', text: 'кирпичная мастерская с окном', cost: 60, mat: { bricks: 10, glass: 6 }, weeks: 6 },
+      { name: 'Кузнечный горн', task: 'сложить кузнечный горн', text: 'горн сложен заново', cost: 20, mat: { bricks: 10 }, weeks: 3 },
+      { name: 'Навес и мехи', task: 'сделать навес и мехи', text: 'навес над наковальней, кожаные мехи', cost: 35, mat: { logs: 12, bricks: 4 }, crop: grain(20), weeks: 4 },
+      { name: 'Инструментальная', task: 'построить мастерскую', text: 'кирпичная мастерская с окном', cost: 60, mat: { bricks: 10, glass: 6 }, weeks: 6 },
     ],
     swap: { take: { crops: GRAIN, qty: 10, name: 'зерна' }, give: '5 кирпичей со старой кузни', verb: 'Меняться' },
     second: 'оборудование на ярмарке дешевле на 15%, а следующий уровень любой линии Савва выкует сам за 4 недели, но на 30% дороже ярмарки',
@@ -97,9 +99,9 @@ export const YARDS: Record<YardId, YardDef> = {
     id: 'efim', name: 'Плотник Ефим', person: 'efim', who: 'плотник', gen: 'Ефима',
     looks: ['Двор пустой, в бурьяне пни и верстак под открытым небом.', 'Построен сарай для инструмента.', 'Работает пилорама, брёвна лежат в штабелях.', 'В столярке делают резные наличники на продажу.'],
     stages: [
-      { name: 'Сарай', text: 'сарай для инструмента', cost: 15, mat: { logs: 10 }, weeks: 3 },
-      { name: 'Пилорама', text: 'пилорама и штабеля брёвен', cost: 40, mat: { logs: 12, bricks: 6 }, weeks: 5 },
-      { name: 'Столярка', text: 'столярная мастерская', cost: 70, mat: { logs: 16, bricks: 6, glass: 2 }, weeks: 6 },
+      { name: 'Сарай', task: 'построить сарай', text: 'сарай для инструмента', cost: 15, mat: { logs: 10 }, weeks: 3 },
+      { name: 'Пилорама', task: 'поставить пилораму', text: 'пилорама и штабеля брёвен', cost: 40, mat: { logs: 12, bricks: 6 }, weeks: 5 },
+      { name: 'Столярка', task: 'открыть столярку', text: 'столярная мастерская', cost: 70, mat: { logs: 16, bricks: 6, glass: 2 }, weeks: 6 },
     ],
     swap: { take: { crops: VEG, qty: 10, name: 'урожая' }, give: '4 бревна, а с пилорамой 6', verb: 'Меняться' },
     second: 'мена даёт уже 6 брёвен, а все стройки идут на 20% быстрее',
@@ -115,9 +117,9 @@ export const YARDS: Record<YardId, YardDef> = {
     id: 'miller', name: 'Мельник Матвей', person: 'matvey', who: 'мельник', gen: 'Матвея',
     looks: ['Мельница на холме стоит без крыльев.', 'Крылья машут над холмом.', 'Жернова мелют муку.', 'В амбаре мельницы мука для всей деревни.'],
     stages: [
-      { name: 'Крылья', text: 'новые крылья', cost: 20, mat: { logs: 12 }, weeks: 4 },
-      { name: 'Жернова', text: 'жернова и привод', cost: 40, mat: { bricks: 12 }, crop: wheat(20), weeks: 5 },
-      { name: 'Амбар мельницы', text: 'амбар для муки', cost: 70, mat: { logs: 16, bricks: 8 }, weeks: 6 },
+      { name: 'Крылья мельницы', task: 'починить крылья мельницы', text: 'новые крылья мельницы', cost: 20, mat: { logs: 12 }, weeks: 4 },
+      { name: 'Жернова', task: 'поставить жернова', text: 'жернова и привод', cost: 40, mat: { bricks: 12 }, crop: wheat(20), weeks: 5 },
+      { name: 'Амбар для муки', task: 'построить амбар для муки', text: 'амбар для муки', cost: 70, mat: { logs: 16, bricks: 8 }, weeks: 6 },
     ],
     swap: { take: { crops: GRAIN, qty: 10, name: 'зерна' }, give: 'Матвей смелет зерно в муку и заплатит на 40% дороже рынка', verb: 'Смолоть' },
     second: 'пшеница, рожь и гречка идут через мельницу и продаются на 25% дороже',
@@ -133,9 +135,9 @@ export const YARDS: Record<YardId, YardDef> = {
     id: 'karpov', name: 'Карповы', person: 'karpova', who: 'вдова Татьяна и четверо детей', gen: 'Карповых',
     looks: ['Живут бедно, забор повален, огород зарос.', 'Забор поднят, огород вскопан.', 'Есть пристройка, у детей своя комната.', 'Новый дом стоит на месте старого.'],
     stages: [
-      { name: 'Забор и огород', text: 'забор и огород', cost: 10, mat: { logs: 6 }, crop: potato(20), weeks: 2 },
-      { name: 'Пристройка', text: 'пристройка к дому', cost: 35, mat: { logs: 12, bricks: 4 }, weeks: 4 },
-      { name: 'Новый дом', text: 'новый дом', cost: 80, mat: { logs: 20, bricks: 16, glass: 4 }, weeks: 8 },
+      { name: 'Забор и огород', task: 'поднять забор и вскопать огород', text: 'забор и огород', cost: 10, mat: { logs: 6 }, crop: potato(20), weeks: 2 },
+      { name: 'Пристройка', task: 'сделать пристройку', text: 'пристройка к дому', cost: 35, mat: { logs: 12, bricks: 4 }, weeks: 4 },
+      { name: 'Новый дом', task: 'построить новый дом', text: 'новый дом', cost: 80, mat: { logs: 20, bricks: 16, glass: 4 }, weeks: 8 },
     ],
     swap: { take: { crops: VEG, qty: 8, name: 'овощей' }, give: 'карта «Помощь соседей» в руку, дети помогут на поле', verb: 'Меняться' },
     second: 'в пристройке есть 2 кровати для ваших работников',
