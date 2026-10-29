@@ -11,6 +11,7 @@ import { MapScreen } from './MapScreen';
 import { Profile, allFarms, checkSaveSession, hasFarmData, loadFarm, loadProfile, persistenceStatus, profileRecoveryRequired, recordEnd, resetPersistenceSession, saveFarm, saveProfile, subscribePersistence, syncFarm, syncProfile, writeSessionStorage } from './persist';
 import { saveSession } from './saveSession';
 import { launchedFromTelegram } from './telegram';
+import { BUILD_ID } from './autoUpdate';
 import { Intro } from './Intro';
 import { Btn, Sheet } from './common';
 
@@ -43,6 +44,7 @@ export function App() {
           ? 'В этом браузере недоступна безопасная запись игры. Сохранения не изменены. Попробуйте открыть игру в другом браузере.'
           : 'Похоже, игра уже открыта в другой вкладке или свёрнута в Telegram. Нажмите «Продолжить здесь»: там игра остановится, весь прогресс сохранён.'}</p>}
       {!checking && !unsupported && <Btn tone="primary" onClick={() => stale ? window.location.reload() : void saveSession.takeOver()}>{stale ? 'Обновить страницу' : 'Продолжить здесь'}</Btn>}
+      <p class="muted small" style={{ marginTop: '14px', opacity: .6 }}>сборка {BUILD_ID}</p>
     </section>
   </main>;
 }
