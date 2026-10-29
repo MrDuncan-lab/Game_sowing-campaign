@@ -6,6 +6,16 @@
 .field-view > .dock { will-change: transform; }
 
 .village { position: absolute; inset: 0; z-index: 0; overflow: hidden; background: #cfd9cf; contain: strict; }
+/* 29.10 · on the field only a thin strip of the village shows above the sky: its ~200 SVG loops (hens, washing,
+   smoke, butterflies) stand still until the player pulls the village down — SVG animations run on the main thread */
+.field-view.v-field .village * { animation-play-state: paused !important; }
+/* …and its seven parallax layers stop being separate GPU textures (≈16 MB each at phone density): Android WebView
+   in Telegram ran out of tile memory and the screen flickered; the layers are promoted again once the village moves */
+.field-view.v-field .village .v-lay { will-change: auto; }
+/* On the field only the nearest layer (F, and a hairline of C on tall phones) shows in that strip — measured at
+   360×640, 393×760 and 412×915. The other five skip style, layout and paint until the village moves: Telegram's
+   expanding sheet resizes the page a dozen times on open, and each resize restyled all ~8 000 village nodes. */
+.field-view.v-field .village .v-lay:is([data-k="sky"], [data-k="A"], [data-k="B"], [data-k="D"], [data-k="E"]) { content-visibility: hidden; }
 .village .v-defs { position: absolute; width: 0; height: 0; }
 /* the drawing's ink (tools/village/hy.py): a line, an outline round a fill, a line in its own colour */
 .village { --vk: #3a2a1f; }
