@@ -175,7 +175,7 @@ export function wateringProgress(t: TutorialSession): { done: number; of: number
 }
 const stillThirsty = (t: TutorialSession) => (t.thirsty ?? []).filter(([x, y]) => tile(t.farm, x, y).crop && tile(t.farm, x, y).moisture === 0);
 export function tutorialNext(t: TutorialSession): TutorialSession {
-  // UI-only steps: the guests' visit, the village, the lens; the certificate's «Ещё у Палыча» begins chapter II
+  // UI-only steps: the guests' visit, the village, the lens; the certificate's «Пройти 2-ю главу обучения» begins chapter II
   if (t.step === 'chapter') return startChapterTwo(t);
   const next: Partial<Record<TutorialStep, TutorialStep>> = { visit: 'accept', village: 'deliver', lens: 'compost' };
   return next[t.step] ? advance(t, next[t.step]!) : t;

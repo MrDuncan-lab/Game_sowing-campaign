@@ -181,7 +181,7 @@ function hint(t:TutorialSession,tab:TabId,visitLate=false,village:VillageMode='f
     case 'weeds':{
       const [wx,wy]=t.weedAt??[1,1];
       if(q('.fan-slot .card.selected'))return cancelCard();
-      return{text:button('Прополоть')?'Прополите грядку.':'Вырос сорняк, а на заросшей грядке сеять нельзя.',target:button('Прополоть')??bed(wx,wy),gesture:'tap',more:button('Прополоть')?undefined:'Нажмите на грядку с сорняком: в её меню есть прополка.',hello:'Вторая глава началась. Лавка и касса в амбаре тоже открыты.'};
+      return{text:button('Прополоть')?'Прополите грядку.':'Вырос сорняк. Если его не прополоть, на заросшей грядке ничего не получится посадить.',target:button('Прополоть')??bed(wx,wy),gesture:'tap',more:button('Прополоть')?undefined:'Нажмите на грядку с сорняком: в её меню есть прополка.',hello:'Вторая глава началась. Лавка и касса в амбаре тоже открыты.'};
     }
     case 'lens':{
       // the lenses live in the toolbox under the field: open it, take «Линзы», then «Плодородие»
@@ -282,10 +282,10 @@ function Certificate({chapter,soloPassed=true,onPrimary,primary,onSecondary,seco
       <h2 id="coach-cert-title">{chapter==='I'?'Первый урожай':'Своё хозяйство'}</h2>
       <p class="cc-lead">{chapter==='I'?'Четыре недели позади. Первый урожай собран, сдан и продан. Вот чему вы научились:':'Вы прошли всё обучение. Теперь вы умеете:'}</p>
       <ul class="cc-list">{items.map(([it,ok],i)=><li class={ok?'':'cc-skip'} style={{['--i' as string]:String(i)}}><i aria-hidden="true">{ok?'✓':''}</i>{it}{!ok&&<small> (потренируетесь на своей ферме)</small>}</li>)}</ul>
-      <div class="cc-own"><b>На своей ферме по-другому</b><ul>
-        <li>На старте у вас будет {money(o.money)}, а на учебной ферме Палыч дал {money(o.lessonMoney)}.</li>
-        <li>Лейка поливает за раз {o.can} {plural(o.can,'грядку','грядки','грядок')}, а бочка у Палыча — {o.lessonCan} {plural(o.lessonCan,'грядку','грядки','грядок')}.</li>
-        <li>Погода настоящая: бывают заморозки, жара и град. Прогноз виден в небе над полем.</li>
+      <div class="cc-own"><b>На своей ферме будет по-другому</b><ul>
+        <li>Вы стартуете с {money(o.money)}, а не с {money(o.lessonMoney)}.</li>
+        <li>Лейка поливает {o.can} {plural(o.can,'грядку','грядки','грядок')} вместо {o.lessonCan}. Чтобы поливать больше, купите улучшение «Бочка и шланг».</li>
+        <li>Погода настоящая: бывают заморозки, жара и град. Обращайте внимание на прогноз погоды в небе над полем.</li>
         {chapter==='II'&&<li>Стройки и селекция занимают от {o.projectWeeks} {plural(o.projectWeeks,'недели','недель','недель')}, а не одну неделю, как здесь.</li>}
       </ul></div>
       <div class="cc-palych"><img src={PORTRAIT_IMAGES.palych} alt=""/><p>{chapter==='I'?'«Хозяйство теперь ваше, можете идти на свою ферму. А если хотите, покажу ещё землю, помощников и селекцию. Вернуться сюда можно в любой момент с карты ферм.»':'«Дальше у вас свой дом. Он в залоге, и выкупить его нужно за три осени. Вас ждут ярмарка, соседи и смотр урожая, который судит Пряхин. А когда окрепнете, сможете собрать обоз в Заречье, на Кубань и на Алтай. Если запутаетесь, загляните в журнал: он подскажет.»'}</p></div>
@@ -464,7 +464,7 @@ export function GuideHint({controls,tab,village='field',flyTo}:{controls:Tutoria
     const pos=tab==='field'&&stage?{left:`${stage.left+8}px`,top:`${stage.top+8}px`}:{left:`${(farm?.left??0)+10}px`,bottom:'calc(12px + env(safe-area-inset-bottom, 0px))'};
     return <>{layers}<button class="guide-restore" style={pos} onClick={()=>onHideHint(false)}><img src={PORTRAIT_IMAGES.palych} alt=""/>Показать подсказку</button></>;
   }
-  if(t.step==='chapter')return <>{layers}<Certificate chapter="I" soloPassed={t.soloPassed!==false} primary="Своя ферма" onPrimary={onOwn??onExit} secondary="Ещё у Палыча: глава II" onSecondary={onNext}/>{cheer&&<Cheer c={cheer}/>}</>;
+  if(t.step==='chapter')return <>{layers}<Certificate chapter="I" soloPassed={t.soloPassed!==false} primary="Своя ферма" onPrimary={onOwn??onExit} secondary="Пройти 2-ю главу обучения" onSecondary={onNext}/>{cheer&&<Cheer c={cheer}/>}</>;
   if(t.step==='done')return <>{layers}<Certificate chapter="II" soloPassed={t.soloPassed!==false} primary="Своя ферма" onPrimary={onOwn??onExit} secondary="Ещё осмотрюсь" onSecondary={()=>onHideHint(true)}/>{cheer&&<Cheer c={cheer}/>}</>;
 
   const r=h.target?.getBoundingClientRect();

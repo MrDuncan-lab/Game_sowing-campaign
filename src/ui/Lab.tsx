@@ -20,7 +20,6 @@ import { PORTRAIT_IMAGES } from '../art/portraits';
 import type { Project } from '../engine/game';
 
 /** «Осталась 1 неделя», «Осталось 3 недели», «Осталось 5 недель» */
-const weeksLeft = (n: number) => { const k = Math.ceil(n - 1e-9); return `${plural(k, 'Осталась', 'Осталось', 'Осталось')} ${weeksTxt(k)}`; };
 /** what each level of the lab gives, in words (engine: labSlots, maxExtra, maxTraits, labWeeks); index = level - 1 */
 const LAB_LEVEL_TEXT = [
   'В лаборатории один стол, то есть одновременно идёт один проект. Каждой карте семян можно добавить одну клетку и одно свойство.',
@@ -188,7 +187,7 @@ export function LabView({ s, act, active = true, teaching = false }: { s: GameSt
   // №5 · the room is a small picture beside the work; expanding the lab is a secondary action at the end
   const expansion = labProj && labProj.kind === 'track' ? (
     <div class="stack tight">
-      <span class="small">Строим «{TRACKS.lab.levels[labProj.level - 1].name}». {weeksLeft(labProj.weeks)}.</span>
+      <span class="small">Строим «{TRACKS.lab.levels[labProj.level - 1].name}». Будет готово через {weeksIn(labProj.weeks)}.</span>
       <Bar value={labProj.total - labProj.weeks} max={labProj.total} tone="good" />
     </div>
   ) : L < 3 ? (
@@ -213,7 +212,7 @@ export function LabView({ s, act, active = true, teaching = false }: { s: GameSt
     ...Array.from({ length: Math.max(0, slots - projects.length) }, (_, i) => ({ key: `f${i}`, label: 'свободно ›', onOpen: toNew, aria: 'Свободный стол. Нажмите, чтобы выбрать семена для проекта' })),
   ];
   const lines = [
-    ...projects.map((p) => `Готово через ${weeksIn(p.weeks)}.`),
+    ...projects.map((p) => `Будет готово через ${weeksIn(p.weeks)}.`),
     ...(busyNow < slots ? ['Выберите семена ниже.'] : ['Сроки работы указаны на бирках.']),
     'Чем больше клеток, тем дороже посев.',
     'Свойство останется у карты.',
