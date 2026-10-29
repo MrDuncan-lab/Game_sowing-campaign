@@ -22,7 +22,6 @@ import { Chronicle, FestivalStandings } from './Festival';
 import { districtPlace, hasAntonovka, plural } from '../engine/game';
 
 /** «Осталась 1 неделя», «Осталось 3 недели», «Осталось 5 недель» */
-const weeksLeft = (n: number) => { const k = Math.ceil(n - 1e-9); return `${plural(k, 'Осталась', 'Осталось', 'Осталось')} ${weeksTxt(k)}`; };
 
 const PLACE: Partial<Record<TrackId, BuildItem>> = { greenhouse: 'greenhouse', apiary: 'hive', irrigation: 'drip', guard: 'scarecrow', canal: 'canal', fires: 'fire' };
 
@@ -202,7 +201,7 @@ export function HouseView({ s, act, onPlace, onFair }: { s: GameState; act: Disp
         <div class="estate-art">
           <Estate level={house} camp={s.loc !== 'chernozem'} region={s.loc} building={buildStage(s, 'house')} season={s.season} owns={{ hive: lvl(s, 'apiary') > 0, greenhouse: lvl(s, 'greenhouse') > 0, scarecrow: lvl(s, 'guard') > 0, irrigation: lvl(s, 'irrigation') > 0, meteo: lvl(s, 'meteo') > 0, compost: lvl(s, 'compost') > 0, antonovka: hasAntonovka(s) }} />
           <div class="estate-plaque"><h2>{hdef.levels[house - 1].name}</h2><Pips n={house} of={hmax} /></div>
-          {houseProj && houseProj.kind === 'track' && <div class="estate-build"><span>Строим «{hdef.levels[houseProj.level - 1].name}». {weeksLeft(houseProj.weeks)}.{s.season === 3 ? ' Зимой стройка идёт вдвое медленнее.' : ''}</span><Bar value={houseProj.total - houseProj.weeks} max={houseProj.total} tone="good" /></div>}
+          {houseProj && houseProj.kind === 'track' && <div class="estate-build"><span>Строим «{hdef.levels[houseProj.level - 1].name}». Будет готово через {weeksIn(houseProj.weeks)}.{s.season === 3 ? ' Зимой стройка идёт вдвое медленнее.' : ''}</span><Bar value={houseProj.total - houseProj.weeks} max={houseProj.total} tone="good" /></div>}
         </div>
         <nav class="estate-links" aria-label="Разделы дома">
             <button type="button" onClick={() => jump('hire')}><Icon name="team" size={18} /><span>Кровати</span><b>{s.team.length}/{workerSlots(s)}</b></button>
@@ -213,7 +212,7 @@ export function HouseView({ s, act, onPlace, onFair }: { s: GameState; act: Disp
           {/* №6 · first what is being built now, then the next action */}
           {buildingNow.map((p) => p.kind === 'track' && (
             <div class="stack tight now-line">
-              <span class="small"><Icon name={TRACKS[p.track].icon} size={16} /> Строим «{trackLevels(s, p.track)[p.level - 1].name}». {weeksLeft(p.weeks)}.</span>
+              <span class="small"><Icon name={TRACKS[p.track].icon} size={16} /> Строим «{trackLevels(s, p.track)[p.level - 1].name}». Будет готово через {weeksIn(p.weeks)}.</span>
               <Bar value={p.total - p.weeks} max={p.total} tone="good" />
               {!helpProblem(s, p.track) && <Btn small tone="ghost" onClick={() => act({ t: 'helpBuild', track: p.track })}>Помочь на стройке · 1 день</Btn>}
             </div>
